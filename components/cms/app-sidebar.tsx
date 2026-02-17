@@ -5,8 +5,8 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   ChevronRightIcon,
-  LayoutDashboardIcon,
   ChurchIcon,
+  LayoutDashboardIcon,
   MessageSquareIcon,
   CalendarIcon,
   ImageIcon,
@@ -23,6 +23,11 @@ import {
   ChevronsUpDownIcon,
   LogOutIcon,
   SettingsIcon,
+  BellIcon,
+  MegaphoneIcon,
+  PuzzleIcon,
+  SmartphoneIcon,
+  type LucideIcon,
 } from "lucide-react"
 
 import {
@@ -55,46 +60,161 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
-const navGroups = [
+type NavItem = {
+  title: string
+  href: string
+  icon: LucideIcon
+  items?: { title: string; href: string }[]
+}
+
+type NavGroup = {
+  label: string
+  items: NavItem[]
+}
+
+const navGroups: NavGroup[] = [
   {
     label: "Contents",
     items: [
-      { title: "Dashboard", href: "/cms/dashboard", icon: LayoutDashboardIcon },
-      { title: "Church Profile", href: "/cms/church-profile", icon: ChurchIcon },
-      { title: "Messages", href: "/cms/messages", icon: MessageSquareIcon },
-      { title: "Events", href: "/cms/events", icon: CalendarIcon },
-      { title: "Media", href: "/cms/media", icon: ImageIcon },
+      {
+        title: "Dashboard",
+        href: "/cms/dashboard",
+        icon: LayoutDashboardIcon,
+      },
+      {
+        title: "Church Profile",
+        href: "/cms/church-profile",
+        icon: ChurchIcon,
+      },
+      {
+        title: "Messages",
+        href: "/cms/messages",
+        icon: MessageSquareIcon,
+        items: [
+          { title: "Sermons", href: "/cms/messages/sermons" },
+          { title: "Devotionals", href: "/cms/messages/devotionals" },
+          { title: "Drafts", href: "/cms/messages/drafts" },
+        ],
+      },
+      {
+        title: "Events",
+        href: "/cms/events",
+        icon: CalendarIcon,
+      },
+      {
+        title: "Media",
+        href: "/cms/media",
+        icon: ImageIcon,
+      },
     ],
   },
   {
     label: "Website",
     items: [
-      { title: "Pages", href: "/cms/website/pages", icon: FileTextIcon },
-      { title: "Navigation", href: "/cms/website/navigation", icon: NavigationIcon },
-      { title: "Theme", href: "/cms/website/theme", icon: PaletteIcon },
-      { title: "Domains", href: "/cms/website/domains", icon: GlobeIcon },
+      {
+        title: "Pages",
+        href: "/cms/website/pages",
+        icon: FileTextIcon,
+      },
+      {
+        title: "Navigation",
+        href: "/cms/website/navigation",
+        icon: NavigationIcon,
+      },
+      {
+        title: "Theme",
+        href: "/cms/website/theme",
+        icon: PaletteIcon,
+      },
+      {
+        title: "Domains",
+        href: "/cms/website/domains",
+        icon: GlobeIcon,
+      },
     ],
   },
   {
-    label: "People",
+    label: "App",
     items: [
-      { title: "Members", href: "/cms/people/members", icon: UsersIcon },
-      { title: "Groups", href: "/cms/people/groups", icon: UserPlusIcon },
-      { title: "Directory", href: "/cms/people/directory", icon: ContactIcon },
+      {
+        title: "Notifications",
+        href: "/cms/app/notifications",
+        icon: BellIcon,
+      },
+      {
+        title: "Announcements",
+        href: "/cms/app/announcements",
+        icon: MegaphoneIcon,
+      },
+      {
+        title: "Mobile App",
+        href: "/cms/app/mobile",
+        icon: SmartphoneIcon,
+      },
+      {
+        title: "Integrations",
+        href: "/cms/app/integrations",
+        icon: PuzzleIcon,
+      },
     ],
   },
   {
     label: "Giving",
     items: [
-      { title: "Donations", href: "/cms/giving/donations", icon: HandCoinsIcon },
-      { title: "Payments", href: "/cms/giving/payments", icon: CreditCardIcon },
-      { title: "Reports", href: "/cms/giving/reports", icon: BarChart3Icon },
+      {
+        title: "Donations",
+        href: "/cms/giving/donations",
+        icon: HandCoinsIcon,
+      },
+      {
+        title: "Payments",
+        href: "/cms/giving/payments",
+        icon: CreditCardIcon,
+      },
+      {
+        title: "Reports",
+        href: "/cms/giving/reports",
+        icon: BarChart3Icon,
+      },
+    ],
+  },
+  {
+    label: "People",
+    items: [
+      {
+        title: "Members",
+        href: "/cms/people/members",
+        icon: UsersIcon,
+      },
+      {
+        title: "Groups",
+        href: "/cms/people/groups",
+        icon: UserPlusIcon,
+      },
+      {
+        title: "Directory",
+        href: "/cms/people/directory",
+        icon: ContactIcon,
+      },
     ],
   },
 ]
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+
+  // Determine which group is active based on current path
+  const activeGroup = navGroups.find((group) =>
+    group.items.some(
+      (item) =>
+        pathname === item.href ||
+        pathname.startsWith(item.href + "/") ||
+        item.items?.some((sub) => pathname === sub.href)
+    )
+  )
+  const [openGroup, setOpenGroup] = React.useState<string | null>(
+    activeGroup?.label ?? navGroups[0].label
+  )
 
   return (
     <Sidebar collapsible="icon" {...props}>
@@ -120,12 +240,51 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
       <SidebarContent>
         {navGroups.map((group) => (
-          <NavGroup
+          <Collapsible
             key={group.label}
-            label={group.label}
-            items={group.items}
-            pathname={pathname}
-          />
+            open={openGroup === group.label}
+            onOpenChange={(open) =>
+              setOpenGroup(open ? group.label : null)
+            }
+            className="group/collapsible"
+          >
+            <SidebarGroup>
+              <SidebarGroupLabel asChild>
+                <CollapsibleTrigger className="w-full">
+                  {group.label}
+                  <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                </CollapsibleTrigger>
+              </SidebarGroupLabel>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {group.items.map((item) =>
+                      item.items ? (
+                        <CollapsibleNavItem
+                          key={item.title}
+                          item={item}
+                          pathname={pathname}
+                        />
+                      ) : (
+                        <SidebarMenuItem key={item.title}>
+                          <SidebarMenuButton
+                            asChild
+                            isActive={pathname === item.href}
+                            tooltip={item.title}
+                          >
+                            <Link href={item.href}>
+                              <item.icon />
+                              <span>{item.title}</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      )
+                    )}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
         ))}
       </SidebarContent>
 
@@ -176,47 +335,48 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   )
 }
 
-function NavGroup({
-  label,
-  items,
+function CollapsibleNavItem({
+  item,
   pathname,
 }: {
-  label: string
-  items: { title: string; href: string; icon: React.ComponentType<{ className?: string }> }[]
+  item: NavItem
   pathname: string
 }) {
-  const isGroupActive = items.some((item) => pathname.startsWith(item.href))
+  const isActive =
+    pathname === item.href ||
+    item.items?.some((sub) => pathname === sub.href)
 
   return (
-    <SidebarGroup>
-      <Collapsible defaultOpen={isGroupActive} className="group/collapsible">
-        <SidebarGroupLabel asChild>
-          <CollapsibleTrigger className="w-full">
-            {label}
+    <Collapsible
+      asChild
+      defaultOpen={isActive}
+      className="group/collapsible"
+    >
+      <SidebarMenuItem>
+        <CollapsibleTrigger asChild>
+          <SidebarMenuButton tooltip={item.title} isActive={isActive}>
+            <item.icon />
+            <span>{item.title}</span>
             <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-          </CollapsibleTrigger>
-        </SidebarGroupLabel>
+          </SidebarMenuButton>
+        </CollapsibleTrigger>
         <CollapsibleContent>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.href}
-                    tooltip={item.title}
-                  >
-                    <Link href={item.href}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
+          <SidebarMenuSub>
+            {item.items?.map((sub) => (
+              <SidebarMenuSubItem key={sub.title}>
+                <SidebarMenuSubButton
+                  asChild
+                  isActive={pathname === sub.href}
+                >
+                  <Link href={sub.href}>
+                    <span>{sub.title}</span>
+                  </Link>
+                </SidebarMenuSubButton>
+              </SidebarMenuSubItem>
+            ))}
+          </SidebarMenuSub>
         </CollapsibleContent>
-      </Collapsible>
-    </SidebarGroup>
+      </SidebarMenuItem>
+    </Collapsible>
   )
 }

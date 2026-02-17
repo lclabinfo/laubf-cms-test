@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter } from "next/font/google";
 import "./globals.css";
+import { Agentation } from "agentation";
 
 const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
@@ -31,6 +32,7 @@ export default function RootLayout({
       >
         {children}
       </body>
+      {process.env.NODE_ENV === "development" && <Agentation />}
     </html>
   );
 }
