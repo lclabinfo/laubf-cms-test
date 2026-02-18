@@ -1,5 +1,25 @@
 export type MessageStatus = "published" | "draft" | "scheduled" | "archived"
 
+export type TranscriptSegment = {
+  id: string
+  startTime: string // "00:01:23"
+  endTime: string   // "00:01:45"
+  text: string
+}
+
+export type StudySection = {
+  id: string
+  title: string
+  content: string
+}
+
+export type Attachment = {
+  id: string
+  name: string
+  size: string
+  type: string
+}
+
 export type Message = {
   id: string
   title: string
@@ -10,6 +30,13 @@ export type Message = {
   status: MessageStatus
   hasVideo: boolean
   hasStudy: boolean
+  // Detail fields (populated when editing)
+  videoUrl?: string
+  videoDescription?: string
+  rawTranscript?: string
+  transcriptSegments?: TranscriptSegment[]
+  studySections?: StudySection[]
+  attachments?: Attachment[]
 }
 
 export type Series = {
@@ -36,6 +63,24 @@ export const messages: Message[] = [
     status: "published",
     hasVideo: true,
     hasStudy: true,
+    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    videoDescription: "Pastor David walks through the prologue of John's Gospel, exploring the theology of the incarnation and what it means that the Word became flesh and dwelt among us.",
+    rawTranscript: "Good morning everyone. Today we're looking at John chapter 1, verses 1 through 14. This is one of the most profound passages in all of Scripture. In the beginning was the Word, and the Word was with God, and the Word was God. John opens his Gospel not with a birth narrative, but with a theological declaration that echoes Genesis 1. The Word, the Logos, existed before creation itself.",
+    transcriptSegments: [
+      { id: "ts1", startTime: "00:00:05", endTime: "00:00:15", text: "Good morning everyone. Today we're looking at John chapter 1, verses 1 through 14." },
+      { id: "ts2", startTime: "00:00:15", endTime: "00:00:25", text: "This is one of the most profound passages in all of Scripture." },
+      { id: "ts3", startTime: "00:00:25", endTime: "00:00:42", text: "In the beginning was the Word, and the Word was with God, and the Word was God." },
+      { id: "ts4", startTime: "00:00:42", endTime: "00:01:00", text: "John opens his Gospel not with a birth narrative, but with a theological declaration that echoes Genesis 1." },
+      { id: "ts5", startTime: "00:01:00", endTime: "00:01:15", text: "The Word, the Logos, existed before creation itself." },
+    ],
+    studySections: [
+      { id: "ss1", title: "Questions", content: "1. What does John mean by \"the Word\" (Logos) in verse 1?\n2. How does John 1:1 connect to Genesis 1:1?\n3. What is the significance of \"the Word became flesh\" (v.14)?\n4. How does the concept of \"grace and truth\" apply to our daily lives?\n5. Discuss what it means that \"to all who received him, he gave the right to become children of God\" (v.12)." },
+      { id: "ss2", title: "Answers", content: "1. The \"Word\" (Logos) refers to Jesus Christ as the eternal, divine expression of God. In Greek philosophy, Logos meant the rational principle governing the universe, but John gives it a personal dimension.\n2. Both passages begin with \"In the beginning,\" establishing that the Word was present at creation and is indeed the Creator.\n3. The incarnation is the central miracle of Christianity — God taking on human nature to dwell among humanity.\n4. Grace and truth are complementary: God's unmerited favor comes with the reality of who He is and what He requires.\n5. Receiving Christ means believing in His name, which grants the right to enter God's family — not by human effort but by divine birth." },
+    ],
+    attachments: [
+      { id: "a1", name: "John 1 Study Guide.pdf", size: "245 KB", type: "application/pdf" },
+      { id: "a2", name: "Sermon Outline.pdf", size: "128 KB", type: "application/pdf" },
+    ],
   },
   {
     id: "m2",
@@ -47,6 +92,8 @@ export const messages: Message[] = [
     status: "published",
     hasVideo: true,
     hasStudy: false,
+    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    videoDescription: "A look at how Jesus called His first disciples and what it means to follow Him today.",
   },
   {
     id: "m3",
@@ -58,6 +105,10 @@ export const messages: Message[] = [
     status: "scheduled",
     hasVideo: false,
     hasStudy: true,
+    studySections: [
+      { id: "ss3", title: "Questions", content: "1. Why did Jesus attend the wedding at Cana?\n2. What is the significance of the water jars used for ceremonial washing?\n3. How does this miracle reveal Jesus' glory?\n4. What does Mary's response teach us about faith?" },
+      { id: "ss4", title: "Answers", content: "1. Jesus' presence at the wedding shows His care for everyday human celebrations and relationships.\n2. The jars for ceremonial washing being filled with wine symbolizes the new covenant replacing old rituals.\n3. This first sign reveals Jesus' divine power and authority over nature.\n4. Mary trusted Jesus even when she didn't know how He would act — a model of faith for us." },
+    ],
   },
   {
     id: "m4",

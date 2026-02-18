@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown, MoreHorizontal, Video, Pencil, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -165,7 +166,7 @@ export const columns: ColumnDef<Message>[] = [
   },
   {
     id: "actions",
-    cell: () => (
+    cell: ({ row }) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon-sm">
@@ -174,9 +175,11 @@ export const columns: ColumnDef<Message>[] = [
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem>
-            <Pencil />
-            Edit
+          <DropdownMenuItem asChild>
+            <Link href={`/cms/messages/${row.original.id}`}>
+              <Pencil />
+              Edit
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem variant="destructive">

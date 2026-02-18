@@ -15,6 +15,9 @@ interface MessagesContextValue {
   updateSeries: (id: string, data: { name: string; imageUrl?: string }) => void
   deleteSeries: (id: string) => void
   setSeriesMessages: (seriesId: string, messageIds: string[]) => void
+  addMessage: (data: Omit<Message, "id">) => Message
+  updateMessage: (id: string, data: Partial<Omit<Message, "id">>) => void
+  deleteMessage: (id: string) => void
 }
 
 const MessagesContext = createContext<MessagesContextValue | null>(null)
@@ -66,9 +69,38 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
     )
   }, [])
 
+  const addMessage = useCallback((data: Omit<Message, "id">) => {
+    const newMessage: Message = {
+      ...data,
+      id: `m${Date.now()}`,
+    }
+    setMessages((prev) => [newMessage, ...prev])
+    return newMessage
+  }, [])
+
+  const updateMessage = useCallback((id: string, data: Partial<Omit<Message, "id">>) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === id ? { ...m, ...data } : m))
+    )
+  }, [])
+
+  const deleteMessage = useCallback((id: string) => {
+    setMessages((prev) => prev.filter((m) => m.id !== id))
+  }, [])
+
   const value = useMemo(
-    () => ({ series, messages, addSeries, updateSeries, deleteSeries, setSeriesMessages }),
-    [series, messages, addSeries, updateSeries, deleteSeries, setSeriesMessages]
+    () => ({
+      series,
+      messages,
+      addSeries,
+      updateSeries,
+      deleteSeries,
+      setSeriesMessages,
+      addMessage,
+      updateMessage,
+      deleteMessage,
+    }),
+    [series, messages, addSeries, updateSeries, deleteSeries, setSeriesMessages, addMessage, updateMessage, deleteMessage]
   )
 
   return <MessagesContext value={value}>{children}</MessagesContext>
