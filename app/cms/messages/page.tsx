@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useCallback } from "react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -12,10 +12,10 @@ import {
 } from "@tanstack/react-table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DataTable } from "@/components/ui/data-table"
-import { Badge } from "@/components/ui/badge"
 import { columns } from "@/components/cms/messages/columns"
 import { Toolbar } from "@/components/cms/messages/toolbar"
-import { messages, series } from "@/lib/messages-data"
+import { SeriesTab } from "@/components/cms/messages/series-tab"
+import { messages } from "@/lib/messages-data"
 
 function globalFilterFn(
   row: { original: { title: string; speaker: string; passage: string } },
@@ -92,15 +92,6 @@ export default function MessagesPage() {
     getSortedRowModel: sortedRowModel,
   })
 
-  const seriesWithCount = useMemo(
-    () =>
-      series.map((s) => ({
-        ...s,
-        count: messages.filter((m) => m.seriesIds.includes(s.id)).length,
-      })),
-    []
-  )
-
   return (
     <div className="space-y-4">
       <div>
@@ -126,24 +117,7 @@ export default function MessagesPage() {
         </TabsContent>
 
         <TabsContent value="series">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {seriesWithCount.map((s) => (
-              <div
-                key={s.id}
-                className="group rounded-lg border bg-card p-4 transition-colors hover:bg-muted/50"
-              >
-                <div className="aspect-video rounded-md bg-muted mb-3 flex items-center justify-center">
-                  <span className="text-muted-foreground text-sm">Cover Image</span>
-                </div>
-                <h3 className="font-medium">{s.name}</h3>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge variant="secondary" className="text-xs">
-                    {s.count} {s.count === 1 ? "message" : "messages"}
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </div>
+          <SeriesTab />
         </TabsContent>
       </Tabs>
     </div>

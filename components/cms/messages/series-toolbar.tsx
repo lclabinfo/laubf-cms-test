@@ -1,0 +1,67 @@
+"use client"
+
+import { Search, LayoutGrid, List, Plus } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+
+export type ViewMode = "card" | "list"
+
+interface SeriesToolbarProps {
+  search: string
+  onSearchChange: (value: string) => void
+  viewMode: ViewMode
+  onViewModeChange: (mode: ViewMode) => void
+  onNewSeries: () => void
+}
+
+export function SeriesToolbar({
+  search,
+  onSearchChange,
+  viewMode,
+  onViewModeChange,
+  onNewSeries,
+}: SeriesToolbarProps) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 min-h-[38px]">
+      {/* Search */}
+      <div className="relative w-full sm:w-sm">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+        <Input
+          placeholder="Search series..."
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="pl-8"
+        />
+      </div>
+
+      {/* View toggle */}
+      <div className="flex">
+        <Button
+          variant={viewMode === "card" ? "secondary" : "outline"}
+          size="icon"
+          className="rounded-r-none"
+          onClick={() => onViewModeChange("card")}
+          aria-label="Card view"
+        >
+          <LayoutGrid />
+        </Button>
+        <Button
+          variant={viewMode === "list" ? "secondary" : "outline"}
+          size="icon"
+          className="rounded-l-none -ml-px"
+          onClick={() => onViewModeChange("list")}
+          aria-label="List view"
+        >
+          <List />
+        </Button>
+      </div>
+
+      <div className="flex-1" />
+
+      <Button onClick={onNewSeries}>
+        <Plus />
+        <span className="hidden sm:inline">New Series</span>
+      </Button>
+    </div>
+  )
+}
