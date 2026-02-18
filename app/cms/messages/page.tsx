@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, useState, useCallback } from "react"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import {
   useReactTable,
   getCoreRowModel,
@@ -40,6 +40,7 @@ const paginationRowModel = getPaginationRowModel()
 const sortedRowModel = getSortedRowModel()
 
 function MessagesPageContent() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const defaultTab = searchParams.get("tab") === "series" ? "series" : "all"
   const { messages } = useMessages()
@@ -117,7 +118,11 @@ function MessagesPageContent() {
             globalFilter={globalFilter}
             setGlobalFilter={handleGlobalFilterChange}
           />
-          <DataTable columns={columns} table={table} />
+          <DataTable
+            columns={columns}
+            table={table}
+            onRowClick={(row) => router.push(`/cms/messages/${row.id}`)}
+          />
         </TabsContent>
 
         <TabsContent value="series">

@@ -32,11 +32,13 @@ import {
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   table: TanstackTable<TData>
+  onRowClick?: (row: TData) => void
 }
 
 export function DataTable<TData, TValue>({
   columns,
   table,
+  onRowClick,
 }: DataTableProps<TData, TValue>) {
   return (
     <div className="space-y-4">
@@ -64,6 +66,14 @@ export function DataTable<TData, TValue>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
+                  className={onRowClick ? "cursor-pointer" : undefined}
+                  onClick={(e) => {
+                    if (!onRowClick) return
+                    // Don't navigate when clicking interactive elements
+                    const target = e.target as HTMLElement
+                    if (target.closest("button, a, input, [role=checkbox], [data-no-row-click]")) return
+                    onRowClick(row.original)
+                  }}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>

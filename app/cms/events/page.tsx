@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import {
   useReactTable,
   getCoreRowModel,
@@ -43,6 +44,7 @@ const sortedRowModel = getSortedRowModel()
 const columnVisibility: VisibilityState = { type: false }
 
 export default function EventsPage() {
+  const router = useRouter()
   const { events } = useEvents()
   const [sorting, setSorting] = useState<SortingState>([
     { id: "date", desc: true },
@@ -119,7 +121,11 @@ export default function EventsPage() {
             globalFilter={globalFilter}
             setGlobalFilter={handleGlobalFilterChange}
           />
-          <DataTable columns={columns} table={table} />
+          <DataTable
+            columns={columns}
+            table={table}
+            onRowClick={(row) => router.push(`/cms/events/${row.id}`)}
+          />
         </TabsContent>
 
         <TabsContent value="calendar">
