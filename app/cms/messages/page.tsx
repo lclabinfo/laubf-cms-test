@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -47,6 +47,28 @@ export default function MessagesPage() {
   const [globalFilter, setGlobalFilter] = useState("")
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
 
+  // Reset page index when filters change (replaces TanStack's autoResetPageIndex
+  // which uses microtasks that fire before mount in React 19 strict mode)
+  const resetPageIndex = useCallback(() => {
+    setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }))
+  }, [])
+
+  const handleColumnFiltersChange = useCallback(
+    (updater: ColumnFiltersState | ((old: ColumnFiltersState) => ColumnFiltersState)) => {
+      setColumnFilters(updater)
+      resetPageIndex()
+    },
+    [resetPageIndex]
+  )
+
+  const handleGlobalFilterChange = useCallback(
+    (value: string) => {
+      setGlobalFilter(value)
+      resetPageIndex()
+    },
+    [resetPageIndex]
+  )
+
   const table = useReactTable({
     data: messages,
     columns,
@@ -58,11 +80,12 @@ export default function MessagesPage() {
       pagination,
     },
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
+    onColumnFiltersChange: handleColumnFiltersChange,
     onRowSelectionChange: setRowSelection,
-    onGlobalFilterChange: setGlobalFilter,
+    onGlobalFilterChange: handleGlobalFilterChange,
     onPaginationChange: setPagination,
     globalFilterFn,
+    autoResetPageIndex: false,
     getCoreRowModel: coreRowModel,
     getFilteredRowModel: filteredRowModel,
     getPaginationRowModel: paginationRowModel,
@@ -97,7 +120,7 @@ export default function MessagesPage() {
           <Toolbar
             table={table}
             globalFilter={globalFilter}
-            setGlobalFilter={setGlobalFilter}
+            setGlobalFilter={handleGlobalFilterChange}
           />
           <DataTable columns={columns} table={table} />
         </TabsContent>

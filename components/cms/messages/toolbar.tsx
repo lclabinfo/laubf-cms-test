@@ -1,7 +1,7 @@
 "use client"
 
 import { Table as TanstackTable } from "@tanstack/react-table"
-import { Search, SlidersHorizontal, Link2, Plus, X } from "lucide-react"
+import { Search, SlidersHorizontal, Plus, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -10,15 +10,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
 import type { Message, MessageStatus } from "@/lib/messages-data"
 
 const statuses: { value: MessageStatus; label: string }[] = [
@@ -53,10 +44,9 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
   const hasFilters = statusFilter.length > 0
 
   return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2 min-h-[38px]">
         {/* Search */}
-        <div className="relative w-full sm:max-w-sm sm:flex-1">
+        <div className="relative w-full sm:w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Search messages..."
@@ -124,65 +114,41 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
 
         <div className="flex-1" />
 
-        {/* Livestream Link */}
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="outline">
-              <Link2 />
-              <span className="hidden sm:inline">Livestream Link</span>
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Livestream Link</DialogTitle>
-              <DialogDescription>
-                Add a livestream URL that will be displayed on your website during services.
-              </DialogDescription>
-            </DialogHeader>
-            <Input placeholder="https://youtube.com/live/..." />
-            <DialogFooter>
-              <Button>Save</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* New Message */}
-        <Button>
-          <Plus />
-          <span className="hidden sm:inline">New Message</span>
-        </Button>
-      </div>
-
-      {/* Bulk actions */}
-      {selectedCount > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
-          <span className="text-sm font-medium whitespace-nowrap">
-            {selectedCount} selected
-          </span>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm">
-              Publish
-            </Button>
-            <Button variant="outline" size="sm">
-              Draft
-            </Button>
-            <Button variant="outline" size="sm">
-              Archive
-            </Button>
-            <Button variant="destructive" size="sm">
-              Delete
+        {/* Right side: bulk actions replace primary action when rows are selected */}
+        {selectedCount > 0 ? (
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-1">
+            <span className="text-sm font-medium whitespace-nowrap">
+              {selectedCount} selected
+            </span>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="sm">
+                Publish
+              </Button>
+              <Button variant="outline" size="sm">
+                Draft
+              </Button>
+              <Button variant="outline" size="sm">
+                Archive
+              </Button>
+              <Button variant="destructive" size="sm">
+                Delete
+              </Button>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="whitespace-nowrap"
+              onClick={() => table.toggleAllRowsSelected(false)}
+            >
+              Clear selection
             </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto whitespace-nowrap"
-            onClick={() => table.toggleAllRowsSelected(false)}
-          >
-            Clear selection
+        ) : (
+          <Button>
+            <Plus />
+            <span className="hidden sm:inline">New Message</span>
           </Button>
-        </div>
-      )}
+        )}
     </div>
   )
 }
