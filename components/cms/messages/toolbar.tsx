@@ -54,9 +54,9 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {/* Search */}
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative w-full sm:max-w-sm sm:flex-1">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Search messages..."
@@ -71,7 +71,7 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
           <PopoverTrigger asChild>
             <Button variant="outline" size="default">
               <SlidersHorizontal />
-              Filters
+              <span className="hidden sm:inline">Filters</span>
               {hasFilters && (
                 <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
                   {statusFilter.length}
@@ -129,7 +129,7 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
           <DialogTrigger asChild>
             <Button variant="outline">
               <Link2 />
-              Livestream Link
+              <span className="hidden sm:inline">Livestream Link</span>
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -149,17 +149,17 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
         {/* New Message */}
         <Button>
           <Plus />
-          New Message
+          <span className="hidden sm:inline">New Message</span>
         </Button>
       </div>
 
       {/* Bulk actions */}
       {selectedCount > 0 && (
-        <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
-          <span className="text-sm font-medium">
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
+          <span className="text-sm font-medium whitespace-nowrap">
             {selectedCount} selected
           </span>
-          <div className="flex items-center gap-1 ml-2">
+          <div className="flex items-center gap-1">
             <Button variant="outline" size="sm">
               Publish
             </Button>
@@ -176,7 +176,7 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
           <Button
             variant="ghost"
             size="sm"
-            className="ml-auto"
+            className="ml-auto whitespace-nowrap"
             onClick={() => table.toggleAllRowsSelected(false)}
           >
             Clear selection
