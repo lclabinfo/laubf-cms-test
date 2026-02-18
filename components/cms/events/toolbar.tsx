@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Table as TanstackTable } from "@tanstack/react-table"
 import { Search, SlidersHorizontal, Plus, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
@@ -195,9 +196,11 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
           </Button>
         </div>
       ) : (
-        <Button>
-          <Plus />
-          <span className="hidden sm:inline">New Event</span>
+        <Button asChild>
+          <Link href="/cms/events/new">
+            <Plus />
+            <span className="hidden sm:inline">New Event</span>
+          </Link>
         </Button>
       )}
     </div>

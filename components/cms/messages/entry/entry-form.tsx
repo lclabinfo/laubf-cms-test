@@ -13,6 +13,7 @@ import { StudyTab } from "./study-tab"
 import { MetadataSidebar } from "./metadata-sidebar"
 import { useMessages } from "@/lib/messages-context"
 import { statusDisplay } from "@/lib/status"
+import { isTiptapContentEmpty } from "@/lib/tiptap"
 import type {
   Message,
   MessageStatus,
@@ -69,7 +70,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     if (!isValid) return
 
     const hasVideo = !!videoUrl
-    const hasStudy = studySections.length > 0 && studySections.some((s) => s.content.trim())
+    const hasStudy = studySections.length > 0 && studySections.some((s) => !isTiptapContentEmpty(s.content))
 
     const messageData: Omit<Message, "id"> = {
       title: title.trim(),

@@ -156,3 +156,123 @@
   visibility: visible !important;
   transition-duration: 0s !important;
 }
+
+/* ------------------------------------------------------------------ */
+/* TipTap rich-text editor content styles                             */
+/* ------------------------------------------------------------------ */
+
+.tiptap-wrapper .tiptap {
+  padding: 0.75rem 1rem;
+  outline: none;
+  font-size: 0.875rem;
+  line-height: 1.625;
+}
+
+.tiptap-wrapper .tiptap > * + * {
+  margin-top: 0.5em;
+}
+
+/* Headings */
+.tiptap-wrapper .tiptap h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.tiptap-wrapper .tiptap h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.tiptap-wrapper .tiptap h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+/* Paragraphs */
+.tiptap-wrapper .tiptap p {
+  margin: 0;
+}
+
+.tiptap-wrapper .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--muted-foreground);
+  pointer-events: none;
+  height: 0;
+}
+
+/* Lists */
+.tiptap-wrapper .tiptap ul {
+  list-style-type: disc;
+  padding-left: 1.5em;
+}
+
+.tiptap-wrapper .tiptap ol {
+  list-style-type: decimal;
+  padding-left: 1.5em;
+}
+
+.tiptap-wrapper .tiptap li {
+  margin: 0.25em 0;
+}
+
+.tiptap-wrapper .tiptap li p {
+  margin: 0;
+}
+
+/* Blockquote */
+.tiptap-wrapper .tiptap blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 1em;
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+
+/* Code */
+.tiptap-wrapper .tiptap code {
+  background: var(--muted);
+  border-radius: var(--radius-sm);
+  padding: 0.15em 0.35em;
+  font-size: 0.85em;
+  font-family: var(--font-geist-mono), monospace;
+}
+
+.tiptap-wrapper .tiptap pre {
+  background: var(--muted);
+  border-radius: var(--radius-md);
+  padding: 0.75em 1em;
+  overflow-x: auto;
+}
+
+.tiptap-wrapper .tiptap pre code {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  font-size: 0.85em;
+}
+
+/* Links */
+.tiptap-wrapper .tiptap a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* Images */
+.tiptap-wrapper .tiptap img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+  margin: 0.5em 0;
+}
+
+/* Horizontal rule */
+.tiptap-wrapper .tiptap hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 1em 0;
+}

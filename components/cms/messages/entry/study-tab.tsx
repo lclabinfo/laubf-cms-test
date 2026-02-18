@@ -3,9 +3,9 @@
 import { Plus, Trash2, Pencil, Upload, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import { plainTextToTiptapJson } from "@/lib/tiptap"
 import type { StudySection } from "@/lib/messages-data"
 
 interface StudyTabProps {
@@ -39,19 +39,34 @@ export function StudyTab({ sections, onSectionsChange }: StudyTabProps) {
     )
   }
 
-  function handleImportDocx(sectionId: string) {
+  async function handleImportDocx(sectionId: string) {
     const input = document.createElement("input")
     input.type = "file"
     input.accept = ".docx,.doc,.txt"
-    input.onchange = (e) => {
+    input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
-      // For .txt files, read directly. .docx would need a parser in real implementation.
-      const reader = new FileReader()
-      reader.onload = () => {
-        handleContentChange(sectionId, reader.result as string)
+
+      if (file.name.endsWith(".txt")) {
+        // Plain text — read and convert to TipTap JSON
+        const reader = new FileReader()
+        reader.onload = () => {
+          const text = reader.result as string
+          handleContentChange(sectionId, plainTextToTiptapJson(text))
+        }
+        reader.readAsText(file)
+      } else {
+        // .docx — use mammoth to convert to HTML, then pass to editor
+        try {
+          const mammoth = await import("mammoth")
+          const arrayBuffer = await file.arrayBuffer()
+          const result = await mammoth.convertToHtml({ arrayBuffer })
+          // Pass HTML string — the editor will parse it via setContent
+          handleContentChange(sectionId, result.value)
+        } catch (err) {
+          console.error("Failed to import DOCX:", err)
+        }
       }
-      reader.readAsText(file)
     }
     input.click()
   }
@@ -134,18 +149,12 @@ export function StudyTab({ sections, onSectionsChange }: StudyTabProps) {
               </div>
             </div>
 
-            {/* Content editor — uses Textarea as placeholder for a future rich text editor (Tiptap) */}
-            <div className="space-y-2">
-              <Label className="text-xs text-muted-foreground">
-                Content (Rich text editor will be integrated — currently plain text)
-              </Label>
-              <Textarea
-                value={section.content}
-                onChange={(e) => handleContentChange(section.id, e.target.value)}
-                placeholder="Write study content here..."
-                className="min-h-[300px] text-sm"
-              />
-            </div>
+            {/* Rich text editor */}
+            <RichTextEditor
+              content={section.content}
+              onContentChange={(json) => handleContentChange(section.id, json)}
+              placeholder="Write study content here..."
+            />
           </TabsContent>
         ))}
       </Tabs>

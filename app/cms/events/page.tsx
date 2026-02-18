@@ -17,7 +17,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { DataTable } from "@/components/ui/data-table"
 import { columns } from "@/components/cms/events/columns"
 import { Toolbar } from "@/components/cms/events/toolbar"
-import { events } from "@/lib/events-data"
+import { useEvents } from "@/lib/events-context"
 
 function globalFilterFn(
   row: { original: { title: string; location: string; ministry: string } },
@@ -43,6 +43,7 @@ const sortedRowModel = getSortedRowModel()
 const columnVisibility: VisibilityState = { type: false }
 
 export default function EventsPage() {
+  const { events } = useEvents()
   const [sorting, setSorting] = useState<SortingState>([
     { id: "date", desc: true },
   ])

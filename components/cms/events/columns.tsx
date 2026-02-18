@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown, MoreHorizontal, MapPin, Globe, Pin, Pencil, Copy, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -19,6 +20,13 @@ import { statusDisplay } from "@/lib/status"
 function formatDate(dateStr: string) {
   const date = new Date(dateStr + "T00:00:00")
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+}
+
+function formatTime(time: string) {
+  const [h, m] = time.split(":").map(Number)
+  const suffix = h >= 12 ? "PM" : "AM"
+  const hour = h % 12 || 12
+  return `${hour}:${m.toString().padStart(2, "0")} ${suffix}`
 }
 
 function isPast(dateStr: string) {
@@ -99,7 +107,7 @@ export const columns: ColumnDef<ChurchEvent>[] = [
         <div className={past ? "opacity-60" : ""}>
           <div className="text-sm">{formatDate(row.original.date)}</div>
           <div className="text-muted-foreground text-xs">
-            {row.original.startTime} – {row.original.endTime}
+            {formatTime(row.original.startTime)} – {formatTime(row.original.endTime)}
           </div>
         </div>
       )
@@ -169,7 +177,7 @@ export const columns: ColumnDef<ChurchEvent>[] = [
   },
   {
     id: "actions",
-    cell: () => (
+    cell: ({ row }) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon-sm">
@@ -178,9 +186,11 @@ export const columns: ColumnDef<ChurchEvent>[] = [
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem>
-            <Pencil />
-            Edit
+          <DropdownMenuItem asChild>
+            <Link href={`/cms/events/${row.original.id}`}>
+              <Pencil />
+              Edit
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuItem>
             <Copy />
