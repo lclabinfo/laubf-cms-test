@@ -32,7 +32,7 @@ export default function CmsLayout({ children }: { children: React.ReactNode }) {
         <AppSidebar />
         <SidebarInset>
           <CmsHeader />
-          <main className="min-w-0 flex-1 py-5 px-6">{children}</main>
+          <main className="min-w-0 flex-1 flex flex-col py-5 px-6">{children}</main>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

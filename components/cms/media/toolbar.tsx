@@ -1,15 +1,8 @@
 "use client"
 
-import { Table as TanstackTable } from "@tanstack/react-table"
-import { Search, SlidersHorizontal, Upload, X, LayoutGrid, List, Archive, Trash2 } from "lucide-react"
+import { Search, LayoutGrid, List, Trash2, FolderInput, Upload, Video, Cloud, Plus } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
 import {
   Select,
   SelectContent,
@@ -17,15 +10,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { MediaItem, MediaType } from "@/lib/media-data"
-import { mediaTags } from "@/lib/media-data"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import type { ActiveFilterId } from "@/components/cms/media/media-sidebar"
 
-const mediaTypes: { value: MediaType; label: string }[] = [
-  { value: "image", label: "Image" },
-  { value: "video", label: "Video" },
-]
-
-type SortOption = "newest" | "oldest" | "name-asc" | "name-desc"
+export type SortOption = "newest" | "oldest" | "name-asc" | "name-desc"
 
 const sortOptions: { value: SortOption; label: string }[] = [
   { value: "newest", label: "Newest first" },
@@ -35,67 +28,39 @@ const sortOptions: { value: SortOption; label: string }[] = [
 ]
 
 interface ToolbarProps {
-  table: TanstackTable<MediaItem>
-  globalFilter: string
-  setGlobalFilter: (value: string) => void
+  search: string
+  onSearchChange: (value: string) => void
+  sort: SortOption
+  onSortChange: (value: SortOption) => void
   viewMode: "grid" | "list"
-  setViewMode: (mode: "grid" | "list") => void
+  onViewModeChange: (mode: "grid" | "list") => void
+  activeFolderId: ActiveFilterId
+  selectedCount: number
+  onClearSelection: () => void
+  onUploadPhotos: () => void
+  onAddVideo: () => void
+  onConnectAlbum: () => void
+  onBulkMove: () => void
+  onBulkDelete: () => void
 }
 
-export function Toolbar({ table, globalFilter, setGlobalFilter, viewMode, setViewMode }: ToolbarProps) {
-  const selectedCount = table.getFilteredSelectedRowModel().rows.length
-  const typeFilter = (table.getColumn("type")?.getFilterValue() as MediaType[]) ?? []
-  const tagsFilter = (table.getColumn("tags")?.getFilterValue() as string[]) ?? []
-
-  function toggleType(type: MediaType) {
-    const current = typeFilter
-    const next = current.includes(type)
-      ? current.filter((t) => t !== type)
-      : [...current, type]
-    table.getColumn("type")?.setFilterValue(next.length ? next : undefined)
-  }
-
-  function toggleTag(tag: string) {
-    const current = tagsFilter
-    const next = current.includes(tag)
-      ? current.filter((t) => t !== tag)
-      : [...current, tag]
-    table.getColumn("tags")?.setFilterValue(next.length ? next : undefined)
-  }
-
-  function clearFilters() {
-    table.getColumn("type")?.setFilterValue(undefined)
-    table.getColumn("tags")?.setFilterValue(undefined)
-  }
-
-  function getCurrentSort(): SortOption {
-    const sorting = table.getState().sorting
-    if (sorting.length === 0) return "newest"
-    const { id, desc } = sorting[0]
-    if (id === "dateAdded") return desc ? "newest" : "oldest"
-    if (id === "name") return desc ? "name-desc" : "name-asc"
-    return "newest"
-  }
-
-  function handleSortChange(value: SortOption) {
-    switch (value) {
-      case "newest":
-        table.setSorting([{ id: "dateAdded", desc: true }])
-        break
-      case "oldest":
-        table.setSorting([{ id: "dateAdded", desc: false }])
-        break
-      case "name-asc":
-        table.setSorting([{ id: "name", desc: false }])
-        break
-      case "name-desc":
-        table.setSorting([{ id: "name", desc: true }])
-        break
-    }
-  }
-
-  const filterCount = typeFilter.length + tagsFilter.length
-  const hasFilters = filterCount > 0
+export function Toolbar({
+  search,
+  onSearchChange,
+  sort,
+  onSortChange,
+  viewMode,
+  onViewModeChange,
+  activeFolderId,
+  selectedCount,
+  onClearSelection,
+  onUploadPhotos,
+  onAddVideo,
+  onConnectAlbum,
+  onBulkMove,
+  onBulkDelete,
+}: ToolbarProps) {
+  const showViewToggle = activeFolderId !== "google-albums"
 
   return (
     <div className="flex flex-wrap items-center gap-2 min-h-[38px]">
@@ -104,105 +69,16 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, viewMode, setVie
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
         <Input
           placeholder="Search media..."
-          value={globalFilter}
-          onChange={(e) => setGlobalFilter(e.target.value)}
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
           className="pl-8"
         />
       </div>
 
-      {/* Filters */}
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="default">
-            <SlidersHorizontal />
-            <span className="hidden sm:inline">Filters</span>
-            {hasFilters && (
-              <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
-                {filterCount}
-              </Badge>
-            )}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-56" align="start">
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Filters</span>
-              {hasFilters && (
-                <Button variant="ghost" size="xs" onClick={clearFilters}>
-                  Clear all
-                </Button>
-              )}
-            </div>
-
-            {/* Type filter */}
-            <div className="space-y-2">
-              <span className="text-xs font-medium text-muted-foreground">Type</span>
-              <div className="flex flex-wrap gap-1.5">
-                {mediaTypes.map((t) => (
-                  <Badge
-                    key={t.value}
-                    variant={typeFilter.includes(t.value) ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => toggleType(t.value)}
-                  >
-                    {t.label}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            {/* Tags filter */}
-            <div className="space-y-2">
-              <span className="text-xs font-medium text-muted-foreground">Tags</span>
-              <div className="flex flex-wrap gap-1.5">
-                {mediaTags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    variant={tagsFilter.includes(tag) ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => toggleTag(tag)}
-                  >
-                    {tag}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          </div>
-        </PopoverContent>
-      </Popover>
-
-      {/* Active filter badges */}
-      {hasFilters && (
-        <div className="flex items-center gap-1 flex-wrap">
-          {typeFilter.map((t) => (
-            <Badge key={t} variant="secondary" className="gap-1">
-              {t}
-              <button
-                onClick={() => toggleType(t)}
-                className="ml-0.5 rounded-full hover:bg-foreground/10"
-              >
-                <X className="size-3" />
-              </button>
-            </Badge>
-          ))}
-          {tagsFilter.map((tag) => (
-            <Badge key={tag} variant="secondary" className="gap-1">
-              {tag}
-              <button
-                onClick={() => toggleTag(tag)}
-                className="ml-0.5 rounded-full hover:bg-foreground/10"
-              >
-                <X className="size-3" />
-              </button>
-            </Badge>
-          ))}
-        </div>
-      )}
-
       <div className="flex-1" />
 
       {/* Sort */}
-      <Select value={getCurrentSort()} onValueChange={(v) => handleSortChange(v as SortOption)}>
+      <Select value={sort} onValueChange={(v) => onSortChange(v as SortOption)}>
         <SelectTrigger size="sm" className="w-[140px]">
           <SelectValue />
         </SelectTrigger>
@@ -216,39 +92,41 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, viewMode, setVie
       </Select>
 
       {/* View toggle */}
-      <div className="flex items-center rounded-md border">
-        <Button
-          variant={viewMode === "grid" ? "secondary" : "ghost"}
-          size="icon-sm"
-          className="rounded-r-none"
-          onClick={() => setViewMode("grid")}
-          aria-label="Grid view"
-        >
-          <LayoutGrid className="size-4" />
-        </Button>
-        <Button
-          variant={viewMode === "list" ? "secondary" : "ghost"}
-          size="icon-sm"
-          className="rounded-l-none"
-          onClick={() => setViewMode("list")}
-          aria-label="List view"
-        >
-          <List className="size-4" />
-        </Button>
-      </div>
+      {showViewToggle && (
+        <div className="flex items-center rounded-md border">
+          <Button
+            variant={viewMode === "grid" ? "secondary" : "ghost"}
+            size="icon-sm"
+            className="rounded-r-none"
+            onClick={() => onViewModeChange("grid")}
+            aria-label="Grid view"
+          >
+            <LayoutGrid className="size-4" />
+          </Button>
+          <Button
+            variant={viewMode === "list" ? "secondary" : "ghost"}
+            size="icon-sm"
+            className="rounded-l-none"
+            onClick={() => onViewModeChange("list")}
+            aria-label="List view"
+          >
+            <List className="size-4" />
+          </Button>
+        </div>
+      )}
 
-      {/* Bulk actions / Upload */}
+      {/* Bulk actions or Add New */}
       {selectedCount > 0 ? (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-muted/50 px-3 py-1">
           <span className="text-sm font-medium whitespace-nowrap">
             {selectedCount} selected
           </span>
           <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm">
-              <Archive className="size-3.5" />
-              Archive
+            <Button variant="outline" size="sm" onClick={onBulkMove}>
+              <FolderInput className="size-3.5" />
+              Move to...
             </Button>
-            <Button variant="destructive" size="sm">
+            <Button variant="destructive" size="sm" onClick={onBulkDelete}>
               <Trash2 className="size-3.5" />
               Delete
             </Button>
@@ -257,16 +135,34 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, viewMode, setVie
             variant="ghost"
             size="sm"
             className="ml-auto whitespace-nowrap"
-            onClick={() => table.toggleAllRowsSelected(false)}
+            onClick={onClearSelection}
           >
             Clear selection
           </Button>
         </div>
       ) : (
-        <Button>
-          <Upload />
-          <span className="hidden sm:inline">Upload</span>
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button>
+              <Plus className="size-4" />
+              <span className="hidden sm:inline">Add New</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onUploadPhotos}>
+              <Upload />
+              Upload Photos
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onAddVideo}>
+              <Video />
+              Add Video Link
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={onConnectAlbum}>
+              <Cloud />
+              Connect Google Album
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
     </div>
   )

@@ -1,8 +1,7 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal, Play, Pencil, Archive, ArchiveRestore, Trash2 } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { ArrowUpDown, MoreHorizontal, Play, Pencil, FolderInput, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -14,6 +13,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import type { MediaItem } from "@/lib/media-data"
 import { mediaTypeDisplay, formatDisplay } from "@/lib/media-data"
+
+export interface MediaTableMeta {
+  onMoveRequest: (id: string) => void
+  onDelete: (id: string) => void
+}
 
 function formatDate(dateStr: string) {
   const date = new Date(dateStr + "T00:00:00")
@@ -60,7 +64,7 @@ export const columns: ColumnDef<MediaItem>[] = [
     cell: ({ row }) => {
       const item = row.original
       return (
-        <div className={`flex items-center gap-3 min-w-0 ${item.isArchived ? "opacity-60" : ""}`}>
+        <div className="flex items-center gap-3 min-w-0">
           <div className="relative size-10 shrink-0 rounded overflow-hidden bg-muted">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -103,36 +107,6 @@ export const columns: ColumnDef<MediaItem>[] = [
     size: 80,
   },
   {
-    accessorKey: "tags",
-    header: "Tags",
-    cell: ({ row }) => {
-      const tags = row.original.tags
-      if (tags.length === 0) return <span className="text-muted-foreground text-sm">-</span>
-      const visible = tags.slice(0, 2)
-      const remaining = tags.length - 2
-      return (
-        <div className="flex items-center gap-1 flex-wrap">
-          {visible.map((tag) => (
-            <Badge key={tag} variant="outline" className="text-xs">
-              {tag}
-            </Badge>
-          ))}
-          {remaining > 0 && (
-            <Badge variant="secondary" className="text-xs">
-              +{remaining}
-            </Badge>
-          )}
-        </div>
-      )
-    },
-    filterFn: (row, _id, value: string[]) => {
-      const tags = row.original.tags
-      return value.some((v) => tags.includes(v))
-    },
-    enableSorting: false,
-    size: 180,
-  },
-  {
     accessorKey: "size",
     header: "Size",
     cell: ({ row }) => <span className="text-sm">{row.original.size}</span>,
@@ -158,30 +132,10 @@ export const columns: ColumnDef<MediaItem>[] = [
     size: 140,
   },
   {
-    accessorKey: "usedIn",
-    header: "Used In",
-    cell: ({ row }) => {
-      const count = row.original.usedIn
-      if (count === 0) return <span className="text-muted-foreground text-sm">Unused</span>
-      return <span className="text-sm">{count} item{count !== 1 ? "s" : ""}</span>
-    },
-    enableSorting: false,
-    size: 100,
-  },
-  {
-    accessorKey: "type",
-    header: () => null,
-    cell: () => null,
-    filterFn: (row, id, value: string[]) => {
-      return value.includes(row.getValue(id))
-    },
-    enableSorting: false,
-    size: 0,
-  },
-  {
     id: "actions",
-    cell: ({ row }) => {
+    cell: ({ row, table }) => {
       const item = row.original
+      const meta = table.options.meta as MediaTableMeta | undefined
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -195,12 +149,15 @@ export const columns: ColumnDef<MediaItem>[] = [
               <Pencil />
               Edit
             </DropdownMenuItem>
-            <DropdownMenuItem>
-              {item.isArchived ? <ArchiveRestore /> : <Archive />}
-              {item.isArchived ? "Unarchive" : "Archive"}
+            <DropdownMenuItem onClick={() => meta?.onMoveRequest(item.id)}>
+              <FolderInput />
+              Move to...
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive">
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => meta?.onDelete(item.id)}
+            >
               <Trash2 />
               Delete
             </DropdownMenuItem>

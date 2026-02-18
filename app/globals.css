@@ -125,21 +125,34 @@
   }
 }
 
-/* Sidebar collapsible group animation */
+/* Sidebar collapsible group animation
+   Radix sets inline `transition-duration:0s; animation-name:none` on
+   CollapsibleContent, so !important is required to override those. */
 [data-slot="collapsible-content"] {
-  overflow: hidden;
   display: grid;
   grid-template-rows: 0fr;
-  opacity: 0;
-  transition: grid-template-rows 250ms ease, opacity 250ms ease;
+  overflow: hidden;
+  visibility: hidden;
+  transition-property: grid-template-rows, visibility;
+  transition-duration: 250ms, 0s !important;
+  transition-timing-function: ease-in-out;
+  transition-delay: 0s, 250ms;
 }
 
 [data-slot="collapsible-content"][data-state="open"] {
   grid-template-rows: 1fr;
-  opacity: 1;
+  visibility: visible;
+  transition-delay: 0s, 0s;
 }
 
 [data-slot="collapsible-content"] > * {
   overflow: hidden;
   min-height: 0;
+}
+
+/* In icon mode all groups must be expanded so every item shows as an icon */
+[data-collapsible="icon"] [data-slot="collapsible-content"] {
+  grid-template-rows: 1fr !important;
+  visibility: visible !important;
+  transition-duration: 0s !important;
 }
