@@ -1,20 +1,21 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { columns } from "@/components/cms/messages/columns"
 import {
-  DataTable,
   useReactTable,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-} from "@/components/cms/messages/data-table"
-import type { ColumnFiltersState, SortingState } from "@/components/cms/messages/data-table"
+  type ColumnFiltersState,
+  type SortingState,
+} from "@tanstack/react-table"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DataTable } from "@/components/ui/data-table"
+import { Badge } from "@/components/ui/badge"
+import { columns } from "@/components/cms/messages/columns"
 import { Toolbar } from "@/components/cms/messages/toolbar"
 import { messages, series } from "@/lib/messages-data"
-import { Badge } from "@/components/ui/badge"
 
 function globalFilterFn(
   row: { original: { title: string; speaker: string; passage: string } },
@@ -30,6 +31,13 @@ function globalFilterFn(
   )
 }
 
+// Hoist row model factories outside the component so they are stable references
+// and don't trigger state updates during React's render phase.
+const coreRowModel = getCoreRowModel()
+const filteredRowModel = getFilteredRowModel()
+const paginationRowModel = getPaginationRowModel()
+const sortedRowModel = getSortedRowModel()
+
 export default function MessagesPage() {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "date", desc: true },
@@ -37,6 +45,7 @@ export default function MessagesPage() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [rowSelection, setRowSelection] = useState({})
   const [globalFilter, setGlobalFilter] = useState("")
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
 
   const table = useReactTable({
     data: messages,
@@ -46,19 +55,18 @@ export default function MessagesPage() {
       columnFilters,
       rowSelection,
       globalFilter,
+      pagination,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: setPagination,
     globalFilterFn,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    initialState: {
-      pagination: { pageSize: 10 },
-    },
+    getCoreRowModel: coreRowModel,
+    getFilteredRowModel: filteredRowModel,
+    getPaginationRowModel: paginationRowModel,
+    getSortedRowModel: sortedRowModel,
   })
 
   const seriesWithCount = useMemo(
@@ -91,7 +99,7 @@ export default function MessagesPage() {
             globalFilter={globalFilter}
             setGlobalFilter={setGlobalFilter}
           />
-          <DataTable columns={columns} data={messages} table={table} />
+          <DataTable columns={columns} table={table} />
         </TabsContent>
 
         <TabsContent value="series">

@@ -1,16 +1,9 @@
 "use client"
 
 import {
-  ColumnDef,
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
+  type ColumnDef,
+  type Table as TanstackTable,
   flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
 } from "@tanstack/react-table"
 
 import {
@@ -33,8 +26,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
-  data: TData[]
-  table: ReturnType<typeof useReactTable<TData>>
+  table: TanstackTable<TData>
 }
 
 export function DataTable<TData, TValue>({
@@ -146,6 +138,3 @@ export function DataTable<TData, TValue>({
     </div>
   )
 }
-
-export { useReactTable, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel }
-export type { ColumnFiltersState, SortingState, VisibilityState }

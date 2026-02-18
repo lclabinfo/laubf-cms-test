@@ -1,7 +1,7 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal, Video, BookOpen, Pencil, Trash2 } from "lucide-react"
+import { ArrowUpDown, MoreHorizontal, Video, Pencil, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -14,17 +14,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import type { Message } from "@/lib/messages-data"
 import { series } from "@/lib/messages-data"
+import { statusDisplay } from "@/lib/status"
 
 function formatDate(dateStr: string) {
   const date = new Date(dateStr + "T00:00:00")
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-}
-
-const statusConfig: Record<Message["status"], { label: string; variant: "default" | "secondary" | "outline"; className?: string }> = {
-  published: { label: "Published", variant: "default" },
-  draft: { label: "Draft", variant: "secondary" },
-  scheduled: { label: "Scheduled", variant: "outline", className: "border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-500/40 dark:bg-orange-500/10 dark:text-orange-400" },
-  archived: { label: "Archived", variant: "outline", className: "text-muted-foreground" },
 }
 
 export const columns: ColumnDef<Message>[] = [
@@ -133,9 +127,9 @@ export const columns: ColumnDef<Message>[] = [
     header: "Status",
     cell: ({ row }) => {
       const status = row.getValue("status") as Message["status"]
-      const config = statusConfig[status]
+      const config = statusDisplay[status]
       return (
-        <Badge variant={config.variant} className={config.className}>
+        <Badge variant={config.variant}>
           {config.label}
         </Badge>
       )
@@ -171,7 +165,7 @@ export const columns: ColumnDef<Message>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => (
+    cell: () => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" size="icon-sm">
