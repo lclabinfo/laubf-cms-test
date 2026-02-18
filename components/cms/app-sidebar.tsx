@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import {
   ChevronRightIcon,
   ChurchIcon,
@@ -82,19 +82,9 @@ const navGroups: NavGroup[] = [
         icon: LayoutDashboardIcon,
       },
       {
-        title: "Church Profile",
-        href: "/cms/church-profile",
-        icon: ChurchIcon,
-      },
-      {
         title: "Messages",
         href: "/cms/messages",
         icon: MessageSquareIcon,
-        items: [
-          { title: "Sermons", href: "/cms/messages/sermons" },
-          { title: "Devotionals", href: "/cms/messages/devotionals" },
-          { title: "Drafts", href: "/cms/messages/drafts" },
-        ],
       },
       {
         title: "Events",
@@ -202,6 +192,7 @@ const navGroups: NavGroup[] = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+  const router = useRouter()
 
   // Determine which group is active based on current path
   const activeGroup = navGroups.find((group) =>
@@ -221,17 +212,28 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
+            <SidebarMenuButton size="lg" asChild className="group/header">
               <Link href="/cms/dashboard">
                 <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
                   <ChurchIcon className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Church CMS</span>
+                  <span className="truncate font-semibold">LA UBF</span>
                   <span className="truncate text-xs text-muted-foreground">
-                    Management Portal
+                    Church Settings
                   </span>
                 </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    router.push("/cms/church-profile")
+                  }}
+                  className="ml-auto opacity-0 transition-opacity duration-200 ease-in-out group-hover/header:opacity-100"
+                >
+                  <SettingsIcon className="size-4 text-muted-foreground/60 hover:text-muted-foreground" />
+                </button>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

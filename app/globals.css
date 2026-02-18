@@ -124,3 +124,22 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Sidebar collapsible group animation */
+[data-slot="collapsible-content"] {
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 250ms ease, opacity 250ms ease;
+}
+
+[data-slot="collapsible-content"][data-state="open"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+[data-slot="collapsible-content"] > * {
+  overflow: hidden;
+  min-height: 0;
+}
