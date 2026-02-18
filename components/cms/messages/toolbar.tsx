@@ -116,7 +116,7 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
 
         {/* Right side: bulk actions replace primary action when rows are selected */}
         {selectedCount > 0 ? (
-          <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-1">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-muted/50 px-3 py-1">
             <span className="text-sm font-medium whitespace-nowrap">
               {selectedCount} selected
             </span>
@@ -137,7 +137,7 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
             <Button
               variant="ghost"
               size="sm"
-              className="whitespace-nowrap"
+              className="ml-auto whitespace-nowrap"
               onClick={() => table.toggleAllRowsSelected(false)}
             >
               Clear selection
