@@ -15,7 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DataTable } from "@/components/ui/data-table"
 import { columns } from "@/components/cms/messages/columns"
 import { Toolbar } from "@/components/cms/messages/toolbar"
-import { SeriesTab } from "@/components/cms/messages/series-tab"
+import { SeriesTab } from "@/components/cms/messages/series/tab"
 import { useMessages } from "@/lib/messages-context"
 
 function globalFilterFn(

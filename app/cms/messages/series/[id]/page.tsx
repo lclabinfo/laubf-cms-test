@@ -18,8 +18,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { SeriesImageUpload } from "@/components/cms/messages/series-image-upload"
-import { ManageMessagesDialog } from "@/components/cms/messages/manage-messages-dialog"
+import { SeriesImageUpload } from "@/components/cms/messages/series/image-upload"
+import { ManageMessagesDialog } from "@/components/cms/messages/series/manage-messages-dialog"
 import { useMessages } from "@/lib/messages-context"
 
 export default function SeriesDetailPage({ params }: { params: Promise<{ id: string }> }) {

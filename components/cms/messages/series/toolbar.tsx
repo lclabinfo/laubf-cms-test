@@ -1,16 +1,26 @@
 "use client"
 
-import { Search, LayoutGrid, List, Plus } from "lucide-react"
+import { Search, LayoutGrid, List, Plus, ArrowUpDown } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 
 export type ViewMode = "card" | "list"
+export type SortOption = "name-asc" | "name-desc" | "most-messages" | "fewest-messages"
 
 interface SeriesToolbarProps {
   search: string
   onSearchChange: (value: string) => void
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
+  sort: SortOption
+  onSortChange: (sort: SortOption) => void
   onNewSeries: () => void
 }
 
@@ -19,6 +29,8 @@ export function SeriesToolbar({
   onSearchChange,
   viewMode,
   onViewModeChange,
+  sort,
+  onSortChange,
   onNewSeries,
 }: SeriesToolbarProps) {
   return (
@@ -33,6 +45,20 @@ export function SeriesToolbar({
           className="pl-8"
         />
       </div>
+
+      {/* Sort */}
+      <Select value={sort} onValueChange={(v) => onSortChange(v as SortOption)}>
+        <SelectTrigger className="w-auto gap-1.5">
+          <ArrowUpDown className="size-4 text-muted-foreground" />
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="name-asc">Name A–Z</SelectItem>
+          <SelectItem value="name-desc">Name Z–A</SelectItem>
+          <SelectItem value="most-messages">Most messages</SelectItem>
+          <SelectItem value="fewest-messages">Fewest messages</SelectItem>
+        </SelectContent>
+      </Select>
 
       {/* View toggle */}
       <div className="flex">
