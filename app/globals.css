@@ -161,8 +161,14 @@
 /* TipTap rich-text editor content styles                             */
 /* ------------------------------------------------------------------ */
 
+.tiptap-wrapper {
+  display: flex;
+  flex-direction: column;
+}
+
 .tiptap-wrapper .tiptap {
-  padding: 0.75rem 1rem;
+  flex: 1;
+  padding: 1rem;
   outline: none;
   font-size: 0.875rem;
   line-height: 1.625;
@@ -189,6 +195,12 @@
   font-size: 1.1rem;
   font-weight: 600;
   line-height: 1.4;
+}
+
+.tiptap-wrapper .tiptap h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.45;
 }
 
 /* Paragraphs */

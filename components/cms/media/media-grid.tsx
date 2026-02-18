@@ -33,6 +33,7 @@ export function MediaGrid({
   selectedIds,
   onToggleSelect,
   onFolderClick,
+  onEdit,
   onMove,
   onDelete,
 }: MediaGridProps) {
@@ -83,8 +84,12 @@ export function MediaGrid({
               isSelected ? "ring-2 ring-primary border-primary" : "hover:border-foreground/20"
             }`}
           >
-            {/* Thumbnail */}
-            <div className="aspect-video relative bg-muted">
+            {/* Thumbnail — click to preview */}
+            <button
+              type="button"
+              className="aspect-video relative bg-muted w-full cursor-pointer"
+              onClick={() => onEdit(item.id)}
+            >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={item.url}
@@ -101,7 +106,10 @@ export function MediaGrid({
               )}
 
               {/* Checkbox */}
-              <div className={`absolute top-2 left-2 ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}>
+              <div
+                className={`absolute top-2 left-2 ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+                onClick={(e) => e.stopPropagation()}
+              >
                 <Checkbox
                   checked={isSelected}
                   onCheckedChange={() => onToggleSelect(item.id)}
@@ -109,7 +117,7 @@ export function MediaGrid({
                   className="bg-background/80 backdrop-blur-sm"
                 />
               </div>
-            </div>
+            </button>
 
             {/* Footer */}
             <div className="p-2.5 space-y-1.5">
@@ -127,7 +135,7 @@ export function MediaGrid({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onEdit(item.id)}>
                       <Pencil />
                       Edit
                     </DropdownMenuItem>

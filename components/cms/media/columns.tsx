@@ -15,6 +15,7 @@ import type { MediaItem } from "@/lib/media-data"
 import { mediaTypeDisplay, formatDisplay } from "@/lib/media-data"
 
 export interface MediaTableMeta {
+  onEdit: (id: string) => void
   onMoveRequest: (id: string) => void
   onDelete: (id: string) => void
 }
@@ -145,7 +146,7 @@ export const columns: ColumnDef<MediaItem>[] = [
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => meta?.onEdit(item.id)}>
               <Pencil />
               Edit
             </DropdownMenuItem>

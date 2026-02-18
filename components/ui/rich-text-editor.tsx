@@ -24,9 +24,11 @@ import {
   Italic,
   Underline,
   Strikethrough,
+  Pilcrow,
   Heading1,
   Heading2,
   Heading3,
+  Heading4,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -100,15 +102,17 @@ export function RichTextEditor({
   if (!editor) return null
 
   return (
-    <div className={cn("rounded-lg border bg-background", className)}>
+    <div
+      className={cn("flex flex-col rounded-lg border bg-background overflow-hidden", className)}
+      style={{ minHeight }}
+    >
       <TooltipProvider delayDuration={300}>
         <EditorToolbar editor={editor} />
       </TooltipProvider>
       <Separator />
       <EditorContent
         editor={editor}
-        className="tiptap-wrapper"
-        style={{ minHeight }}
+        className="tiptap-wrapper flex-1"
       />
     </div>
   )
@@ -208,7 +212,18 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
 
       <Separator orientation="vertical" className="mx-1 h-6" />
 
-      {/* Headings */}
+      {/* Text styles */}
+      <ToolbarTooltip label="Paragraph" shortcut="⌘⌥0">
+        <Toggle
+          size="sm"
+          pressed={editor.isActive("paragraph")}
+          onPressedChange={() =>
+            editor.chain().focus().setParagraph().run()
+          }
+        >
+          <Pilcrow className="size-4" />
+        </Toggle>
+      </ToolbarTooltip>
       <ToolbarTooltip label="Heading 1" shortcut="⌘⌥1">
         <Toggle
           size="sm"
@@ -240,6 +255,17 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
           }
         >
           <Heading3 className="size-4" />
+        </Toggle>
+      </ToolbarTooltip>
+      <ToolbarTooltip label="Heading 4" shortcut="⌘⌥4">
+        <Toggle
+          size="sm"
+          pressed={editor.isActive("heading", { level: 4 })}
+          onPressedChange={() =>
+            editor.chain().focus().toggleHeading({ level: 4 }).run()
+          }
+        >
+          <Heading4 className="size-4" />
         </Toggle>
       </ToolbarTooltip>
 

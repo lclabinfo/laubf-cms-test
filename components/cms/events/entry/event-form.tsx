@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Textarea } from "@/components/ui/textarea"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { Separator } from "@/components/ui/separator"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import {
@@ -193,7 +193,7 @@ export function EventForm({ mode, event }: EventFormProps) {
       {/* Two-column layout */}
       <div className="flex flex-1 gap-6 min-h-0">
         {/* Main content */}
-        <div className="flex-1 min-w-0 overflow-y-auto space-y-6">
+        <div className="flex-1 min-w-0 overflow-y-auto space-y-6 p-0.5 -m-0.5">
           {/* Date & Time */}
           <section className="rounded-xl border bg-card">
             <div className="px-5 py-3 border-b flex items-center gap-2">
@@ -358,17 +358,13 @@ export function EventForm({ mode, event }: EventFormProps) {
 
             <div className="p-5 space-y-5">
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                <Label>Description</Label>
+                <RichTextEditor
+                  content={description}
+                  onContentChange={setDescription}
                   placeholder="Event details, agenda, and notes..."
-                  rows={6}
+                  minHeight="250px"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Rich text editor will be integrated — currently plain text.
-                </p>
               </div>
 
               <Separator />

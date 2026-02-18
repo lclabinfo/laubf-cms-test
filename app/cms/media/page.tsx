@@ -19,6 +19,7 @@ import { UploadPhotoDialog } from "@/components/cms/media/upload-photo-dialog"
 import { AddVideoDialog } from "@/components/cms/media/add-video-dialog"
 import { ConnectAlbumDialog } from "@/components/cms/media/connect-album-dialog"
 import { MoveToDialog } from "@/components/cms/media/move-to-dialog"
+import { MediaPreviewDialog } from "@/components/cms/media/media-preview-dialog"
 import {
   mediaItems as initialMediaItems,
   mediaFolders as initialFolders,
@@ -55,6 +56,7 @@ export default function MediaPage() {
   const [connectAlbumOpen, setConnectAlbumOpen] = useState(false)
   const [moveDialogOpen, setMoveDialogOpen] = useState(false)
   const [movingIds, setMovingIds] = useState<string[]>([])
+  const [previewItem, setPreviewItem] = useState<MediaItem | null>(null)
 
   // Computed: counts for sidebar
   const mediaCounts = useMemo(() => ({
@@ -153,7 +155,17 @@ export default function MediaPage() {
     [rowSelection, filteredItems]
   )
 
+  function handleUpdateItem(id: string, updates: Partial<Pick<MediaItem, "name" | "altText" | "folderId">>) {
+    setMediaItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, ...updates } : i))
+    )
+  }
+
   const tableMeta: MediaTableMeta = useMemo(() => ({
+    onEdit: (id: string) => {
+      const item = mediaItems.find((i) => i.id === id)
+      if (item) setPreviewItem(item)
+    },
     onMoveRequest: (id: string) => {
       setMovingIds([id])
       setMoveDialogOpen(true)
@@ -166,7 +178,7 @@ export default function MediaPage() {
         return next
       })
     },
-  }), [])
+  }), [mediaItems])
 
   const table = useReactTable({
     data: filteredItems,
@@ -355,7 +367,7 @@ export default function MediaPage() {
           mediaCounts={mediaCounts}
           folderCounts={folderCounts}
         />
-        <div className="flex-1 min-w-0 overflow-y-auto">
+        <div className="flex-1 min-w-0 overflow-y-auto p-0.5 -m-0.5">
           {isGoogleAlbums ? (
             <GoogleAlbumsTable albums={albums} onDelete={handleDeleteAlbum} />
           ) : viewMode === "grid" ? (
@@ -367,7 +379,10 @@ export default function MediaPage() {
               onToggleSelect={handleToggleSelect}
               onSelectAll={handleSelectAll}
               onFolderClick={handleSelectFolder}
-              onEdit={() => {}}
+              onEdit={(id) => {
+                const item = mediaItems.find((i) => i.id === id)
+                if (item) setPreviewItem(item)
+              }}
               onMove={(id) => {
                 setMovingIds([id])
                 setMoveDialogOpen(true)
@@ -382,7 +397,11 @@ export default function MediaPage() {
               }}
             />
           ) : (
-            <DataTable columns={columns} table={table} />
+            <DataTable
+              columns={columns}
+              table={table}
+              onRowClick={(row) => setPreviewItem(row)}
+            />
           )}
         </div>
       </div>
@@ -414,6 +433,15 @@ export default function MediaPage() {
         folders={folders}
         currentFolderId={currentFolderIdForMove}
         onSubmit={handleMoveItems}
+      />
+      <MediaPreviewDialog
+        open={!!previewItem}
+        onOpenChange={(open) => {
+          if (!open) setPreviewItem(null)
+        }}
+        item={previewItem}
+        folders={folders}
+        onUpdate={handleUpdateItem}
       />
     </div>
   )

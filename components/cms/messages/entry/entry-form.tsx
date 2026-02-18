@@ -146,7 +146,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
       {/* Two-column layout: content + sidebar */}
       <div className="flex flex-1 gap-6 min-h-0">
         {/* Main content area */}
-        <div className="flex-1 min-w-0 overflow-y-auto">
+        <div className="flex-1 min-w-0 overflow-y-auto p-0.5 -m-0.5">
           <Tabs defaultValue={defaultTab} key={defaultTab}>
             <TabsList variant="line">
               <TabsTrigger value="video">Video</TabsTrigger>

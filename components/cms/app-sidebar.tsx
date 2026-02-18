@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { usePathname } from "next/navigation"
 import {
   ChevronRightIcon,
   ChurchIcon,
@@ -77,9 +77,9 @@ const navGroups: NavGroup[] = [
     label: "Contents",
     items: [
       {
-        title: "Dashboard",
-        href: "/cms/dashboard",
-        icon: LayoutDashboardIcon,
+        title: "Church Profile",
+        href: "/cms/church-profile",
+        icon: ChurchIcon,
       },
       {
         title: "Messages",
@@ -192,7 +192,6 @@ const navGroups: NavGroup[] = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
-  const router = useRouter()
 
   // Determine which group is active based on current path
   const activeGroup = navGroups.find((group) =>
@@ -223,17 +222,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     Church Settings
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    e.stopPropagation()
-                    router.push("/cms/church-profile")
-                  }}
-                  className="ml-auto opacity-0 transition-opacity duration-200 ease-in-out group-hover/header:opacity-100"
-                >
-                  <SettingsIcon className="size-4 text-muted-foreground/60 hover:text-muted-foreground" />
-                </button>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -241,6 +229,25 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
 
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === "/cms/dashboard"}
+                  tooltip="Dashboard"
+                >
+                  <Link href="/cms/dashboard">
+                    <LayoutDashboardIcon />
+                    <span>Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         {navGroups.map((group) => (
           <Collapsible
             key={group.label}

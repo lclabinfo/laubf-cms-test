@@ -17,7 +17,7 @@ import type { JSONContent } from "@tiptap/core"
 export function getExtensions(placeholder?: string): Extensions {
   return [
     StarterKit.configure({
-      heading: { levels: [1, 2, 3] },
+      heading: { levels: [1, 2, 3, 4] },
     }),
     Underline,
     TextAlign.configure({

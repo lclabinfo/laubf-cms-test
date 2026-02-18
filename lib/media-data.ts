@@ -15,6 +15,7 @@ export type MediaItem = {
   size: string
   folderId: string | null
   dateAdded: string
+  altText?: string
 }
 
 export type MediaFolder = {
