@@ -1,8 +1,8 @@
 "use client"
 
-import { ImageIcon } from "lucide-react"
+import Link from "next/link"
+import { ImageIcon, ChevronRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { SeriesActions } from "./series-actions"
 import type { Series } from "@/lib/messages-data"
 
 interface SeriesWithCount extends Series {
@@ -11,12 +11,9 @@ interface SeriesWithCount extends Series {
 
 interface SeriesListViewProps {
   series: SeriesWithCount[]
-  onEdit: (series: Series) => void
-  onManageMessages: (series: Series) => void
-  onDelete: (series: Series) => void
 }
 
-export function SeriesListView({ series, onEdit, onManageMessages, onDelete }: SeriesListViewProps) {
+export function SeriesListView({ series }: SeriesListViewProps) {
   if (series.length === 0) {
     return (
       <div className="flex items-center justify-center rounded-lg border border-dashed p-12">
@@ -28,8 +25,9 @@ export function SeriesListView({ series, onEdit, onManageMessages, onDelete }: S
   return (
     <div className="space-y-2">
       {series.map((s) => (
-        <div
+        <Link
           key={s.id}
+          href={`/cms/messages/series/${s.id}`}
           className="flex items-center gap-4 rounded-lg border bg-card p-3 transition-colors hover:bg-muted/50"
         >
           <div className="size-12 shrink-0 rounded-md bg-muted flex items-center justify-center overflow-hidden">
@@ -45,12 +43,8 @@ export function SeriesListView({ series, onEdit, onManageMessages, onDelete }: S
               {s.count} {s.count === 1 ? "message" : "messages"}
             </Badge>
           </div>
-          <SeriesActions
-            onEdit={() => onEdit(s)}
-            onManageMessages={() => onManageMessages(s)}
-            onDelete={() => onDelete(s)}
-          />
-        </div>
+          <ChevronRight className="size-4 text-muted-foreground shrink-0" />
+        </Link>
       ))}
     </div>
   )

@@ -12,53 +12,40 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import type { Series } from "@/lib/messages-data"
 
 interface SeriesFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  mode: "create" | "edit"
-  series?: Series | null
-  onSubmit: (data: { name: string; imageUrl?: string }) => void
+  mode: "create"
+  onSubmit: (data: { name: string }) => void
 }
 
 export function SeriesFormDialog({
   open,
   onOpenChange,
   mode,
-  series,
   onSubmit,
 }: SeriesFormDialogProps) {
   const [name, setName] = useState("")
-  const [imageUrl, setImageUrl] = useState("")
 
   useEffect(() => {
-    if (open) {
-      if (mode === "edit" && series) {
-        setName(series.name)
-        setImageUrl(series.imageUrl ?? "")
-      } else {
-        setName("")
-        setImageUrl("")
-      }
-    }
-  }, [open, mode, series])
+    if (open) setName("")
+  }, [open])
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    onSubmit({ name: name.trim(), imageUrl: imageUrl.trim() || undefined })
+    onSubmit({ name: name.trim() })
     onOpenChange(false)
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "New Series" : "Edit Series"}</DialogTitle>
+          <DialogTitle>New Series</DialogTitle>
           <DialogDescription>
-            {mode === "create"
-              ? "Create a new message series."
-              : "Update the series details."}
+            Create a new message series. You can add a cover image and messages
+            after creating it.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="grid gap-4">
@@ -72,24 +59,12 @@ export function SeriesFormDialog({
               autoFocus
             />
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="series-image">Cover Image URL</Label>
-            <Input
-              id="series-image"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://example.com/image.jpg"
-            />
-            <p className="text-muted-foreground text-xs">
-              Optional. Provide a URL for the series cover image.
-            </p>
-          </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={!name.trim()}>
-              {mode === "create" ? "Create" : "Save"}
+              Create
             </Button>
           </DialogFooter>
         </form>

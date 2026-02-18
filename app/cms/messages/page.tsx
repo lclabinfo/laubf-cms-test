@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { Suspense, useState, useCallback } from "react"
+import { useSearchParams } from "next/navigation"
 import {
   useReactTable,
   getCoreRowModel,
@@ -15,7 +16,7 @@ import { DataTable } from "@/components/ui/data-table"
 import { columns } from "@/components/cms/messages/columns"
 import { Toolbar } from "@/components/cms/messages/toolbar"
 import { SeriesTab } from "@/components/cms/messages/series-tab"
-import { messages } from "@/lib/messages-data"
+import { useMessages } from "@/lib/messages-context"
 
 function globalFilterFn(
   row: { original: { title: string; speaker: string; passage: string } },
@@ -38,7 +39,10 @@ const filteredRowModel = getFilteredRowModel()
 const paginationRowModel = getPaginationRowModel()
 const sortedRowModel = getSortedRowModel()
 
-export default function MessagesPage() {
+function MessagesPageContent() {
+  const searchParams = useSearchParams()
+  const defaultTab = searchParams.get("tab") === "series" ? "series" : "all"
+  const { messages } = useMessages()
   const [sorting, setSorting] = useState<SortingState>([
     { id: "date", desc: true },
   ])
@@ -101,7 +105,7 @@ export default function MessagesPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="all">
+      <Tabs defaultValue={defaultTab} key={defaultTab}>
         <TabsList variant="line">
           <TabsTrigger value="all">All Messages</TabsTrigger>
           <TabsTrigger value="series">Series</TabsTrigger>
@@ -121,5 +125,13 @@ export default function MessagesPage() {
         </TabsContent>
       </Tabs>
     </div>
+  )
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense>
+      <MessagesPageContent />
+    </Suspense>
   )
 }
