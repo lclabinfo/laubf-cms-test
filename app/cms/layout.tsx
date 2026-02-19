@@ -61,29 +61,31 @@ export default function CmsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const onSubpage = isSubpage(pathname)
 
-  // The user's preferred sidebar state (true = expanded). We store this in
-  // a ref so that toggling the sidebar on a subpage updates the preference
-  // without causing a re-render loop, and the preference survives navigations.
+  // The user's preferred sidebar state for non-subpages (true = expanded).
   const userPrefRef = useRef(true)
-  const [open, setOpenRaw] = useState(true)
+  const [open, setOpen] = useState(true)
+  // Track the previous subpage state so we only collapse once on entry.
+  const wasOnSubpageRef = useRef(false)
 
-  const effectiveOpen = onSubpage ? false : open
+  // When entering a subpage, collapse once. When leaving, restore preference.
+  if (onSubpage && !wasOnSubpageRef.current) {
+    wasOnSubpageRef.current = true
+    if (open) setOpen(false)
+  } else if (!onSubpage && wasOnSubpageRef.current) {
+    wasOnSubpageRef.current = false
+    if (open !== userPrefRef.current) setOpen(userPrefRef.current)
+  }
 
   const handleOpenChange = useCallback((value: boolean) => {
     if (!isSubpage(window.location.pathname)) {
       userPrefRef.current = value
     }
-    setOpenRaw(value)
+    setOpen(value)
   }, [])
-
-  // When navigating from subpage back to list, restore user preference
-  if (!onSubpage && open !== userPrefRef.current) {
-    setOpenRaw(userPrefRef.current)
-  }
 
   return (
     <TooltipProvider>
-      <SidebarProvider open={effectiveOpen} onOpenChange={handleOpenChange}>
+      <SidebarProvider open={open} onOpenChange={handleOpenChange}>
         <AppSidebar />
         <SidebarInset>
           <CmsHeader />
