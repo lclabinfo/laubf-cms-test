@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef } from "react"
-import { Upload, X, FileText } from "lucide-react"
+import { Upload, X, FileText, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { DatePicker } from "@/components/ui/date-picker"
 import { SeriesSelect } from "./series-select"
 import type { Series, MessageStatus, Attachment } from "@/lib/messages-data"
 import { statusDisplay } from "@/lib/status"
@@ -31,6 +32,8 @@ interface MetadataSidebarProps {
   attachments: Attachment[]
   onAttachmentsChange: (attachments: Attachment[]) => void
   allSeries: Series[]
+  publishedAt: string
+  onPublishedAtChange: (value: string) => void
 }
 
 const statusOptions: MessageStatus[] = ["draft", "published", "scheduled", "archived"]
@@ -49,8 +52,25 @@ export function MetadataSidebar({
   attachments,
   onAttachmentsChange,
   allSeries,
+  publishedAt,
+  onPublishedAtChange,
 }: MetadataSidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Parse publishedAt into date and time parts
+  const publishDate = publishedAt ? publishedAt.split("T")[0] : ""
+  const publishTime = publishedAt && publishedAt.includes("T")
+    ? publishedAt.split("T")[1].slice(0, 5)
+    : "09:00"
+
+  function handlePublishDateChange(newDate: string) {
+    onPublishedAtChange(`${newDate}T${publishTime}:00`)
+  }
+
+  function handlePublishTimeChange(newTime: string) {
+    const d = publishDate || new Date().toISOString().slice(0, 10)
+    onPublishedAtChange(`${d}T${newTime}:00`)
+  }
 
   function handleUploadAttachment() {
     fileInputRef.current?.click()
@@ -66,7 +86,6 @@ export function MetadataSidebar({
       type: file.type,
     }))
     onAttachmentsChange([...attachments, ...newAttachments])
-    // Reset input
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
@@ -81,7 +100,7 @@ export function MetadataSidebar({
         <div className="px-4 py-3 border-b">
           <h3 className="text-sm font-semibold">Message Metadata</h3>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Applies to both video and study content.
+            Fields marked with <span className="text-destructive">*</span> are required to publish.
           </p>
         </div>
 
@@ -110,20 +129,58 @@ export function MetadataSidebar({
             </Select>
           </div>
 
-          {/* Date */}
+          {/* Message Date — when the sermon was delivered */}
           <div className="space-y-2">
-            <Label htmlFor="date">Date</Label>
-            <Input
-              id="date"
-              type="date"
+            <Label>Message Date <span className="text-destructive">*</span></Label>
+            <DatePicker
               value={date}
-              onChange={(e) => onDateChange(e.target.value)}
+              onChange={onDateChange}
+              placeholder="When was this message delivered?"
             />
+            <p className="text-xs text-muted-foreground">
+              The date the sermon or study was delivered.
+            </p>
           </div>
+
+          {/* Post Date — when this entry is/will be published */}
+          {(status === "published" || status === "scheduled") && (
+            <div className="space-y-2">
+              <Label>
+                {status === "scheduled" ? "Scheduled Post Date" : "Post Date"}
+                {status === "scheduled" && <span className="text-destructive"> *</span>}
+              </Label>
+              <DatePicker
+                value={publishDate}
+                onChange={handlePublishDateChange}
+                placeholder="When should this be posted?"
+              />
+              {status === "scheduled" && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Clock className="size-3.5 text-muted-foreground" />
+                    <Input
+                      type="time"
+                      value={publishTime}
+                      onChange={(e) => handlePublishTimeChange(e.target.value)}
+                      className="w-32 h-9"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    The date and time this will be posted.
+                  </p>
+                </>
+              )}
+              {status === "published" && (
+                <p className="text-xs text-muted-foreground">
+                  When this entry was posted.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Speaker */}
           <div className="space-y-2">
-            <Label htmlFor="speaker">Speaker</Label>
+            <Label htmlFor="speaker">Speaker <span className="text-destructive">*</span></Label>
             <Input
               id="speaker"
               value={speaker}

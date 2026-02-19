@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { DatePicker } from "@/components/ui/date-picker"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Toggle } from "@/components/ui/toggle"
 import {
@@ -131,12 +132,11 @@ function CustomRecurrenceDialogInner({
               <div className="flex items-center gap-2">
                 <RadioGroupItem value="on-date" id="end-date" />
                 <Label htmlFor="end-date" className="font-normal">On</Label>
-                <Input
-                  type="date"
+                <DatePicker
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  onChange={setEndDate}
+                  placeholder="Select end date"
                   disabled={endType !== "on-date"}
-                  className="w-auto"
                 />
               </div>
 

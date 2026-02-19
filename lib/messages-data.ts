@@ -26,7 +26,10 @@ export type Message = {
   passage: string
   speaker: string
   seriesIds: string[]
+  /** The date the message/sermon was delivered (e.g. Sunday service date) */
   date: string
+  /** When the entry was or will be posted (ISO datetime for scheduled, date for published) */
+  publishedAt?: string
   status: MessageStatus
   hasVideo: boolean
   hasStudy: boolean
@@ -60,6 +63,7 @@ export const messages: Message[] = [
     speaker: "Pastor David",
     seriesIds: ["s1"],
     date: "2026-02-15",
+    publishedAt: "2026-02-15T09:00:00",
     status: "published",
     hasVideo: true,
     hasStudy: true,
@@ -89,6 +93,7 @@ export const messages: Message[] = [
     speaker: "Pastor David",
     seriesIds: ["s1"],
     date: "2026-02-08",
+    publishedAt: "2026-02-08T09:00:00",
     status: "published",
     hasVideo: true,
     hasStudy: false,
@@ -102,6 +107,7 @@ export const messages: Message[] = [
     speaker: "Pastor Sarah",
     seriesIds: ["s1"],
     date: "2026-02-22",
+    publishedAt: "2026-02-21T18:00:00",
     status: "scheduled",
     hasVideo: false,
     hasStudy: true,
@@ -117,6 +123,7 @@ export const messages: Message[] = [
     speaker: "Pastor David",
     seriesIds: ["s2"],
     date: "2026-01-25",
+    publishedAt: "2026-01-25T09:00:00",
     status: "published",
     hasVideo: true,
     hasStudy: true,
@@ -128,6 +135,7 @@ export const messages: Message[] = [
     speaker: "Pastor Sarah",
     seriesIds: ["s2"],
     date: "2026-01-18",
+    publishedAt: "2026-01-18T09:00:00",
     status: "published",
     hasVideo: true,
     hasStudy: false,
@@ -150,6 +158,7 @@ export const messages: Message[] = [
     speaker: "Pastor David",
     seriesIds: ["s3"],
     date: "2026-02-01",
+    publishedAt: "2026-02-01T09:00:00",
     status: "published",
     hasVideo: true,
     hasStudy: true,
@@ -172,6 +181,7 @@ export const messages: Message[] = [
     speaker: "Pastor Sarah",
     seriesIds: ["s3"],
     date: "2025-12-28",
+    publishedAt: "2025-12-28T09:00:00",
     status: "published",
     hasVideo: true,
     hasStudy: true,
@@ -183,6 +193,7 @@ export const messages: Message[] = [
     speaker: "Pastor David",
     seriesIds: ["s4"],
     date: "2025-12-21",
+    publishedAt: "2025-12-21T09:00:00",
     status: "published",
     hasVideo: true,
     hasStudy: false,
@@ -205,6 +216,7 @@ export const messages: Message[] = [
     speaker: "Elder James",
     seriesIds: ["s4"],
     date: "2025-12-07",
+    publishedAt: "2025-12-07T09:00:00",
     status: "published",
     hasVideo: true,
     hasStudy: true,

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal, Video, Pencil, Trash2 } from "lucide-react"
+import { ArrowUpDown, MoreHorizontal, Video, Pencil, Trash2, Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -20,6 +20,17 @@ import { statusDisplay } from "@/lib/status"
 function formatDate(dateStr: string) {
   const date = new Date(dateStr + "T00:00:00")
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+}
+
+function formatDateTime(isoStr: string) {
+  const date = new Date(isoStr)
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  })
 }
 
 export const columns: ColumnDef<Message>[] = [
@@ -70,7 +81,7 @@ export const columns: ColumnDef<Message>[] = [
         </div>
       </div>
     ),
-    size: 300,
+    size: 280,
   },
   {
     accessorKey: "speaker",
@@ -86,7 +97,7 @@ export const columns: ColumnDef<Message>[] = [
       </Button>
     ),
     cell: ({ row }) => <span>{row.getValue("speaker")}</span>,
-    size: 160,
+    size: 140,
   },
   {
     accessorKey: "seriesIds",
@@ -105,7 +116,7 @@ export const columns: ColumnDef<Message>[] = [
       )
     },
     enableSorting: false,
-    size: 180,
+    size: 160,
   },
   {
     accessorKey: "date",
@@ -116,12 +127,45 @@ export const columns: ColumnDef<Message>[] = [
         className="-ml-2 h-8"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
-        Date
+        Message Date
         <ArrowUpDown />
       </Button>
     ),
-    cell: ({ row }) => formatDate(row.getValue("date")),
+    cell: ({ row }) => (
+      <span className="text-sm">{formatDate(row.getValue("date"))}</span>
+    ),
     size: 140,
+  },
+  {
+    accessorKey: "publishedAt",
+    header: ({ column }) => (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="-ml-2 h-8"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+      >
+        Posted
+        <ArrowUpDown />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const publishedAt = row.original.publishedAt
+      const status = row.original.status
+      if (!publishedAt) {
+        return <span className="text-xs text-muted-foreground">—</span>
+      }
+      if (status === "scheduled") {
+        return (
+          <span className="flex items-center gap-1.5 text-sm">
+            <Clock className="size-3 text-amber-500" />
+            {formatDateTime(publishedAt)}
+          </span>
+        )
+      }
+      return <span className="text-sm">{formatDateTime(publishedAt)}</span>
+    },
+    size: 180,
   },
   {
     accessorKey: "status",

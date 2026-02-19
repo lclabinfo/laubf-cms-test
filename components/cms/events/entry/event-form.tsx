@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Separator } from "@/components/ui/separator"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import {
@@ -205,12 +206,11 @@ export function EventForm({ mode, event }: EventFormProps) {
               {/* Start row */}
               <div className="grid grid-cols-[1fr_auto_auto] items-end gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="start-date">Start Date</Label>
-                  <Input
-                    id="start-date"
-                    type="date"
+                  <Label>Start Date</Label>
+                  <DatePicker
                     value={startDate}
-                    onChange={(e) => handleStartDateChange(e.target.value)}
+                    onChange={handleStartDateChange}
+                    placeholder="Select start date"
                   />
                 </div>
                 <div className="space-y-2">
@@ -236,17 +236,14 @@ export function EventForm({ mode, event }: EventFormProps) {
               </div>
 
               {/* End date row */}
-              <div className="grid grid-cols-[1fr_auto] items-end gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="end-date">End Date</Label>
-                  <Input
-                    id="end-date"
-                    type="date"
-                    value={endDate}
-                    min={startDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label>End Date</Label>
+                <DatePicker
+                  value={endDate}
+                  onChange={setEndDate}
+                  min={startDate}
+                  placeholder="Select end date"
+                />
               </div>
 
               <Separator />

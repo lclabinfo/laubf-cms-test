@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ImageIcon, Plus, Sparkles, Upload, X } from "lucide-react"
+import { ImageIcon, Plus, Sparkles, Upload, X, Library } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,6 +16,7 @@ import {
 import { statusDisplay } from "@/lib/status"
 import type { ContentStatus } from "@/lib/status"
 import { eventTypeDisplay, ministries, type EventType } from "@/lib/events-data"
+import { MediaSelectorDialog } from "@/components/cms/media/media-selector-dialog"
 
 interface EventSidebarProps {
   status: ContentStatus
@@ -52,6 +53,7 @@ export function EventSidebar({
   onCoverImageChange,
 }: EventSidebarProps) {
   const [contactInput, setContactInput] = useState("")
+  const [mediaSelectorOpen, setMediaSelectorOpen] = useState(false)
 
   function handleAddContact() {
     const name = contactInput.trim()
@@ -69,6 +71,22 @@ export function EventSidebar({
       e.preventDefault()
       handleAddContact()
     }
+  }
+
+  function handleUploadImage() {
+    const input = document.createElement("input")
+    input.type = "file"
+    input.accept = "image/*"
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = () => {
+        onCoverImageChange(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+    input.click()
   }
 
   function handleGenerateAI() {
@@ -217,7 +235,7 @@ export function EventSidebar({
                 Remove
               </Button>
             )}
-            <Button variant="outline" size="sm" disabled>
+            <Button variant="outline" size="sm" onClick={handleUploadImage}>
               <Upload className="size-3.5" />
               Upload
             </Button>
@@ -225,7 +243,20 @@ export function EventSidebar({
               <Sparkles className="size-3.5" />
               Generate AI
             </Button>
+            <Button variant="outline" size="sm" onClick={() => setMediaSelectorOpen(true)}>
+              <Library className="size-3.5" />
+              Library
+            </Button>
           </div>
+          <MediaSelectorDialog
+            open={mediaSelectorOpen}
+            onOpenChange={setMediaSelectorOpen}
+            onSelect={(items) => {
+              if (items.length > 0) {
+                onCoverImageChange(items[0].url)
+              }
+            }}
+          />
         </div>
       </div>
     </div>

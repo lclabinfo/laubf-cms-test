@@ -46,7 +46,7 @@ function CmsHeader() {
   const label = state === "expanded" ? "Close sidebar" : "Open sidebar"
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
+    <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b bg-background px-4">
       <div className="group/trigger flex items-center gap-2">
         <SidebarTrigger className="-ml-1" />
         <span className="text-xs text-muted-foreground/0 transition-colors group-hover/trigger:text-muted-foreground">
