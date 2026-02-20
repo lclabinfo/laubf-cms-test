@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ImageIcon, Plus, Sparkles, Upload, X, Library } from "lucide-react"
+import { ImageIcon, Plus, Sparkles, Upload, X, Library, Hash } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -15,7 +15,15 @@ import {
 } from "@/components/ui/select"
 import { statusDisplay } from "@/lib/status"
 import type { ContentStatus } from "@/lib/status"
-import { eventTypeDisplay, ministries, type EventType } from "@/lib/events-data"
+import {
+  eventTypeDisplay,
+  ministryOptions,
+  campusOptions,
+  tagSuggestions,
+  type EventType,
+  type MinistryTag,
+  type CampusTag,
+} from "@/lib/events-data"
 import { MediaSelectorDialog } from "@/components/cms/media/media-selector-dialog"
 
 interface EventSidebarProps {
@@ -23,12 +31,18 @@ interface EventSidebarProps {
   onStatusChange: (status: ContentStatus) => void
   eventType: EventType
   onEventTypeChange: (type: EventType) => void
-  ministry: string
-  onMinistryChange: (ministry: string) => void
+  ministry: MinistryTag
+  onMinistryChange: (ministry: MinistryTag) => void
+  campus: CampusTag | undefined
+  onCampusChange: (campus: CampusTag | undefined) => void
   contacts: string[]
   onContactsChange: (contacts: string[]) => void
+  tags: string[]
+  onTagsChange: (tags: string[]) => void
   coverImage: string
   onCoverImageChange: (url: string) => void
+  imageAlt: string
+  onImageAltChange: (alt: string) => void
 }
 
 const statusOptions: ContentStatus[] = ["draft", "published", "scheduled", "archived"]
@@ -47,12 +61,19 @@ export function EventSidebar({
   onEventTypeChange,
   ministry,
   onMinistryChange,
+  campus,
+  onCampusChange,
   contacts,
   onContactsChange,
+  tags,
+  onTagsChange,
   coverImage,
   onCoverImageChange,
+  imageAlt,
+  onImageAltChange,
 }: EventSidebarProps) {
   const [contactInput, setContactInput] = useState("")
+  const [tagInput, setTagInput] = useState("")
   const [mediaSelectorOpen, setMediaSelectorOpen] = useState(false)
 
   function handleAddContact() {
@@ -71,6 +92,31 @@ export function EventSidebar({
       e.preventDefault()
       handleAddContact()
     }
+  }
+
+  function handleAddTag() {
+    let tag = tagInput.trim().toUpperCase()
+    if (!tag) return
+    if (!tag.startsWith("#")) tag = `#${tag}`
+    if (tags.includes(tag)) return
+    onTagsChange([...tags, tag])
+    setTagInput("")
+  }
+
+  function handleRemoveTag(tag: string) {
+    onTagsChange(tags.filter((t) => t !== tag))
+  }
+
+  function handleTagKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      handleAddTag()
+    }
+  }
+
+  function handleTagSuggestionClick(tag: string) {
+    if (tags.includes(tag)) return
+    onTagsChange([...tags, tag])
   }
 
   function handleUploadImage() {
@@ -93,6 +139,9 @@ export function EventSidebar({
     const random = mockUnsplashImages[Math.floor(Math.random() * mockUnsplashImages.length)]
     onCoverImageChange(random)
   }
+
+  // Filter suggestions to only show tags not already added
+  const availableSuggestions = tagSuggestions.filter(t => !tags.includes(t))
 
   return (
     <div className="w-72 shrink-0 space-y-6">
@@ -146,15 +195,38 @@ export function EventSidebar({
 
           {/* Ministry */}
           <div className="space-y-2">
-            <Label htmlFor="event-ministry">Ministry / Category</Label>
-            <Select value={ministry} onValueChange={onMinistryChange}>
+            <Label htmlFor="event-ministry">Ministry</Label>
+            <Select value={ministry} onValueChange={(v) => onMinistryChange(v as MinistryTag)}>
               <SelectTrigger id="event-ministry">
                 <SelectValue placeholder="Select ministry" />
               </SelectTrigger>
               <SelectContent>
-                {ministries.map((m) => (
-                  <SelectItem key={m} value={m}>
-                    {m}
+                {ministryOptions.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Campus */}
+          <div className="space-y-2">
+            <Label htmlFor="event-campus">Campus (optional)</Label>
+            <Select
+              value={campus ?? "__none__"}
+              onValueChange={(v) => onCampusChange(v === "__none__" ? undefined : v as CampusTag)}
+            >
+              <SelectTrigger id="event-campus">
+                <SelectValue placeholder="No campus" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">
+                  <span className="text-muted-foreground">No campus</span>
+                </SelectItem>
+                {campusOptions.map((c) => (
+                  <SelectItem key={c.value} value={c.value}>
+                    {c.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -200,6 +272,71 @@ export function EventSidebar({
         </div>
       </div>
 
+      {/* Tags */}
+      <div className="rounded-xl border bg-card">
+        <div className="px-4 py-3 border-b flex items-center gap-2">
+          <Hash className="size-4 text-muted-foreground" />
+          <h3 className="text-sm font-semibold">Tags</h3>
+        </div>
+
+        <div className="p-4 space-y-3">
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((tag) => (
+                <Badge key={tag} variant="outline" className="gap-1 pr-1 text-xs">
+                  {tag}
+                  <button
+                    onClick={() => handleRemoveTag(tag)}
+                    className="rounded-full hover:bg-foreground/10 p-0.5"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-1.5">
+            <Input
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={handleTagKeyDown}
+              placeholder="Add tag..."
+              className="flex-1 text-sm"
+            />
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={handleAddTag}
+              disabled={!tagInput.trim()}
+            >
+              <Plus className="size-4" />
+            </Button>
+          </div>
+
+          {/* Tag suggestions */}
+          {availableSuggestions.length > 0 && (
+            <div className="space-y-1.5">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                Suggestions
+              </span>
+              <div className="flex flex-wrap gap-1">
+                {availableSuggestions.slice(0, 8).map((tag) => (
+                  <Badge
+                    key={tag}
+                    variant="outline"
+                    className="cursor-pointer text-[10px] hover:bg-muted"
+                    onClick={() => handleTagSuggestionClick(tag)}
+                  >
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Cover Image */}
       <div className="rounded-xl border bg-card">
         <div className="px-4 py-3 border-b">
@@ -212,7 +349,7 @@ export function EventSidebar({
             {coverImage ? (
               <img
                 src={coverImage}
-                alt="Event cover"
+                alt={imageAlt || "Event cover"}
                 className="size-full object-cover"
               />
             ) : (
@@ -221,6 +358,18 @@ export function EventSidebar({
                 <span className="text-xs">No image selected</span>
               </div>
             )}
+          </div>
+
+          {/* Alt text */}
+          <div className="space-y-1.5">
+            <Label htmlFor="image-alt" className="text-xs">Alt Text</Label>
+            <Input
+              id="image-alt"
+              value={imageAlt}
+              onChange={(e) => onImageAltChange(e.target.value)}
+              placeholder="Describe the image..."
+              className="text-sm h-8"
+            />
           </div>
 
           {/* Actions */}

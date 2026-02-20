@@ -7,18 +7,25 @@ import {
   ArrowLeft,
   CalendarIcon,
   Globe,
+  LinkIcon,
   MapPin,
   MessageSquare,
+  Plus,
   Repeat,
+  Trash2,
+  ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { DatePicker } from "@/components/ui/date-picker"
 import { Separator } from "@/components/ui/separator"
+import { Switch } from "@/components/ui/switch"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Toggle } from "@/components/ui/toggle"
 import {
   Select,
   SelectContent,
@@ -33,10 +40,18 @@ import { statusDisplay } from "@/lib/status"
 import type { ContentStatus } from "@/lib/status"
 import {
   recurrenceDisplay,
+  generateSlug,
+  allDays,
+  dayLabels,
   type ChurchEvent,
   type EventType,
+  type EventLink,
   type LocationType,
+  type MinistryTag,
+  type CampusTag,
   type Recurrence,
+  type RecurrenceEndType,
+  type DayOfWeek,
   type CustomRecurrence,
 } from "@/lib/events-data"
 
@@ -57,12 +72,18 @@ const recurrenceOptions: Recurrence[] = [
   "custom",
 ]
 
+/** Recurrence types that should show the day-of-week picker */
+const dayPickerRecurrences: Recurrence[] = ["weekly"]
+
 export function EventForm({ mode, event }: EventFormProps) {
   const router = useRouter()
   const { addEvent, updateEvent } = useEvents()
 
   // Basic info
   const [title, setTitle] = useState(event?.title ?? "")
+  const [slug, setSlug] = useState(event?.slug ?? "")
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
+  const [shortDescription, setShortDescription] = useState(event?.shortDescription ?? "")
 
   // Date & time
   const [startDate, setStartDate] = useState(event?.date ?? today)
@@ -70,6 +91,9 @@ export function EventForm({ mode, event }: EventFormProps) {
   const [startTime, setStartTime] = useState(event?.startTime ?? "10:00")
   const [endTime, setEndTime] = useState(event?.endTime ?? "11:00")
   const [recurrence, setRecurrence] = useState<Recurrence>(event?.recurrence ?? "none")
+  const [recurrenceDays, setRecurrenceDays] = useState<DayOfWeek[]>(event?.recurrenceDays ?? [])
+  const [recurrenceEndType, setRecurrenceEndType] = useState<RecurrenceEndType>(event?.recurrenceEndType ?? "never")
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState(event?.recurrenceEndDate ?? "")
   const [customRecurrence, setCustomRecurrence] = useState<CustomRecurrence | undefined>(
     event?.customRecurrence
   )
@@ -78,20 +102,42 @@ export function EventForm({ mode, event }: EventFormProps) {
   // Location
   const [locationType, setLocationType] = useState<LocationType>(event?.locationType ?? "in-person")
   const [location, setLocation] = useState(event?.location ?? "")
+  const [meetingUrl, setMeetingUrl] = useState(event?.meetingUrl ?? "")
 
   // Content
   const [description, setDescription] = useState(event?.description ?? "")
   const [welcomeMessage, setWelcomeMessage] = useState(event?.welcomeMessage ?? "")
 
+  // Links
+  const [registrationUrl, setRegistrationUrl] = useState(event?.registrationUrl ?? "")
+  const [links, setLinks] = useState<EventLink[]>(event?.links ?? [])
+
   // Sidebar state
   const [status, setStatus] = useState<ContentStatus>(event?.status ?? "draft")
   const [eventType, setEventType] = useState<EventType>(event?.type ?? "event")
-  const [ministry, setMinistry] = useState(event?.ministry ?? "")
+  const [ministry, setMinistry] = useState<MinistryTag>(event?.ministry ?? "church-wide")
+  const [campus, setCampus] = useState<CampusTag | undefined>(event?.campus)
   const [contacts, setContacts] = useState<string[]>(event?.contacts ?? [])
   const [coverImage, setCoverImage] = useState(event?.coverImage ?? "")
+  const [imageAlt, setImageAlt] = useState(event?.imageAlt ?? "")
+  const [tags, setTags] = useState<string[]>(event?.tags ?? [])
 
   const isValid = title.trim().length >= 2 && startDate && startTime && endTime && location.trim()
   const statusConfig = statusDisplay[status]
+  const isRecurring = recurrence !== "none"
+  const showDayPicker = dayPickerRecurrences.includes(recurrence)
+
+  function handleTitleChange(value: string) {
+    setTitle(value)
+    if (!slugManuallyEdited) {
+      setSlug(generateSlug(value))
+    }
+  }
+
+  function handleSlugChange(value: string) {
+    setSlugManuallyEdited(true)
+    setSlug(generateSlug(value))
+  }
 
   function handleRecurrenceChange(value: string) {
     const rec = value as Recurrence
@@ -101,23 +147,61 @@ export function EventForm({ mode, event }: EventFormProps) {
     }
     setRecurrence(rec)
     setCustomRecurrence(undefined)
+
+    // Auto-set recurrence days for weekday preset
+    if (rec === "weekday") {
+      setRecurrenceDays(["mon", "tue", "wed", "thu", "fri"])
+    } else if (rec === "daily") {
+      setRecurrenceDays(["sun", "mon", "tue", "wed", "thu", "fri", "sat"])
+    } else if (rec === "none") {
+      setRecurrenceDays([])
+      setRecurrenceEndType("never")
+      setRecurrenceEndDate("")
+    }
   }
 
   function handleCustomRecurrenceSubmit(value: CustomRecurrence) {
     setRecurrence("custom")
     setCustomRecurrence(value)
+    setRecurrenceDays(value.days)
+    if (value.endType === "on-date" && value.endDate) {
+      setRecurrenceEndType("on-date")
+      setRecurrenceEndDate(value.endDate)
+    }
+  }
+
+  function toggleRecurrenceDay(day: DayOfWeek) {
+    setRecurrenceDays(prev =>
+      prev.includes(day)
+        ? prev.filter(d => d !== day)
+        : [...prev, day]
+    )
   }
 
   function handleStartDateChange(value: string) {
     setStartDate(value)
-    // Auto-sync end date if it's before the new start date
     if (value > endDate) setEndDate(value)
+  }
+
+  function handleAddLink() {
+    setLinks(prev => [...prev, { label: "", href: "", external: true }])
+  }
+
+  function handleUpdateLink(index: number, field: keyof EventLink, value: string | boolean) {
+    setLinks(prev => prev.map((link, i) =>
+      i === index ? { ...link, [field]: value } : link
+    ))
+  }
+
+  function handleRemoveLink(index: number) {
+    setLinks(prev => prev.filter((_, i) => i !== index))
   }
 
   function handleSave() {
     if (!isValid) return
 
     const eventData: Omit<ChurchEvent, "id"> = {
+      slug: slug || generateSlug(title),
       title: title.trim(),
       type: eventType,
       date: startDate,
@@ -125,16 +209,26 @@ export function EventForm({ mode, event }: EventFormProps) {
       startTime,
       endTime,
       recurrence,
+      recurrenceDays,
+      recurrenceEndType: isRecurring ? recurrenceEndType : "never",
+      recurrenceEndDate: recurrenceEndType === "on-date" ? recurrenceEndDate : undefined,
       customRecurrence: recurrence === "custom" ? customRecurrence : undefined,
       locationType,
       location: location.trim(),
+      meetingUrl: meetingUrl.trim() || undefined,
       ministry,
+      campus: campus || undefined,
       status,
       isPinned: event?.isPinned ?? false,
+      shortDescription: shortDescription.trim() || undefined,
       description: description || undefined,
       welcomeMessage: welcomeMessage || undefined,
       contacts: contacts.length > 0 ? contacts : undefined,
       coverImage: coverImage || undefined,
+      imageAlt: imageAlt.trim() || undefined,
+      tags,
+      registrationUrl: registrationUrl.trim() || undefined,
+      links: links.filter(l => l.label.trim() && l.href.trim()),
     }
 
     if (mode === "create") {
@@ -177,24 +271,55 @@ export function EventForm({ mode, event }: EventFormProps) {
         </div>
       </div>
 
-      {/* Title */}
-      <div>
-        <Input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Event title"
-          className="text-lg font-medium h-12"
-          aria-label="Event title"
-        />
-        {title.trim().length > 0 && title.trim().length < 2 && (
-          <p className="text-xs text-destructive mt-1">Title must be at least 2 characters</p>
-        )}
+      {/* Title & Slug */}
+      <div className="space-y-3">
+        <div>
+          <Input
+            value={title}
+            onChange={(e) => handleTitleChange(e.target.value)}
+            placeholder="Event title"
+            className="text-lg font-medium h-12"
+            aria-label="Event title"
+          />
+          {title.trim().length > 0 && title.trim().length < 2 && (
+            <p className="text-xs text-destructive mt-1">Title must be at least 2 characters</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground shrink-0">/events/</span>
+          <Input
+            value={slug}
+            onChange={(e) => handleSlugChange(e.target.value)}
+            placeholder="auto-generated-slug"
+            className="text-sm h-8 font-mono"
+            aria-label="Event slug"
+          />
+        </div>
       </div>
 
       {/* Two-column layout */}
       <div className="flex flex-1 gap-6 min-h-0">
         {/* Main content */}
         <div className="flex-1 min-w-0 overflow-y-auto space-y-6 p-0.5 -m-0.5">
+          {/* Short Description */}
+          <section className="rounded-xl border bg-card">
+            <div className="px-5 py-3 border-b">
+              <h2 className="text-sm font-semibold">Short Description</h2>
+            </div>
+            <div className="p-5">
+              <Textarea
+                value={shortDescription}
+                onChange={(e) => setShortDescription(e.target.value)}
+                placeholder="A brief summary for event cards and list views (1-2 sentences)..."
+                rows={3}
+                maxLength={250}
+              />
+              <p className="text-xs text-muted-foreground mt-1.5">
+                {shortDescription.length}/250 characters. Shown on event cards and search results.
+              </p>
+            </div>
+          </section>
+
           {/* Date & Time */}
           <section className="rounded-xl border bg-card">
             <div className="px-5 py-3 border-b flex items-center gap-2">
@@ -249,7 +374,7 @@ export function EventForm({ mode, event }: EventFormProps) {
               <Separator />
 
               {/* Recurrence */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <Repeat className="size-4 text-muted-foreground" />
                   <Label>Recurrence</Label>
@@ -287,6 +412,58 @@ export function EventForm({ mode, event }: EventFormProps) {
                     </Button>
                   </div>
                 )}
+
+                {/* Day-of-week picker for weekly recurrence */}
+                {showDayPicker && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Repeats on</Label>
+                    <div className="flex gap-1.5">
+                      {allDays.map((day) => (
+                        <Toggle
+                          key={day}
+                          size="sm"
+                          pressed={recurrenceDays.includes(day)}
+                          onPressedChange={() => toggleRecurrenceDay(day)}
+                          className="size-9 rounded-full p-0 text-xs data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                          aria-label={dayLabels[day].full}
+                        >
+                          {dayLabels[day].short}
+                        </Toggle>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Recurrence end date - shown for all recurring types */}
+                {isRecurring && recurrence !== "custom" && (
+                  <div className="space-y-2 pt-1">
+                    <Label className="text-xs text-muted-foreground">Ends</Label>
+                    <div className="flex items-center gap-4">
+                      <RadioGroup
+                        value={recurrenceEndType}
+                        onValueChange={(v) => setRecurrenceEndType(v as RecurrenceEndType)}
+                        className="flex gap-4"
+                      >
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem value="never" id="rec-end-never" />
+                          <Label htmlFor="rec-end-never" className="font-normal text-sm">Never</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem value="on-date" id="rec-end-date" />
+                          <Label htmlFor="rec-end-date" className="font-normal text-sm">On date</Label>
+                        </div>
+                      </RadioGroup>
+                      {recurrenceEndType === "on-date" && (
+                        <DatePicker
+                          value={recurrenceEndDate}
+                          onChange={setRecurrenceEndDate}
+                          min={startDate}
+                          placeholder="End date"
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </section>
@@ -322,26 +499,42 @@ export function EventForm({ mode, event }: EventFormProps) {
 
               <div className="space-y-2">
                 <Label htmlFor="location-input">
-                  {locationType === "in-person" ? "Address" : "Meeting Link"}
+                  {locationType === "in-person" ? "Address / Venue" : "Location Name"}
                 </Label>
                 <div className="relative">
-                  {locationType === "in-person" ? (
-                    <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                  ) : (
-                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                  )}
+                  <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                   <Input
                     id="location-input"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     placeholder={
                       locationType === "in-person"
-                        ? "e.g. Main Sanctuary, Room 201"
-                        : "e.g. https://zoom.us/j/..."
+                        ? "e.g. LA UBF Main Center, Room 201"
+                        : "e.g. Zoom, Google Meet"
                     }
                     className="pl-9"
                   />
                 </div>
+              </div>
+
+              <Separator />
+
+              {/* Meeting URL - always visible */}
+              <div className="space-y-2">
+                <Label htmlFor="meeting-url">Meeting URL (optional)</Label>
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                  <Input
+                    id="meeting-url"
+                    value={meetingUrl}
+                    onChange={(e) => setMeetingUrl(e.target.value)}
+                    placeholder="e.g. https://zoom.us/j/..."
+                    className="pl-9"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Online meeting link (Zoom, YouTube, Google Meet). Shown as a &quot;Join Online&quot; button on the event page.
+                </p>
               </div>
             </div>
           </section>
@@ -380,6 +573,90 @@ export function EventForm({ mode, event }: EventFormProps) {
               </div>
             </div>
           </section>
+
+          {/* Links */}
+          <section className="rounded-xl border bg-card">
+            <div className="px-5 py-3 border-b flex items-center gap-2">
+              <LinkIcon className="size-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">Links</h2>
+            </div>
+
+            <div className="p-5 space-y-4">
+              {/* Registration URL */}
+              <div className="space-y-2">
+                <Label htmlFor="registration-url">Registration URL</Label>
+                <div className="relative">
+                  <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                  <Input
+                    id="registration-url"
+                    value={registrationUrl}
+                    onChange={(e) => setRegistrationUrl(e.target.value)}
+                    placeholder="e.g. https://forms.google.com/..."
+                    className="pl-9"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Shows a &quot;Register Now&quot; button on the event page.
+                </p>
+              </div>
+
+              <Separator />
+
+              {/* Important Links */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Important Links</Label>
+                  <Button variant="outline" size="sm" onClick={handleAddLink}>
+                    <Plus className="size-3.5" />
+                    Add Link
+                  </Button>
+                </div>
+
+                {links.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    No additional links. Add links that will appear on the event detail page.
+                  </p>
+                )}
+
+                {links.map((link, index) => (
+                  <div key={index} className="flex items-start gap-2 p-3 rounded-lg border bg-muted/30">
+                    <div className="flex-1 space-y-2">
+                      <Input
+                        value={link.label}
+                        onChange={(e) => handleUpdateLink(index, "label", e.target.value)}
+                        placeholder="Link label (e.g. Conference Schedule)"
+                        className="h-8 text-sm"
+                      />
+                      <Input
+                        value={link.href}
+                        onChange={(e) => handleUpdateLink(index, "href", e.target.value)}
+                        placeholder="https://..."
+                        className="h-8 text-sm"
+                      />
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          id={`link-external-${index}`}
+                          checked={link.external ?? true}
+                          onCheckedChange={(checked) => handleUpdateLink(index, "external", checked)}
+                        />
+                        <Label htmlFor={`link-external-${index}`} className="text-xs font-normal text-muted-foreground">
+                          Open in new tab
+                        </Label>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => handleRemoveLink(index)}
+                      className="shrink-0"
+                    >
+                      <Trash2 className="size-3.5 text-destructive" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
         </div>
 
         {/* Sidebar */}
@@ -390,10 +667,16 @@ export function EventForm({ mode, event }: EventFormProps) {
           onEventTypeChange={setEventType}
           ministry={ministry}
           onMinistryChange={setMinistry}
+          campus={campus}
+          onCampusChange={setCampus}
           contacts={contacts}
           onContactsChange={setContacts}
+          tags={tags}
+          onTagsChange={setTags}
           coverImage={coverImage}
           onCoverImageChange={setCoverImage}
+          imageAlt={imageAlt}
+          onImageAltChange={setImageAlt}
         />
       </div>
 

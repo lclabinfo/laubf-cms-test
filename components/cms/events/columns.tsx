@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import type { ChurchEvent } from "@/lib/events-data"
-import { eventTypeDisplay, recurrenceDisplay } from "@/lib/events-data"
+import { eventTypeDisplay, recurrenceDisplay, ministryDisplay } from "@/lib/events-data"
 import { statusDisplay } from "@/lib/status"
 
 function formatDate(dateStr: string) {
@@ -144,7 +144,11 @@ export const columns: ColumnDef<ChurchEvent>[] = [
   {
     accessorKey: "ministry",
     header: "Ministry",
-    cell: ({ row }) => <span className="text-sm">{row.getValue("ministry")}</span>,
+    cell: ({ row }) => {
+      const ministry = row.original.ministry
+      const label = ministryDisplay[ministry] ?? ministry
+      return <span className="text-sm">{label}</span>
+    },
     enableSorting: false,
     size: 120,
   },
