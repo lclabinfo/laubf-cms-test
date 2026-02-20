@@ -44,7 +44,7 @@
     "agentation": "^2.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",
-    "shadcn": "^3.8.4",
+    "shadcn": "^3.8.5",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
