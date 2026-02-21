@@ -14,7 +14,7 @@ This document defines the database architecture for a multi-tenant SaaS platform
 |---|---|---|
 | **Database-per-tenant** | Full isolation | Expensive, hard to manage at 1,000+ tenants |
 | **Schema-per-tenant** | Good isolation | Migration complexity, connection pooling limits |
-| **Shared DB + RLS** (chosen) | Cost-efficient, single migration path, scales to 100K+ tenants | Requires discipline with `org_id` on every query |
+| **Shared DB + RLS** (chosen) | Cost-efficient, single migration path, scales to 100K+ tenants | Requires discipline with `church_id` on every query |
 
 At 1,000 churches, separate databases would mean 1,000 PostgreSQL instances — operationally untenable. The shared approach with RLS gives us data isolation guarantees at the database level while keeping operations simple.
 
@@ -26,14 +26,14 @@ At 1,000 churches, separate databases would mean 1,000 PostgreSQL instances — 
 Request → Edge Middleware → Resolve Tenant → Inject Context → Application
                 ↓
     ┌───────────────────────────┐
-    │ 1. Custom domain lookup   │  gracechurch.org → org_abc
-    │ 2. Subdomain extraction   │  grace.digitalchurch.com → org_abc
+    │ 1. Custom domain lookup   │  gracechurch.org → church_abc
+    │ 2. Subdomain extraction   │  grace.digitalchurch.com → church_abc
     │ 3. Platform routing       │  digitalchurch.com → marketing site
     └───────────────────────────┘
                 ↓
-    AsyncLocalStorage sets org_id for entire request lifecycle
+    AsyncLocalStorage sets church_id for entire request lifecycle
                 ↓
-    Prisma middleware auto-injects WHERE org_id = ? on all queries
+    Prisma middleware auto-injects WHERE church_id = ? on all queries
 ```
 
 ---
@@ -42,28 +42,28 @@ Request → Edge Middleware → Resolve Tenant → Inject Context → Applicatio
 
 The database is organized into **4 layers**, each with a specific purpose:
 
-### Layer 1: Platform (no org_id)
+### Layer 1: Platform (no church_id)
 Global system tables that exist outside of any tenant context.
 
 | Table | Purpose |
 |---|---|
-| `Organization` | Tenant registry — one row per church |
+| `Church` | Tenant registry — one row per church |
 | `User` | Global user accounts (can belong to multiple orgs) |
 | `Plan` | Subscription plan definitions |
 | `PlatformSetting` | Global platform configuration |
 
-### Layer 2: Tenant Management (org_id required)
+### Layer 2: Tenant Management (church_id required)
 Tables that configure each tenant's access, billing, and team.
 
 | Table | Purpose |
 |---|---|
-| `OrganizationMember` | User ↔ Org membership with roles |
+| `ChurchMember` | User ↔ Org membership with roles |
 | `Subscription` | Billing state per org |
 | `CustomDomain` | Custom domain mappings |
 | `ApiKey` | API access tokens |
 | `AuditLog` | Action history per org |
 
-### Layer 3: CMS Content (org_id required)
+### Layer 3: CMS Content (church_id required)
 All content managed through the CMS admin interface.
 
 | Table | Purpose |
@@ -85,7 +85,7 @@ All content managed through the CMS admin interface.
 | `Announcement` | Church announcements |
 | `ContactSubmission` | Form submissions |
 
-### Layer 4: Website/Builder (org_id required)
+### Layer 4: Website/Builder (church_id required)
 Tables that define the public-facing website structure.
 
 | Table | Purpose |
@@ -103,8 +103,8 @@ Tables that define the public-facing website structure.
 ## 4. Entity Relationship Diagram (Simplified)
 
 ```
-Organization (tenant)
-├── OrganizationMember ── User
+Church (tenant)
+├── ChurchMember ── User
 ├── Subscription ── Plan
 ├── CustomDomain
 │
@@ -141,7 +141,7 @@ Organization (tenant)
 ## 5. Indexing Strategy for 1,000+ Tenants
 
 ### The Cardinal Rule
-**Every query hits a composite index starting with `org_id`.** Without this, PostgreSQL scans the entire table across all tenants.
+**Every query hits a composite index starting with `church_id`.** Without this, PostgreSQL scans the entire table across all tenants.
 
 ### Scale Estimation (1,000 churches)
 
@@ -161,35 +161,35 @@ Organization (tenant)
 **Pattern 1: Tenant-scoped lookup by slug (most common)**
 ```sql
 -- Every content table
-CREATE UNIQUE INDEX idx_{table}_org_slug ON {table}(org_id, slug);
+CREATE UNIQUE INDEX idx_{table}_org_slug ON {table}(church_id, slug);
 ```
 This covers the primary access pattern: "get this specific item for this church."
 
 **Pattern 2: Tenant-scoped listing with sort**
 ```sql
 -- Messages: latest first
-CREATE INDEX idx_messages_org_date ON messages(org_id, date_for DESC);
+CREATE INDEX idx_messages_org_date ON messages(church_id, date_for DESC);
 
 -- Events: upcoming first
-CREATE INDEX idx_events_org_date_start ON events(org_id, date_start);
+CREATE INDEX idx_events_org_date_start ON events(church_id, date_start);
 
 -- Daily bread: by date
-CREATE INDEX idx_daily_bread_org_date ON daily_breads(org_id, date DESC);
+CREATE INDEX idx_daily_bread_org_date ON daily_breads(church_id, date DESC);
 ```
 
 **Pattern 3: Tenant-scoped filtering**
 ```sql
 -- Events by type
-CREATE INDEX idx_events_org_type ON events(org_id, type);
+CREATE INDEX idx_events_org_type ON events(church_id, type);
 
 -- Events by ministry
-CREATE INDEX idx_events_org_ministry ON events(org_id, ministry_id);
+CREATE INDEX idx_events_org_ministry ON events(church_id, ministry_id);
 
 -- Messages by speaker
-CREATE INDEX idx_messages_org_speaker ON messages(org_id, speaker_id);
+CREATE INDEX idx_messages_org_speaker ON messages(church_id, speaker_id);
 
 -- Messages by series
-CREATE INDEX idx_messages_org_series ON messages(org_id, series_id);
+CREATE INDEX idx_messages_org_series ON messages(church_id, series_id);
 ```
 
 **Pattern 4: Full-text search (per tenant)**
@@ -198,22 +198,22 @@ CREATE INDEX idx_messages_org_series ON messages(org_id, series_id);
 CREATE INDEX idx_messages_search ON messages
   USING GIN(to_tsvector('english', title || ' ' || description));
 
--- Filter by org_id first, then search
--- Application: WHERE org_id = ? AND search_vector @@ to_tsquery(?)
+-- Filter by church_id first, then search
+-- Application: WHERE church_id = ? AND search_vector @@ to_tsquery(?)
 ```
 
 **Pattern 5: Partial indexes for common filters**
 ```sql
 -- Only active/published content
-CREATE INDEX idx_events_org_active ON events(org_id, date_start)
+CREATE INDEX idx_events_org_active ON events(church_id, date_start)
   WHERE deleted_at IS NULL AND status = 'PUBLISHED';
 
 -- Only featured events
-CREATE INDEX idx_events_org_featured ON events(org_id, date_start)
+CREATE INDEX idx_events_org_featured ON events(church_id, date_start)
   WHERE is_featured = TRUE AND deleted_at IS NULL;
 
 -- Only recurring events
-CREATE INDEX idx_events_org_recurring ON events(org_id)
+CREATE INDEX idx_events_org_recurring ON events(church_id)
   WHERE is_recurring = TRUE AND deleted_at IS NULL;
 ```
 
@@ -238,12 +238,12 @@ ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 
 -- Tenant isolation policy
 CREATE POLICY tenant_isolation ON messages
-  USING (org_id = current_setting('app.current_org_id')::uuid);
+  USING (church_id = current_setting('app.current_church_id')::uuid);
 
--- Insert policy (ensure org_id matches)
+-- Insert policy (ensure church_id matches)
 CREATE POLICY tenant_insert ON messages
   FOR INSERT
-  WITH CHECK (org_id = current_setting('app.current_org_id')::uuid);
+  WITH CHECK (church_id = current_setting('app.current_church_id')::uuid);
 ```
 
 ### Setting Tenant Context
@@ -251,14 +251,14 @@ CREATE POLICY tenant_insert ON messages
 On every request, before any query:
 
 ```sql
-SET LOCAL app.current_org_id = 'org_uuid_here';
+SET LOCAL app.current_church_id = 'church_uuid_here';
 ```
 
 In Prisma, this is done via a `$queryRaw` in middleware or via the `@prisma/extension-accelerate` tenant context.
 
 ### RLS as Defense-in-Depth
 
-RLS is the **second line of defense**. The primary line is the Prisma middleware that auto-injects `WHERE org_id = ?`. RLS catches any query that accidentally bypasses the application layer.
+RLS is the **second line of defense**. The primary line is the Prisma middleware that auto-injects `WHERE church_id = ?`. RLS catches any query that accidentally bypasses the application layer.
 
 ---
 
@@ -271,7 +271,7 @@ model Message {
   // ...
   deletedAt DateTime?
 
-  @@index([orgId, deletedAt]) // Partial index candidate
+  @@index([churchId, deletedAt]) // Partial index candidate
 }
 ```
 
@@ -287,7 +287,7 @@ model Message {
 ```prisma
 model AuditLog {
   id        String   @id @default(uuid()) @db.Uuid
-  orgId     String   @db.Uuid
+  churchId     String   @db.Uuid
   userId    String?  @db.Uuid
   action    String   // CREATE, UPDATE, DELETE, LOGIN, EXPORT, etc.
   entity    String   // "Message", "Event", etc.
@@ -297,10 +297,19 @@ model AuditLog {
   userAgent String?
   createdAt DateTime @default(now())
 
-  @@index([orgId, createdAt DESC])
-  @@index([orgId, entity, entityId])
+  @@index([churchId, createdAt DESC])
+  @@index([churchId, entity, entityId])
 }
 ```
+
+> **Scalability concern — 100M+ rows**: At 10K churches x 10K audit entries/year, this table
+> reaches 100M rows within a year. Recommendations:
+> 1. **Partition by month** using PostgreSQL native range partitioning on `createdAt`.
+>    Prisma does not manage partitions directly — use raw SQL migrations.
+> 2. **Archive old partitions**: Move partitions older than 1 year to cold storage (S3/GCS).
+> 3. **Avoid JSONB indexes** on the `changes` column — only index `churchId`, `createdAt`, and
+>    `entity`/`entityId` for lookups.
+> 4. Consider a dedicated audit service (e.g., append-only log store) at 10K+ tenants.
 
 ---
 
@@ -328,6 +337,15 @@ max_client_conn = 10000
 default_pool_size = 200
 ```
 
+> **Critical: PgBouncer + RLS compatibility**
+> PgBouncer in **transaction mode** resets session state between transactions, which means
+> `SET LOCAL app.current_church_id` only persists within a single transaction. This is actually
+> *safer* than session mode — it guarantees tenant context cannot leak between requests that
+> share a connection. However, every transaction must begin with `SET LOCAL` before any queries.
+> The Prisma middleware must wrap all operations in `$transaction` to ensure the `SET LOCAL`
+> and subsequent queries share the same database transaction. Failing to do this is a
+> **data isolation vulnerability**.
+
 ### Read Replicas
 
 At 1,000+ churches:
@@ -351,21 +369,21 @@ datasource db {
 
 ### Cache Key Namespace
 
-All cache keys are prefixed with `org:{org_id}:` to prevent cross-tenant contamination:
+All cache keys are prefixed with `church:{church_id}:` to prevent cross-tenant contamination:
 
 ```
-org:abc123:messages:latest        → 5 min TTL
-org:abc123:events:upcoming        → 5 min TTL
-org:abc123:site-settings          → 60 min TTL
-org:abc123:theme                  → 60 min TTL
-org:abc123:page:about             → 10 min TTL
+church:abc123:messages:latest        → 5 min TTL
+church:abc123:events:upcoming        → 5 min TTL
+church:abc123:site-settings          → 60 min TTL
+church:abc123:theme                  → 60 min TTL
+church:abc123:page:about             → 10 min TTL
 ```
 
 ### Cache Invalidation
 
 On CMS write operations:
 1. Update database
-2. Invalidate relevant cache keys for that `org_id`
+2. Invalidate relevant cache keys for that `church_id`
 3. Redis Pub/Sub notifies other app instances
 
 ---
@@ -429,15 +447,15 @@ npx prisma db seed
 
 ## 14. Security Checklist
 
-- [ ] All tenant-scoped tables have `org_id` column with foreign key
+- [ ] All tenant-scoped tables have `church_id` column with foreign key
 - [ ] RLS policies enabled on all tenant-scoped tables
-- [ ] Prisma middleware auto-injects `org_id` filter on all read queries
-- [ ] Prisma middleware auto-sets `org_id` on all insert operations
-- [ ] No raw SQL queries without explicit `org_id` WHERE clause
+- [ ] Prisma middleware auto-injects `church_id` filter on all read queries
+- [ ] Prisma middleware auto-sets `church_id` on all insert operations
+- [ ] No raw SQL queries without explicit `church_id` WHERE clause
 - [ ] PgBouncer configured in transaction mode (prevents session-level RLS leaks)
-- [ ] API endpoints validate that requested `org_id` matches authenticated user's org
+- [ ] API endpoints validate that requested `church_id` matches authenticated user's org
 - [ ] Superadmin queries use a separate connection pool that bypasses RLS
-- [ ] Audit log captures all write operations with `org_id` context
+- [ ] Audit log captures all write operations with `church_id` context
 - [ ] Soft deletes prevent accidental data loss
 - [ ] Database credentials rotated every 90 days
 - [ ] Connection strings never committed to source control

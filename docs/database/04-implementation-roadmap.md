@@ -40,9 +40,9 @@ Create the full schema in `prisma/schema.prisma` using the models defined in doc
 
 **Order of definition** (respecting foreign key dependencies):
 1. Enums (all enum types)
-2. `Organization`
+2. `Church`
 3. `User`
-4. `OrganizationMember`
+4. `ChurchMember`
 5. `Session`
 6. `Subscription`, `CustomDomain`, `ApiKey`
 7. `Speaker`, `Series`, `Ministry`, `Campus`
@@ -104,8 +104,8 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 import { prisma } from './client'
 import { tenantExtension } from './extensions/tenant'
 
-export function getTenantDb(orgId: string) {
-  return prisma.$extends(tenantExtension(orgId))
+export function getTenantDb(churchId: string) {
+  return prisma.$extends(tenantExtension(churchId))
 }
 ```
 
@@ -115,13 +115,13 @@ export function getTenantDb(orgId: string) {
 src/middleware.ts       ← Next.js Edge Middleware
 src/lib/tenant/
 ├── context.ts         ← AsyncLocalStorage for org context
-├── resolve.ts         ← Domain → org_id resolution
+├── resolve.ts         ← Domain → church_id resolution
 └── types.ts           ← Tenant context types
 ```
 
 The middleware:
 1. Extracts hostname from request
-2. Resolves to `org_id` (custom domain lookup → subdomain extraction → fallback)
+2. Resolves to `church_id` (custom domain lookup → subdomain extraction → fallback)
 3. Sets `x-tenant-id` header
 4. Stores in `AsyncLocalStorage` for the request lifecycle
 
@@ -129,9 +129,9 @@ The middleware:
 
 Create `prisma/seed.ts` that:
 
-1. Creates the LA UBF organization:
+1. Creates the LA UBF church:
 ```typescript
-const org = await prisma.organization.create({
+const org = await prisma.church.create({
   data: {
     name: 'LA UBF',
     slug: 'la-ubf',
@@ -148,7 +148,7 @@ const speakerNames = [...new Set(MOCK_MESSAGES.map(m => m.speaker))]
 const speakers = await Promise.all(
   speakerNames.map(name =>
     prisma.speaker.create({
-      data: { orgId: org.id, name, slug: slugify(name) }
+      data: { churchId: org.id, name, slug: slugify(name) }
     })
   )
 )
@@ -197,8 +197,8 @@ Each DAL module encapsulates Prisma queries and returns typed data. Example:
 import { getTenantDb } from '@/lib/db/tenant'
 import type { MessageFilters } from '@/lib/types/message'
 
-export async function getMessages(orgId: string, filters?: MessageFilters) {
-  const db = getTenantDb(orgId)
+export async function getMessages(churchId: string, filters?: MessageFilters) {
+  const db = getTenantDb(churchId)
   return db.message.findMany({
     where: {
       status: 'PUBLISHED',
@@ -212,10 +212,10 @@ export async function getMessages(orgId: string, filters?: MessageFilters) {
   })
 }
 
-export async function getMessageBySlug(orgId: string, slug: string) {
-  const db = getTenantDb(orgId)
+export async function getMessageBySlug(churchId: string, slug: string) {
+  const db = getTenantDb(churchId)
   return db.message.findUnique({
-    where: { orgId_slug: { orgId, slug } },
+    where: { churchId_slug: { churchId, slug } },
     include: {
       speaker: true,
       series: true,
@@ -231,7 +231,7 @@ export async function getMessageBySlug(orgId: string, slug: string) {
 
 ### Step 2.1 — Create CMS API Routes
 
-Replace mock data imports with database queries. Every route is scoped to the authenticated user's `org_id`.
+Replace mock data imports with database queries. Every route is scoped to the authenticated user's `church_id`.
 
 ```
 src/app/api/v1/
@@ -293,7 +293,7 @@ Standardize all API responses:
 
 Each API route goes through:
 1. **Auth middleware** — Verify JWT, extract userId
-2. **Tenant middleware** — Resolve orgId, verify membership
+2. **Tenant middleware** — Resolve churchId, verify membership
 3. **Permission middleware** — Check role has access to this operation
 4. **Rate limiting** — Per-org, per-user limits
 5. **Request validation** — Zod schema validation on body/params
@@ -324,8 +324,8 @@ import { getMessages } from '@/lib/dal/messages'
 import { getTenantId } from '@/lib/tenant/context'
 
 export default async function MessagesPage() {
-  const orgId = getTenantId()
-  const messages = await getMessages(orgId)
+  const churchId = getTenantId()
+  const messages = await getMessages(churchId)
   // ...
 }
 ```
@@ -372,7 +372,7 @@ npm install next-auth@beta
 Configure:
 - Email/password login
 - JWT session strategy (not database sessions for now)
-- `orgId` embedded in JWT token
+- `churchId` embedded in JWT token
 
 ### Step 4.2 — Build CMS Admin Routes
 
@@ -427,8 +427,8 @@ Build the church registration flow:
 4. Select plan (free tier for MVP)
 5. Choose a theme template
 6. System creates:
-   - `Organization` row
-   - `User` + `OrganizationMember` (OWNER role)
+   - `Church` row
+   - `User` + `ChurchMember` (OWNER role)
    - `SiteSettings` with defaults
    - `ThemeCustomization` from selected theme
    - Default `Page` + `PageSection` records
@@ -439,7 +439,7 @@ Build the church registration flow:
 Update `middleware.ts` to:
 1. Check `CustomDomain` table for exact domain match
 2. Extract subdomain from `*.digitalchurch.com`
-3. Set `org_id` in request context
+3. Set `church_id` in request context
 4. Route to appropriate layout:
    - `*.digitalchurch.com/admin/*` → CMS admin layout
    - `*.digitalchurch.com/*` → Public website layout
@@ -594,7 +594,7 @@ The `ContentStatus` enum includes `SCHEDULED`. Implement a cron job:
 const scheduled = await prisma.$queryRaw`
   UPDATE messages SET status = 'PUBLISHED', published_at = NOW()
   WHERE status = 'SCHEDULED' AND date_for <= CURRENT_DATE
-  RETURNING id, org_id
+  RETURNING id, church_id
 `
 // Invalidate cache for affected orgs
 ```
@@ -621,7 +621,7 @@ For cross-content search (search across messages, events, studies), consider a u
 
 ```
 User uploads file → API route → Validate (type, size) →
-  → Generate unique key: {org_id}/{folder}/{uuid}.{ext}
+  → Generate unique key: {church_id}/{folder}/{uuid}.{ext}
   → Upload to S3/R2/Vercel Blob
   → If image: generate thumbnail (sharp)
   → Create MediaAsset row
@@ -636,15 +636,15 @@ When CMS content changes, the public website needs to know:
 
 ```typescript
 // After any CMS write operation
-async function onContentChange(orgId: string, entity: string, entityId: string) {
+async function onContentChange(churchId: string, entity: string, entityId: string) {
   // 1. Invalidate Redis cache
-  await redis.del(`org:${orgId}:${entity}:*`)
+  await redis.del(`church:${churchId}:${entity}:*`)
 
   // 2. Revalidate ISR pages
-  await fetch(`/api/revalidate?tag=${orgId}-${entity}`)
+  await fetch(`/api/revalidate?tag=${churchId}-${entity}`)
 
   // 3. Log audit trail
-  await prisma.auditLog.create({ data: { orgId, entity, entityId, action: 'UPDATE' } })
+  await prisma.auditLog.create({ data: { churchId, entity, entityId, action: 'UPDATE' } })
 }
 ```
 
@@ -690,15 +690,15 @@ Churches should be able to export their data:
 
 ```typescript
 // Export all content for an org as JSON
-async function exportOrgData(orgId: string) {
+async function exportOrgData(churchId: string) {
   const [messages, events, studies, videos, dailyBreads, pages, settings] = await Promise.all([
-    prisma.message.findMany({ where: { orgId } }),
-    prisma.event.findMany({ where: { orgId } }),
-    prisma.bibleStudy.findMany({ where: { orgId } }),
-    prisma.video.findMany({ where: { orgId } }),
-    prisma.dailyBread.findMany({ where: { orgId } }),
-    prisma.page.findMany({ where: { orgId }, include: { sections: true } }),
-    prisma.siteSettings.findUnique({ where: { orgId } }),
+    prisma.message.findMany({ where: { churchId } }),
+    prisma.event.findMany({ where: { churchId } }),
+    prisma.bibleStudy.findMany({ where: { churchId } }),
+    prisma.video.findMany({ where: { churchId } }),
+    prisma.dailyBread.findMany({ where: { churchId } }),
+    prisma.page.findMany({ where: { churchId }, include: { sections: true } }),
+    prisma.siteSettings.findUnique({ where: { churchId } }),
   ])
 
   return { messages, events, studies, videos, dailyBreads, pages, settings }
@@ -743,3 +743,41 @@ async function exportOrgData(orgId: string) {
 8. **Update events pages** to use DAL
 9. **Continue through all remaining pages**
 10. **Build CMS authentication** once all public pages are database-backed
+
+---
+
+## Review Notes & Corrections
+
+> Added during roadmap review — cross-referencing against docs 01-03 and the live codebase.
+
+### Roadmap Assessment
+
+**Overall phasing: LOGICAL and correctly sequenced.** The progression from schema -> DAL -> API -> page integration -> auth -> multi-tenancy -> website builder -> production is the correct order. Each phase builds on the previous one.
+
+### Issues Found
+
+1. **Two separate Next.js apps not addressed.** The project has two separate Next.js apps: the CMS admin at `/app/cms/` (root `package.json`) and the public website at `/laubf-test/` (its own `package.json`). The roadmap assumes a single app. Phases 3 and 4 must clarify which app is being modified. The seed script and DAL must be shared or duplicated. Recommendation: consolidate into a single Next.js app with route groups `(admin)` and `(public)` before starting database work, or document the cross-app sharing strategy for Prisma client and DAL modules.
+
+2. **CMS admin pages already exist.** Phase 4 (Auth & CMS Admin) says "Build CMS Admin Routes" with a proposed structure starting from scratch. But the CMS already has working pages: `/cms/dashboard`, `/cms/events` (list + new + edit), `/cms/messages` (list + new + edit + series), `/cms/media`, `/cms/people` (directory + groups + members), `/cms/giving` (donations + payments + reports), `/cms/website/domains`, and `/cms/church-profile`. The roadmap should reference these existing pages and describe integration, not creation from scratch.
+
+3. **Effort estimates for P0 are too aggressive.** "Install Prisma + write schema: 1-2 days" is realistic. But the full schema from docs 02 and 03 includes 20+ models, 15+ enums, JSONB content structures, and complex relations (MessageSeries many-to-many, self-referential MenuItem, polymorphic ContentTag). With proper validation and testing, 2-3 days is more accurate for the schema alone. Seed script alone is 1-2 days given the volume of mock data transformation needed.
+
+4. **Missing: Zod validation schemas.** The roadmap mentions API middleware with "Zod schema validation on body/params" but doesn't include a phase for creating these schemas. With 10+ content types, each needing create/update validation schemas, this is 2-3 days of work that should be explicit.
+
+5. **Phase ordering issue: Auth before multi-tenant is correct for single-tenant MVP, but the public website pages need tenant context.** Phase 3 (Replace Mock Data) switches pages to use DAL with `getTenantId()`, but tenant resolution middleware isn't built until Phase 5. For a single-tenant MVP, the churchId can be hardcoded or pulled from an env var, but this should be stated explicitly.
+
+6. **Phase 6 (Website Builder) effort is underestimated.** The section editor alone requires form builders for 35+ section types, each with unique JSONB structures. The 5-7 day estimate for "Page builder UI" covers maybe 5-8 section types. A realistic estimate for all section types is 3-4 weeks. Recommendation: prioritize the 10 most-used section types and defer the rest.
+
+7. **Missing phase: Data migration strategy.** Between mock data and production, there's a gap for migrating real content (existing YouTube sermons, actual events). The seed script handles mock data, but a separate phase should cover importing real LA UBF content from whatever source it currently lives in (Google Sheets, existing website, manual entry).
+
+8. **ISR/caching strategy needs more detail.** Phase 3 mentions switching to ISR but doesn't specify which pages use `revalidate` vs dynamic rendering. For a multi-tenant app, ISR with `revalidatePath` or `revalidateTag` per org is critical. This deserves its own sub-phase.
+
+### Priority Matrix Corrections
+
+| Original | Correction | Reason |
+|---|---|---|
+| P0: Replace mock data — 2-3 days | 3-5 days | 29+ pages in laubf-test need updating, many with complex data fetching |
+| P1: CMS admin forms — 5-7 days | 3-5 days (integration only) | Forms already exist; effort is wiring to API, not building from scratch |
+| P2: Multi-tenant middleware — 2-3 days | 1-2 days | Can be simpler initially with hardcoded org for single-tenant MVP |
+| P3: Page builder UI — 5-7 days | 15-20 days | 35+ section type editors is substantial work |
+| P3: Media upload pipeline — 2-3 days | 3-5 days | Includes S3/R2 integration, thumbnail generation, CDN setup |
