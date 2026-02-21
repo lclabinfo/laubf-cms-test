@@ -1,0 +1,18 @@
+{
+    "colorVariables": [
+      { "name": "black 1", "hex": "#0D0D0D" },
+      { "name": "black 2", "hex": "#313131" },
+      { "name": "black 3", "hex": "#676767" },
+  
+      { "name": "white 0", "hex": "#FFFFFF" },
+      { "name": "white 1", "hex": "#FAFAFA" },
+      { "name": "white 1 5", "hex": "#F2F2F2" },
+      { "name": "white 2", "hex": "#E8E8E8" },
+      { "name": "white 2 5", "hex": "#DCDCDC" },
+      { "name": "white 3", "hex": "#9E9E9E" },
+  
+      { "name": "brand 1", "hex": "#3667B1" },
+      { "name": "brand 2", "hex": "#061B4F" }
+    ]
+  }
+  
