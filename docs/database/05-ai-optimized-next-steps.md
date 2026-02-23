@@ -157,7 +157,7 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 - [x] `lib/db/client.ts` exists with singleton pattern (imports from `@/lib/generated/prisma/client`)
 - [x] `lib/db/types.ts` re-exports all 32 model types and 22 enum types
 - [x] `lib/db/index.ts` barrel export works
-- [ ] TypeScript compilation has no errors related to Prisma imports
+- [x] TypeScript compilation has no errors related to Prisma imports — verified via `npx tsc --noEmit` (only pre-existing laubf-test/ issues remain)
 
 ---
 
@@ -256,12 +256,12 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 #### Verification:
 - [x] `prisma/seed.mts` exists and compiles without TypeScript errors (note: renamed from `seed.ts` to `seed.mts` for ESM support)
 - [x] `npx prisma db seed` runs successfully
-- [ ] `npx prisma studio` shows data in all major tables (Church, Speaker, Series, Ministry, Campus, Message, Event, BibleStudy, Video, DailyBread)
-- [ ] Message count in DB matches MOCK_MESSAGES count
-- [ ] Event count in DB matches MOCK_EVENTS count
-- [ ] Speaker and Series tables are populated with normalized entries
-- [ ] MessageSeries join table has entries linking messages to their series
-- [ ] Running seed again doesn't create duplicates (idempotent)
+- [ ] `npx prisma studio` shows data in all major tables — not tested yet
+- [x] Message count in DB matches MOCK_MESSAGES count — 28 messages in DB
+- [x] Event count in DB matches MOCK_EVENTS count — 11 events in DB
+- [x] Speaker and Series tables are populated with normalized entries — 11 speakers, 3 series
+- [x] MessageSeries join table has entries linking messages to their series — 28 entries
+- [x] Running seed again doesn't create duplicates (idempotent) — verified via re-seed after delete test
 
 ---
 
@@ -484,7 +484,7 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 - [x] DELETE endpoints call DAL soft-delete functions (resolve slug to id first)
 - [x] Error responses include appropriate HTTP status codes (400, 404, 500)
 - [x] TypeScript compilation passes
-- [ ] Manual testing with curl/Postman shows routes work correctly
+- [x] Manual testing with curl shows routes work correctly — GET, POST, PATCH, DELETE all verified for messages and events
 
 ---
 
@@ -543,9 +543,9 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 #### Verification:
 - [x] CMS message list page loads data from the database (not mock data) — `messages-context.tsx` fetches from `/api/v1/messages`
 - [x] Creating a new message via the CMS form persists to the database — optimistic update + POST to API
-- [ ] Editing a message via the CMS form updates the database — TODO: needs slug stored in CMS Message type for PATCH
-- [ ] Deleting a message soft-deletes it in the database — TODO: needs slug stored in CMS Message type for DELETE
-- [x] CMS event list, create, edit, delete all work with the database — `events-context.tsx` fetches from `/api/v1/events` (update/delete TODOs pending slug tracking)
+- [x] Editing a message via the CMS form updates the database — `slug` field added to CMS `Message` type, `updateMessage` calls PATCH `/api/v1/messages/{slug}`
+- [x] Deleting a message soft-deletes it in the database — `deleteMessage` calls DELETE `/api/v1/messages/{slug}`
+- [x] CMS event list, create, edit, delete all work with the database — `events-context.tsx` fetches from `/api/v1/events`, `updateEvent` calls PATCH, `deleteEvent` calls DELETE using slug
 - [x] Speaker and series dropdowns are populated from the database — series fetched from `/api/v1/series`
 - [x] Loading states show while data is being fetched — Loader2 spinner in messages and events list pages
 - [x] Error states display when API calls fail — error state in context providers

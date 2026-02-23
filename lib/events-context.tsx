@@ -233,13 +233,64 @@ export function EventsProvider({ children }: { children: ReactNode }) {
     setEvents((prev) =>
       prev.map((e) => (e.id === id ? { ...e, ...data } : e))
     )
-    // TODO: Call PATCH /api/v1/events/[slug] when slug is tracked
-  }, [])
+
+    const evt = events.find((e) => e.id === id)
+    if (!evt?.slug) return
+
+    // Build API payload from CMS fields
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload: Record<string, any> = {}
+    if (data.title !== undefined) payload.title = data.title
+    if (data.type !== undefined) payload.type = eventTypeToApi[data.type] ?? "EVENT"
+    if (data.date !== undefined) payload.dateStart = new Date(data.date + "T00:00:00").toISOString()
+    if (data.endDate !== undefined) payload.dateEnd = data.endDate ? new Date(data.endDate + "T00:00:00").toISOString() : null
+    if (data.startTime !== undefined) payload.startTime = data.startTime
+    if (data.endTime !== undefined) payload.endTime = data.endTime
+    if (data.locationType !== undefined) payload.locationType = locationTypeToApi[data.locationType] ?? "IN_PERSON"
+    if (data.location !== undefined) payload.location = data.location || null
+    if (data.meetingUrl !== undefined) payload.meetingUrl = data.meetingUrl || null
+    if (data.shortDescription !== undefined) payload.shortDescription = data.shortDescription || null
+    if (data.description !== undefined) payload.description = data.description || null
+    if (data.welcomeMessage !== undefined) payload.welcomeMessage = data.welcomeMessage || null
+    if (data.contacts !== undefined) payload.contacts = data.contacts ?? []
+    if (data.coverImage !== undefined) payload.coverImage = data.coverImage || null
+    if (data.imageAlt !== undefined) payload.imageAlt = data.imageAlt || null
+    if (data.registrationUrl !== undefined) payload.registrationUrl = data.registrationUrl || null
+    if (data.isPinned !== undefined) payload.isPinned = data.isPinned
+    if (data.recurrence !== undefined) {
+      payload.recurrence = recurrenceToApi[data.recurrence] ?? "NONE"
+      payload.isRecurring = data.recurrence !== "none"
+    }
+    if (data.recurrenceDays !== undefined) payload.recurrenceDays = data.recurrenceDays
+    if (data.recurrenceEndType !== undefined) payload.recurrenceEndType = recurrenceEndTypeToApi[data.recurrenceEndType] ?? "NEVER"
+    if (data.recurrenceEndDate !== undefined) payload.recurrenceEndDate = data.recurrenceEndDate ? new Date(data.recurrenceEndDate + "T00:00:00").toISOString() : null
+    if (data.customRecurrence !== undefined) payload.customRecurrence = data.customRecurrence || null
+    if (data.status !== undefined) payload.status = statusToApi[data.status] ?? "DRAFT"
+
+    fetch(`/api/v1/events/${evt.slug}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data) {
+          setEvents((prev) =>
+            prev.map((e) => (e.id === id ? apiEventToCms(json.data) : e))
+          )
+        }
+      })
+      .catch(console.error)
+  }, [events])
 
   const deleteEvent = useCallback((id: string) => {
+    const evt = events.find((e) => e.id === id)
     setEvents((prev) => prev.filter((e) => e.id !== id))
-    // TODO: Call DELETE /api/v1/events/[slug] when slug is tracked
-  }, [])
+
+    if (evt?.slug) {
+      fetch(`/api/v1/events/${evt.slug}`, { method: "DELETE" }).catch(console.error)
+    }
+  }, [events])
 
   const value = useMemo(
     () => ({ events, loading, error, addEvent, updateEvent, deleteEvent }),

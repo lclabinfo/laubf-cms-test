@@ -120,6 +120,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
     return {
       title: title.trim(),
+      slug: title.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, ""),
       passage: passage.trim(),
       speaker: speaker.trim(),
       seriesIds,

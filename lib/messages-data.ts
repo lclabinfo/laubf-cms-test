@@ -22,6 +22,7 @@ export type Attachment = {
 
 export type Message = {
   id: string
+  slug: string
   title: string
   passage: string
   speaker: string
@@ -58,6 +59,7 @@ export const series: Series[] = [
 export const messages: Message[] = [
   {
     id: "m1",
+    slug: "the-word-became-flesh",
     title: "The Word Became Flesh",
     passage: "John 1:1-14",
     speaker: "Pastor David",
@@ -88,6 +90,7 @@ export const messages: Message[] = [
   },
   {
     id: "m2",
+    slug: "the-first-disciples",
     title: "The First Disciples",
     passage: "John 1:35-51",
     speaker: "Pastor David",
@@ -102,6 +105,7 @@ export const messages: Message[] = [
   },
   {
     id: "m3",
+    slug: "water-into-wine",
     title: "Water Into Wine",
     passage: "John 2:1-12",
     speaker: "Pastor Sarah",
@@ -118,6 +122,7 @@ export const messages: Message[] = [
   },
   {
     id: "m4",
+    slug: "the-lord-is-my-shepherd",
     title: "The Lord Is My Shepherd",
     passage: "Psalm 23",
     speaker: "Pastor David",
@@ -130,6 +135,7 @@ export const messages: Message[] = [
   },
   {
     id: "m5",
+    slug: "a-song-of-ascent",
     title: "A Song of Ascent",
     passage: "Psalm 121",
     speaker: "Pastor Sarah",
@@ -142,6 +148,7 @@ export const messages: Message[] = [
   },
   {
     id: "m6",
+    slug: "hope-in-the-depths",
     title: "Hope in the Depths",
     passage: "Psalm 130",
     speaker: "Elder James",
@@ -153,6 +160,7 @@ export const messages: Message[] = [
   },
   {
     id: "m7",
+    slug: "the-day-of-pentecost",
     title: "The Day of Pentecost",
     passage: "Acts 2:1-21",
     speaker: "Pastor David",
@@ -165,6 +173,7 @@ export const messages: Message[] = [
   },
   {
     id: "m8",
+    slug: "peters-sermon",
     title: "Peter's Sermon",
     passage: "Acts 2:22-41",
     speaker: "Elder James",
@@ -176,6 +185,7 @@ export const messages: Message[] = [
   },
   {
     id: "m9",
+    slug: "life-in-community",
     title: "Life in Community",
     passage: "Acts 2:42-47",
     speaker: "Pastor Sarah",
@@ -188,6 +198,7 @@ export const messages: Message[] = [
   },
   {
     id: "m10",
+    slug: "justified-by-faith",
     title: "Justified by Faith",
     passage: "Romans 3:21-31",
     speaker: "Pastor David",
@@ -200,6 +211,7 @@ export const messages: Message[] = [
   },
   {
     id: "m11",
+    slug: "peace-with-god",
     title: "Peace with God",
     passage: "Romans 5:1-11",
     speaker: "Pastor David",
@@ -211,6 +223,7 @@ export const messages: Message[] = [
   },
   {
     id: "m12",
+    slug: "more-than-conquerors",
     title: "More Than Conquerors",
     passage: "Romans 8:31-39",
     speaker: "Elder James",

@@ -43,6 +43,7 @@ const statusToApi: Record<string, string> = {
 function apiMessageToCms(apiMsg: any): Message {
   return {
     id: apiMsg.id,
+    slug: apiMsg.slug ?? "",
     title: apiMsg.title,
     passage: apiMsg.passage ?? "",
     speaker: apiMsg.speaker?.name ?? "",
@@ -223,9 +224,11 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const addMessage = useCallback((data: Omit<Message, "id">) => {
+    const slug = data.slug || data.title.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")
     const tempMessage: Message = {
       ...data,
       id: `m${Date.now()}`,
+      slug,
     }
     setMessages((prev) => [tempMessage, ...prev])
 
@@ -255,30 +258,33 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
     )
 
     // Find the message to get its slug for the API call
-    setMessages((prev) => {
-      const msg = prev.find((m) => m.id === id)
-      if (msg) {
-        // We need the slug - derive from title or use id-based lookup
-        // For now, use the message id directly in the URL pattern
-        // The API route accepts slug, so we do a lookup by fetching first
-        fetch(`/api/v1/messages?pageSize=1&status=`, {
-          // Use a workaround: we don't have the slug readily, so use the list endpoint
-          // This is temporary until we add slug to the CMS message type
-        }).catch(console.error)
-      }
-      return prev
-    })
+    const msg = messages.find((m) => m.id === id)
+    if (!msg?.slug) return
 
-    // Direct PATCH using fetch — we need the slug, so we temporarily skip the API call
-    // The optimistic update ensures the UI stays responsive
-    // TODO: Store slug in CMS Message type to enable proper PATCH calls
-    void cmsMessageToApiUpdate(data) // suppress unused lint
-  }, [])
+    fetch(`/api/v1/messages/${msg.slug}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cmsMessageToApiUpdate(data)),
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data) {
+          setMessages((prev) =>
+            prev.map((m) => (m.id === id ? apiMessageToCms(json.data) : m))
+          )
+        }
+      })
+      .catch(console.error)
+  }, [messages])
 
   const deleteMessage = useCallback((id: string) => {
+    const msg = messages.find((m) => m.id === id)
     setMessages((prev) => prev.filter((m) => m.id !== id))
-    // TODO: Call DELETE /api/v1/messages/[slug] when slug is available in CMS type
-  }, [])
+
+    if (msg?.slug) {
+      fetch(`/api/v1/messages/${msg.slug}`, { method: "DELETE" }).catch(console.error)
+    }
+  }, [messages])
 
   const value = useMemo(
     () => ({
