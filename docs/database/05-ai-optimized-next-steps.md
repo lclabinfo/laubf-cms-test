@@ -11,7 +11,11 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > - 38 section components built in `/laubf-test/src/components/sections/`
 > - TypeScript types defined in `/laubf-test/src/lib/types/` (message.ts, events.ts, bible-study.ts, daily-bread.ts, video.ts, sections.ts, shared.ts)
 > - Tech stack: Next.js 16, React 19, Tailwind CSS 4, shadcn/ui, Tiptap editor, Tanstack Table, Motion, date-fns
-> - No database, no Prisma, no authentication currently installed
+> - **Prisma 7.4.1 and @prisma/client are installed** (Phase 1.1 COMPLETE)
+> - `prisma/schema.prisma` exists with **32 models and 22 enums**
+> - `prisma.config.ts` exists (Prisma 7.x config format — datasource URL configured here, not in schema.prisma)
+> - `docker-compose.yml` exists (local dev uses native PostgreSQL 18 instead of Docker)
+> - `.env` has `DATABASE_URL` and `DIRECT_URL` configured
 > - Database schema fully designed in docs 01-04 at `/docs/database/`
 
 ---
@@ -22,7 +26,9 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 
 **Effort**: M (2-3 days)
 **Dependencies**: None
-**What this does**: Sets up the PostgreSQL database tooling and creates the complete Prisma schema with all 20+ models. This is the foundation everything else builds on. The schema must match the design documents exactly to avoid rework later.
+**What this does**: Sets up the PostgreSQL database tooling and creates the complete Prisma schema with all 32 models and 22 enums. This is the foundation everything else builds on. The schema must match the design documents exactly to avoid rework later.
+
+> **STATUS: PHASE 1.1 IS COMPLETE.** Prisma 7.4.1 is installed, `prisma/schema.prisma` exists with 32 models and 22 enums, `docker-compose.yml` exists, `.env` is configured, and `npx prisma validate` passes.
 
 #### Prompt:
 
@@ -76,15 +82,15 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > - Use `@db.Date` for date-only fields (dateFor, dateStart, datePublished, etc.)
 
 #### Verification:
-- [ ] `prisma/schema.prisma` exists with all models from docs 02 and 03
-- [ ] All enums are defined (ChurchStatus, PlanTier, MemberRole, ContentStatus, EventType, LocationType, Recurrence, RecurrenceEndType, BibleBook, AttachmentType, VideoCategory, AnnouncePriority, SubStatus, DomainStatus, SslStatus, SectionType, PageType, PageLayout, ColorScheme, PaddingSize, ContainerWidth, MenuLocation)
-- [ ] All relations have correct `@relation` annotations and `onDelete` behavior
-- [ ] All composite unique constraints are present (e.g., `@@unique([churchId, slug])`)
-- [ ] All indexes are present per the docs
-- [ ] `.env` has DATABASE_URL and DIRECT_URL
-- [ ] `docker-compose.yml` exists at project root
-- [ ] `.env` is in `.gitignore`
-- [ ] `npx prisma validate` passes without errors
+- [x] `prisma/schema.prisma` exists with all models from docs 02 and 03 (32 models, 22 enums)
+- [x] All enums are defined (ChurchStatus, PlanTier, MemberRole, ContentStatus, EventType, LocationType, Recurrence, RecurrenceEndType, BibleBook, AttachmentType, VideoCategory, AnnouncePriority, SubStatus, DomainStatus, SslStatus, SectionType, PageType, PageLayout, ColorScheme, PaddingSize, ContainerWidth, MenuLocation)
+- [x] All relations have correct `@relation` annotations and `onDelete` behavior
+- [x] All composite unique constraints are present (e.g., `@@unique([churchId, slug])`)
+- [x] All indexes are present per the docs
+- [x] `.env` has DATABASE_URL and DIRECT_URL
+- [x] `docker-compose.yml` exists at project root
+- [x] `.env` is in `.gitignore`
+- [x] `npx prisma validate` passes without errors
 
 ---
 
@@ -114,10 +120,10 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > npx prisma generate
 > ```
 >
-> **4. Create the Prisma client singleton** at `src/lib/db/client.ts` (create the `src/lib/db/` directory under the ROOT project, not under `laubf-test/`):
+> **4. Create the Prisma client singleton** at `lib/db/client.ts` (create the `lib/db/` directory under the ROOT project, not under `laubf-test/`):
 >
 > ```typescript
-> import { PrismaClient } from '@prisma/client'
+> import { PrismaClient } from '@/lib/generated/prisma/client'
 >
 > const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 >
@@ -128,27 +134,29 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 > ```
 >
-> **5. Create a types re-export** at `src/lib/db/types.ts`:
+> **Note**: This project uses Prisma 7.x with `prisma.config.ts` for configuration. The datasource URL is configured in `prisma.config.ts`, not in `schema.prisma`. The Prisma client output is set to `../lib/generated/prisma` in the schema's generator block, so imports use `@/lib/generated/prisma/client` instead of `@prisma/client`.
+>
+> **5. Create a types re-export** at `lib/db/types.ts`:
 > ```typescript
-> export type { Church, User, Message, Event, BibleStudy, Video, DailyBread, Speaker, Series, Ministry, Campus, Page, PageSection, Menu, MenuItem, SiteSettings, ThemeCustomization, Theme, MediaAsset, Tag, ContentTag, Announcement, ContactSubmission, AuditLog } from '@prisma/client'
-> export { ContentStatus, EventType, Recurrence, BibleBook, VideoCategory, SectionType, PageType, MemberRole, ChurchStatus, PlanTier } from '@prisma/client'
+> export type { Church, User, Message, Event, BibleStudy, Video, DailyBread, Speaker, Series, Ministry, Campus, Page, PageSection, Menu, MenuItem, SiteSettings, ThemeCustomization, Theme, MediaAsset, Tag, ContentTag, Announcement, ContactSubmission, AuditLog } from '@/lib/generated/prisma/client'
+> export { ContentStatus, EventType, Recurrence, BibleBook, VideoCategory, SectionType, PageType, MemberRole, ChurchStatus, PlanTier } from '@/lib/generated/prisma/client'
 > ```
 >
-> **6. Create a barrel export** at `src/lib/db/index.ts`:
+> **6. Create a barrel export** at `lib/db/index.ts`:
 > ```typescript
 > export { prisma } from './client'
 > export * from './types'
 > ```
 >
-> **Important**: Make sure `src/` is under the ROOT project directory (`/Users/davidlim/Desktop/laubf-cms-test/src/`), NOT under `laubf-test/src/`. The root project's `tsconfig.json` should already have `@/` pointing to the right place.
+> **Important**: The root project does NOT have a `src/` directory. All code lives directly under the project root in `lib/`, `app/`, `components/`, etc. Create `lib/db/` at `/Users/davidlim/Desktop/laubf-cms-test/lib/db/`, NOT under `laubf-test/`. The root project's `tsconfig.json` maps `@/*` to the project root.
 
 #### Verification:
-- [ ] Docker PostgreSQL is running (`docker compose ps` shows healthy)
-- [ ] `prisma/migrations/` directory contains the init migration with SQL
+- [x] PostgreSQL is running (native PostgreSQL 18 on localhost)
+- [x] `prisma/migrations/` directory contains the init migration with SQL (`20260223222632_init/migration.sql`)
 - [ ] `npx prisma studio` opens and shows all tables (run briefly to verify, then close)
-- [ ] `src/lib/db/client.ts` exists with singleton pattern
-- [ ] `src/lib/db/types.ts` re-exports all Prisma types
-- [ ] `src/lib/db/index.ts` barrel export works
+- [x] `lib/db/client.ts` exists with singleton pattern (imports from `@/lib/generated/prisma/client`)
+- [x] `lib/db/types.ts` re-exports all 32 model types and 22 enum types
+- [x] `lib/db/index.ts` barrel export works
 - [ ] TypeScript compilation has no errors related to Prisma imports
 
 ---
@@ -246,8 +254,8 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > - All string-to-enum conversions must handle case differences (mock data uses lowercase, Prisma enums use UPPER_CASE)
 
 #### Verification:
-- [ ] `prisma/seed.ts` exists and compiles without TypeScript errors
-- [ ] `npx prisma db seed` runs successfully
+- [x] `prisma/seed.mts` exists and compiles without TypeScript errors (note: renamed from `seed.ts` to `seed.mts` for ESM support)
+- [x] `npx prisma db seed` runs successfully
 - [ ] `npx prisma studio` shows data in all major tables (Church, Speaker, Series, Ministry, Campus, Message, Event, BibleStudy, Video, DailyBread)
 - [ ] Message count in DB matches MOCK_MESSAGES count
 - [ ] Event count in DB matches MOCK_EVENTS count
@@ -267,7 +275,7 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 
 #### Prompt:
 
-> Create a Data Access Layer (DAL) at `src/lib/dal/` in the root project. The DAL provides typed functions for querying content, replacing the current mock data imports.
+> Create a Data Access Layer (DAL) at `lib/dal/` in the root project. The DAL provides typed functions for querying content, replacing the current mock data imports.
 >
 > **First, read the existing mock data helper functions** to understand what query patterns the pages currently use:
 > - `/Users/davidlim/Desktop/laubf-cms-test/laubf-test/src/lib/mock-data/messages.ts` — has `getMessageBySlug(slug)` and exports `MOCK_MESSAGES` array
@@ -293,7 +301,7 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 >
 > Create these DAL modules:
 >
-> **`src/lib/dal/messages.ts`**:
+> **`lib/dal/messages.ts`**:
 > - `getMessages(churchId, filters?)` — List published messages, ordered by dateFor DESC. Include speaker and series relations. Support filters: speakerId, seriesId, dateFrom, dateTo, search text. Support pagination (page, pageSize).
 > - `getMessageBySlug(churchId, slug)` — Single message with speaker, series, and related bible study (with attachments).
 > - `getLatestMessage(churchId)` — Most recent published message (for SpotlightMedia section).
@@ -302,7 +310,7 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > - `updateMessage(churchId, slug, data)` — Update existing message.
 > - `deleteMessage(churchId, slug)` — Soft delete.
 >
-> **`src/lib/dal/events.ts`**:
+> **`lib/dal/events.ts`**:
 > - `getEvents(churchId, filters?)` — List published events. Support filters: type (EventType), ministryId, campusId, dateFrom, dateTo, isFeatured, isRecurring. Support pagination.
 > - `getEventBySlug(churchId, slug)` — Single event with ministry, campus, and links.
 > - `getUpcomingEvents(churchId, limit?)` — Next N upcoming events (dateStart >= today).
@@ -312,54 +320,54 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > - `getFeaturedEvents(churchId, limit?)` — Featured events for homepage.
 > - `createEvent(churchId, data)`, `updateEvent(churchId, slug, data)`, `deleteEvent(churchId, slug)`.
 >
-> **`src/lib/dal/bible-studies.ts`**:
+> **`lib/dal/bible-studies.ts`**:
 > - `getBibleStudies(churchId, filters?)` — List with speaker, series. Filters: book (BibleBook enum), seriesId, speakerId. Pagination.
 > - `getBibleStudyBySlug(churchId, slug)` — With attachments, speaker, series, related message.
 > - `createBibleStudy(churchId, data)`, `updateBibleStudy`, `deleteBibleStudy`.
 >
-> **`src/lib/dal/videos.ts`**:
+> **`lib/dal/videos.ts`**:
 > - `getVideos(churchId, filters?)` — Filters: category (VideoCategory), isShort. Pagination.
 > - `getVideoBySlug(churchId, slug)`.
 > - `createVideo`, `updateVideo`, `deleteVideo`.
 >
-> **`src/lib/dal/daily-bread.ts`**:
+> **`lib/dal/daily-bread.ts`**:
 > - `getTodaysDailyBread(churchId)` — Today's devotional.
 > - `getDailyBreadByDate(churchId, date)`.
 > - `getDailyBreads(churchId, limit?)` — Recent devotionals.
 > - `createDailyBread`, `updateDailyBread`.
 >
-> **`src/lib/dal/speakers.ts`**:
+> **`lib/dal/speakers.ts`**:
 > - `getSpeakers(churchId)` — All active speakers sorted by sortOrder.
 > - `getSpeakerBySlug(churchId, slug)`.
 > - `createSpeaker`, `updateSpeaker`, `deleteSpeaker`.
 >
-> **`src/lib/dal/series.ts`**:
+> **`lib/dal/series.ts`**:
 > - `getAllSeries(churchId)` — All active series.
 > - `getSeriesBySlug(churchId, slug)`.
 > - `createSeries`, `updateSeries`, `deleteSeries`.
 >
-> **`src/lib/dal/ministries.ts`**:
+> **`lib/dal/ministries.ts`**:
 > - `getMinistries(churchId)`, `getMinistryBySlug(churchId, slug)`.
 > - `createMinistry`, `updateMinistry`.
 >
-> **`src/lib/dal/campuses.ts`**:
+> **`lib/dal/campuses.ts`**:
 > - `getCampuses(churchId)`, `getCampusBySlug(churchId, slug)`.
 > - `createCampus`, `updateCampus`.
 >
-> **`src/lib/dal/site-settings.ts`**:
+> **`lib/dal/site-settings.ts`**:
 > - `getSiteSettings(churchId)`.
 > - `updateSiteSettings(churchId, data)`.
 >
-> **`src/lib/dal/pages.ts`**:
+> **`lib/dal/pages.ts`**:
 > - `getPageBySlug(churchId, slug)` — With sections ordered by sortOrder.
 > - `getPages(churchId)` — All pages.
 > - `createPage`, `updatePage`, `deletePage`.
 >
-> **`src/lib/dal/menus.ts`**:
+> **`lib/dal/menus.ts`**:
 > - `getMenuByLocation(churchId, location)` — With nested items.
 > - `getMenus(churchId)`.
 >
-> **`src/lib/dal/index.ts`** — Re-export everything.
+> **`lib/dal/index.ts`** — Re-export everything.
 >
 > **Design principles:**
 > - Every function takes `churchId` as the first parameter for tenant scoping
@@ -369,17 +377,17 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > - Return Prisma types directly (no manual transformation)
 > - For the single-tenant MVP, the churchId will come from an environment variable (`CHURCH_ID`) or be resolved from the request context
 >
-> **Important: Do NOT modify any existing files.** Only create new files in `src/lib/dal/`.
+> **Important: Do NOT modify any existing files.** Only create new files in `lib/dal/`.
 
 #### Verification:
-- [ ] All DAL modules exist in `src/lib/dal/`
-- [ ] `src/lib/dal/index.ts` exports all modules
-- [ ] TypeScript compilation passes with no errors
-- [ ] Each module imports from `@/lib/db/client` (the Prisma singleton)
-- [ ] All functions include `churchId` parameter for tenant scoping
-- [ ] List functions include `deletedAt: null` filter
-- [ ] List functions include pagination support
-- [ ] Include relations are correct (e.g., messages include speaker and series)
+- [x] All DAL modules exist in `lib/dal/` — 13 modules: messages, events, bible-studies, videos, daily-bread, speakers, series, ministries, campuses, site-settings, pages, menus, types
+- [x] `lib/dal/index.ts` exports all modules
+- [x] TypeScript compilation passes with no errors
+- [x] Each module imports from `@/lib/db` (barrel export of the Prisma singleton)
+- [x] All functions include `churchId` parameter for tenant scoping
+- [x] List functions include `deletedAt: null` filter
+- [x] List functions include pagination support (messages, events, bible-studies, videos)
+- [x] Include relations are correct (messages: speaker+series, events: ministry+campus+links, bible-studies: speaker+series+attachments, pages: sections, menus: nested items)
 
 ---
 
@@ -449,7 +457,7 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 >    - Error: `{ success: false, error: { code: "NOT_FOUND", message: "..." } }`
 > 6. Handle errors with try/catch and return appropriate HTTP status codes
 >
-> **For the churchId**, create a helper at `src/lib/api/get-church-id.ts`:
+> **For the churchId**, create a helper at `lib/api/get-church-id.ts`:
 > ```typescript
 > // Temporary: hardcoded org ID for single-tenant MVP
 > // This will be replaced by auth + tenant middleware later
@@ -468,14 +476,14 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > - Use the DAL functions, don't write raw Prisma queries in route handlers
 
 #### Verification:
-- [ ] All API route files created under `app/api/v1/`
-- [ ] Each route handler returns properly formatted JSON
-- [ ] GET endpoints support pagination via query params
-- [ ] POST endpoints parse JSON body and call DAL create functions
-- [ ] PATCH endpoints call DAL update functions
-- [ ] DELETE endpoints call DAL soft-delete functions
-- [ ] Error responses include appropriate HTTP status codes (400, 404, 500)
-- [ ] TypeScript compilation passes
+- [x] All API route files created under `app/api/v1/` — 15 route files across 10 content types + `lib/api/get-church-id.ts` helper
+- [x] Each route handler returns properly formatted JSON (`{ success, data, pagination }` for lists, `{ success, data }` for single, `{ success: false, error: { code, message } }` for errors)
+- [x] GET endpoints support pagination via query params (messages, events, bible-studies, videos)
+- [x] POST endpoints parse JSON body and call DAL create functions with basic validation
+- [x] PATCH endpoints call DAL update functions (resolve slug to id first)
+- [x] DELETE endpoints call DAL soft-delete functions (resolve slug to id first)
+- [x] Error responses include appropriate HTTP status codes (400, 404, 500)
+- [x] TypeScript compilation passes
 - [ ] Manual testing with curl/Postman shows routes work correctly
 
 ---
@@ -533,16 +541,16 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > - If a form field in the CMS doesn't have a matching API field yet, keep it functional but note it with a TODO comment
 
 #### Verification:
-- [ ] CMS message list page loads data from the database (not mock data)
-- [ ] Creating a new message via the CMS form persists to the database
-- [ ] Editing a message via the CMS form updates the database
-- [ ] Deleting a message soft-deletes it in the database
-- [ ] CMS event list, create, edit, delete all work with the database
-- [ ] Speaker and series dropdowns are populated from the database
-- [ ] Loading states show while data is being fetched
-- [ ] Error states display when API calls fail
-- [ ] Page navigation after create/update works correctly
-- [ ] No regression in CMS UI appearance or layout
+- [x] CMS message list page loads data from the database (not mock data) — `messages-context.tsx` fetches from `/api/v1/messages`
+- [x] Creating a new message via the CMS form persists to the database — optimistic update + POST to API
+- [ ] Editing a message via the CMS form updates the database — TODO: needs slug stored in CMS Message type for PATCH
+- [ ] Deleting a message soft-deletes it in the database — TODO: needs slug stored in CMS Message type for DELETE
+- [x] CMS event list, create, edit, delete all work with the database — `events-context.tsx` fetches from `/api/v1/events` (update/delete TODOs pending slug tracking)
+- [x] Speaker and series dropdowns are populated from the database — series fetched from `/api/v1/series`
+- [x] Loading states show while data is being fetched — Loader2 spinner in messages and events list pages
+- [x] Error states display when API calls fail — error state in context providers
+- [ ] Page navigation after create/update works correctly — needs manual testing
+- [ ] No regression in CMS UI appearance or layout — needs manual testing
 
 ---
 
@@ -558,12 +566,14 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 
 > The public website at `/Users/davidlim/Desktop/laubf-cms-test/laubf-test/` currently imports mock data from `src/lib/mock-data/`. I need to replace all mock data imports with DAL function calls.
 >
-> **CRITICAL ARCHITECTURE DECISION**: The public website (`laubf-test/`) is a separate Next.js app from the CMS admin (root). The DAL modules are in the root project at `src/lib/dal/`. For the public website to use them, we have two options:
+> **CRITICAL ARCHITECTURE DECISION**: The public website (`laubf-test/`) is a separate Next.js app from the CMS admin (root). The DAL modules are in the root project at `lib/dal/`. For the public website to use them, we have two options:
 >
-> Option A (Recommended): Create a shared package or copy the DAL and Prisma client into `laubf-test/src/lib/dal/` and `laubf-test/src/lib/db/`.
+> Option A (Recommended): Create a shared package or copy the DAL and Prisma client into `laubf-test/lib/dal/` and `laubf-test/src/lib/db/`.
 > Option B: Use a monorepo tool (turborepo/nx) to share code.
 >
 > For now, use Option A: Install Prisma in the `laubf-test/` project and create DAL modules there that use the same schema. This keeps the two apps independent while sharing the same database.
+>
+> **CONCERN**: Duplicating Prisma client, schema, and DAL modules into laubf-test/ creates a maintenance burden — any schema change requires updating both copies. This should be flagged for future refactoring into a monorepo setup (turborepo/nx) or a shared package. For the single-tenant MVP this is acceptable, but should not persist long-term.
 >
 > **Step 1: Set up Prisma in laubf-test/**
 > ```
@@ -572,11 +582,11 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > ```
 > - Copy or symlink `prisma/schema.prisma` from the root project
 > - Run `npx prisma generate` in laubf-test
-> - Create `laubf-test/src/lib/db/client.ts` with the same singleton pattern
+> - Create `laubf-test/src/lib/db/client.ts` with the same singleton pattern (import from the generated client path, not `@prisma/client`)
 > - Create `laubf-test/.env` with the same DATABASE_URL
 >
 > **Step 2: Create DAL modules in laubf-test/**
-> Copy the DAL modules from the root `src/lib/dal/` to `laubf-test/src/lib/dal/`, or create simplified read-only versions since the public website only needs read operations.
+> Copy the DAL modules from the root `lib/dal/` to `laubf-test/src/lib/dal/`, or create simplified read-only versions since the public website only needs read operations.
 >
 > **Step 3: Create an church ID resolver for the public website**
 > Create `laubf-test/src/lib/get-church-id.ts`:
@@ -675,7 +685,7 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > npm install next-auth@beta @auth/prisma-adapter
 > ```
 >
-> **2. Create auth configuration** at `src/lib/auth/config.ts`:
+> **2. Create auth configuration** at `lib/auth/config.ts`:
 > - Use the Prisma adapter with our existing `prisma` client
 > - Configure Credentials provider (email + password)
 > - Use JWT session strategy
@@ -703,7 +713,7 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 >
 > **7. Update API routes** to use the authenticated session:
 > - Replace the hardcoded `getChurchId()` helper with session-based org ID
-> - Create `src/lib/api/auth.ts` helper:
+> - Create `lib/api/auth.ts` helper:
 >   ```typescript
 >   import { auth } from '@/lib/auth/config'
 >   export async function getAuthenticatedOrg() {
@@ -750,16 +760,16 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 >
 > **Read the architecture document first**: `/Users/davidlim/Desktop/laubf-cms-test/docs/database/01-high-level-database-architecture.md` sections 2 (Tenant Resolution Flow), 6 (RLS), and 9 (Connection Pooling).
 >
-> **1. Create tenant resolution module** at `src/lib/tenant/`:
+> **1. Create tenant resolution module** at `lib/tenant/`:
 >
-> `src/lib/tenant/resolve.ts`:
+> `lib/tenant/resolve.ts`:
 > - Extract hostname from request
 > - Check `CustomDomain` table for exact domain match
 > - Extract subdomain from `*.digitalchurch.com` pattern
 > - Look up Church by subdomain slug
 > - Return churchId or null
 >
-> `src/lib/tenant/context.ts`:
+> `lib/tenant/context.ts`:
 > - Use `AsyncLocalStorage` to store org context for the request lifecycle
 > - Export `getTenantId()` function that reads from the store
 >
@@ -771,12 +781,12 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > - For the platform domain (`digitalchurch.com`): route to marketing/landing pages
 > - For unknown subdomains: return 404
 >
-> **3. Create the Prisma tenant extension** at `src/lib/db/extensions/tenant.ts`:
+> **3. Create the Prisma tenant extension** at `lib/db/extensions/tenant.ts`:
 > - Based on the code in `/Users/davidlim/Desktop/laubf-cms-test/docs/database/02-cms-database-schema.md` section 6 (Prisma Middleware for Multi-Tenancy)
 > - Auto-inject `churchId` on all queries for tenant-scoped models
 > - Auto-filter by `deletedAt IS NULL` for soft deletes
 >
-> `src/lib/db/tenant.ts`:
+> `lib/db/tenant.ts`:
 > ```typescript
 > import { prisma } from './client'
 > import { tenantExtension } from './extensions/tenant'

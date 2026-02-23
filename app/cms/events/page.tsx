@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { Loader2 } from "lucide-react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -45,7 +46,7 @@ const columnVisibility: VisibilityState = { type: false }
 
 export default function EventsPage() {
   const router = useRouter()
-  const { events } = useEvents()
+  const { events, loading } = useEvents()
   const [sorting, setSorting] = useState<SortingState>([
     { id: "date", desc: true },
   ])
@@ -121,11 +122,17 @@ export default function EventsPage() {
             globalFilter={globalFilter}
             setGlobalFilter={handleGlobalFilterChange}
           />
-          <DataTable
-            columns={columns}
-            table={table}
-            onRowClick={(row) => router.push(`/cms/events/${row.id}`)}
-          />
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              table={table}
+              onRowClick={(row) => router.push(`/cms/events/${row.id}`)}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="calendar">

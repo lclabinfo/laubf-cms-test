@@ -13,8 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { Message } from "@/lib/messages-data"
-import { series } from "@/lib/messages-data"
+import type { Message, Series } from "@/lib/messages-data"
 import { statusDisplay } from "@/lib/status"
 
 function formatDate(dateStr: string) {
@@ -33,7 +32,8 @@ function formatDateTime(isoStr: string) {
   })
 }
 
-export const columns: ColumnDef<Message>[] = [
+export function createColumns(series: Series[]): ColumnDef<Message>[] {
+  return [
   {
     id: "select",
     header: ({ table }) => (
@@ -237,4 +237,8 @@ export const columns: ColumnDef<Message>[] = [
     enableHiding: false,
     size: 50,
   },
-]
+  ]
+}
+
+// Default export for backward compatibility — empty series list
+export const columns = createColumns([])

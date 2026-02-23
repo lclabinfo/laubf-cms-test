@@ -33,7 +33,7 @@ This approach:
 - Keeps page assembly as a simple ordered query
 - Uses PostgreSQL's JSONB indexing for any queries into content
 
-The **TypeScript types** in `src/lib/types/sections.ts` serve as the application-level schema for validating JSONB content. Prisma validates the outer structure; Zod/TypeScript validates the inner JSONB.
+The **TypeScript types** in `laubf-test/src/lib/types/sections.ts` serve as the application-level schema for validating JSONB content. Prisma validates the outer structure; Zod/TypeScript validates the inner JSONB.
 
 ---
 
@@ -212,8 +212,8 @@ model PageSection {
   @@index([churchId, sectionType])
 }
 
-// Verified against src/lib/types/sections.ts SectionType union
-// and src/components/sections/ component files in the laubf-test codebase.
+// Verified against laubf-test/src/lib/types/sections.ts SectionType union
+// and laubf-test/src/components/sections/ component files in the laubf-test codebase.
 //
 // Each enum value maps 1:1 to a TypeScript SectionType string
 // (e.g. HERO_BANNER -> "hero-banner") and a React component
@@ -301,7 +301,7 @@ enum ContainerWidth {
 
 ### Section Content JSONB Examples
 
-Each `sectionType` has a specific JSONB structure. These examples are **verified against the actual TypeScript interfaces** in `src/lib/types/sections.ts` and the live page data in the laubf-test codebase.
+Each `sectionType` has a specific JSONB structure. These examples are **verified against the actual TypeScript interfaces** in `laubf-test/src/lib/types/sections.ts` and the live page data in the laubf-test codebase.
 
 **HERO_BANNER** (maps to `HeroBannerContent`)
 ```json
@@ -1123,7 +1123,7 @@ Each church can then customize these pages, add new ones, remove sections, or re
 
 1. **SectionType enum corrected** — removed 9 phantom enum values that had no matching component or TypeScript type (`NEXT_STEPS_CARDS`, `CAMPUS_LIST`, `CAMPUS_HERO`, `THIS_WEEKS_MESSAGE`, `VIDEO_GRID`, `STATEMENT_OF_FAITH`, `SPIRITUAL_DIRECTION`, `VISIT_CTA`, `WHO_WE_ARE`). Added 7 missing values that DO exist in the codebase (`ABOUT_DESCRIPTION`, `STATEMENT`, `NEWCOMER`, `CAMPUS_CARD_GRID`, `DIRECTORY_LIST`, `MEET_TEAM`, `LOCATION_DETAIL`). Renamed `PILLARS_SECTION` to `PILLARS` to match the TypeScript type.
 
-2. **JSONB content examples rewritten** — every example now matches the actual TypeScript interface from `src/lib/types/sections.ts`. Previously, examples were fabricated with field names that don't exist in the codebase (e.g., `backgroundImageUrl` instead of `backgroundImage.src`, `ctaButtons[]` array instead of `primaryButton`/`secondaryButton`).
+2. **JSONB content examples rewritten** — every example now matches the actual TypeScript interface from `laubf-test/src/lib/types/sections.ts`. Previously, examples were fabricated with field names that don't exist in the codebase (e.g., `backgroundImageUrl` instead of `backgroundImage.src`, `ctaButtons[]` array instead of `primaryButton`/`secondaryButton`).
 
 3. **Default page templates corrected** — the section sequences for Home, About, I'm New, Ministries, Bible Study, and Videos pages were wrong. They now match the actual `src/app/*/page.tsx` files. Added College Ministry and Campus page templates that were missing.
 

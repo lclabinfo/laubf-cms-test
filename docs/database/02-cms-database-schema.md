@@ -1309,8 +1309,8 @@ ORDER BY date_for DESC;
 ## 6. Prisma Middleware for Multi-Tenancy
 
 ```typescript
-// prisma/extensions/tenant.ts
-import { Prisma } from '@prisma/client'
+// lib/db/extensions/tenant.ts
+import { Prisma } from '@/lib/generated/prisma/client'
 
 const TENANT_SCOPED_MODELS = [
   'Message', 'Event', 'BibleStudy', 'Video', 'DailyBread',

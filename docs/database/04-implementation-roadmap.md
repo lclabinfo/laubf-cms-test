@@ -9,10 +9,12 @@
 ### Step 0.1 — Install Prisma and Configure PostgreSQL
 
 ```bash
-cd laubf-test
+cd /Users/davidlim/Desktop/laubf-cms-test
 npm install prisma @prisma/client
 npx prisma init --datasource-provider postgresql
 ```
+
+> **Note**: Prisma is installed in the ROOT project, not in `laubf-test/`.
 
 This creates:
 - `prisma/schema.prisma` — schema definition file
@@ -79,16 +81,18 @@ This creates the typed client at `node_modules/.prisma/client`.
 ### Step 1.1 — Create the Prisma Client Singleton
 
 ```
-src/lib/db/
+lib/db/
 ├── client.ts          ← Prisma client singleton
 ├── tenant.ts          ← Multi-tenant extension
 ├── types.ts           ← Re-export Prisma types
 └── seed.ts            ← Seed script
 ```
 
-**`src/lib/db/client.ts`**:
+> **Note**: The root project has NO `src/` directory. Code lives directly under `lib/`, `app/`, `components/`.
+
+**`lib/db/client.ts`**:
 ```typescript
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from '@/lib/generated/prisma/client'
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 
@@ -99,7 +103,9 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient({
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 ```
 
-**`src/lib/db/tenant.ts`**:
+> **Note**: This project uses Prisma 7.x. The generator output is `../lib/generated/prisma` (set in `prisma/schema.prisma`), and the datasource URL is configured in `prisma.config.ts`. Imports use `@/lib/generated/prisma/client` instead of `@prisma/client`. The actual `lib/db/client.ts` implementation uses `@prisma/adapter-pg` with a `pg` Pool for the database connection (differs from the simplified example above).
+
+**`lib/db/tenant.ts`**:
 ```typescript
 import { prisma } from './client'
 import { tenantExtension } from './extensions/tenant'
@@ -112,8 +118,8 @@ export function getTenantDb(churchId: string) {
 ### Step 1.2 — Create the Tenant Context Middleware
 
 ```
-src/middleware.ts       ← Next.js Edge Middleware
-src/lib/tenant/
+middleware.ts          ← Next.js Edge Middleware (project root)
+lib/tenant/
 ├── context.ts         ← AsyncLocalStorage for org context
 ├── resolve.ts         ← Domain → church_id resolution
 └── types.ts           ← Tenant context types
@@ -173,7 +179,7 @@ Run: `npx prisma db seed`
 ### Step 1.4 — Create Data Access Layer (DAL)
 
 ```
-src/lib/dal/
+lib/dal/
 ├── messages.ts        ← Message CRUD + queries
 ├── events.ts          ← Event CRUD + queries
 ├── bible-studies.ts   ← BibleStudy CRUD + queries
@@ -193,9 +199,9 @@ src/lib/dal/
 Each DAL module encapsulates Prisma queries and returns typed data. Example:
 
 ```typescript
-// src/lib/dal/messages.ts
+// lib/dal/messages.ts
 import { getTenantDb } from '@/lib/db/tenant'
-import type { MessageFilters } from '@/lib/types/message'
+import type { MessageFilters } from '@/lib/dal/types'
 
 export async function getMessages(churchId: string, filters?: MessageFilters) {
   const db = getTenantDb(churchId)
@@ -234,7 +240,7 @@ export async function getMessageBySlug(churchId: string, slug: string) {
 Replace mock data imports with database queries. Every route is scoped to the authenticated user's `church_id`.
 
 ```
-src/app/api/v1/
+app/api/v1/
 ├── auth/
 │   ├── login/route.ts
 │   ├── register/route.ts
@@ -377,21 +383,25 @@ Configure:
 ### Step 4.2 — Build CMS Admin Routes
 
 ```
-src/app/(admin)/
-├── layout.tsx                ← Admin layout with sidebar
-├── dashboard/page.tsx        ← Overview dashboard
+app/cms/
+├── layout.tsx                ← Admin layout with sidebar (ALREADY EXISTS)
+├── dashboard/page.tsx        ← Overview dashboard (ALREADY EXISTS)
 ├── messages/
-│   ├── page.tsx              ← Message list (data table)
-│   ├── new/page.tsx          ← Create message form
-│   └── [slug]/edit/page.tsx  ← Edit message form
+│   ├── page.tsx              ← Message list with DataTable (ALREADY EXISTS)
+│   ├── new/page.tsx          ← Create message form (ALREADY EXISTS)
+│   └── [id]/page.tsx         ← Edit message form (ALREADY EXISTS)
 ├── events/
-│   ├── page.tsx
-│   ├── new/page.tsx
-│   └── [slug]/edit/page.tsx
-├── bible-studies/...
-├── videos/...
-├── daily-bread/...
-├── media/page.tsx            ← Media library
+│   ├── page.tsx              ← Event list (ALREADY EXISTS)
+│   ├── new/page.tsx          ← Create event form (ALREADY EXISTS)
+│   └── [id]/page.tsx         ← Edit event form (ALREADY EXISTS)
+├── media/page.tsx            ← Media library (ALREADY EXISTS)
+├── people/...                ← People directory (ALREADY EXISTS)
+├── giving/...                ← Giving/donations (ALREADY EXISTS)
+├── church-profile/page.tsx   ← Church profile (ALREADY EXISTS)
+├── website/domains/page.tsx  ← Domain management (ALREADY EXISTS)
+├── bible-studies/...         ← TODO: Not yet built
+├── videos/...                ← TODO: Not yet built
+├── daily-bread/...           ← TODO: Not yet built
 ├── pages/                    ← Page builder (future)
 │   ├── page.tsx
 │   └── [slug]/edit/page.tsx
@@ -402,6 +412,8 @@ src/app/(admin)/
 │   └── theme/page.tsx        ← Theme customization
 └── analytics/page.tsx
 ```
+
+> **Note**: Many CMS admin pages already exist and use in-memory mock data. Phase 4.1 involves wiring these existing pages to the API/database, not building them from scratch.
 
 ### Step 4.3 — CMS Forms
 
@@ -760,7 +772,7 @@ async function exportOrgData(churchId: string) {
 
 2. **CMS admin pages already exist.** Phase 4 (Auth & CMS Admin) says "Build CMS Admin Routes" with a proposed structure starting from scratch. But the CMS already has working pages: `/cms/dashboard`, `/cms/events` (list + new + edit), `/cms/messages` (list + new + edit + series), `/cms/media`, `/cms/people` (directory + groups + members), `/cms/giving` (donations + payments + reports), `/cms/website/domains`, and `/cms/church-profile`. The roadmap should reference these existing pages and describe integration, not creation from scratch.
 
-3. **Effort estimates for P0 are too aggressive.** "Install Prisma + write schema: 1-2 days" is realistic. But the full schema from docs 02 and 03 includes 20+ models, 15+ enums, JSONB content structures, and complex relations (MessageSeries many-to-many, self-referential MenuItem, polymorphic ContentTag). With proper validation and testing, 2-3 days is more accurate for the schema alone. Seed script alone is 1-2 days given the volume of mock data transformation needed.
+3. **Effort estimates for P0 are too aggressive.** "Install Prisma + write schema: 1-2 days" is realistic. But the full schema from docs 02 and 03 includes 32 models, 22 enums, JSONB content structures, and complex relations (MessageSeries many-to-many, self-referential MenuItem, polymorphic ContentTag). With proper validation and testing, 2-3 days is more accurate for the schema alone. Seed script alone is 1-2 days given the volume of mock data transformation needed.
 
 4. **Missing: Zod validation schemas.** The roadmap mentions API middleware with "Zod schema validation on body/params" but doesn't include a phase for creating these schemas. With 10+ content types, each needing create/update validation schemas, this is 2-3 days of work that should be explicit.
 

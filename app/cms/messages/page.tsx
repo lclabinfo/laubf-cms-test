@@ -1,7 +1,8 @@
 "use client"
 
-import { Suspense, useState, useCallback } from "react"
+import { Suspense, useState, useCallback, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { Loader2 } from "lucide-react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -13,7 +14,7 @@ import {
 } from "@tanstack/react-table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DataTable } from "@/components/ui/data-table"
-import { columns } from "@/components/cms/messages/columns"
+import { createColumns } from "@/components/cms/messages/columns"
 import { Toolbar } from "@/components/cms/messages/toolbar"
 import { SeriesTab } from "@/components/cms/messages/series/tab"
 import { useMessages } from "@/lib/messages-context"
@@ -43,7 +44,8 @@ function MessagesPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const defaultTab = searchParams.get("tab") === "series" ? "series" : "all"
-  const { messages } = useMessages()
+  const { messages, series, loading } = useMessages()
+  const columns = useMemo(() => createColumns(series), [series])
   const [sorting, setSorting] = useState<SortingState>([
     { id: "date", desc: true },
   ])
@@ -118,11 +120,17 @@ function MessagesPageContent() {
             globalFilter={globalFilter}
             setGlobalFilter={handleGlobalFilterChange}
           />
-          <DataTable
-            columns={columns}
-            table={table}
-            onRowClick={(row) => router.push(`/cms/messages/${row.id}`)}
-          />
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              table={table}
+              onRowClick={(row) => router.push(`/cms/messages/${row.id}`)}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="series">
