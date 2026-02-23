@@ -2,6 +2,22 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### Local database (development)
+
+The app uses PostgreSQL. The easiest way to run it locally is with Docker:
+
+```bash
+docker compose up -d
+```
+
+Create a `.env` file with `DATABASE_URL` and `DIRECT_URL` pointing at `localhost:5432`, using the same user, database, and password as in `docker-compose.yml`. Run migrations with:
+
+```bash
+npx prisma migrate dev
+```
+
+### Development server
+
 First, run the development server:
 
 ```bash
