@@ -6,7 +6,10 @@ import MeetTeamSection from "@/components/sections/MeetTeamSection";
 import UpcomingEventsSection from "@/components/sections/UpcomingEventsSection";
 import FormSection from "@/components/sections/FormSection";
 import NewcomerSection from "@/components/sections/NewcomerSection";
-import { getEventsByMinistry } from "@/lib/mock-data/events";
+
+import { getEvents, getMinistryBySlug } from "@/lib/dal";
+import { getChurchId } from "@/lib/get-church-id";
+import { toUIEvent } from "@/lib/adapters";
 
 import type {
   MinistryHeroSectionProps,
@@ -19,6 +22,8 @@ import type {
   NewcomerSectionProps,
 } from "@/lib/types/sections";
 import type { Metadata } from "next";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Children's Ministry",
@@ -145,8 +150,6 @@ const teamData: MeetTeamSectionProps = {
   },
 };
 
-const childrenEvents = getEventsByMinistry("children").slice(0, 3);
-
 const eventsData: UpcomingEventsSectionProps = {
   id: "children-events",
   visible: true,
@@ -218,7 +221,15 @@ const newcomerData: NewcomerSectionProps = {
  * Section order: Light → Light → Dark → Light → Light → Dark → Light → Light
  * ================================================================ */
 
-export default function ChildrenPage() {
+export default async function ChildrenPage() {
+  const churchId = await getChurchId();
+  const ministry = await getMinistryBySlug(churchId, "children");
+  const eventsResult = await getEvents(churchId, {
+    ministryId: ministry?.id,
+    pageSize: 3,
+  });
+  const childrenEvents = eventsResult.data.map(toUIEvent);
+
   return (
     <main>
       <MinistryHeroSection settings={heroData} />

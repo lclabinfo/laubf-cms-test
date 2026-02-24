@@ -22,7 +22,7 @@ These tables exist at the platform level and underpin the entire multi-tenant sy
 model Church {
   id            String   @id @default(uuid()) @db.Uuid
   name          String                        // "LA UBF", "Grace Community Church"
-  slug          String   @unique              // subdomain: "la-ubf" → la-ubf.digitalchurch.com
+  slug          String   @unique              // subdomain: "la-ubf" → la-ubf.lclab.io
   customDomain  String?  @unique              // "laubf.org" (verified custom domain)
 
   // Branding

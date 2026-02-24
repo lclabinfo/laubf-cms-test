@@ -252,7 +252,7 @@ Configure `cacheHandler` and `cacheHandlers` in `next.config.ts` to use Redis.
 
 ### Stage 3: Eventually (100-1000+ Churches, Multiple Servers)
 
-Redis becomes mandatory. Multiple servers behind a load balancer must share cache state. See doc 10 for infrastructure scaling details.
+Redis becomes mandatory. Multiple servers behind a load balancer must share cache state. See `docs/website-rendering/06-hosting-and-domain-strategy.md` for infrastructure details.
 
 ---
 

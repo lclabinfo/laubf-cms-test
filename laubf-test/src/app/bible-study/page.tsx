@@ -6,18 +6,17 @@ import type {
   AllBibleStudiesSectionProps,
 } from "@/lib/types/sections";
 
-import { MOCK_BIBLE_STUDIES } from "@/lib/mock-data/bible-studies";
+import { getBibleStudies } from "@/lib/dal";
+import { getChurchId } from "@/lib/get-church-id";
+import { toUIBibleStudy } from "@/lib/adapters";
 import type { Metadata } from "next";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Bible Study",
   description: "Explore Bible study resources, series, and materials from LA UBF.",
 };
-
-/* ================================================================
- * SAMPLE DATA — Content from Figma design
- * In production, this data comes from PostgreSQL via CMS API.
- * ================================================================ */
 
 const heroData: EventsHeroSectionProps = {
   id: "bible-study-hero",
@@ -41,11 +40,15 @@ const allStudiesData: AllBibleStudiesSectionProps = {
   },
 };
 
-export default function BibleStudyPage() {
+export default async function BibleStudyPage() {
+  const churchId = await getChurchId();
+  const studiesResult = await getBibleStudies(churchId, { pageSize: 100 });
+  const studies = studiesResult.data.map(toUIBibleStudy);
+
   return (
     <main>
       <EventsHeroSection settings={heroData} />
-      <AllBibleStudiesSection settings={allStudiesData} studies={MOCK_BIBLE_STUDIES} />
+      <AllBibleStudiesSection settings={allStudiesData} studies={studies} />
     </main>
   );
 }

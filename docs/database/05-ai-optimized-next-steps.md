@@ -659,6 +659,8 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > - Do NOT delete the mock data files yet — keep them as a reference/fallback
 > - The `laubf-test/` directory has its own `package.json` and `tsconfig.json`
 
+> **Status (Feb 23, 2026)**: Phase 5.1 prerequisite work (Phases A.1 + A.2 in website-rendering docs) is COMPLETE: Prisma installed in laubf-test, generated client, DB singleton, church ID helper, all 14 read-only DAL modules created, adapter layer at `src/lib/adapters.ts`, and all 13 page files converted from mock data to DAL calls. See `docs/website-rendering/05-ai-optimized-next-steps.md` for the most detailed tracking.
+
 #### Verification:
 - [ ] `/messages` page loads and displays messages from the database
 - [ ] `/messages/[slug]` page shows correct message detail from database

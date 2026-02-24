@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { MOCK_EVENTS, getEventBySlug } from "@/lib/mock-data/events";
+import { getEventBySlug } from "@/lib/dal";
+import { getChurchId } from "@/lib/get-church-id";
+import { toUIEvent } from "@/lib/adapters";
 import { formatEventDate, getEventBadge } from "@/lib/types/events";
 import {
   IconCalendar,
@@ -12,23 +14,21 @@ import {
 } from "@/components/layout/icons";
 import ShareButton from "./ShareButton";
 
-/* ── Static params for SSG ── */
-
-export function generateStaticParams() {
-  return MOCK_EVENTS.map((event) => ({ slug: event.slug }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const event = getEventBySlug(slug);
-  if (!event) return { title: "Event Not Found" };
+  const churchId = await getChurchId();
+  const dbEvent = await getEventBySlug(churchId, slug);
+  if (!dbEvent) return { title: "Event Not Found" };
+  const event = toUIEvent(dbEvent);
   return {
     title: `${event.title} | LA UBF Events`,
     description: event.description,
   };
 }
 
-/* ── Page component ── */
+/* -- Page component -- */
 
 export default async function EventDetailPage({
   params,
@@ -36,8 +36,11 @@ export default async function EventDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const event = getEventBySlug(slug);
-  if (!event) notFound();
+  const churchId = await getChurchId();
+  const dbEvent = await getEventBySlug(churchId, slug);
+  if (!dbEvent) notFound();
+
+  const event = toUIEvent(dbEvent);
 
   const dateDisplay = event.dateEnd
     ? `${formatEventDate(event.dateStart)} — ${formatEventDate(event.dateEnd)}`
@@ -70,7 +73,7 @@ export default async function EventDetailPage({
 
       {/* Two-column layout */}
       <div className="container-standard mt-6 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10">
-        {/* Left column — article */}
+        {/* Left column -- article */}
         <article>
           {/* Event Image Placeholder */}
           <div className="relative w-full aspect-[16/10] rounded-[20px] overflow-hidden bg-gradient-to-br from-white-2 to-white-1-5 mb-8">
@@ -128,7 +131,7 @@ export default async function EventDetailPage({
           </div>
         </article>
 
-        {/* Right column — sidebar card */}
+        {/* Right column -- sidebar card */}
         <aside className="lg:sticky lg:top-[88px] h-fit">
           <div className="bg-white-0 rounded-[20px] border border-white-2-5 shadow-[0px_12px_20px_0px_rgba(0,0,0,0.05)] p-6">
             <h3 className="text-overline text-black-3 uppercase mb-4">
@@ -228,7 +231,7 @@ export default async function EventDetailPage({
   );
 }
 
-/* ── Sub-components ── */
+/* -- Sub-components -- */
 
 function DetailRow({
   icon,
@@ -251,4 +254,3 @@ function DetailRow({
     </div>
   );
 }
-

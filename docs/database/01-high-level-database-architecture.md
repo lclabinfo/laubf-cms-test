@@ -27,8 +27,8 @@ Request → Edge Middleware → Resolve Tenant → Inject Context → Applicatio
                 ↓
     ┌───────────────────────────┐
     │ 1. Custom domain lookup   │  gracechurch.org → church_abc
-    │ 2. Subdomain extraction   │  grace.digitalchurch.com → church_abc
-    │ 3. Platform routing       │  digitalchurch.com → marketing site
+    │ 2. Subdomain extraction   │  grace.lclab.io → church_abc
+    │ 3. Platform routing       │  lclab.io → marketing site
     └───────────────────────────┘
                 ↓
     AsyncLocalStorage sets church_id for entire request lifecycle

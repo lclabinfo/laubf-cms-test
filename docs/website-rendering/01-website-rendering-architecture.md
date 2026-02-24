@@ -300,7 +300,7 @@ app/
 
 ### Migration Path
 
-The consolidation from two apps to one happens during the **Website Rendering Integration Phase** (see doc 07). The approach:
+The consolidation from two apps to one happens during the **Website Rendering Integration Phase** (see `04-development-phases.md`). The approach:
 
 1. **Phase A**: Get the single-tenant MVP working — root CMS + laubf-test public site, both reading from the same database, no route groups needed yet.
 2. **Phase B**: Move public website components (`sections/`, layouts, theme) from `laubf-test/` into the root project under `components/website/` and `app/(website)/`. Retire `laubf-test/` as a standalone app.

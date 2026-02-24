@@ -1,29 +1,23 @@
 import { Suspense } from "react";
 import EventsHeroSection from "@/components/sections/EventsHeroSection";
-// TODO: Re-enable QuickLinksSection in a future iteration
-// import QuickLinksSection from "@/components/sections/QuickLinksSection";
 import AllEventsSection from "@/components/sections/AllEventsSection";
 
 import type {
   EventsHeroSectionProps,
-  // TODO: Re-enable QuickLinksSection in a future iteration
-  // QuickLinksSectionProps,
   AllEventsSectionProps,
 } from "@/lib/types/sections";
 
-// TODO: Re-enable RECURRING_MEETINGS when QuickLinksSection is restored
-import { MOCK_EVENTS /* , RECURRING_MEETINGS */ } from "@/lib/mock-data/events";
+import { getEvents } from "@/lib/dal";
+import { getChurchId } from "@/lib/get-church-id";
+import { toUIEvent } from "@/lib/adapters";
 import type { Metadata } from "next";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Events",
   description: "Browse upcoming events, meetings, and programs at LA UBF.",
 };
-
-/* ================================================================
- * SAMPLE DATA — Content from Figma design
- * In production, this data comes from PostgreSQL via CMS API.
- * ================================================================ */
 
 const heroData: EventsHeroSectionProps = {
   id: "events-hero",
@@ -36,19 +30,6 @@ const heroData: EventsHeroSectionProps = {
       "Join us on our next gathering — whether it be bible study, conference, or fellowship.",
   },
 };
-
-// TODO: Re-enable QuickLinksSection in a future iteration
-// const quickLinksData: QuickLinksSectionProps = {
-//   id: "quick-links",
-//   visible: true,
-//   colorScheme: "light",
-//   paddingY: "compact",
-//   content: {
-//     heading: "Quick Links",
-//     subtitle:
-//       "Online meeting links for our recurring meetings & programs.",
-//   },
-// };
 
 const allEventsData: AllEventsSectionProps = {
   id: "all-events",
@@ -74,15 +55,15 @@ export default async function EventsPage({
     ? (rawTab as ValidTab)
     : "event";
 
+  const churchId = await getChurchId();
+  const eventsResult = await getEvents(churchId, { pageSize: 100 });
+  const events = eventsResult.data.map(toUIEvent);
+
   return (
     <main>
       <EventsHeroSection settings={heroData} />
-      {/* TODO: Re-enable QuickLinksSection in a future iteration */}
-      {/* <QuickLinksSection settings={quickLinksData} meetings={RECURRING_MEETINGS} /> */}
-      {/* TODO: Re-enable divider when QuickLinksSection is restored */}
-      {/* <hr className="border-white-2" /> */}
       <Suspense>
-        <AllEventsSection settings={allEventsData} events={MOCK_EVENTS} initialTab={initialTab} />
+        <AllEventsSection settings={allEventsData} events={events} initialTab={initialTab} />
       </Suspense>
     </main>
   );

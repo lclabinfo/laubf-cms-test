@@ -11,8 +11,19 @@ export async function getPageBySlug(
   churchId: string,
   slug: string,
 ): Promise<PageWithSections | null> {
-  return prisma.page.findUnique({
-    where: { churchId_slug: { churchId, slug } },
+  return prisma.page.findFirst({
+    where: { churchId, slug, isPublished: true, deletedAt: null },
+    include: {
+      sections: { orderBy: { sortOrder: 'asc' } },
+    },
+  })
+}
+
+export async function getHomepage(
+  churchId: string,
+): Promise<PageWithSections | null> {
+  return prisma.page.findFirst({
+    where: { churchId, isHomepage: true, isPublished: true, deletedAt: null },
     include: {
       sections: { orderBy: { sortOrder: 'asc' } },
     },

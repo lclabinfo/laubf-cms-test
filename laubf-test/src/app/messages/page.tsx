@@ -6,53 +6,75 @@ import type {
   AllMessagesSectionProps,
 } from "@/lib/types/sections";
 
-import { MOCK_MESSAGES } from "@/lib/mock-data/messages";
+import { getMessages, getLatestMessage } from "@/lib/dal";
+import { getChurchId } from "@/lib/get-church-id";
+import { toUIMessage } from "@/lib/adapters";
 import type { Metadata } from "next";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Messages",
   description: "Watch and listen to Sunday messages, Bible teachings, and sermon series from LA UBF.",
 };
 
-/* ================================================================
- * SAMPLE DATA — Content from Figma design
- * In production, this data comes from PostgreSQL via CMS API.
- * ================================================================ */
+export default async function MessagesPage() {
+  const churchId = await getChurchId();
+  const [latestMessage, messagesResult] = await Promise.all([
+    getLatestMessage(churchId),
+    getMessages(churchId, { pageSize: 100 }),
+  ]);
 
-const spotlightData: SpotlightMediaSectionProps = {
-  id: "this-weeks-message",
-  visible: true,
-  colorScheme: "dark",
-  paddingY: "compact",
-  content: {
-    sectionHeading: "This Week\u2019s Message",
-    sermon: {
-      slug: "as-the-spirit-gave-them-utterance",
-      title: "As The Spirit Gave Them Utterance",
-      speaker: "P. William",
-      date: "FEB 8",
-      series: "SUNDAY MESSAGE",
-      thumbnailUrl: "https://img.youtube.com/vi/U-vvxbOHQEM/maxresdefault.jpg",
-      videoUrl: "https://www.youtube.com/watch?v=U-vvxbOHQEM",
+  const messages = messagesResult.data.map(toUIMessage);
+
+  // Build spotlight from latest message
+  const latest = latestMessage ? toUIMessage(latestMessage) : null;
+  const dateLabel = latest
+    ? new Date(latest.dateFor + "T00:00:00")
+        .toLocaleDateString("en-US", { month: "short", day: "numeric" })
+        .toUpperCase()
+    : "";
+
+  const spotlightData: SpotlightMediaSectionProps = {
+    id: "this-weeks-message",
+    visible: true,
+    colorScheme: "dark",
+    paddingY: "compact",
+    content: {
+      sectionHeading: "This Week\u2019s Message",
+      sermon: latest
+        ? {
+            slug: latest.slug,
+            title: latest.title,
+            speaker: latest.speaker,
+            date: dateLabel,
+            series: latest.series.toUpperCase(),
+            thumbnailUrl: `https://img.youtube.com/vi/${latest.youtubeId}/maxresdefault.jpg`,
+            videoUrl: `https://www.youtube.com/watch?v=${latest.youtubeId}`,
+          }
+        : {
+            title: "No messages yet",
+            speaker: "",
+            date: "",
+            thumbnailUrl: "",
+          },
     },
-  },
-};
+  };
 
-const allMessagesData: AllMessagesSectionProps = {
-  id: "all-messages",
-  visible: true,
-  colorScheme: "light",
-  paddingY: "none",
-  content: {
-    heading: "All Messages",
-  },
-};
+  const allMessagesData: AllMessagesSectionProps = {
+    id: "all-messages",
+    visible: true,
+    colorScheme: "light",
+    paddingY: "none",
+    content: {
+      heading: "All Messages",
+    },
+  };
 
-export default function MessagesPage() {
   return (
     <main className="-mt-[76px] pt-[76px]" style={{ background: "var(--color-black-1)" }}>
       <SpotlightMediaSection settings={spotlightData} />
-      <AllMessagesSection settings={allMessagesData} messages={MOCK_MESSAGES} />
+      <AllMessagesSection settings={allMessagesData} messages={messages} />
     </main>
   );
 }

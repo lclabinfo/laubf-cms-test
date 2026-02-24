@@ -2,7 +2,7 @@
 
 ## What to Build, In What Order, and at What Level of Polish
 
-> **Context** (as of February 2026): The CMS admin exists with working pages and API routes. Database Phases 1.1-4.1 are COMPLETE: Prisma schema (32 models, 22 enums), migration, seed (28 messages, 11 events, 15 bible studies, 6 videos, 1 daily bread, 11 speakers, 3 series, 5 ministries, 12 campuses), DAL (14 modules), API routes (15 files), and CMS integration (context providers wired to API). 38 section components exist in `laubf-test/`. The website builder admin UI does not exist yet — another agent will handle that. This document focuses on the rendering pipeline and integration work.
+> **Context** (updated February 23, 2026): The CMS admin exists with working pages and API routes. Database Phases 1.1-4.1 are COMPLETE: Prisma schema (32 models, 22 enums), migration, seed (28 messages, 11 events, 15 bible studies, 6 videos, 1 daily bread, 11 speakers, 3 series, 5 ministries, 12 campuses), DAL (15 modules), API routes (15 files), and CMS integration (context providers wired to API). 38 section components exist in `laubf-test/`. **Phase A COMPLETE**: Prisma + read-only DAL set up in laubf-test (A.1), all 13 page files converted from mock data to DAL calls with adapter layer at `laubf-test/src/lib/adapters.ts` (A.2). **Phase B.1 COMPLETE**: section registry (40 entries), ThemeProvider, FontLoader, SectionWrapper, tenant context, `lib/dal/theme.ts`. **Phase B.2 IN PROGRESS**: 6/38 sections migrated to root (hero-banner, media-text, spotlight-media, cta-banner, all-messages, all-events). Six shared components migrated. The `(website)` route group exists: `app/(website)/layout.tsx` (ThemeProvider + FontLoader) and `app/(website)/[[...slug]]/page.tsx` (catch-all with section renderer). **Phase B.3 COMPLETE**: seed script creates 14 pages with sections, Theme + ThemeCustomization, SiteSettings, Header + Footer menus with menu items. Website design system CSS ported to root `app/globals.css`. `motion` package added to root project. **Phase C IN PROGRESS**: website builder admin UI. This document focuses on the rendering pipeline and integration work.
 
 ---
 
@@ -11,11 +11,16 @@
 ```
 Database Phases 1.1-4.1: COMPLETE ✓
   ↓
-Phase A: Single-Tenant Rendering (NEXT — you are here)
+Phase A: Single-Tenant Rendering
+  A.1: Set up Prisma in laubf-test — COMPLETE ✓
+  A.2: Replace mock data — COMPLETE ✓
   ↓
 Phase B: Section Component Migration
+  B.1: (website) route group + registry + theme — COMPLETE ✓
+  B.2: Migrate all 38 sections — IN PROGRESS (6/38 migrated)
+  B.3: Seed Page/Section/Menu/Theme data — COMPLETE ✓
   ↓
-Phase C: Website Builder Admin (separate agent)
+Phase C: Website Builder Admin (separate agent) — IN PROGRESS
   ↓
 Database Phase 6.1: Auth (required before D)
   ↓
@@ -25,6 +30,8 @@ Phase E: Caching & Performance
   ↓
 Phase F: Production Deployment
 ```
+
+> **Last updated**: February 23, 2026
 
 **Recommended order from current state**: Phase A comes before database Phases 5-9 because:
 1. Phases 1-4 are complete — CMS reads/writes from the database
@@ -145,7 +152,7 @@ Phase F: Production Deployment
 - Border radius and spacing controls
 - Live preview panel
 
-### API Routes needed (from doc 07 section 6):
+### API Routes needed (from `03-cms-website-connection.md`):
 - `POST /api/v1/pages` — create page
 - `PATCH /api/v1/pages/[slug]` — update page metadata
 - `POST /api/v1/pages/[slug]/sections` — add section
