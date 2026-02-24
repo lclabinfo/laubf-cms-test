@@ -66,7 +66,7 @@ export default function PageHeroSection({ content, enableAnimations, colorScheme
   const t = themeTokens[colorScheme]
   const gradientColor = colorScheme === "dark" ? "rgba(13,13,13," : "rgba(250,250,250,"
   const animate = enableAnimations !== false
-  const images = content.floatingImages.slice(0, MAX_IMAGES)
+  const images = (content.floatingImages ?? []).slice(0, MAX_IMAGES)
   const total = images.length
 
   const orbitCSS = images

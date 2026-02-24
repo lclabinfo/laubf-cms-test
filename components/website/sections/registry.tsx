@@ -160,6 +160,7 @@ interface SectionRendererProps {
   containerWidth: ContainerWidth
   enableAnimations: boolean
   churchId: string
+  resolvedData?: Record<string, unknown>
 }
 
 export function SectionRenderer({
@@ -168,6 +169,7 @@ export function SectionRenderer({
   colorScheme,
   enableAnimations,
   churchId,
+  resolvedData,
 }: SectionRendererProps) {
   const Component = SECTION_COMPONENTS[type]
   if (!Component) return null
@@ -181,6 +183,7 @@ export function SectionRenderer({
       churchId={churchId}
       enableAnimations={enableAnimations}
       colorScheme={sectionColorScheme}
+      {...resolvedData}
     />
   )
 }

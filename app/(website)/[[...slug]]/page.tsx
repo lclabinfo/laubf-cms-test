@@ -3,6 +3,8 @@ import type { Metadata } from 'next'
 import { getChurchId } from '@/lib/tenant/context'
 import { getPageBySlug, getHomepage } from '@/lib/dal/pages'
 import { SectionRenderer } from '@/components/website/sections/registry'
+import { resolveSectionData } from '@/lib/website/resolve-section-data'
+import type { SectionType } from '@/lib/db/types'
 
 interface PageProps {
   params: Promise<{ slug?: string[] }>
@@ -41,22 +43,35 @@ export default async function WebsitePage({ params }: PageProps) {
 
   if (!page) notFound()
 
+  const visibleSections = page.sections.filter((section) => section.visible)
+
+  // Resolve dataSource references in parallel
+  const resolvedSections = await Promise.all(
+    visibleSections.map(async (section) => {
+      const { content, resolvedData } = await resolveSectionData(
+        churchId,
+        section.sectionType as SectionType,
+        section.content as Record<string, unknown>,
+      )
+      return { section, content, resolvedData }
+    }),
+  )
+
   return (
     <>
-      {page.sections
-        .filter((section) => section.visible)
-        .map((section) => (
-          <SectionRenderer
-            key={section.id}
-            type={section.sectionType}
-            content={section.content as Record<string, unknown>}
-            colorScheme={section.colorScheme}
-            paddingY={section.paddingY}
-            containerWidth={section.containerWidth}
-            enableAnimations={section.enableAnimations}
-            churchId={churchId}
-          />
-        ))}
+      {resolvedSections.map(({ section, content, resolvedData }) => (
+        <SectionRenderer
+          key={section.id}
+          type={section.sectionType}
+          content={content}
+          colorScheme={section.colorScheme}
+          paddingY={section.paddingY}
+          containerWidth={section.containerWidth}
+          enableAnimations={section.enableAnimations}
+          churchId={churchId}
+          resolvedData={resolvedData}
+        />
+      ))}
     </>
   )
 }

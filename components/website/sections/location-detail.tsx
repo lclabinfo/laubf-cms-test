@@ -72,7 +72,7 @@ export default function LocationDetailSection({ content, enableAnimations, color
 
         {/* Right column -- single image */}
         <div className={cn("lg:w-[60%]", animate && "animate-hero-fade-up-delayed")}>
-          {content.images[0] && (
+          {content.images?.[0] && (
             <div className="rounded-2xl overflow-hidden relative aspect-[16/10]">
               <Image
                 src={content.images[0].src}

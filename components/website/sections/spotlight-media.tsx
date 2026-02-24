@@ -8,7 +8,7 @@ import Link from "next/link"
 
 interface SpotlightMediaContent {
   sectionHeading: string
-  sermon: {
+  sermon?: {
     slug?: string
     title: string
     speaker: string
@@ -26,9 +26,11 @@ interface Props {
 }
 
 export default function SpotlightMediaSection({ content, enableAnimations, colorScheme = "light" }: Props) {
-  const { sermon } = content
+  const sermon = content.sermon
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
+
+  if (!sermon) return null
 
   const sermonHref = sermon.slug ? `/messages/${sermon.slug}` : undefined
 

@@ -32,7 +32,7 @@ interface Props {
 }
 
 export default function HighlightCardsSection({ content, enableAnimations, colorScheme = "light" }: Props) {
-  const events = content.featuredEvents
+  const events = content.featuredEvents ?? []
   const animate = enableAnimations !== false
 
   return (

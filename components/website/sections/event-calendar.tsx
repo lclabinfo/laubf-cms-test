@@ -210,7 +210,7 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
 
         {/* CTA buttons */}
         <div className="flex flex-wrap justify-center gap-3">
-          {content.ctaButtons.map((btn) => (
+          {(content.ctaButtons ?? []).map((btn) => (
             <CTAButton
               key={btn.label}
               label={btn.label}

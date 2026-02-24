@@ -59,7 +59,7 @@ export default function MediaGridSection({ content, enableAnimations, colorSchem
         </div>
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {content.videos.map((video, i) => (
+          {(content.videos ?? []).map((video, i) => (
             <div key={video.id} className={cn(animate && "animate-hero-fade-up-delayed")}>
               <VideoCard
                 video={video}

@@ -45,3 +45,12 @@ CLAUDE.md
 .mcp.json
 /lib/generated/prisma
 /laubf-test/src/lib/generated/prisma
+
+# Large binary assets (images, videos, fonts)
+# These are served from the filesystem but not tracked in git.
+# Use `public/images/compressed/` for optimized images.
+/public/images
+/public/videos
+/public/fonts
+/public/pics-temp
+/public/logo
