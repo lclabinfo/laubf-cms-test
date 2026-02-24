@@ -2,7 +2,7 @@
 
 ## Detailed Implementation Plan for the Shared Rendering Architecture
 
-> **Current state** (February 2026): Two separate Next.js apps — CMS admin (root) and public website (`laubf-test/`). Database schema exists with 32 models. DAL and API routes are built. 38 section components exist in `laubf-test/src/components/sections/`. Public website still uses mock data. No middleware, no tenant resolution, no caching layer yet.
+> **Current state** (February 2026): Two separate Next.js apps — CMS admin (root) and public website (`laubf-test/`). Database schema exists with 32 models and 22 enums. DAL (14 modules at `lib/dal/`) and API routes (15 files at `app/api/v1/`) are built. CMS integration complete (context providers wired to API). 38 section components exist in `laubf-test/src/components/sections/`. Public website still uses mock data. No middleware, no tenant resolution, no caching layer yet. Church ID resolution uses `CHURCH_SLUG` env var (not `CHURCH_ID`) via `lib/api/get-church-id.ts`.
 
 ---
 
@@ -23,7 +23,7 @@ app/
 │   ├── layout.tsx                  ← Injects theme, navbar, footer per church
 │   └── [[...slug]]/page.tsx        ← Catch-all: renders any page from DB
 │
-├── (admin)/                        ← CMS dashboard (existing app/cms/, reorganized)
+├── (admin)/                        ← CMS dashboard (currently at app/cms/, will be reorganized)
 │   ├── layout.tsx                  ← Admin sidebar, auth guard
 │   ├── dashboard/page.tsx
 │   ├── messages/...
@@ -111,7 +111,7 @@ export async function middleware(request: NextRequest) {
   // All other routes are public website
   // Set the church context from env var
   const headers = new Headers(request.headers)
-  headers.set('x-tenant-id', process.env.CHURCH_ID || '')
+  headers.set('x-tenant-id', process.env.CHURCH_SLUG || '')
 
   return NextResponse.next({ headers })
 }
@@ -187,10 +187,12 @@ export async function getChurchId(): Promise<string> {
   const headersList = await headers()
   const churchId = headersList.get('x-tenant-id')
   if (!churchId) {
-    // Fallback for single-tenant MVP
-    const envChurchId = process.env.CHURCH_ID
-    if (envChurchId) return envChurchId
-    throw new Error('No tenant context — are you outside a tenant route?')
+    // Fallback for single-tenant MVP: resolve by slug from env
+    const slug = process.env.CHURCH_SLUG || 'la-ubf'
+    const { prisma } = await import('@/lib/db/client')
+    const church = await prisma.church.findUnique({ where: { slug } })
+    if (!church) throw new Error(`Church not found: ${slug}`)
+    return church.id
   }
   return churchId
 }
@@ -765,11 +767,10 @@ For local development with one church:
 
 ```env
 # .env
-CHURCH_ID=<uuid-of-la-ubf-from-seed>
 CHURCH_SLUG=la-ubf
 ```
 
-Visit `http://localhost:3000/messages` — the `getChurchId()` helper reads from `CHURCH_ID` env var.
+Visit `http://localhost:3000/messages` — the `getChurchId()` helper reads `CHURCH_SLUG` from the env var and resolves the church UUID via a database lookup.
 
 ### Multi-Tenant Development (With Middleware)
 

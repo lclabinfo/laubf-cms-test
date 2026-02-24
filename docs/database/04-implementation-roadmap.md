@@ -433,7 +433,7 @@ Use the existing shadcn/ui components (already installed).
 
 Build the church registration flow:
 
-1. Church signs up at `digitalchurch.com/register`
+1. Church signs up at `lclab.io/register`
 2. Enter church name → auto-generate subdomain slug
 3. Create admin account (email + password)
 4. Select plan (free tier for MVP)
@@ -450,12 +450,12 @@ Build the church registration flow:
 
 Update `middleware.ts` to:
 1. Check `CustomDomain` table for exact domain match
-2. Extract subdomain from `*.digitalchurch.com`
+2. Extract subdomain from `*.lclab.io`
 3. Set `church_id` in request context
 4. Route to appropriate layout:
-   - `*.digitalchurch.com/admin/*` → CMS admin layout
-   - `*.digitalchurch.com/*` → Public website layout
-   - `digitalchurch.com/*` → Marketing/platform site
+   - `*.lclab.io/admin/*` → CMS admin layout
+   - `*.lclab.io/*` → Public website layout
+   - `lclab.io/*` → Marketing/platform site
 
 ### Step 5.3 — Tenant-Scoped Caching
 
@@ -553,16 +553,18 @@ Environment variables:
 DATABASE_URL=postgresql://...
 DIRECT_URL=postgresql://...
 NEXTAUTH_SECRET=...
-NEXTAUTH_URL=https://digitalchurch.com
+NEXTAUTH_URL=https://lclab.io
 REDIS_URL=redis://...
 STRIPE_SECRET_KEY=...
 ```
 
 ### Step 7.3 — Wildcard DNS
 
-Configure DNS for `*.digitalchurch.com`:
-- A record: `*.digitalchurch.com → Vercel IP`
-- Or use Cloudflare proxy with wildcard SSL
+Configure DNS for `*.lclab.io`:
+- Wildcard A record: `*.lclab.io → Azure VM IP` (Cloudflare proxied)
+- Apex A record: `lclab.io → Azure VM IP` (Cloudflare proxied)
+- Caddy handles HTTPS with wildcard Let's Encrypt certificate via DNS-01 challenge
+- See `docs/website-rendering/06-hosting-and-domain-strategy.md` for full hosting architecture
 
 ### Step 7.4 — Monitoring
 

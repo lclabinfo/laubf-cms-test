@@ -5,17 +5,18 @@
 This document provides copy-paste-ready prompts for implementing the website rendering pipeline — the system that connects CMS content to the public-facing church websites. Each prompt is self-contained and can be given directly to a Claude Code agent.
 
 > **Current state of the project** (as of February 2026):
-> - **Root project** (`/Users/davidlim/Desktop/laubf-cms-test`): CMS admin with working pages, API routes at `/api/v1/`, DAL at `lib/dal/`, Prisma schema with 32 models, seed script
+> - **Root project** (`/Users/davidlim/Desktop/laubf-cms-test`): CMS admin with working pages, API routes at `/api/v1/` (15 route files), DAL at `lib/dal/` (14 modules), Prisma schema with 32 models and 22 enums, seed script. Database Phases 1.1-4.1 are COMPLETE.
 > - **Public website** (`/laubf-test/`): Separate Next.js app with 38 section components, 29+ pages, all using **mock data** from `src/lib/mock-data/`
-> - **Database**: PostgreSQL with seeded LA UBF data (messages, events, bible studies, videos, daily bread, speakers, series, ministries, campuses)
+> - **Database**: PostgreSQL 18 (native, not Docker) with seeded LA UBF data: 28 messages, 11 events, 15 bible studies, 6 videos, 1 daily bread, 11 speakers, 3 series, 5 ministries, 12 campuses. SiteSettings, Theme, ThemeCustomization, Page, Menu tables exist but are **empty** (seeding deferred to Phase B).
 > - **NOT built yet**: middleware.ts, tenant resolution, (website) route group, section registry, website builder admin, caching layer, theme provider
+> - **Env vars**: `CHURCH_SLUG=la-ubf` (resolves to church UUID via DB lookup in `lib/api/get-church-id.ts`). No `CHURCH_ID` env var — always resolved by slug.
 > - Tech stack: Next.js 16, React 19, Tailwind CSS 4, shadcn/ui, Prisma 7.4.1
 
 > **Architecture docs to reference**:
-> - `docs/website-rendering/05-website-rendering-architecture.md` — Overall rendering architecture
-> - `docs/website-rendering/06-website-rendering-implementation.md` — Implementation details
-> - `docs/website-rendering/07-cms-website-connection.md` — CMS ↔ Website data flow
-> - `docs/website-rendering/08-development-phases.md` — Development phases and fidelity guide
+> - `docs/website-rendering/01-website-rendering-architecture.md` — Overall rendering architecture
+> - `docs/website-rendering/02-website-rendering-implementation.md` — Implementation details
+> - `docs/website-rendering/03-cms-website-connection.md` — CMS ↔ Website data flow
+> - `docs/website-rendering/04-development-phases.md` — Development phases and fidelity guide
 > - `docs/database/03-website-database-schema.md` — Page, PageSection, Menu, Theme schemas + JSONB examples
 
 ---
@@ -241,8 +242,8 @@ This document provides copy-paste-ready prompts for implementing the website ren
 > Create the website rendering infrastructure in the root project at `/Users/davidlim/Desktop/laubf-cms-test/`. This adds the `(website)` route group and section component system that renders public church websites from database-stored page configurations.
 >
 > **Read these architecture docs first**:
-> - `/docs/website-rendering/05-website-rendering-architecture.md` — overall architecture
-> - `/docs/website-rendering/06-website-rendering-implementation.md` — implementation details (sections 2-6)
+> - `/docs/website-rendering/01-website-rendering-architecture.md` — overall architecture
+> - `/docs/website-rendering/02-website-rendering-implementation.md` — implementation details (sections 2-6)
 > - `/docs/database/03-website-database-schema.md` — Page, PageSection, Menu, Theme schemas
 >
 > **Read the existing section components** to understand what needs to be migrated:
@@ -260,11 +261,7 @@ This document provides copy-paste-ready prompts for implementing the website ren
 >   const churchId = headersList.get('x-tenant-id')
 >   if (churchId) return churchId
 >
->   // Fallback for single-tenant MVP
->   const envChurchId = process.env.CHURCH_ID
->   if (envChurchId) return envChurchId
->
->   // Fallback: look up by slug
+>   // Fallback for single-tenant MVP: resolve by slug from env
 >   const slug = process.env.CHURCH_SLUG || 'la-ubf'
 >   const { prisma } = await import('@/lib/db/client')
 >   const church = await prisma.church.findUnique({ where: { slug } })
@@ -335,7 +332,7 @@ This document provides copy-paste-ready prompts for implementing the website ren
 > - Do NOT modify `laubf-test/` — this is a new addition to the root project
 > - The `(website)` route group should coexist with `app/cms/`
 > - Use existing shadcn/ui components (`components/ui/`) in section components
-> - Add `CHURCH_ID` or `CHURCH_SLUG` to `.env` for the single-tenant fallback
+> - `CHURCH_SLUG=la-ubf` should already be in `.env` for the single-tenant fallback
 > - Test by visiting `http://localhost:3000/` — it should render the homepage from the database
 
 #### Verification:
@@ -465,8 +462,8 @@ This document provides copy-paste-ready prompts for implementing the website ren
 > Implement multi-tenant routing middleware for the root project at `/Users/davidlim/Desktop/laubf-cms-test/`.
 >
 > **Read the architecture docs first**:
-> - `/docs/website-rendering/05-website-rendering-architecture.md` sections 6 (isolation) and 8 (app architecture)
-> - `/docs/website-rendering/06-website-rendering-implementation.md` section 2 (middleware)
+> - `/docs/website-rendering/01-website-rendering-architecture.md` sections 6 (isolation) and 8 (app architecture)
+> - `/docs/website-rendering/02-website-rendering-implementation.md` section 2 (middleware)
 > - `/docs/database/01-high-level-database-architecture.md` sections 2 (tenant flow) and 6 (RLS)
 >
 > **1. Create `middleware.ts`** at the project root:

@@ -2,18 +2,22 @@
 
 ## What to Build, In What Order, and at What Level of Polish
 
-> **Context**: The CMS admin exists with working pages and API routes. The database schema and DAL are built. 38 section components exist in `laubf-test/`. The website builder admin UI does not exist yet — another agent will handle that. This document focuses on the rendering pipeline and integration work.
+> **Context** (as of February 2026): The CMS admin exists with working pages and API routes. Database Phases 1.1-4.1 are COMPLETE: Prisma schema (32 models, 22 enums), migration, seed (28 messages, 11 events, 15 bible studies, 6 videos, 1 daily bread, 11 speakers, 3 series, 5 ministries, 12 campuses), DAL (14 modules), API routes (15 files), and CMS integration (context providers wired to API). 38 section components exist in `laubf-test/`. The website builder admin UI does not exist yet — another agent will handle that. This document focuses on the rendering pipeline and integration work.
 
 ---
 
 ## Phase Overview
 
 ```
-Phase A: Single-Tenant Rendering (you are here → next)
+Database Phases 1.1-4.1: COMPLETE ✓
+  ↓
+Phase A: Single-Tenant Rendering (NEXT — you are here)
   ↓
 Phase B: Section Component Migration
   ↓
 Phase C: Website Builder Admin (separate agent)
+  ↓
+Database Phase 6.1: Auth (required before D)
   ↓
 Phase D: Multi-Tenant Middleware
   ↓
@@ -21,6 +25,12 @@ Phase E: Caching & Performance
   ↓
 Phase F: Production Deployment
 ```
+
+**Recommended order from current state**: Phase A comes before database Phases 5-9 because:
+1. Phases 1-4 are complete — CMS reads/writes from the database
+2. Phase A proves the rendering pipeline with real data before investing in app consolidation
+3. Phase A is read-only (public website) and independent of auth (database Phase 6.1)
+4. Auth (Phase 6.1) can be done in parallel with Phase A or after it, before Phase D
 
 ---
 

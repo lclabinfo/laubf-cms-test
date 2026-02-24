@@ -375,7 +375,7 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > - All list queries default to `status: 'PUBLISHED'` for read functions, but CMS functions should accept any status
 > - Use Prisma `include` for relations, not separate queries
 > - Return Prisma types directly (no manual transformation)
-> - For the single-tenant MVP, the churchId will come from an environment variable (`CHURCH_ID`) or be resolved from the request context
+> - For the single-tenant MVP, the churchId is resolved by looking up `CHURCH_SLUG` (env var) in the database, or from the request context in multi-tenant mode
 >
 > **Important: Do NOT modify any existing files.** Only create new files in `lib/dal/`.
 
@@ -447,7 +447,7 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > ```
 >
 > **Each route handler should:**
-> 1. Extract churchId (for now, hardcode from `process.env.CHURCH_ID` or use a default — auth comes later)
+> 1. Extract churchId (for now, resolve from `CHURCH_SLUG` env var via DB lookup — auth comes later)
 > 2. Parse query params for GET (page, pageSize, filters)
 > 3. Parse and validate request body for POST/PATCH (use basic type checking for now, Zod validation will be added later)
 > 4. Call the appropriate DAL function from `@/lib/dal`
@@ -459,14 +459,19 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 >
 > **For the churchId**, create a helper at `lib/api/get-church-id.ts`:
 > ```typescript
-> // Temporary: hardcoded org ID for single-tenant MVP
-> // This will be replaced by auth + tenant middleware later
+> import { prisma } from '@/lib/db'
+>
+> // Temporary: resolve church from env for single-tenant MVP
+> // Will be replaced by auth + tenant middleware later
 > export async function getChurchId(): Promise<string> {
->   const churchId = process.env.CHURCH_ID
->   if (!churchId) throw new Error('CHURCH_ID environment variable is required')
->   return churchId
+>   const slug = process.env.CHURCH_SLUG || 'la-ubf'
+>   const church = await prisma.church.findUnique({ where: { slug } })
+>   if (!church) throw new Error(`Church not found: ${slug}`)
+>   return church.id
 > }
 > ```
+>
+> **Note**: This helper already exists at `lib/api/get-church-id.ts` — it was created in Phase 3.1.
 >
 > **Important constraints:**
 > - Use Next.js App Router `route.ts` handlers (not pages)
@@ -555,6 +560,8 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 ---
 
 ## Phase 5: Public Website Integration
+
+> **Cross-reference**: This phase corresponds to **Phase A** in the website-rendering docs. See `docs/website-rendering/05-ai-optimized-next-steps.md` (Phases A.1 and A.2) for the most detailed, up-to-date prompts. The website-rendering doc breaks this into two sub-phases: A.1 (set up Prisma in laubf-test) and A.2 (replace mock data). Use those prompts for implementation.
 
 ### Phase 5.1: Replace Mock Data in Public Website Pages
 
@@ -748,11 +755,13 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 
 ## Phase 7: Multi-Tenancy Infrastructure
 
+> **Cross-reference**: This phase corresponds to **Phase D** in the website-rendering docs. See `docs/website-rendering/05-ai-optimized-next-steps.md` (Phase D.1) and `docs/website-rendering/04-development-phases.md` (Phase D) for the website-rendering perspective. Both docs describe the same middleware work.
+
 ### Phase 7.1: Tenant Resolution Middleware
 
 **Effort**: M (2-3 days)
 **Dependencies**: Phase 6.1
-**What this does**: Adds the ability for multiple churches to use the platform simultaneously. Each church gets a subdomain (e.g., gracechurch.digitalchurch.com) and their data is isolated via church_id filtering. This is the foundation for the SaaS business model.
+**What this does**: Adds the ability for multiple churches to use the platform simultaneously. Each church gets a subdomain (e.g., gracechurch.lclab.io) and their data is isolated via church_id filtering. This is the foundation for the SaaS business model.
 
 #### Prompt:
 
@@ -765,7 +774,7 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > `lib/tenant/resolve.ts`:
 > - Extract hostname from request
 > - Check `CustomDomain` table for exact domain match
-> - Extract subdomain from `*.digitalchurch.com` pattern
+> - Extract subdomain from `*.lclab.io` pattern
 > - Look up Church by subdomain slug
 > - Return churchId or null
 >
@@ -778,7 +787,7 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > - Set `x-tenant-id` header on the request
 > - For CMS routes (`/cms/*`): verify the authenticated user belongs to the resolved org
 > - For API routes (`/api/v1/*`): inject churchId from tenant resolution
-> - For the platform domain (`digitalchurch.com`): route to marketing/landing pages
+> - For the platform domain (`lclab.io`): route to marketing/landing pages
 > - For unknown subdomains: return 404
 >
 > **3. Create the Prisma tenant extension** at `lib/db/extensions/tenant.ts`:
@@ -824,6 +833,8 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 ---
 
 ## Phase 8: Website Builder Foundation
+
+> **Cross-reference**: This phase corresponds to **Phase B** in the website-rendering docs. See `docs/website-rendering/05-ai-optimized-next-steps.md` (Phases B.1 and B.2) for the section migration and registry work. The website-rendering docs are more detailed on the section component migration process.
 
 ### Phase 8.1: Page and Section Data Infrastructure
 
@@ -911,11 +922,11 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 
 **Effort**: M (2-3 days)
 **Dependencies**: Phases 1-6 complete
-**What this does**: Prepares the application for production deployment on Vercel with a managed PostgreSQL database. Sets up environment configuration, build pipeline, and monitoring.
+**What this does**: Prepares the application for production deployment on Azure VM with Caddy reverse proxy and Cloudflare CDN. Sets up environment configuration, build pipeline, and monitoring. See `docs/website-rendering/06-hosting-and-domain-strategy.md` for the full hosting architecture.
 
 #### Prompt:
 
-> Prepare the project for production deployment on Vercel with a managed PostgreSQL database (Neon or Supabase).
+> Prepare the project for production deployment on an Azure VM (B2s) with Caddy reverse proxy, PostgreSQL, and Cloudflare CDN. See `docs/website-rendering/06-hosting-and-domain-strategy.md` for the deployment architecture.
 >
 > **1. Create environment configuration**:
 >
@@ -930,7 +941,7 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > NEXTAUTH_URL="https://your-domain.com"
 >
 > # Tenant
-> PLATFORM_DOMAIN="digitalchurch.com"
+> PLATFORM_DOMAIN="lclab.io"
 > DEFAULT_CHURCH_SLUG="la-ubf"
 >
 > # Optional
@@ -955,10 +966,10 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > }
 > ```
 >
-> **3. Create Vercel configuration** (`vercel.json`):
-> - Configure build command to include Prisma generation
-> - Set up environment variable references
-> - Configure headers for CORS on API routes
+> **3. Configure Next.js standalone output** in `next.config.ts`:
+> - Set `output: 'standalone'` for self-hosted deployment
+> - The standalone build includes only the files needed for production
+> - Deployed via PM2 process manager behind Caddy reverse proxy
 >
 > **4. Add error tracking** (optional but recommended):
 > ```
@@ -971,9 +982,10 @@ This document provides copy-paste-ready prompts for implementing the Digital Chu
 > - Check database connectivity
 > - Return status with response time
 >
-> **6. Add database connection pooling setup notes**:
-> - Document Neon connection string format with pooling
-> - Document Supabase connection string with pgbouncer
+> **6. Deployment infrastructure** (see `docs/website-rendering/06-hosting-and-domain-strategy.md`):
+> - Azure VM (B2s, ~$30/month) running PostgreSQL + Next.js + Caddy
+> - Cloudflare free tier for CDN, DDoS protection, and wildcard DNS (`*.lclab.io`)
+> - Caddy handles HTTPS (automatic Let's Encrypt certificates) and reverse proxy to Next.js
 >
 > **Important constraints:**
 > - Do NOT include any actual secrets in committed files
