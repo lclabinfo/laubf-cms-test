@@ -12,7 +12,7 @@ Starting from the existing codebase, here's the target directory structure with 
 
 ```
 app/
-├── (marketing)/                    ← Platform landing site (digitalchurch.com)
+├── (marketing)/                    ← Platform landing site (lclab.io)
 │   ├── layout.tsx
 │   ├── page.tsx                    ← Landing page
 │   ├── pricing/page.tsx
@@ -127,7 +127,7 @@ export const config = {
 // middleware.ts (multi-tenant)
 import { NextRequest, NextResponse } from 'next/server'
 
-const PLATFORM_DOMAINS = ['digitalchurch.com', 'www.digitalchurch.com']
+const PLATFORM_DOMAINS = ['lclab.io', 'www.lclab.io']
 const ADMIN_PATH_PREFIX = '/cms'
 
 export async function middleware(request: NextRequest) {
@@ -143,7 +143,7 @@ export async function middleware(request: NextRequest) {
   const churchId = await resolveChurchId(hostname)
 
   if (!churchId) {
-    return NextResponse.redirect(new URL('https://digitalchurch.com'))
+    return NextResponse.redirect(new URL('https://lclab.io'))
   }
 
   // 3. Set tenant context header
@@ -167,7 +167,7 @@ async function resolveChurchId(hostname: string): Promise<string | null> {
   if (customDomain) return customDomain.churchId
 
   // Priority 2: Subdomain extraction
-  const subdomain = extractSubdomain(hostname, 'digitalchurch.com')
+  const subdomain = extractSubdomain(hostname, 'lclab.io')
   if (subdomain) {
     const church = await lookupChurchBySlug(subdomain)
     return church?.id || null

@@ -192,8 +192,8 @@ Phase F: Production Deployment
 | E2 | Set up cache tags per church + entity type | S (2h) | E1 |
 | E3 | Add `revalidateTag()` calls to all CMS write API routes | M (4h) | E2 |
 | E4 | Add Redis (Upstash) for query-level caching | M (4h) | E1 |
-| E5 | Configure CDN caching headers for public pages | S (2h) | E4 |
-| E6 | Add connection pooling (PgBouncer or Neon pooling) | M (4h) | Multi-tenant |
+| E5 | Configure Cloudflare Cache Rules for public pages | S (2h) | E4 |
+| E6 | Add connection pooling (PgBouncer) | M (4h) | Multi-tenant |
 | E7 | Load test with simulated multi-tenant traffic | L (1d) | E6 |
 
 **Cache TTLs by data type**:
@@ -220,15 +220,16 @@ Phase F: Production Deployment
 
 | # | Task | Effort | Depends On |
 |---|---|---|---|
-| F1 | Set up managed PostgreSQL (Neon or Supabase) | S (2h) | — |
+| F1 | Set up PostgreSQL on Azure VM (or Azure Database for PostgreSQL) | S (2h) | — |
 | F2 | Run migration + seed on production database | S (1h) | F1 |
-| F3 | Deploy to Vercel | S (2h) | F2 |
-| F4 | Configure subdomain: `la-ubf.digitalchurch.com` | S (1h) | F3 |
-| F5 | Configure custom domain: `laubf.org` (if ready) | M (4h) | F3 |
-| F6 | Set up error tracking (Sentry) | S (2h) | F3 |
-| F7 | Set up uptime monitoring | S (1h) | F3 |
-| F8 | Import real LA UBF content (sermons, events from existing sources) | L (2d) | F2 |
-| F9 | QA pass on all pages with real content | L (1d) | F8 |
+| F3 | Deploy Next.js (standalone) with PM2 + Caddy on Azure VM | M (4h) | F2 |
+| F4 | Configure Cloudflare DNS + wildcard SSL for `*.lclab.io` | S (2h) | F3 |
+| F5 | Configure subdomain: `laubf.lclab.io` | S (1h) | F4 |
+| F6 | Configure custom domain: `laubf.org` with Caddy On-Demand TLS (if ready) | M (4h) | F4 |
+| F7 | Set up error tracking (Sentry) | S (2h) | F3 |
+| F8 | Set up uptime monitoring | S (1h) | F3 |
+| F9 | Import real LA UBF content (sermons, events from existing sources) | L (2d) | F2 |
+| F10 | QA pass on all pages with real content | L (1d) | F9 |
 
 ---
 

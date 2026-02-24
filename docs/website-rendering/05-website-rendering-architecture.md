@@ -93,14 +93,14 @@ The actual content that dynamic sections pull from: messages/sermons, events, bi
 
 ## 4. The Rendering Pipeline
 
-When a visitor hits `gracechurch.digitalchurch.com/about` (or `gracechurch.org/about` via custom domain):
+When a visitor hits `gracechurch.lclab.io/about` (or `gracechurch.org/about` via custom domain):
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ 1. NEXT.JS MIDDLEWARE                                           │
 │    Request: gracechurch.org/about                               │
 │    → Look up "gracechurch.org" in CustomDomain table (cached)   │
-│    → OR extract "gracechurch" from *.digitalchurch.com          │
+│    → OR extract "gracechurch" from *.lclab.io                   │
 │    → Resolve to church_id = "abc123"                            │
 │    → Set x-tenant-id header for the request lifecycle           │
 │    → Rewrite URL to (website) route group                       │
@@ -144,7 +144,7 @@ When a visitor hits `gracechurch.digitalchurch.com/about` (or `gracechurch.org/a
 │      → revalidateTag("church:abc123") on CMS content change     │
 │    Layer B: Redis query cache (added when needed at scale)       │
 │      → Cache keys: church:abc123:page:about (5-60 min TTL)      │
-│    Layer C: CDN (Vercel Edge Network)                            │
+│    Layer C: CDN (Cloudflare)                                     │
 │      → Stale-while-revalidate for public pages                  │
 │    Invalidation: CMS write → revalidateTag() → fresh on next    │
 └─────────────────────────────────────────────────────────────────┘
@@ -213,7 +213,7 @@ This means Church A's visitors can never see Church B's content, even if a devel
 
 ```
 1. Custom domain lookup    → gracechurch.org → church_id
-2. Subdomain extraction    → grace.digitalchurch.com → church_id
+2. Subdomain extraction    → grace.lclab.io → church_id
 3. Dev override            → ?church=la-ubf (development only)
 4. Default church          → CHURCH_SLUG env var (single-tenant MVP)
 ```
@@ -225,24 +225,29 @@ This means Church A's visitors can never see Church B's content, even if a devel
 The shared architecture scales efficiently because the workload is read-heavy and cacheable:
 
 ### Stage 1: 1-10 Churches (Current Target)
-- **Vercel** with built-in edge network handles everything
-- **Single PostgreSQL instance** (Neon free tier or Supabase)
-- **Next.js data cache** handles most caching needs
+- **Azure VM** (B2s, ~$30/month) with Caddy reverse proxy
+- **Cloudflare free tier** for CDN, DDoS protection, and DNS
+- **PostgreSQL** on the same VM or Azure Database for PostgreSQL
+- **Next.js built-in cache** (filesystem + in-memory) handles caching
 - **No Redis needed**
-- Estimated cost: $0-50/month
+- Estimated cost: ~$33/month
 
 ### Stage 2: 10-100 Churches
-- **Managed PostgreSQL** with connection pooling
-- **Redis** for query-level caching
+- **Azure VM** (upgrade to B2ms: 2 vCPU, 8GB RAM) or second VM
+- **Azure Database for PostgreSQL** (Flexible Server) with connection pooling
+- **Redis** (Azure Cache for Redis Basic or self-hosted) for shared server-side caching
 - **ISR + on-demand revalidation** for public pages
-- Estimated cost: $50-200/month
+- **Cloudflare free or Pro** ($20/month) for CDN + caching
+- Estimated cost: $60-250/month
 
 ### Stage 3: 100-1,000+ Churches
+- **Multiple Azure VMs** behind Azure Load Balancer
 - **Read replicas** for public website queries (separate from CMS writes)
-- **CDN** caches full rendered pages with stale-while-revalidate
+- **Cloudflare Pro/Business** for CDN-level full page caching with stale-while-revalidate
 - **PgBouncer** for connection pooling
+- **Redis Standard** (with replication) — mandatory for multi-server cache sharing
 - **Composite indexes** starting with `church_id` ensure every query is fast regardless of total row count
-- Estimated cost: $200-1,000/month
+- Estimated cost: $400-800/month
 
 The application code doesn't change between stages — only the infrastructure configuration.
 
@@ -279,8 +284,8 @@ The target architecture consolidates into one Next.js app with route groups:
 
 ```
 app/
-├── (marketing)/           ← digitalchurch.com — platform landing, pricing, signup
-├── (website)/             ← *.digitalchurch.com + custom domains — public church sites
+├── (marketing)/           ← lclab.io — platform landing, pricing, signup
+├── (website)/             ← *.lclab.io + custom domains — public church sites
 │   ├── layout.tsx         ← Injects theme, navbar, footer per church
 │   └── [[...slug]]/       ← Catch-all: renders any page from DB
 ├── (admin)/               ← CMS dashboard
@@ -323,7 +328,7 @@ packages/
 apps/
 ├── cms/             ← admin dashboard
 ├── website/         ← public church websites
-└── marketing/       ← digitalchurch.com platform site
+└── marketing/       ← lclab.io platform site
 ```
 
 But this is an optimization for much later — not a prerequisite. The single-app approach serves well past 1,000 churches.

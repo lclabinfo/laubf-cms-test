@@ -473,10 +473,10 @@ This document provides copy-paste-ready prompts for implementing the website ren
 >
 > The middleware must handle three routing scenarios:
 >
-> a) **Platform domain** (`digitalchurch.com`, `www.digitalchurch.com`):
+> a) **Platform domain** (`lclab.io`, `www.lclab.io`):
 >    → Route to `(marketing)` route group (or a landing page for now)
 >
-> b) **Church subdomain** (`grace.digitalchurch.com`) or **custom domain** (`gracechurch.org`):
+> b) **Church subdomain** (`grace.lclab.io`) or **custom domain** (`gracechurch.org`):
 >    → Resolve to church_id
 >    → Set `x-tenant-id` header
 >    → For `/cms/*` paths: route to `(admin)` route group
@@ -490,7 +490,7 @@ This document provides copy-paste-ready prompts for implementing the website ren
 > **2. Create `lib/tenant/resolve.ts`**:
 > - `resolveChurchId(hostname: string)` → string | null
 > - Custom domain lookup: query `CustomDomain` table (cache result in-memory for the request)
-> - Subdomain extraction from `*.digitalchurch.com`
+> - Subdomain extraction from `*.lclab.io`
 > - Return null for unknown hostnames
 >
 > **3. Create `lib/tenant/context.ts`** (update existing if created in Phase B):
