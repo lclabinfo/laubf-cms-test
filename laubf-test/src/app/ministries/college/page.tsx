@@ -7,10 +7,7 @@ import MeetTeamSection from "@/components/sections/MeetTeamSection";
 import UpcomingEventsSection from "@/components/sections/UpcomingEventsSection";
 import FormSection from "@/components/sections/FormSection";
 import NewcomerSection from "@/components/sections/NewcomerSection";
-
-import { getEvents, getMinistryBySlug } from "@/lib/dal";
-import { getChurchId } from "@/lib/get-church-id";
-import { toUIEvent } from "@/lib/adapters";
+import { getEventsByMinistry } from "@/lib/mock-data/events";
 
 import type {
   MinistryHeroSectionProps,
@@ -24,8 +21,6 @@ import type {
   NewcomerSectionProps,
 } from "@/lib/types/sections";
 import type { Metadata } from "next";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "College Ministry",
@@ -186,6 +181,8 @@ const teamData: MeetTeamSectionProps = {
   },
 };
 
+const collegeEvents = getEventsByMinistry("young-adult").slice(0, 3);
+
 const eventsData: UpcomingEventsSectionProps = {
   id: "college-events",
   visible: true,
@@ -257,15 +254,7 @@ const newcomerData: NewcomerSectionProps = {
  * Section order: Light → Light → Light → Light → Light → Light → Dark → Light → Light
  * ================================================================ */
 
-export default async function CollegePage() {
-  const churchId = await getChurchId();
-  const ministry = await getMinistryBySlug(churchId, "young-adult");
-  const eventsResult = await getEvents(churchId, {
-    ministryId: ministry?.id,
-    pageSize: 3,
-  });
-  const collegeEvents = eventsResult.data.map(toUIEvent);
-
+export default function CollegePage() {
   return (
     <main>
       <MinistryHeroSection settings={heroData} />

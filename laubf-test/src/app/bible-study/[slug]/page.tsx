@@ -1,11 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getBibleStudyBySlug } from "@/lib/dal";
-import { getChurchId } from "@/lib/get-church-id";
-import { toUIBibleStudy } from "@/lib/adapters";
+import { MOCK_BIBLE_STUDIES } from "@/lib/mock-data/bible-studies";
 import StudyDetailPage from "@/components/study-detail/StudyDetailPage";
-
-export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -13,10 +9,8 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const churchId = await getChurchId();
-  const dbStudy = await getBibleStudyBySlug(churchId, slug);
-  if (!dbStudy) return { title: "Study Not Found" };
-  const study = toUIBibleStudy(dbStudy);
+  const study = MOCK_BIBLE_STUDIES.find((s) => s.slug === slug);
+  if (!study) return { title: "Study Not Found" };
   return {
     title: study.title,
     description: `Bible study on ${study.passage} from the series "${study.series}".`,
@@ -29,13 +23,11 @@ export default async function BibleStudyDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const churchId = await getChurchId();
-  const dbStudy = await getBibleStudyBySlug(churchId, slug);
+  const study = MOCK_BIBLE_STUDIES.find((s) => s.slug === slug);
 
-  if (!dbStudy) {
+  if (!study) {
     notFound();
   }
 
-  const study = toUIBibleStudy(dbStudy);
   return <StudyDetailPage study={study} />;
 }

@@ -1,9 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getMessageBySlug } from "@/lib/dal";
-import { getChurchId } from "@/lib/get-church-id";
-import { toUIMessage } from "@/lib/adapters";
-import type { MessageDetail } from "@/lib/dal/messages";
+import { MOCK_MESSAGES, getMessageBySlug } from "@/lib/mock-data/messages";
 import {
   IconChevronLeft,
   IconCalendar,
@@ -14,7 +11,11 @@ import {
 import TranscriptPanel from "./TranscriptPanel";
 import ShareMessageButton from "./ShareMessageButton";
 
-export const dynamic = "force-dynamic";
+/* ── Static params for SSG ── */
+
+export function generateStaticParams() {
+  return MOCK_MESSAGES.map((m) => ({ slug: m.slug }));
+}
 
 export async function generateMetadata({
   params,
@@ -22,10 +23,8 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const churchId = await getChurchId();
-  const dbMessage = await getMessageBySlug(churchId, slug);
-  if (!dbMessage) return { title: "Message Not Found" };
-  const message = toUIMessage(dbMessage);
+  const message = getMessageBySlug(slug);
+  if (!message) return { title: "Message Not Found" };
   return {
     title: `${message.title} | LA UBF Messages`,
     description: message.description,
@@ -43,7 +42,7 @@ function formatDate(dateStr: string) {
     .toUpperCase();
 }
 
-/* -- Page component -- */
+/* ── Page component ── */
 
 export default async function MessageDetailPage({
   params,
@@ -51,11 +50,8 @@ export default async function MessageDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const churchId = await getChurchId();
-  const dbMessage = await getMessageBySlug(churchId, slug);
-  if (!dbMessage) notFound();
-
-  const message = toUIMessage(dbMessage as MessageDetail);
+  const message = getMessageBySlug(slug);
+  if (!message) notFound();
 
   return (
     <main className="bg-white-1 min-h-screen">
@@ -80,7 +76,7 @@ export default async function MessageDetailPage({
 
       {/* Content */}
       <div className="container-standard pt-2 pb-20 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-10">
-        {/* -- Left column: Video + Metadata -- */}
+        {/* ── Left column: Video + Metadata ── */}
         <div>
           {/* YouTube Embed */}
           <div className="aspect-video rounded-[24px] overflow-hidden bg-black-1 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]">
@@ -137,7 +133,7 @@ export default async function MessageDetailPage({
           )}
         </div>
 
-        {/* -- Right column: Transcript + Study Guide -- */}
+        {/* ── Right column: Transcript + Study Guide ── */}
         <aside className="flex flex-col gap-6 lg:sticky lg:top-[96px] h-fit">
           <TranscriptPanel
             liveTranscript={message.liveTranscript}

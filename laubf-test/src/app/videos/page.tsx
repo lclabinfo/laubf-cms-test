@@ -6,17 +6,18 @@ import type {
   AllVideosSectionProps,
 } from "@/lib/types/sections";
 
-import { getVideos } from "@/lib/dal";
-import { getChurchId } from "@/lib/get-church-id";
-import { toUIVideo } from "@/lib/adapters";
+import { MOCK_VIDEOS } from "@/lib/mock-data/videos";
 import type { Metadata } from "next";
-
-export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Videos",
   description: "Watch videos from LA UBF — worship services, testimonies, and special events.",
 };
+
+/* ================================================================
+ * SAMPLE DATA — Content from Figma design
+ * In production, this data comes from PostgreSQL via CMS API.
+ * ================================================================ */
 
 const heroData: EventsHeroSectionProps = {
   id: "videos-hero",
@@ -40,15 +41,11 @@ const allVideosData: AllVideosSectionProps = {
   },
 };
 
-export default async function VideosPage() {
-  const churchId = await getChurchId();
-  const videosResult = await getVideos(churchId, { pageSize: 100 });
-  const videos = videosResult.data.map(toUIVideo);
-
+export default function VideosPage() {
   return (
     <main>
       <EventsHeroSection settings={heroData} />
-      <AllVideosSection settings={allVideosData} videos={videos} />
+      <AllVideosSection settings={allVideosData} videos={MOCK_VIDEOS} />
     </main>
   );
 }
