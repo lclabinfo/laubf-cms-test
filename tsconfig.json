@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "figma-cms-2:11:26", "laubf-test", "prisma/seed.mts"]
+  "exclude": ["node_modules", "figma-cms-*", "laubf-test", "prisma/seed.mts"]
 }
