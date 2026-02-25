@@ -107,14 +107,14 @@ export default async function EventDetailPage({ params }: PageProps) {
       <div className="container-standard">
         <nav className="flex items-center gap-1.5 text-[14px]">
           <Link
-            href="/"
+            href="/website"
             className="text-black-3 transition-colors hover:text-black-1"
           >
             Home
           </Link>
           <IconChevronRight className="size-3.5 text-black-3" />
           <Link
-            href="/events"
+            href="/website/events"
             className="text-black-3 transition-colors hover:text-black-1"
           >
             Events
@@ -192,7 +192,7 @@ export default async function EventDetailPage({ params }: PageProps) {
           <div className="mt-10 pt-6 border-t border-white-2">
             <p className="text-body-3 text-black-3 italic">
               For questions about this event, please{" "}
-              <Link href="/contact" className="text-accent-blue hover:underline">
+              <Link href="/website/contact" className="text-accent-blue hover:underline">
                 contact us
               </Link>
               .

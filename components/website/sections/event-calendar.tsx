@@ -307,7 +307,7 @@ function EventListView({
                     dateEnd: event.dateEnd ? new Date(event.dateEnd + "T00:00:00") : undefined,
                     time: event.time,
                     type: event.type,
-                    href: `/events/${event.slug}`,
+                    href: `/website/events/${event.slug}`,
                     recurrenceSchedule: event.recurrenceSchedule,
                   }}
                 />
@@ -321,7 +321,7 @@ function EventListView({
                     {moreUpcoming} more upcoming event{moreUpcoming !== 1 ? "s" : ""}
                   </span>
                   <Link
-                    href="/events"
+                    href="/website/events"
                     className="text-[14px] font-medium text-black-1 hover:underline"
                   >
                     View all
@@ -355,7 +355,7 @@ function EventListView({
                     dateEnd: event.dateEnd ? new Date(event.dateEnd + "T00:00:00") : undefined,
                     time: event.time,
                     type: event.type,
-                    href: `/events/${event.slug}`,
+                    href: `/website/events/${event.slug}`,
                     recurrenceSchedule: event.recurrenceSchedule,
                   }}
                 />
@@ -369,7 +369,7 @@ function EventListView({
                     {moreRecurring} more recurring event{moreRecurring !== 1 ? "s" : ""}
                   </span>
                   <Link
-                    href="/events"
+                    href="/website/events"
                     className="text-[14px] font-medium text-black-1 hover:underline"
                   >
                     View all

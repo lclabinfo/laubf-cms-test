@@ -329,7 +329,7 @@ function ListView({ events }: { events: SimpleEvent[] }) {
             dateEnd: event.dateEnd ? new Date(event.dateEnd) : undefined,
             time: formatTimeRange(event.timeStart, event.timeEnd),
             type: event.type,
-            href: `/events/${event.slug}`,
+            href: `/website/events/${event.slug}`,
           }}
         />
       ))}

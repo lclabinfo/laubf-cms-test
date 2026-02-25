@@ -142,7 +142,7 @@ export function WebsiteNavbar({
 
         <div className="container-nav relative z-10 flex items-center justify-between transition-[padding] duration-300 ease-smooth py-1.5">
           {/* Logo */}
-          <Link href="/" className="relative shrink-0">
+          <Link href="/website" className="relative shrink-0">
             {lightLogo ? (
               isScrolled ? (
                 <Image

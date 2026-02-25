@@ -56,10 +56,10 @@ export default async function WebsiteLayout({
           logoAlt={siteSettings?.logoAlt ?? null}
           siteName={siteSettings?.siteName ?? 'Church'}
           ctaLabel={siteSettings?.enableMemberLogin ? "I\u2019m new" : "I\u2019m new"}
-          ctaHref="/im-new"
+          ctaHref="/website/im-new"
           ctaVisible={true}
           memberLoginLabel="Member Login"
-          memberLoginHref="/member-login"
+          memberLoginHref="/website/member-login"
           memberLoginVisible={siteSettings?.enableMemberLogin ?? false}
         />
         <main>{children}</main>

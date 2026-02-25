@@ -48,7 +48,7 @@ export default function HighlightCardsSection({ content, enableAnimations, color
     imageUrl: e.imageUrl,
     badge: e.badge,
     imageObjectPosition: e.objectPosition,
-    href: `/events/${e.slug}`,
+    href: `/website/events/${e.slug}`,
   }))
 
   return (
