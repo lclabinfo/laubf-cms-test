@@ -1,5 +1,0 @@
-import { MessagesProvider } from "@/lib/messages-context"
-
-export default function MessagesLayout({ children }: { children: React.ReactNode }) {
-  return <MessagesProvider>{children}</MessagesProvider>
-}
