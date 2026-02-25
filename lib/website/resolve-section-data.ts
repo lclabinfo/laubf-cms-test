@@ -3,6 +3,7 @@ import { getFeaturedEvents, getUpcomingEvents, getEvents } from '@/lib/dal/event
 import { getVideos } from '@/lib/dal/videos'
 import { getBibleStudies } from '@/lib/dal/bible-studies'
 import { getTodaysDailyBread } from '@/lib/dal/daily-bread'
+import { getCampuses } from '@/lib/dal/campuses'
 import { bibleBookLabel } from '@/lib/website/bible-book-labels'
 import type { SectionType } from '@/lib/db/types'
 
@@ -187,6 +188,23 @@ export async function resolveSectionData(
       }
     }
 
+    case 'all-campuses': {
+      const campuses = await getCampuses(churchId)
+      return {
+        content: {
+          ...content,
+          campuses: campuses
+            .filter((c) => c.slug !== 'all')
+            .map((c) => ({
+              id: c.slug,
+              abbreviation: c.shortName || '',
+              fullName: c.name,
+              href: `/ministries/campus/${c.slug}`,
+            })),
+        },
+      }
+    }
+
     case 'latest-daily-bread': {
       const bread = await getTodaysDailyBread(churchId)
       return {
@@ -194,9 +212,14 @@ export async function resolveSectionData(
           ...content,
           dailyBread: bread
             ? {
+                slug: bread.slug,
                 title: bread.title,
                 passage: bread.passage || '',
+                keyVerse: bread.keyVerse || null,
                 body: bread.body || '',
+                bibleText: bread.bibleText || null,
+                author: bread.author,
+                audioUrl: bread.audioUrl || null,
                 date: toDateString(bread.date),
               }
             : null,

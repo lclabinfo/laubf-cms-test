@@ -988,6 +988,76 @@ const VIDEOS = [
 
 // --- Daily Bread ---
 const DAILY_BREADS = [
+  {
+    slug: "the-lord-is-my-shepherd",
+    title: "The Lord Is My Shepherd",
+    date: "2026-02-02",
+    passage: "Psalm 23:1-6",
+    keyVerse: "The Lord is my shepherd; I shall not want. — Psalm 23:1",
+    author: "P. Abraham Kim",
+    body: "<p>Psalm 23 is perhaps the most beloved passage in all of Scripture. In six short verses, David paints a portrait of God's intimate care — leading, restoring, protecting, and accompanying his people through every season of life.</p><p>The image of a shepherd was deeply familiar to David from his youth. A good shepherd knows each sheep by name, seeks the lost, and defends the flock at personal cost. David saw his own life as lived under exactly this kind of care.</p><p>\"I shall not want\" is not a claim of perfect circumstances, but of perfect provision. Even walking through the valley of the shadow of death, the shepherd's rod and staff bring comfort. The goodness and mercy that follow us are not occasional visitors — they are constant companions.</p><p><strong>Prayer:</strong> Lord, you are my shepherd. Help me to trust your leading even when the path is uncertain. Thank you that I shall not want.</p><p><strong>One Word:</strong> The Lord is my shepherd</p>",
+    bibleText: "<h4>Psalm 23:1-6 (ESV)</h4><p><sup>1</sup>The Lord is my shepherd; I shall not want.</p><p><sup>2</sup>He makes me lie down in green pastures. He leads me beside still waters.</p><p><sup>3</sup>He restores my soul. He leads me in paths of righteousness for his name's sake.</p><p><sup>4</sup>Even though I walk through the valley of the shadow of death, I will fear no evil, for you are with me; your rod and your staff, they comfort me.</p><p><sup>5</sup>You prepare a table before me in the presence of my enemies; you anoint my head with oil; my cup overflows.</p><p><sup>6</sup>Surely goodness and mercy shall follow me all the days of my life, and I shall dwell in the house of the Lord forever.</p>",
+  },
+  {
+    slug: "blessed-are-the-poor-in-spirit",
+    title: "Blessed Are the Poor in Spirit",
+    date: "2026-02-03",
+    passage: "Matthew 5:1-12",
+    keyVerse: "Blessed are the poor in spirit, for theirs is the kingdom of heaven. — Matthew 5:3",
+    author: "P. John Lee",
+    body: "<p>Jesus opens the Sermon on the Mount with a series of beatitudes — blessings pronounced over those the world considers least blessed. The first and foundational beatitude is poverty of spirit: the recognition of our own spiritual bankruptcy before God.</p><p>To be poor in spirit is not to be weak or lacking in character. It is to see ourselves clearly — as creatures in need of a Creator, as sinners in need of a Savior. This is the starting point of all genuine discipleship.</p><p>The remarkable promise attached to this poverty is staggering: \"theirs is the kingdom of heaven.\" Not \"theirs will be\" but \"theirs is\" — present tense. The kingdom belongs to those who come empty-handed.</p><p><strong>Prayer:</strong> Father, strip away my self-sufficiency. Make me poor in spirit that I may receive your kingdom.</p><p><strong>One Word:</strong> Blessed are the poor in spirit</p>",
+    bibleText: "<h4>Matthew 5:1-12 (ESV)</h4><p><sup>1</sup>Seeing the crowds, he went up on the mountain, and when he sat down, his disciples came to him.</p><p><sup>2</sup>And he opened his mouth and taught them, saying:</p><p><sup>3</sup>\"Blessed are the poor in spirit, for theirs is the kingdom of heaven.</p><p><sup>4</sup>Blessed are those who mourn, for they shall be comforted.</p><p><sup>5</sup>Blessed are the meek, for they shall inherit the earth.</p><p><sup>6</sup>Blessed are those who hunger and thirst for righteousness, for they shall be satisfied.</p><p><sup>7</sup>Blessed are the merciful, for they shall receive mercy.</p><p><sup>8</sup>Blessed are the pure in heart, for they shall see God.</p><p><sup>9</sup>Blessed are the peacemakers, for they shall be called sons of God.</p><p><sup>10</sup>Blessed are those who are persecuted for righteousness' sake, for theirs is the kingdom of heaven.</p><p><sup>11</sup>Blessed are you when others revile you and persecute you and utter all kinds of evil against you falsely on my account.</p><p><sup>12</sup>Rejoice and be glad, for your reward is great in heaven, for so they persecuted the prophets who were before you.\"</p>",
+  },
+  {
+    slug: "you-are-the-light-of-the-world",
+    title: "You Are the Light of the World",
+    date: "2026-02-04",
+    passage: "Matthew 5:13-16",
+    keyVerse: "You are the light of the world. A city set on a hill cannot be hidden. — Matthew 5:14",
+    author: "P. David Yoon",
+    body: "<p>Immediately after pronouncing the beatitudes, Jesus speaks identity over his disciples: \"You are the salt of the earth. You are the light of the world.\" These are declarative statements, not commands. Before Jesus tells us what to do, he tells us what we are.</p><p>Salt in the ancient world was a preservative and a flavor agent. Light is not for its own benefit but for those around it. Jesus calls his people to a life that blesses and illuminates the communities in which they live.</p><p>Importantly, Jesus says let your light shine — not make your light shine. A lamp doesn't strain to give light; it simply burns. Our calling is to remain connected to the source and to stop hiding what God has already lit within us.</p><p><strong>Prayer:</strong> Lord, let my life be a genuine light in my neighborhood, workplace, and campus. Let others see your goodness through me.</p><p><strong>One Word:</strong> Let your light shine before others</p>",
+    bibleText: "<h4>Matthew 5:13-16 (ESV)</h4><p><sup>13</sup>\"You are the salt of the earth, but if salt has lost its taste, how shall its saltiness be restored? It is no longer good for anything except to be thrown out and trampled under people's feet.</p><p><sup>14</sup>You are the light of the world. A city set on a hill cannot be hidden.</p><p><sup>15</sup>Nor do people light a lamp and put it under a basket, but on a stand, and it gives light to all in the house.</p><p><sup>16</sup>In the same way, let your light shine before others, so that they may see your good works and give glory to your Father who is in heaven.\"</p>",
+  },
+  {
+    slug: "come-to-me-all-who-are-weary",
+    title: "Come to Me, All Who Are Weary",
+    date: "2026-02-05",
+    passage: "Matthew 11:28-30",
+    keyVerse: "Come to me, all who labor and are heavy laden, and I will give you rest. — Matthew 11:28",
+    author: "P. Abraham Kim",
+    body: "<p>In the middle of a chapter filled with debate and accusation, Jesus pauses and utters one of the most tender invitations in Scripture. \"Come to me.\" Not to a program, not to a set of rules — to a person. To Jesus himself.</p><p>The promise of rest is not the absence of difficulty, but the gift of a different kind of burden. Jesus's yoke is easy and his burden is light — not because the Christian life requires nothing, but because it is lived in partnership with the One who carries the weight with us.</p><p>The Greek word for \"rest\" here carries the sense of refreshment, of being restored. Jesus invites the burned-out, the overworked, the spiritually exhausted to come. The only qualification is weariness. Anyone who is heavy laden qualifies.</p><p><strong>Prayer:</strong> Jesus, I come to you today — tired, in need of rest. Teach me your gentleness and give me the rest only you can provide.</p><p><strong>One Word:</strong> Come to me and I will give you rest</p>",
+    bibleText: "<h4>Matthew 11:28-30 (ESV)</h4><p><sup>28</sup>Come to me, all who labor and are heavy laden, and I will give you rest.</p><p><sup>29</sup>Take my yoke upon you, and learn from me, for I am gentle and lowly in heart, and you will find rest for your souls.</p><p><sup>30</sup>For my yoke is easy, and my burden is light.\"</p>",
+  },
+  {
+    slug: "for-god-so-loved-the-world",
+    title: "For God So Loved the World",
+    date: "2026-02-06",
+    passage: "John 3:14-21",
+    keyVerse: "For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life. — John 3:16",
+    author: "P. John Lee",
+    body: "<p>John 3:16 is sometimes so familiar it has lost its force. But read again in context — spoken to Nicodemus, a Pharisee who came to Jesus by night — the verse is explosive. The God of the universe loves not just Israel, not just the righteous, but the world.</p><p>The measure of this love is staggering: God gave his only Son. Not advice. Not a system. Not a prophet. His Son. The costliness of the gift reveals the depth of the love.</p><p>The condition is simply belief — not moral perfection, not religious pedigree, but trust in the one who was lifted up, as Moses lifted up the serpent in the wilderness. This is the gospel in miniature: look to Jesus and live.</p><p><strong>Prayer:</strong> Father, thank you for your love that gave everything. Help me to truly believe and to help others see your light.</p><p><strong>One Word:</strong> God so loved the world</p>",
+    bibleText: "<h4>John 3:14-21 (ESV)</h4><p><sup>14</sup>And as Moses lifted up the serpent in the wilderness, so must the Son of Man be lifted up,</p><p><sup>15</sup>that whoever believes in him may have eternal life.</p><p><sup>16</sup>For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life.</p><p><sup>17</sup>For God did not send his Son into the world to condemn the world, but in order that the world might be saved through him.</p><p><sup>18</sup>Whoever believes in him is not condemned, but whoever does not believe is condemned already, because he has not believed in the name of the only Son of God.</p><p><sup>19</sup>And this is the judgment: the light has come into the world, and people loved the darkness rather than the light because their works were evil.</p><p><sup>20</sup>For everyone who does wicked things hates the light and does not come to the light, lest his works should be exposed.</p><p><sup>21</sup>But whoever does what is true comes to the light, so that it may be clearly seen that his works have been carried out in God.</p>",
+  },
+  {
+    slug: "i-am-the-vine",
+    title: "I Am the Vine",
+    date: "2026-02-07",
+    passage: "John 15:1-11",
+    keyVerse: "I am the vine; you are the branches. Whoever abides in me and I in him, he it is that bears much fruit, for apart from me you can do nothing. — John 15:5",
+    author: "P. David Yoon",
+    body: "<p>In the upper room, just hours before his arrest, Jesus speaks of vines and branches, of pruning and abiding. It is an image of intimate, organic union — not the relationship of a builder to a project, but of a vine to the branch that grows from it.</p><p>The key word in this passage is \"abide\" — repeated ten times in eleven verses. To abide is to remain, to stay, to make one's home. Christian fruitfulness is not the result of greater effort or better strategy; it is the natural overflow of remaining connected to the source.</p><p>The warning is stark: apart from Jesus, we can do nothing. Not a little — nothing. But the promise is equally stark: those who abide bear much fruit. Pruning is painful, but its purpose is greater fruitfulness, not punishment.</p><p><strong>Prayer:</strong> Lord Jesus, help me to abide in you today — in your word, in prayer, in community. Let my life bear fruit that lasts.</p><p><strong>One Word:</strong> Abide in me</p>",
+    bibleText: "<h4>John 15:1-11 (ESV)</h4><p><sup>1</sup>\"I am the true vine, and my Father is the vinedresser.</p><p><sup>2</sup>Every branch in me that does not bear fruit he takes away, and every branch that does bear fruit he prunes, that it may bear more fruit.</p><p><sup>3</sup>Already you are clean because of the word that I have spoken to you.</p><p><sup>4</sup>Abide in me, and I in you. As the branch cannot bear fruit by itself, unless it abides in the vine, neither can you, unless you abide in me.</p><p><sup>5</sup>I am the vine; you are the branches. Whoever abides in me and I in him, he it is that bears much fruit, for apart from me you can do nothing.</p><p><sup>6</sup>If anyone does not abide in me he is thrown away like a branch and withers; and the branches are gathered, thrown into the fire, and burned.</p><p><sup>7</sup>If you abide in me, and my words abide in you, ask whatever you wish, and it will be done for you.</p><p><sup>8</sup>By this my Father is glorified, that you bear much fruit and so prove to be my disciples.</p><p><sup>9</sup>As the Father has loved me, so have I loved you. Abide in my love.</p><p><sup>10</sup>If you keep my commandments, you will abide in my love, just as I have kept my Father's commandments and abide in his love.</p><p><sup>11</sup>These things I have spoken to you, that my joy may be in you, and that your joy may be full.\"</p>",
+  },
+  {
+    slug: "love-is-patient-love-is-kind",
+    title: "Love Is Patient, Love Is Kind",
+    date: "2026-02-08",
+    passage: "1 Corinthians 13:1-13",
+    keyVerse: "Love is patient and kind; love does not envy or boast; it is not arrogant or rude. — 1 Corinthians 13:4",
+    author: "P. Abraham Kim",
+    body: "<p>Writing to a church torn by factions, pride, and spiritual competition, Paul inserts his great hymn to love at the center of his argument. Without love, the most spectacular gifts — tongues of angels, prophetic powers, faith to move mountains — count for nothing.</p><p>Paul describes love not as a feeling but as a pattern of behavior: patient, kind, not envious, not boastful, not irritable. These are not ideals for perfect people; they are descriptions of what love does in difficult community — among competitive, proud, difficult people like the Corinthians, and like us.</p><p>The chapter ends with a triad: faith, hope, love — but the greatest is love. Love is greatest because it is the nature of God himself (1 John 4:8), and it is the one thing that abides even into eternity when faith becomes sight and hope becomes possession.</p><p><strong>Prayer:</strong> Father, grow in me the patience and kindness that are the marks of your love. Make me an agent of genuine love in my community.</p><p><strong>One Word:</strong> Love never fails</p>",
+    bibleText: "<h4>1 Corinthians 13:1-13 (ESV)</h4><p><sup>1</sup>If I speak in the tongues of men and of angels, but have not love, I am a noisy gong or a clanging cymbal.</p><p><sup>2</sup>And if I have prophetic powers, and understand all mysteries and all knowledge, and if I have all faith, so as to remove mountains, but have not love, I am nothing.</p><p><sup>3</sup>If I give away all I have, and if I deliver up my body to be burned, but have not love, I gain nothing.</p><p><sup>4</sup>Love is patient and kind; love does not envy or boast; it is not arrogant</p><p><sup>5</sup>or rude. It does not insist on its own way; it is not irritable or resentful;</p><p><sup>6</sup>it does not rejoice at wrongdoing, but rejoices with the truth.</p><p><sup>7</sup>Love bears all things, believes all things, hopes all things, endures all things.</p><p><sup>8</sup>Love never ends. As for prophecies, they will pass away; as for tongues, they will cease; as for knowledge, it will pass away.</p><p><sup>9</sup>For we know in part and we prophesy in part,</p><p><sup>10</sup>but when the perfect comes, the partial will pass away.</p><p><sup>11</sup>When I was a child, I spoke like a child, I thought like a child, I reasoned like a child. When I became a man, I gave up childlike ways.</p><p><sup>12</sup>For now we see in a mirror dimly, but then face to face. Now I know in part; then I shall know fully, even as I have been fully known.</p><p><sup>13</sup>So now faith, hope, and love abide, these three; but the greatest of these is love.</p>",
+  },
   { slug: "kiss-the-son", title: "Kiss The Son", date: "2026-02-09", passage: "Psalm 2:1-12", keyVerse: "12", author: "P. Abraham Kim", body: "<p>The kings of this world rule as if they could control the world. But in reality, the One enthroned in heaven has power over all things.</p><p>The author advises us to \"kiss the Son\" (12). Let us fear his greatness and rejoice in his victory over death.</p><p><strong>Prayer:</strong> Father, thank you for giving us your Son Jesus.</p><p><strong>One Word:</strong> Kiss the Son, Jesus</p>" },
 ]
 
@@ -1331,6 +1401,7 @@ async function main() {
         passage: db.passage,
         keyVerse: db.keyVerse,
         body: db.body,
+        bibleText: (db as { bibleText?: string }).bibleText ?? null,
         author: db.author,
         status: 'PUBLISHED',
         publishedAt: new Date(db.date),
@@ -2792,6 +2863,915 @@ async function main() {
     ],
   )
   console.log('  Created children ministry page')
+
+  // ── CAMPUS DETAIL PAGES ──────────────────────────────────
+  // Shared content for campus detail pages
+  const sharedCampusFaq = (campusName: string) => ({
+    heading: 'Frequently Asked Questions',
+    showIcon: true,
+    items: [
+      { question: 'Where and when do campus groups meet?', answer: "Campus Bible study groups meet at various times throughout the week depending on the campus. Most groups meet once or twice a week. Fill out the contact form above and we\u2019ll connect you with the group nearest to you." },
+      { question: 'Do I need to bring anything?', answer: "Just bring yourself! We provide study materials and Bibles. Feel free to bring your own Bible if you have one." },
+      { question: `Is this only for ${campusName} students?`, answer: `While our group is based at ${campusName}, anyone is welcome to join. You don\u2019t have to be a current student to attend.` },
+      { question: 'What denomination is UBF?', answer: "UBF is a non-denominational evangelical Christian organization. We focus on Bible study and discipleship across all Christian traditions." },
+      { question: 'How can I get involved beyond Bible study?', answer: "There are many ways to get involved! Join us for fellowship meals, outreach events, conferences, and worship services. Talk to a group leader to learn more." },
+    ],
+  })
+
+  const sharedCampusOtherGrid = {
+    decorativeImages: [
+      { src: '/images/compressed/ministries/join-campus-ministry-section/compressed-1.jpg', alt: 'Campus group photo' },
+      { src: '/images/compressed/ministries/join-campus-ministry-section/compressed-2.jpg', alt: 'Bible study outdoors' },
+      { src: '/images/compressed/ministries/join-campus-ministry-section/compressed-3.png', alt: 'Fellowship event' },
+    ],
+    heading: 'Check out other campuses',
+    campuses: [
+      { id: 'lbcc', abbreviation: 'LBCC', fullName: 'Long Beach City College', href: '/ministries/campus/lbcc' },
+      { id: 'csulb', abbreviation: 'CSULB', fullName: 'Cal State Long Beach', href: '/ministries/campus/csulb' },
+      { id: 'csuf', abbreviation: 'CSUF', fullName: 'Cal State Fullerton', href: '/ministries/campus/csuf' },
+      { id: 'ucla', abbreviation: 'UCLA', fullName: 'University of California, Los Angeles', href: '/ministries/campus/ucla' },
+      { id: 'usc', abbreviation: 'USC', fullName: 'University of Southern California', href: '/ministries/campus/usc' },
+      { id: 'csudh', abbreviation: 'CSUDH', fullName: 'Cal State Dominguez Hills', href: '/ministries/campus/csudh' },
+      { id: 'ccc', abbreviation: 'CCC', fullName: 'Cerritos Community College', href: '/ministries/campus/ccc' },
+      { id: 'mt-sac', abbreviation: 'MT. SAC', fullName: 'Mt. San Antonio College', href: '/ministries/campus/mt-sac' },
+      { id: 'golden-west', abbreviation: 'GWC', fullName: 'Golden West College', href: '/ministries/campus/golden-west' },
+      { id: 'cypress', abbreviation: '', fullName: 'Cypress College', href: '/ministries/campus/cypress' },
+      { id: 'cal-poly-pomona', abbreviation: '', fullName: 'Cal Poly Pomona', href: '/ministries/campus/cal-poly-pomona' },
+    ],
+  }
+
+  // --- LBCC ---
+  await createPageWithSections(
+    {
+      slug: 'ministries/campus/lbcc',
+      title: 'LBCC Campus Ministry',
+      pageType: 'CAMPUS',
+      parentId: ministriesPage.id,
+      metaDescription: 'LA UBF campus ministry at Long Beach City College \u2014 Bible study and fellowship for LBCC students.',
+      sortOrder: 20,
+    },
+    [
+      {
+        sectionType: 'MINISTRY_HERO',
+        label: 'LBCC Hero',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CAMPUS MINISTRY',
+          heading: 'LBCC\nTrue Vine Club',
+          headingStyle: 'sans',
+          ctaButton: { label: 'Start Bible Study', href: 'https://startbiblestudy.org/lbcc', visible: true },
+          socialLinks: [
+            { platform: 'Email', href: 'mailto:fishformen123@gmail.com' },
+            { platform: 'Instagram', href: 'https://instagram.com/lbcc.ubf' },
+            { platform: 'Facebook', href: 'https://www.facebook.com/lbcctruevine/' },
+            { platform: 'Website', href: 'https://lbcctruevine.org/' },
+          ],
+          heroImage: { src: '/images/compressed/ministries/lbcc/compressed-lbcc-truevineclub.jpg', alt: 'LBCC True Vine Club campus ministry' },
+        },
+      },
+      {
+        sectionType: 'MINISTRY_INTRO',
+        label: 'LBCC Intro',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'INTRODUCTION',
+          heading: 'About the Ministry',
+          description: '\u201CI am the true vine, and my Father is the gardener.\u201D (John 15:1)\n\nLBCC True Vine is our campus ministry club at LBCC. We try to help each student to study the Bible, that through Bible study he or she may come to know God personally, and also come to know himself or herself, and find the clear purpose and meaning of life in our Lord Jesus Christ. We have group Bible studies at LBCC LAC Campus.',
+        },
+      },
+      {
+        sectionType: 'MINISTRY_SCHEDULE',
+        label: 'LBCC Schedule',
+        colorScheme: 'DARK',
+        content: {
+          heading: 'Join Us',
+          description: 'Whether you\u2019re a believer or just curious, you\u2019re welcome here.',
+          scheduleLabel: 'WHEN & WHERE',
+          scheduleEntries: [
+            { day: 'Tuesdays', time: '12:00 PM - 1:00 PM', location: 'College Center' },
+            { day: 'Thursdays', time: '5:00 PM - 6:00 PM', location: 'College Center' },
+          ],
+          buttons: [
+            { label: 'Start Bible Study', href: 'https://startbiblestudy.org/lbcc', variant: 'primary' },
+            { label: 'Visit our website', href: 'https://lbcctruevine.org/', variant: 'secondary' },
+          ],
+        },
+      },
+      {
+        sectionType: 'MEET_TEAM',
+        label: 'LBCC Team',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'LBCC TRUE VINE CLUB',
+          heading: 'Meet Our Team',
+          members: [
+            { name: 'William Larsen', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'William Larsen' } },
+            { name: 'Troy Segale', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05299.jpg', alt: 'Troy Segale' } },
+            { name: 'Joey Fishman', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC01195.jpg', alt: 'Joey Fishman' } },
+          ],
+        },
+      },
+      {
+        sectionType: 'FAQ_SECTION',
+        label: 'LBCC FAQ',
+        colorScheme: 'LIGHT',
+        containerWidth: 'NARROW',
+        content: sharedCampusFaq('LBCC'),
+      },
+      {
+        sectionType: 'CAMPUS_CARD_GRID',
+        label: 'Other Campuses',
+        colorScheme: 'LIGHT',
+        content: sharedCampusOtherGrid,
+      },
+    ],
+  )
+  console.log('  Created LBCC campus page')
+
+  // --- CSULB ---
+  await createPageWithSections(
+    {
+      slug: 'ministries/campus/csulb',
+      title: 'CSULB Campus Ministry',
+      pageType: 'CAMPUS',
+      parentId: ministriesPage.id,
+      metaDescription: 'LA UBF campus ministry at Cal State Long Beach \u2014 Bible study and fellowship for CSULB students.',
+      sortOrder: 21,
+    },
+    [
+      {
+        sectionType: 'MINISTRY_HERO',
+        label: 'CSULB Hero',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CAMPUS MINISTRY',
+          heading: 'CSULB\nTrue Vine Club',
+          headingStyle: 'sans',
+          ctaButton: { label: 'Start Bible Study', href: 'https://startbiblestudy.org/csulb', visible: true },
+          socialLinks: [
+            { platform: 'Instagram', href: 'https://www.instagram.com/truevine_csulb/' },
+          ],
+          heroImage: { src: '/images/compressed/ministries/csulb/compressed-hero.jpg', alt: 'CSULB True Vine Club campus ministry' },
+        },
+      },
+      {
+        sectionType: 'MINISTRY_INTRO',
+        label: 'CSULB Intro',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'INTRODUCTION',
+          heading: 'About the Ministry',
+          description: 'Coming soon.',
+        },
+      },
+      {
+        sectionType: 'MINISTRY_SCHEDULE',
+        label: 'CSULB Schedule',
+        colorScheme: 'DARK',
+        content: {
+          heading: 'Join Us',
+          description: 'Whether you\u2019re a believer or just curious, you\u2019re welcome here.',
+          scheduleLabel: 'WHEN & WHERE',
+          scheduleEntries: [
+            { day: 'Wednesdays', time: '7:00 PM - 8:00 PM', location: 'Student Union 2nd fl' },
+          ],
+          buttons: [
+            { label: 'Start Bible Study', href: 'https://startbiblestudy.org/csulb', variant: 'primary' },
+            { label: 'Visit our website', href: 'https://csulbnavigators.org/', variant: 'secondary' },
+          ],
+        },
+      },
+      {
+        sectionType: 'MEET_TEAM',
+        label: 'CSULB Team',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CSULB TRUE VINE CLUB',
+          heading: 'Meet Our Team',
+          members: [
+            { name: 'Robert Fishman', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Robert Fishman' } },
+            { name: 'Jorge Lau', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05299.jpg', alt: 'Jorge Lau' } },
+          ],
+        },
+      },
+      {
+        sectionType: 'FAQ_SECTION',
+        label: 'CSULB FAQ',
+        colorScheme: 'LIGHT',
+        containerWidth: 'NARROW',
+        content: sharedCampusFaq('CSULB'),
+      },
+      {
+        sectionType: 'CAMPUS_CARD_GRID',
+        label: 'Other Campuses',
+        colorScheme: 'LIGHT',
+        content: sharedCampusOtherGrid,
+      },
+    ],
+  )
+  console.log('  Created CSULB campus page')
+
+  // --- CSUF ---
+  await createPageWithSections(
+    {
+      slug: 'ministries/campus/csuf',
+      title: 'CSUF Campus Ministry',
+      pageType: 'CAMPUS',
+      parentId: ministriesPage.id,
+      metaDescription: 'LA UBF campus ministry at Cal State Fullerton \u2014 Bible study and fellowship for CSUF students.',
+      sortOrder: 22,
+    },
+    [
+      {
+        sectionType: 'MINISTRY_HERO',
+        label: 'CSUF Hero',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CAMPUS MINISTRY',
+          heading: 'CSUF',
+          headingStyle: 'sans',
+          ctaButton: { label: 'Start Bible Study', href: 'https://startbiblestudy.org/csuf', visible: true },
+          socialLinks: [
+            { platform: 'Instagram', href: 'https://instagram.com/fullertonbiblefellowship' },
+          ],
+          heroImage: { src: '', alt: 'CSUF campus ministry' },
+        },
+      },
+      {
+        sectionType: 'MINISTRY_INTRO',
+        label: 'CSUF Intro',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'INTRODUCTION',
+          heading: 'About the Ministry',
+          description: 'Coming soon.',
+        },
+      },
+      {
+        sectionType: 'MINISTRY_SCHEDULE',
+        label: 'CSUF Schedule',
+        colorScheme: 'DARK',
+        content: {
+          heading: 'Join Us',
+          description: 'Whether you\u2019re a believer or just curious, you\u2019re welcome here.',
+          scheduleLabel: 'WHEN & WHERE',
+          scheduleEntries: [
+            { day: 'Thursdays', time: '11:30 AM', location: 'A table in front of Health Center' },
+          ],
+          buttons: [
+            { label: 'Start Bible Study', href: 'https://startbiblestudy.org/csuf', variant: 'primary' },
+          ],
+        },
+      },
+      {
+        sectionType: 'MEET_TEAM',
+        label: 'CSUF Team',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CSUF',
+          heading: 'Meet Our Team',
+          members: [
+            { name: 'Daniel Shim', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Daniel Shim' } },
+            { name: 'Joseph Cho', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05299.jpg', alt: 'Joseph Cho' } },
+          ],
+        },
+      },
+      {
+        sectionType: 'FAQ_SECTION',
+        label: 'CSUF FAQ',
+        colorScheme: 'LIGHT',
+        containerWidth: 'NARROW',
+        content: sharedCampusFaq('CSUF'),
+      },
+      {
+        sectionType: 'CAMPUS_CARD_GRID',
+        label: 'Other Campuses',
+        colorScheme: 'LIGHT',
+        content: sharedCampusOtherGrid,
+      },
+    ],
+  )
+  console.log('  Created CSUF campus page')
+
+  // --- UCLA ---
+  await createPageWithSections(
+    {
+      slug: 'ministries/campus/ucla',
+      title: 'UCLA Campus Ministry',
+      pageType: 'CAMPUS',
+      parentId: ministriesPage.id,
+      metaDescription: 'LA UBF campus ministry at UCLA \u2014 Bible study and fellowship for UCLA students.',
+      sortOrder: 23,
+    },
+    [
+      {
+        sectionType: 'MINISTRY_HERO',
+        label: 'UCLA Hero',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CAMPUS MINISTRY',
+          heading: 'UCLA',
+          headingStyle: 'sans',
+          ctaButton: { label: 'Start Bible Study', href: 'https://startbiblestudy.org/ucla', visible: true },
+          socialLinks: [],
+          heroImage: { src: '', alt: 'UCLA campus ministry' },
+        },
+      },
+      {
+        sectionType: 'MINISTRY_INTRO',
+        label: 'UCLA Intro',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'INTRODUCTION',
+          heading: 'About the Ministry',
+          description: 'Coming soon.',
+        },
+      },
+      {
+        sectionType: 'MINISTRY_SCHEDULE',
+        label: 'UCLA Schedule',
+        colorScheme: 'DARK',
+        content: {
+          heading: 'Join Us',
+          description: 'Whether you\u2019re a believer or just curious, you\u2019re welcome here.',
+          scheduleLabel: 'WHEN & WHERE',
+          scheduleEntries: [],
+          buttons: [
+            { label: 'Start Bible Study', href: 'https://startbiblestudy.org/ucla', variant: 'primary' },
+          ],
+        },
+      },
+      {
+        sectionType: 'MEET_TEAM',
+        label: 'UCLA Team',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'UCLA',
+          heading: 'Meet Our Team',
+          members: [
+            { name: 'Peace Oh', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Peace Oh' } },
+          ],
+        },
+      },
+      {
+        sectionType: 'FAQ_SECTION',
+        label: 'UCLA FAQ',
+        colorScheme: 'LIGHT',
+        containerWidth: 'NARROW',
+        content: sharedCampusFaq('UCLA'),
+      },
+      {
+        sectionType: 'CAMPUS_CARD_GRID',
+        label: 'Other Campuses',
+        colorScheme: 'LIGHT',
+        content: sharedCampusOtherGrid,
+      },
+    ],
+  )
+  console.log('  Created UCLA campus page')
+
+  // --- USC ---
+  await createPageWithSections(
+    {
+      slug: 'ministries/campus/usc',
+      title: 'USC Campus Ministry',
+      pageType: 'CAMPUS',
+      parentId: ministriesPage.id,
+      metaDescription: 'LA UBF campus ministry at USC \u2014 Bible study and fellowship for USC students.',
+      sortOrder: 24,
+    },
+    [
+      {
+        sectionType: 'MINISTRY_HERO',
+        label: 'USC Hero',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CAMPUS MINISTRY',
+          heading: 'USC',
+          headingStyle: 'sans',
+          ctaButton: { label: 'Start Bible Study', href: 'https://startbiblestudy.org/usc', visible: true },
+          socialLinks: [],
+          heroImage: { src: '', alt: 'USC campus ministry' },
+        },
+      },
+      {
+        sectionType: 'MINISTRY_INTRO',
+        label: 'USC Intro',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'INTRODUCTION',
+          heading: 'About the Ministry',
+          description: 'Coming soon.',
+        },
+      },
+      {
+        sectionType: 'MINISTRY_SCHEDULE',
+        label: 'USC Schedule',
+        colorScheme: 'DARK',
+        content: {
+          heading: 'Join Us',
+          description: 'Whether you\u2019re a believer or just curious, you\u2019re welcome here.',
+          scheduleLabel: 'WHEN & WHERE',
+          scheduleEntries: [
+            { day: 'Mondays', time: '1:00 PM - 2:00 PM', location: 'Leavey Library' },
+          ],
+          buttons: [
+            { label: 'Start Bible Study', href: 'https://startbiblestudy.org/usc', variant: 'primary' },
+          ],
+        },
+      },
+      {
+        sectionType: 'MEET_TEAM',
+        label: 'USC Team',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'USC',
+          heading: 'Meet Our Team',
+          members: [
+            { name: 'David Park', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'David Park' } },
+          ],
+        },
+      },
+      {
+        sectionType: 'FAQ_SECTION',
+        label: 'USC FAQ',
+        colorScheme: 'LIGHT',
+        containerWidth: 'NARROW',
+        content: sharedCampusFaq('USC'),
+      },
+      {
+        sectionType: 'CAMPUS_CARD_GRID',
+        label: 'Other Campuses',
+        colorScheme: 'LIGHT',
+        content: sharedCampusOtherGrid,
+      },
+    ],
+  )
+  console.log('  Created USC campus page')
+
+  // --- CSUDH ---
+  await createPageWithSections(
+    {
+      slug: 'ministries/campus/csudh',
+      title: 'CSUDH Campus Ministry',
+      pageType: 'CAMPUS',
+      parentId: ministriesPage.id,
+      metaDescription: 'LA UBF campus ministry at Cal State Dominguez Hills \u2014 Bible study and fellowship for CSUDH students.',
+      sortOrder: 25,
+    },
+    [
+      {
+        sectionType: 'MINISTRY_HERO',
+        label: 'CSUDH Hero',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CAMPUS MINISTRY',
+          heading: 'CSUDH',
+          headingStyle: 'sans',
+          ctaButton: { label: 'Start Bible Study', href: 'https://startbiblestudy.org/csudh', visible: true },
+          socialLinks: [],
+          heroImage: { src: '', alt: 'CSUDH campus ministry' },
+        },
+      },
+      {
+        sectionType: 'MINISTRY_INTRO',
+        label: 'CSUDH Intro',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'INTRODUCTION',
+          heading: 'About the Ministry',
+          description: 'Coming soon.',
+        },
+      },
+      {
+        sectionType: 'MINISTRY_SCHEDULE',
+        label: 'CSUDH Schedule',
+        colorScheme: 'DARK',
+        content: {
+          heading: 'Join Us',
+          description: 'Whether you\u2019re a believer or just curious, you\u2019re welcome here.',
+          scheduleLabel: 'WHEN & WHERE',
+          scheduleEntries: [],
+          buttons: [
+            { label: 'Start Bible Study', href: 'https://startbiblestudy.org/csudh', variant: 'primary' },
+          ],
+        },
+      },
+      {
+        sectionType: 'MEET_TEAM',
+        label: 'CSUDH Team',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CSUDH',
+          heading: 'Meet Our Team',
+          members: [
+            { name: 'Augustine Kim', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Augustine Kim' } },
+            { name: 'Paul Lim', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05299.jpg', alt: 'Paul Lim' } },
+            { name: 'Moses Han', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC01195.jpg', alt: 'Moses Han' } },
+          ],
+        },
+      },
+      {
+        sectionType: 'FAQ_SECTION',
+        label: 'CSUDH FAQ',
+        colorScheme: 'LIGHT',
+        containerWidth: 'NARROW',
+        content: sharedCampusFaq('CSUDH'),
+      },
+      {
+        sectionType: 'CAMPUS_CARD_GRID',
+        label: 'Other Campuses',
+        colorScheme: 'LIGHT',
+        content: sharedCampusOtherGrid,
+      },
+    ],
+  )
+  console.log('  Created CSUDH campus page')
+
+  // --- CCC (Cerritos Community College) ---
+  await createPageWithSections(
+    {
+      slug: 'ministries/campus/ccc',
+      title: 'CCC Campus Ministry',
+      pageType: 'CAMPUS',
+      parentId: ministriesPage.id,
+      metaDescription: 'LA UBF campus ministry at Cerritos Community College \u2014 Bible study and fellowship for CCC students.',
+      sortOrder: 26,
+    },
+    [
+      {
+        sectionType: 'MINISTRY_HERO',
+        label: 'CCC Hero',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CAMPUS MINISTRY',
+          heading: 'Cerritos College',
+          headingStyle: 'sans',
+          ctaButton: { label: 'Start Bible Study', href: 'https://startbiblestudy.org/ccc', visible: true },
+          socialLinks: [],
+          heroImage: { src: '', alt: 'Cerritos College campus ministry' },
+        },
+      },
+      {
+        sectionType: 'MINISTRY_INTRO',
+        label: 'CCC Intro',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'INTRODUCTION',
+          heading: 'About the Ministry',
+          description: 'Coming soon.',
+        },
+      },
+      {
+        sectionType: 'MINISTRY_SCHEDULE',
+        label: 'CCC Schedule',
+        colorScheme: 'DARK',
+        content: {
+          heading: 'Join Us',
+          description: 'Whether you\u2019re a believer or just curious, you\u2019re welcome here.',
+          scheduleLabel: 'WHEN & WHERE',
+          scheduleEntries: [],
+          buttons: [
+            { label: 'Start Bible Study', href: 'https://startbiblestudy.org/ccc', variant: 'primary' },
+          ],
+        },
+      },
+      {
+        sectionType: 'MEET_TEAM',
+        label: 'CCC Team',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CERRITOS COLLEGE',
+          heading: 'Meet Our Team',
+          members: [
+            { name: 'Paul Lim', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Paul Lim' } },
+          ],
+        },
+      },
+      {
+        sectionType: 'FAQ_SECTION',
+        label: 'CCC FAQ',
+        colorScheme: 'LIGHT',
+        containerWidth: 'NARROW',
+        content: sharedCampusFaq('Cerritos College'),
+      },
+      {
+        sectionType: 'CAMPUS_CARD_GRID',
+        label: 'Other Campuses',
+        colorScheme: 'LIGHT',
+        content: sharedCampusOtherGrid,
+      },
+    ],
+  )
+  console.log('  Created CCC campus page')
+
+  // --- Mt. SAC ---
+  await createPageWithSections(
+    {
+      slug: 'ministries/campus/mt-sac',
+      title: 'Mt. SAC Campus Ministry',
+      pageType: 'CAMPUS',
+      parentId: ministriesPage.id,
+      metaDescription: 'LA UBF campus ministry at Mt. San Antonio College \u2014 Bible study and fellowship for Mt. SAC students.',
+      sortOrder: 27,
+    },
+    [
+      {
+        sectionType: 'MINISTRY_HERO',
+        label: 'Mt. SAC Hero',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CAMPUS MINISTRY',
+          heading: 'MT. SAC',
+          headingStyle: 'sans',
+          ctaButton: { label: 'Start Bible Study', href: 'https://startbiblestudy.org/mt-sac', visible: true },
+          socialLinks: [],
+          heroImage: { src: '', alt: 'Mt. SAC campus ministry' },
+        },
+      },
+      {
+        sectionType: 'MINISTRY_INTRO',
+        label: 'Mt. SAC Intro',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'INTRODUCTION',
+          heading: 'About the Ministry',
+          description: 'Coming soon.',
+        },
+      },
+      {
+        sectionType: 'MINISTRY_SCHEDULE',
+        label: 'Mt. SAC Schedule',
+        colorScheme: 'DARK',
+        content: {
+          heading: 'Join Us',
+          description: 'Whether you\u2019re a believer or just curious, you\u2019re welcome here.',
+          scheduleLabel: 'WHEN & WHERE',
+          scheduleEntries: [],
+          buttons: [
+            { label: 'Start Bible Study', href: 'https://startbiblestudy.org/mt-sac', variant: 'primary' },
+          ],
+        },
+      },
+      {
+        sectionType: 'MEET_TEAM',
+        label: 'Mt. SAC Team',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'MT. SAC',
+          heading: 'Meet Our Team',
+          members: [
+            { name: 'Jason Koch', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Jason Koch' } },
+          ],
+        },
+      },
+      {
+        sectionType: 'FAQ_SECTION',
+        label: 'Mt. SAC FAQ',
+        colorScheme: 'LIGHT',
+        containerWidth: 'NARROW',
+        content: sharedCampusFaq('Mt. SAC'),
+      },
+      {
+        sectionType: 'CAMPUS_CARD_GRID',
+        label: 'Other Campuses',
+        colorScheme: 'LIGHT',
+        content: sharedCampusOtherGrid,
+      },
+    ],
+  )
+  console.log('  Created Mt. SAC campus page')
+
+  // --- Golden West ---
+  await createPageWithSections(
+    {
+      slug: 'ministries/campus/golden-west',
+      title: 'Golden West Campus Ministry',
+      pageType: 'CAMPUS',
+      parentId: ministriesPage.id,
+      metaDescription: 'LA UBF campus ministry at Golden West College \u2014 Bible study and fellowship for Golden West students.',
+      sortOrder: 28,
+    },
+    [
+      {
+        sectionType: 'MINISTRY_HERO',
+        label: 'Golden West Hero',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CAMPUS MINISTRY',
+          heading: 'Golden West',
+          headingStyle: 'sans',
+          ctaButton: { label: 'Start Bible Study', href: 'https://startbiblestudy.org/golden-cc', visible: true },
+          socialLinks: [],
+          heroImage: { src: '', alt: 'Golden West College campus ministry' },
+        },
+      },
+      {
+        sectionType: 'MINISTRY_INTRO',
+        label: 'Golden West Intro',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'INTRODUCTION',
+          heading: 'About the Ministry',
+          description: 'Coming soon.',
+        },
+      },
+      {
+        sectionType: 'MINISTRY_SCHEDULE',
+        label: 'Golden West Schedule',
+        colorScheme: 'DARK',
+        content: {
+          heading: 'Join Us',
+          description: 'Whether you\u2019re a believer or just curious, you\u2019re welcome here.',
+          scheduleLabel: 'WHEN & WHERE',
+          scheduleEntries: [],
+          buttons: [
+            { label: 'Start Bible Study', href: 'https://startbiblestudy.org/golden-cc', variant: 'primary' },
+          ],
+        },
+      },
+      {
+        sectionType: 'MEET_TEAM',
+        label: 'Golden West Team',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'GOLDEN WEST COLLEGE',
+          heading: 'Meet Our Team',
+          members: [
+            { name: 'Frank Holman', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Frank Holman' } },
+          ],
+        },
+      },
+      {
+        sectionType: 'FAQ_SECTION',
+        label: 'Golden West FAQ',
+        colorScheme: 'LIGHT',
+        containerWidth: 'NARROW',
+        content: sharedCampusFaq('Golden West College'),
+      },
+      {
+        sectionType: 'CAMPUS_CARD_GRID',
+        label: 'Other Campuses',
+        colorScheme: 'LIGHT',
+        content: sharedCampusOtherGrid,
+      },
+    ],
+  )
+  console.log('  Created Golden West campus page')
+
+  // --- Cypress ---
+  await createPageWithSections(
+    {
+      slug: 'ministries/campus/cypress',
+      title: 'Cypress Campus Ministry',
+      pageType: 'CAMPUS',
+      parentId: ministriesPage.id,
+      metaDescription: 'LA UBF campus ministry at Cypress College \u2014 Bible study and fellowship for Cypress students.',
+      sortOrder: 29,
+    },
+    [
+      {
+        sectionType: 'MINISTRY_HERO',
+        label: 'Cypress Hero',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CAMPUS MINISTRY',
+          heading: 'Cypress College',
+          headingStyle: 'sans',
+          ctaButton: { label: 'Start Bible Study', href: 'https://startbiblestudy.org/cypress', visible: true },
+          socialLinks: [],
+          heroImage: { src: '', alt: 'Cypress College campus ministry' },
+        },
+      },
+      {
+        sectionType: 'MINISTRY_INTRO',
+        label: 'Cypress Intro',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'INTRODUCTION',
+          heading: 'About the Ministry',
+          description: 'Coming soon.',
+        },
+      },
+      {
+        sectionType: 'MINISTRY_SCHEDULE',
+        label: 'Cypress Schedule',
+        colorScheme: 'DARK',
+        content: {
+          heading: 'Join Us',
+          description: 'Whether you\u2019re a believer or just curious, you\u2019re welcome here.',
+          scheduleLabel: 'WHEN & WHERE',
+          scheduleEntries: [],
+          buttons: [
+            { label: 'Start Bible Study', href: 'https://startbiblestudy.org/cypress', variant: 'primary' },
+          ],
+        },
+      },
+      {
+        sectionType: 'MEET_TEAM',
+        label: 'Cypress Team',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CYPRESS COLLEGE',
+          heading: 'Meet Our Team',
+          members: [
+            { name: 'David Cho', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'David Cho' } },
+          ],
+        },
+      },
+      {
+        sectionType: 'FAQ_SECTION',
+        label: 'Cypress FAQ',
+        colorScheme: 'LIGHT',
+        containerWidth: 'NARROW',
+        content: sharedCampusFaq('Cypress College'),
+      },
+      {
+        sectionType: 'CAMPUS_CARD_GRID',
+        label: 'Other Campuses',
+        colorScheme: 'LIGHT',
+        content: sharedCampusOtherGrid,
+      },
+    ],
+  )
+  console.log('  Created Cypress campus page')
+
+  // --- Cal Poly Pomona ---
+  await createPageWithSections(
+    {
+      slug: 'ministries/campus/cal-poly-pomona',
+      title: 'Cal Poly Pomona Campus Ministry',
+      pageType: 'CAMPUS',
+      parentId: ministriesPage.id,
+      metaDescription: 'LA UBF campus ministry at Cal Poly Pomona \u2014 Bible study and fellowship for CPP students.',
+      sortOrder: 30,
+    },
+    [
+      {
+        sectionType: 'MINISTRY_HERO',
+        label: 'Cal Poly Pomona Hero',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CAMPUS MINISTRY',
+          heading: 'Cal Poly Pomona',
+          headingStyle: 'sans',
+          ctaButton: { label: 'Start Bible Study', href: 'https://startbiblestudy.org/cal-poly-pomona', visible: true },
+          socialLinks: [],
+          heroImage: { src: '', alt: 'Cal Poly Pomona campus ministry' },
+        },
+      },
+      {
+        sectionType: 'MINISTRY_INTRO',
+        label: 'Cal Poly Pomona Intro',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'INTRODUCTION',
+          heading: 'About the Ministry',
+          description: 'Coming soon.',
+        },
+      },
+      {
+        sectionType: 'MINISTRY_SCHEDULE',
+        label: 'Cal Poly Pomona Schedule',
+        colorScheme: 'DARK',
+        content: {
+          heading: 'Join Us',
+          description: 'Whether you\u2019re a believer or just curious, you\u2019re welcome here.',
+          scheduleLabel: 'WHEN & WHERE',
+          scheduleEntries: [],
+          buttons: [
+            { label: 'Start Bible Study', href: 'https://startbiblestudy.org/cal-poly-pomona', variant: 'primary' },
+          ],
+        },
+      },
+      {
+        sectionType: 'MEET_TEAM',
+        label: 'Cal Poly Pomona Team',
+        colorScheme: 'LIGHT',
+        content: {
+          overline: 'CAL POLY POMONA',
+          heading: 'Meet Our Team',
+          members: [
+            { name: 'Andrew Cuevas', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Andrew Cuevas' } },
+          ],
+        },
+      },
+      {
+        sectionType: 'FAQ_SECTION',
+        label: 'Cal Poly Pomona FAQ',
+        colorScheme: 'LIGHT',
+        containerWidth: 'NARROW',
+        content: sharedCampusFaq('Cal Poly Pomona'),
+      },
+      {
+        sectionType: 'CAMPUS_CARD_GRID',
+        label: 'Other Campuses',
+        colorScheme: 'LIGHT',
+        content: sharedCampusOtherGrid,
+      },
+    ],
+  )
+  console.log('  Created Cal Poly Pomona campus page')
 
   // ── I'M NEW PAGE ───────────────────────────────────────────
   await createPageWithSections(

@@ -20,8 +20,8 @@ interface Message {
   passage: string
   dateFor: string
   description: string
-  rawTranscript: string
-  liveTranscript?: string
+  rawTranscript?: string | null
+  liveTranscript?: string | null
   relatedStudyId?: string
   duration?: string
 }

@@ -54,6 +54,9 @@ import TimelineSection from './timeline-section'
 import FooterSection from './footer'
 import QuickLinksSection from './quick-links'
 
+// Special
+import DailyBreadFeatureSection from './daily-bread-feature'
+
 // Generic / custom
 import CustomHtmlSection from './custom-html'
 import CustomEmbedSection from './custom-embed'
@@ -143,8 +146,8 @@ const SECTION_COMPONENTS: Record<SectionType, React.ComponentType<any>> = {
   FOOTER: FooterSection,
   QUICK_LINKS: QuickLinksSection,
 
-  // Special (1) — no source implementation exists
-  DAILY_BREAD_FEATURE: placeholder('DAILY_BREAD_FEATURE'),
+  // Special (1)
+  DAILY_BREAD_FEATURE: DailyBreadFeatureSection,
 
   // Generic / custom (2)
   CUSTOM_HTML: CustomHtmlSection,

@@ -37,6 +37,20 @@ export default function HighlightCardsSection({ content, enableAnimations, color
   const events = content.featuredEvents ?? []
   const animate = enableAnimations !== false
 
+  // Don't render the section if there are no featured events
+  if (events.length === 0) return null
+
+  // Map event data to include href for EventCard links
+  const cardEvents = events.map((e) => ({
+    title: e.title,
+    date: e.date,
+    location: e.location,
+    imageUrl: e.imageUrl,
+    badge: e.badge,
+    imageObjectPosition: e.objectPosition,
+    href: `/events/${e.slug}`,
+  }))
+
   return (
     <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth} className="!pt-24 lg:!pt-25 lg:!pb-10">
       <div className="flex flex-col gap-8 lg:gap-10">
@@ -52,22 +66,22 @@ export default function HighlightCardsSection({ content, enableAnimations, color
         {/* Events grid: 1 large + 2 small stacked */}
         <div className="grid gap-5 lg:grid-cols-2">
           {/* Large card */}
-          {events[0] && (
+          {cardEvents[0] && (
             <AnimateOnScroll animation="fade-up" staggerIndex={0} enabled={animate} className="h-full">
-              <EventCard data={events[0]} size="large" />
+              <EventCard data={cardEvents[0]} size="large" />
             </AnimateOnScroll>
           )}
 
           {/* Two small cards stacked */}
           <div className="flex flex-col gap-5">
-            {events[1] && (
+            {cardEvents[1] && (
               <AnimateOnScroll animation="fade-up" staggerIndex={1} enabled={animate}>
-                <EventCard data={events[1]} size="small" />
+                <EventCard data={cardEvents[1]} size="small" />
               </AnimateOnScroll>
             )}
-            {events[2] && (
+            {cardEvents[2] && (
               <AnimateOnScroll animation="fade-up" staggerIndex={2} enabled={animate}>
-                <EventCard data={events[2]} size="small" />
+                <EventCard data={cardEvents[2]} size="small" />
               </AnimateOnScroll>
             )}
           </div>
