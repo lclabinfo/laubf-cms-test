@@ -14,7 +14,7 @@ interface SpotlightMediaContent {
     speaker: string
     date: string
     series?: string
-    thumbnailUrl: string
+    thumbnailUrl?: string | null
     videoUrl?: string
   }
 }

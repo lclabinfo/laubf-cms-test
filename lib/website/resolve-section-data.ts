@@ -44,7 +44,7 @@ export async function resolveSectionData(
             thumbnailUrl: message.thumbnailUrl ||
               (message.youtubeId
                 ? `https://img.youtube.com/vi/${message.youtubeId}/maxresdefault.jpg`
-                : ''),
+                : null),
             videoUrl: message.youtubeId
               ? `https://www.youtube.com/watch?v=${message.youtubeId}`
               : undefined,
@@ -64,7 +64,7 @@ export async function resolveSectionData(
             title: e.title,
             date: formatEventDate(e.dateStart),
             location: e.location || '',
-            imageUrl: e.coverImage || '',
+            imageUrl: e.coverImage || null,
             badge: e.isFeatured ? 'Featured' : undefined,
             slug: e.slug,
           })),
@@ -109,7 +109,7 @@ export async function resolveSectionData(
             timeStart: e.startTime || '',
             type: e.type.toLowerCase(),
             location: e.location || '',
-            thumbnailUrl: e.coverImage || '',
+            thumbnailUrl: e.coverImage || null,
             isFeatured: e.isFeatured,
           })),
         },
@@ -125,6 +125,9 @@ export async function resolveSectionData(
           videos: result.data.map((v) => ({
             id: v.id,
             title: v.title,
+            thumbnailUrl: v.youtubeId
+              ? `https://img.youtube.com/vi/${v.youtubeId}/maxresdefault.jpg`
+              : null,
             youtubeId: v.youtubeId || '',
             duration: v.duration || '',
             category: v.category || '',
@@ -169,6 +172,9 @@ export async function resolveSectionData(
           videos: result.data.map((v) => ({
             id: v.id,
             title: v.title,
+            thumbnailUrl: v.youtubeId
+              ? `https://img.youtube.com/vi/${v.youtubeId}/maxresdefault.jpg`
+              : null,
             youtubeId: v.youtubeId || '',
             duration: v.duration || '',
             category: v.category || '',

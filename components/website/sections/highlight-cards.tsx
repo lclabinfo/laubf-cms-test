@@ -11,7 +11,7 @@ interface EventCardData {
   title: string
   date: string
   location: string
-  imageUrl: string
+  imageUrl?: string | null
   badge?: string
   slug: string
   objectPosition?: string

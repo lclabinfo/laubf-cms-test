@@ -10,7 +10,7 @@ import Image from "next/image"
 interface VideoThumbnailData {
   id: string
   title: string
-  thumbnailUrl: string
+  thumbnailUrl?: string | null
   videoUrl?: string
 }
 
@@ -31,12 +31,16 @@ export default function VideoThumbnail({
 
   const inner = (
     <>
-      <Image
-        src={data.thumbnailUrl}
-        alt={data.title}
-        fill
-        className="object-cover transition-transform duration-500 ease-smooth group-hover:scale-105"
-      />
+      {data.thumbnailUrl ? (
+        <Image
+          src={data.thumbnailUrl}
+          alt={data.title}
+          fill
+          className="object-cover transition-transform duration-500 ease-smooth group-hover:scale-105"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-white-2" />
+      )}
       <div className="absolute inset-0 bg-black/20 transition-colors group-hover:bg-black/30" />
       {/* Play button */}
       <div className="absolute inset-0 flex items-center justify-center">

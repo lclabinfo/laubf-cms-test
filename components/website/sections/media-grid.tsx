@@ -11,7 +11,7 @@ import type { SectionTheme } from "@/components/website/shared/theme-tokens"
 interface VideoThumbnailData {
   id: string
   title: string
-  thumbnailUrl: string
+  thumbnailUrl?: string | null
   videoUrl?: string
   duration?: string
 }

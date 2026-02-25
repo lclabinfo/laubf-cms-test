@@ -13,7 +13,7 @@ interface ImageCardData {
   id?: string
   title: string
   description: string
-  imageUrl: string
+  imageUrl?: string | null
   imageAlt?: string
   imageObjectPosition?: string
   href?: string
@@ -32,13 +32,17 @@ export default function ImageCard({ data, className }: { data: ImageCardData; cl
         className
       )}
     >
-      <Image
-        src={data.imageUrl}
-        alt={data.imageAlt ?? data.title}
-        fill
-        className="object-cover transition-transform duration-500 ease-smooth group-hover:scale-105"
-        style={{ objectPosition: data.imageObjectPosition }}
-      />
+      {data.imageUrl ? (
+        <Image
+          src={data.imageUrl}
+          alt={data.imageAlt ?? data.title}
+          fill
+          className="object-cover transition-transform duration-500 ease-smooth group-hover:scale-105"
+          style={{ objectPosition: data.imageObjectPosition }}
+        />
+      ) : (
+        <div className="absolute inset-0 bg-white-2" />
+      )}
       {/* Gradient scrim sized to text content, not full card */}
       <div className="relative z-10 mt-auto bg-gradient-to-t from-[rgba(0,0,0,0.71)] to-transparent pt-16 lg:pt-20 p-7 lg:p-8">
         <div className="flex w-full items-end justify-between gap-4">
