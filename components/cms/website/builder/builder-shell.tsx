@@ -116,6 +116,8 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
   handleRedoRef.current = handleRedo
 
   // Reset state when page prop changes (navigating to different page)
+  // Note: history.reset is a stable useCallback ref, so we don't include
+  // `history` in deps (its object identity changes on every render).
   useEffect(() => {
     setSections(page.sections)
     setPageData(page)
@@ -124,7 +126,8 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
     setIsDirty(false)
     setSaveState("idle")
     history.reset()
-  }, [page, history])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page])
 
   // Sync allPages prop
   useEffect(() => {

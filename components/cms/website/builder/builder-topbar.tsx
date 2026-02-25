@@ -13,6 +13,7 @@ import {
   Undo2,
   Redo2,
   Check,
+  ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -189,8 +190,23 @@ export function BuilderTopbar({
         </div>
       </div>
 
-      {/* Right: Save + Publish */}
+      {/* Right: View Site + Save + Publish */}
       <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="gap-1.5 text-muted-foreground"
+          onClick={() => {
+            const path = page.isHomepage ? "/website" : `/website/${page.slug}`
+            window.open(path, "_blank")
+          }}
+        >
+          <ExternalLink className="size-3.5" />
+          View site
+        </Button>
+
+        <div className="h-5 w-px bg-border" />
+
         {isDirty && saveState === "idle" && (
           <span className="text-xs text-amber-600 font-medium mr-1">
             Unsaved changes

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useMemo } from "react"
 
 const MAX_HISTORY = 50
 
@@ -79,12 +79,15 @@ export function useBuilderHistory<T>(): BuilderHistoryState<T> {
     setFuture([])
   }, [])
 
-  return {
-    push,
-    undo,
-    redo,
-    canUndo: past.length > 0,
-    canRedo: future.length > 0,
-    reset,
-  }
+  return useMemo(
+    () => ({
+      push,
+      undo,
+      redo,
+      canUndo: past.length > 0,
+      canRedo: future.length > 0,
+      reset,
+    }),
+    [push, undo, redo, past.length, future.length, reset],
+  )
 }
