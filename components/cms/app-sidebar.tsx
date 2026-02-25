@@ -59,6 +59,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { signOut } from "next-auth/react"
+import type { CmsSessionData } from "@/components/cms/cms-shell"
 
 type NavItem = {
   title: string
@@ -190,8 +192,15 @@ const navGroups: NavGroup[] = [
   },
 ]
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+export function AppSidebar({ session, ...props }: { session: CmsSessionData } & React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+
+  const initials = session.user.name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2)
 
   // Determine which group is active based on current path
   const activeGroup = navGroups.find((group) =>
@@ -217,7 +226,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <ChurchIcon className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">LA UBF</span>
+                  <span className="truncate font-semibold">{session.churchName}</span>
                   <span className="truncate text-xs text-muted-foreground">
                     Church Settings
                   </span>
@@ -307,12 +316,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
                 >
                   <Avatar className="size-8 rounded-lg">
-                    <AvatarFallback className="rounded-lg">PA</AvatarFallback>
+                    <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
-                    <span className="truncate font-semibold">Pastor Admin</span>
+                    <span className="truncate font-semibold">{session.user.name}</span>
                     <span className="truncate text-xs text-muted-foreground">
-                      admin@church.org
+                      {session.user.email}
                     </span>
                   </div>
                   <ChevronsUpDownIcon className="ml-auto size-4" />
@@ -324,12 +333,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 align="end"
                 sideOffset={4}
               >
-                <DropdownMenuItem>
-                  <SettingsIcon />
-                  Account Settings
+                <DropdownMenuItem asChild>
+                  <Link href="/cms/settings">
+                    <SettingsIcon />
+                    Account Settings
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem>
+                <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/cms/login" })}>
                   <LogOutIcon />
                   Log out
                 </DropdownMenuItem>

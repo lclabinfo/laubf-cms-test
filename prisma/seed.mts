@@ -2161,6 +2161,37 @@ async function main() {
   )
   console.log('  Created giving page')
 
+  // ============================================================
+  // Test User (for development login)
+  // ============================================================
+  const bcrypt = await import('bcryptjs')
+  const testEmail = process.env.AUTH_TEST_EMAIL || 'admin@laubf.org'
+  const testPassword = process.env.AUTH_TEST_PASSWORD || 'laubf-admin-2024'
+  const passwordHash = await bcrypt.hash(testPassword, 12)
+
+  const testUser = await prisma.user.upsert({
+    where: { email: testEmail },
+    update: { passwordHash },
+    create: {
+      email: testEmail,
+      passwordHash,
+      firstName: 'Admin',
+      lastName: 'User',
+      emailVerified: true,
+    },
+  })
+
+  await prisma.churchMember.upsert({
+    where: { churchId_userId: { churchId, userId: testUser.id } },
+    update: { role: 'OWNER' },
+    create: {
+      churchId,
+      userId: testUser.id,
+      role: 'OWNER',
+    },
+  })
+  console.log(`  Created test user: ${testEmail}`)
+
   console.log('\nSeed complete!')
 }
 
