@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import { usePathname } from "next/navigation"
 import { ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { IconHamburger } from "@/components/website/shared/icons"
@@ -40,6 +41,7 @@ interface WebsiteNavbarProps {
 
 function useNavbarScroll() {
   const [isScrolled, setIsScrolled] = useState(false)
+  const pathname = usePathname()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -59,7 +61,7 @@ function useNavbarScroll() {
     handleScroll()
     window.addEventListener("scroll", handleScroll, { passive: true })
     return () => window.removeEventListener("scroll", handleScroll)
-  }, [])
+  }, [pathname])
 
   return isScrolled
 }
@@ -121,7 +123,7 @@ export function WebsiteNavbar({
     <>
       <header
         className={cn(
-          "sticky top-0 left-0 right-0 z-50 transition-all duration-300 ease-smooth relative overflow-y-visible",
+          "sticky top-0 left-0 right-0 z-50 transition-all duration-300 ease-smooth overflow-y-visible",
           isScrolled
             ? "bg-white-1 border-b border-white-2-5 shadow-[0px_12px_20px_0px_rgba(0,0,0,0.03)]"
             : "",

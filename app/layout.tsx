@@ -34,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${dmSerifDisplay.variable}`}>
+    <html lang="en" className={`${inter.variable} ${dmSerifDisplay.variable} overflow-x-clip`}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
