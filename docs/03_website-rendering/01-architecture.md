@@ -288,12 +288,17 @@ app/
 ├── (website)/             ← *.lclab.io + custom domains — public church sites
 │   ├── layout.tsx         ← Injects theme, navbar, footer per church
 │   └── [[...slug]]/       ← Catch-all: renders any page from DB
-├── (admin)/               ← CMS dashboard
-│   ├── dashboard/
-│   ├── messages/
-│   ├── events/
-│   ├── website/           ← Page builder, theme, navigation editors
-│   └── ...
+├── cms/                   ← CMS admin (current structure)
+│   ├── (dashboard)/       ← Dashboard layout with sidebar
+│   │   ├── dashboard/
+│   │   ├── messages/
+│   │   ├── events/
+│   │   ├── website/       ← v1 page editor, theme, navigation, domains, settings
+│   │   └── ...
+│   └── website/builder/   ← Full-screen builder (v2, outside dashboard layout)
+│       ├── layout.tsx     ← No CMS sidebar, auth check
+│       ├── page.tsx       ← Entry: redirect to homepage
+│       └── [pageId]/      ← Builder for specific page
 ├── api/v1/                ← Shared API routes
 └── middleware.ts           ← Tenant resolution + route group selection
 ```
@@ -304,7 +309,8 @@ The consolidation from two apps to one happens during the **Website Rendering In
 
 1. **Phase A**: Get the single-tenant MVP working — root CMS + laubf-test public site, both reading from the same database, no route groups needed yet. **STATUS: COMPLETE.**
 2. **Phase B**: Move public website components (`sections/`, layouts, theme) from `laubf-test/` into the root project under `components/website/` and `app/(website)/`. Retire `laubf-test/` as a standalone app. **STATUS: B.1, B.2, and B.3 COMPLETE (40/42 section types have real implementations; 2 intentional placeholders).**
-3. **Phase C**: Website builder admin UI. **STATUS: Data model and DAL complete, admin UI and API routes not yet implemented (stub pages only).** See `docs/implementation-roadmap.md` for details.
+3. **Phase C (v1)**: Website builder admin UI. **STATUS: COMPLETE.** List-based editor with all CRUD operations for pages, sections, menus, theme, domains, and site settings. See `docs/00_dev-notes/website-admin-implementation.md`.
+3b. **Phase C (v2)**: Full-screen website builder. **STATUS: IN PROGRESS.** Canvas-based WYSIWYG editor replacing the v1 list-based editor. See `docs/00_dev-notes/website-builder-plan.md`.
 4. **Phase D**: Add middleware for tenant resolution and route group separation. **STATUS: NOT STARTED.**
 
 ---
@@ -353,7 +359,7 @@ Our website builder is intentionally closer to **Shopify** than **Wix/Framer**:
 
 2. **Templates define safe defaults.** A template is a preset combination of pages + sections + theme tokens. Churches can customize within the template's boundaries. Switching templates re-skins the site without losing content.
 
-3. **No visual drag-and-drop editor (for MVP).** The section editor is a list-based UI: add section, pick type from gallery, fill in the fields, reorder with drag-and-drop. No canvas, no inline editing. This dramatically reduces implementation complexity.
+3. **Section-based visual editor.** ~~The section editor is a list-based UI (v1).~~ The full-screen builder (v2, in progress) provides a WYSIWYG canvas that renders actual section components with drag-and-drop reordering via @dnd-kit. Section content is edited in modal forms, not inline on the canvas. See `docs/00_dev-notes/website-builder-plan.md` for the builder architecture.
 
 4. **CMS content pages are immutable in structure.** The Messages page always renders `SPOTLIGHT_MEDIA → ALL_MESSAGES`. The admin can configure display options (grid vs. list, items per page), but they can't remove or rearrange those sections. This prevents "I accidentally deleted my sermons page" support tickets.
 

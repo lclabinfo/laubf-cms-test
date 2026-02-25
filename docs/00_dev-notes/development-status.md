@@ -28,7 +28,8 @@
 | Web B.1 | Route Group + Registry | COMPLETE | `(website)` route group, section registry (40 entries), ThemeProvider, FontLoader, SectionWrapper, catch-all page route, 6 initial sections + 7 shared components migrated |
 | Web B.2 | Section Migration | COMPLETE (40/42) | 40 real section components migrated (including CUSTOM_HTML and CUSTOM_EMBED added during migration). 2 placeholders remain: NAVBAR (handled by layout component), DAILY_BREAD_FEATURE (no source implementation exists in laubf-test) |
 | Web B.3 | Seed Data | COMPLETE | 14 pages with sections, Theme + ThemeCustomization, SiteSettings, Header + Footer menus with items |
-| Web C | Website Builder Admin | STUBS ONLY | 4 pages exist (`/cms/website/pages`, `/theme`, `/navigation`, `/domains`) but contain only headers and descriptions. No functional UI, no API routes for pages/menus/theme CRUD |
+| Web C (v1) | Website Builder Admin (list-based) | COMPLETE | 20 API endpoints, 6 admin pages with full CRUD: pages manager, section editor (picker + JSON), theme customizer, navigation editor, domain manager, site settings. See `docs/00_dev-notes/website-admin-implementation.md` |
+| Web C (v2) | Full-Screen Builder (canvas-based) | IN PROGRESS | Builder layout + entry page exist at `app/cms/website/builder/`. 48 tasks across 9 phases. @dnd-kit, motion, sonner installed. See `docs/00_dev-notes/website-builder-plan.md` and `docs/00_dev-notes/website-builder-status.md` |
 | Web D | Multi-Tenant Middleware | NOT STARTED | = DB 7.1. Requires Auth (DB 6.1) first |
 | Web E | Caching & Performance | NOT STARTED | `unstable_cache` wrappers, tag-based invalidation |
 | Web F | Production Deployment | NOT STARTED | = DB 9.1. Azure VM, Caddy, Cloudflare, monitoring |
@@ -64,41 +65,45 @@ Based on dependency analysis and the current project state, here is the recommen
 
 **Recommendation**: Leave as-is for now. These placeholders do not block any downstream work.
 
-### 2. Authentication (CRITICAL BLOCKER)
+### 2. Authentication -- COMPLETE
 **Phase**: DB 6.1
-**Why next**: Every subsequent phase (multi-tenancy, production deployment, website builder admin) requires authentication. Currently anyone can access `/cms/*` routes and all API routes are unprotected. The Prisma schema already has `User`, `Session`, and `ChurchMember` tables ready.
-**Effort**: 2-3 days
-**Dependencies**: DB 4.1 (CMS wired to API) -- COMPLETE
+**Status**: Implemented at `lib/auth/` (config, require-auth, types, edge-config). Session-based auth protects `/cms/*` routes.
 
-### 3. Website Builder Admin UI (Phase C Completion)
-**Phase**: Web C
-**Why next**: The CMS admin needs functional page management, section editing, navigation editing, and theme customization. Currently all 4 pages are empty stubs. Requires new API routes for pages, menus, and theme CRUD.
-**Effort**: 10-15 days
-**Dependencies**: Web B.1 (COMPLETE), DB 3.1 (COMPLETE). Can start in parallel with Auth.
+### 3. Website Builder Admin v1 -- COMPLETE
+**Phase**: Web C (v1)
+**Status**: All CRUD operations functional. 20 API endpoints, 6 admin pages. See `docs/00_dev-notes/website-admin-implementation.md`.
 
-### 4. Deploy LA UBF (Single-Tenant Production)
+### 4. Full-Screen Website Builder v2 -- IN PROGRESS
+**Phase**: Web C (v2)
+**Why next**: The v1 list-based editor works but lacks the WYSIWYG canvas and structured section editors described in the PRD and Figma prototype. The full-screen builder provides the professional editing experience.
+**Effort**: 10-15 days (48 tasks across 9 phases)
+**Dependencies**: Web C v1 (COMPLETE), Auth (COMPLETE)
+**Tracking**: `docs/00_dev-notes/website-builder-plan.md` (master plan), `docs/00_dev-notes/website-builder-status.md` (task tracker)
+
+### 5. Deploy LA UBF (Single-Tenant Production)
 **Phase**: Web F / DB 9.1
 **Why next**: Get the first real church live. Single-tenant deployment does not require multi-tenancy middleware.
 **Effort**: 3-5 days
-**Dependencies**: Auth (DB 6.1), functional website builder (Web C)
+**Dependencies**: Auth (COMPLETE), functional website builder (Web C v1 COMPLETE, v2 optional)
+**Note**: Could deploy with v1 editor while v2 builder is completed in parallel.
 
-### 5. Multi-Tenant Middleware (Phase D)
+### 6. Multi-Tenant Middleware (Phase D)
 **Phase**: Web D / DB 7.1
 **Why next**: Enable additional churches to use the platform.
 **Effort**: 2-3 days
-**Dependencies**: Auth (DB 6.1) REQUIRED
+**Dependencies**: Auth (COMPLETE)
 
-### 6. Caching & Performance (Phase E)
+### 7. Caching & Performance (Phase E)
 **Phase**: Web E
 **Why next**: Optimize for production traffic before scaling.
 **Effort**: 1-2 days
 **Dependencies**: Web B.1 (COMPLETE). Can run in parallel with Phase D.
 
-### 7. Production Scale
+### 8. Production Scale
 **Phases**: Church onboarding flow, Redis caching, billing integration, advanced features
 **Dependencies**: Multi-tenancy (Phase D), caching (Phase E)
 
-**Critical path**: Auth -> Website Builder Admin -> Single-Tenant Deploy -> Multi-Tenant -> Scale
+**Critical path**: ~~Auth -> Website Builder Admin -> Deploy~~ Auth DONE, v1 Builder DONE -> Full-Screen Builder v2 (in progress) -> Deploy -> Multi-Tenant -> Scale
 
 ---
 
@@ -164,93 +169,48 @@ This section provides task breakdowns for all incomplete phases.
 
 ---
 
-### Phase: Website Builder Admin (Web C)
+### Phase: Website Builder Admin v1 (Web C v1) -- COMPLETE
 
-**Status**: STUBS ONLY (4 empty pages exist)
-**Effort**: L (10-15 days)
-**Dependencies**: Web B.1 (COMPLETE), DB 3.1 (COMPLETE)
-**Priority**: P1
+**Status**: COMPLETE
+**Implementation tracker**: `docs/00_dev-notes/website-admin-implementation.md`
 
-#### Tasks
+All 20 API endpoints and 6 admin pages are functional. See the implementation tracker for the complete feature list.
 
-**API Routes (new)**:
-1. `POST /api/v1/pages` -- create page
-2. `GET /api/v1/pages` -- list all pages
-3. `GET /api/v1/pages/[slug]` -- get page with sections
-4. `PATCH /api/v1/pages/[slug]` -- update page metadata
-5. `DELETE /api/v1/pages/[slug]` -- delete page
-6. `POST /api/v1/pages/[slug]/sections` -- add section
-7. `PATCH /api/v1/pages/[slug]/sections/[id]` -- update section content
-8. `PUT /api/v1/pages/[slug]/sections` -- reorder sections (bulk update sortOrder)
-9. `DELETE /api/v1/pages/[slug]/sections/[id]` -- remove section
-10. `GET /api/v1/menus` -- list menus
-11. `PATCH /api/v1/menus/[slug]` -- update menu structure
-12. `GET /api/v1/theme` -- get theme customization
-13. `PATCH /api/v1/theme` -- update theme customization
+---
 
-**Page Management UI** (`/cms/website/pages/`):
-- List all pages with status indicators (published/draft)
-- Create new page (title, slug, page type)
-- Edit page metadata (title, slug, SEO fields)
-- Publish/unpublish pages
-- Delete pages (with confirmation)
+### Phase: Full-Screen Website Builder v2 (Web C v2) -- IN PROGRESS
 
-**Section Editor** (`/cms/website/pages/[slug]/edit`):
-- View sections in order
-- Add section (pick from section type gallery)
-- Edit section content (type-specific form for each SectionType)
-- Reorder sections (drag-and-drop)
-- Remove section
-- Toggle section visibility
-- Change section color scheme / padding / width
+**Status**: IN PROGRESS (Phase 1 partially started, Phases 2-9 not started)
+**Effort**: L (10-15 days, 48 tasks across 9 phases)
+**Dependencies**: Web C v1 (COMPLETE), Auth (COMPLETE)
+**Priority**: P0-P1
 
-**Navigation Editor** (`/cms/website/navigation/`):
-- View menu items in tree structure
-- Add/remove/reorder menu items
-- Edit labels, links, icons
-- Configure dropdown groups
+**Master plan**: `docs/00_dev-notes/website-builder-plan.md`
+**Task tracker**: `docs/00_dev-notes/website-builder-status.md`
 
-**Theme Customizer** (`/cms/website/theme/`):
-- Color pickers for brand colors
-- Font selector (curated Google Fonts pairings)
-- Border radius and spacing controls
-- Live preview panel
+#### What Exists
+- Builder layout at `app/cms/website/builder/layout.tsx` (full-screen, auth check)
+- Builder entry page at `app/cms/website/builder/page.tsx` (redirect to homepage)
+- Dependencies: @dnd-kit/core ^6.3.1, motion ^12.34.3, sonner ^2.0.7
 
-#### Key Files Affected
-- `app/cms/website/pages/page.tsx` (rewrite from stub)
-- `app/cms/website/pages/[slug]/edit/page.tsx` (new)
-- `app/cms/website/navigation/page.tsx` (rewrite from stub)
-- `app/cms/website/theme/page.tsx` (rewrite from stub)
-- `app/api/v1/pages/route.ts` (new)
-- `app/api/v1/pages/[slug]/route.ts` (new)
-- `app/api/v1/pages/[slug]/sections/route.ts` (new)
-- `app/api/v1/pages/[slug]/sections/[id]/route.ts` (new)
-- `app/api/v1/menus/route.ts` (new)
-- `app/api/v1/menus/[slug]/route.ts` (new)
-- `app/api/v1/theme/route.ts` (new)
-
-#### Section Editor Notes
-Each section type needs a dedicated editor form. Start with the 10 most-used section types:
-- `HERO_BANNER` -- Image/video upload, heading, CTA buttons
-- `MEDIA_TEXT` -- Image + text editor
-- `CTA_BANNER` -- Heading + buttons
-- `FAQ_SECTION` -- Add/remove/reorder Q&A items
-- `ALL_MESSAGES` / `ALL_EVENTS` -- Configuration (default view, filters, items per page)
-- `SPOTLIGHT_MEDIA` -- Feature latest message
-- `HIGHLIGHT_CARDS` -- Configure cards
-- `UPCOMING_EVENTS` -- Configuration options
-- `PAGE_HERO` -- Background image, heading, description
-
-The remaining section type editors can be deferred.
+#### Phases
+1. **Layout & Navigation Shell (P0)** -- builder shell, sidebar, drawer, topbar, routing
+2. **Canvas & Section Rendering (P0)** -- WYSIWYG canvas, section selection, drag-and-drop
+3. **Section Picker Modal (P0)** -- search, category, preview, add-to-page flow
+4. **Pages & Menu Drawer (P0)** -- page tree, add page wizard, page settings
+5. **Section Editors (P0)** -- modal-based type-specific editors (42 section types)
+6. **Design Panel (P1)** -- in-builder theme customization
+7. **Data Backup & Seed (P0)** -- export/restore LA UBF data
+8. **CMS Admin Integration (P1)** -- wire pages list to builder, deprecate v1
+9. **Polish & Edge Cases (P1)** -- unsaved changes, keyboard shortcuts, undo/redo
 
 #### Acceptance Criteria
-- Pages list shows all seeded pages with correct status
-- Can create a new page and it appears on the public website
-- Can add/remove/reorder sections on a page
-- Can edit section JSONB content via type-specific forms
-- Navigation editor can modify menu items
-- Theme editor changes are reflected on public website
-- All CRUD operations persist to the database
+- Full-screen builder opens from pages list
+- Canvas renders live section previews using actual section components
+- Sections can be selected, edited, reordered (drag-and-drop), added, and deleted
+- Page tree allows switching between pages
+- Device preview shows desktop/tablet/mobile layouts
+- All changes persist to database via existing API routes
 
 ---
 

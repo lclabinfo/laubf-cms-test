@@ -176,7 +176,7 @@ These settings are stored on `PageSection` (not in JSONB `content`) because they
 
 ## 6. Website Builder Admin API Routes
 
-The website builder needs these additional API routes:
+All API routes listed below are **COMPLETE** (implemented as part of Phase C v1). See `docs/00_dev-notes/website-admin-implementation.md` for the full list of 20 endpoints.
 
 ```
 app/api/v1/
@@ -210,22 +210,19 @@ Every write endpoint must:
 
 ## 7. Real-Time Preview
 
-When admins edit a section in the page builder, they should see a preview. Two approaches:
+When admins edit a section in the page builder, they should see a preview.
 
-### Approach A: Server-Side Preview (Recommended for MVP)
-1. Admin edits section content in a form
-2. On "Preview" click, POST the draft content to a preview API route
-3. Server renders the section component with draft content
-4. Return HTML fragment, display in an iframe
+### Current Implementation (v1 Editor)
+The v1 list-based editor at `/cms/website/pages/[slug]` does not provide live preview. Admins save changes and view the public website to see results.
 
-This is simple, accurate (same rendering pipeline as production), and doesn't require a separate preview mode.
+### Full-Screen Builder (v2, In Progress)
+The v2 builder at `app/cms/website/builder/` renders actual `SectionRenderer` components in the canvas, providing true WYSIWYG preview. When an admin edits section content in the modal editor:
+1. Admin clicks Edit on a section's floating toolbar
+2. SectionEditorModal opens with type-specific form fields
+3. On save, the API is called (PATCH) and the canvas re-renders with updated content
+4. The canvas shows the same section components used on the public website
 
-### Approach B: Live Preview (Future Enhancement)
-1. Admin edits section content
-2. Changes are sent to the preview pane via WebSocket or server action
-3. The preview pane re-renders in real time
-
-This is a much better UX but significantly more complex. Defer to P1.
+This approach (Approach B from the original design) provides live preview without a separate preview mode, because the canvas IS the preview. See `docs/00_dev-notes/website-builder-plan.md` Phase 2 (Canvas) and Phase 5 (Section Editors).
 
 ---
 

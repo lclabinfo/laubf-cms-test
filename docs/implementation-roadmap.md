@@ -18,8 +18,9 @@ The project uses two phase numbering systems. This table shows how they map:
 | — | Phase B.1 | Route group, registry, ThemeProvider, FontLoader, 6 sections | **COMPLETE** |
 | — | Phase B.2 | Section component migration (40/42 migrated) | **COMPLETE** |
 | Phase 8.1 | Phase B.3 | Section registry + page seeding | **COMPLETE** |
-| — | Phase C | Website builder admin UI | **DATA MODEL COMPLETE, ADMIN UI NOT IMPLEMENTED** |
-| Phase 6.1 | — | Authentication | **NOT STARTED** |
+| — | Phase C (v1) | Website builder admin UI (list-based editor) | **COMPLETE** |
+| — | Phase C (v2) | Full-screen website builder (canvas + DnD) | **IN PROGRESS** |
+| Phase 6.1 | — | Authentication | **COMPLETE** |
 | Phase 7.1 | Phase D | Multi-tenant middleware | **NOT STARTED** |
 | — | Phase E | Caching & performance | **NOT STARTED** |
 | — | Phase F | Production deployment | **NOT STARTED** |
@@ -63,6 +64,20 @@ The project uses two phase numbering systems. This table shows how they map:
 
 All other 40 section types have real implementations (including CUSTOM_HTML and CUSTOM_EMBED added during migration).
 
+### Bible Study Pages (Template Feature): COMPLETE
+
+Dedicated `/bible-study` and `/bible-study/[slug]` routes for the public website. This is a fixed template (not a website builder section) — every church gets the same study detail layout.
+
+- **Database**: BibleStudy + BibleStudyAttachment schema, DAL, API routes — all DONE
+- **Seed Data**: 15 studies with full HTML content (questions, answers, bibleText, transcript), 34 attachments — DONE
+- **Frontend**: StudyDetailView client component (split panes, 4 tabs, font controls, scroll-spy, mobile responsive) — DONE
+- **Listing Page**: `/bible-study` route with hero section + filterable grid — DONE
+- **Detail Page**: `/bible-study/[slug]` route with server-side data fetching + generateMetadata — DONE
+- **Types**: `lib/types/bible-study.ts` (BibleStudyDetail, BibleStudyAttachment interfaces) — DONE
+- **Shared**: `lib/website/bible-book-labels.ts` (canonical BibleBook → display name mapping) — DONE
+
+See `docs/00_dev-notes/bible-study-implementation.md` for task-level tracking.
+
 ### Website Phase B.3 (Page Seeding): COMPLETE
 
 - Seed script creates 14 pages with PageSections
@@ -70,32 +85,51 @@ All other 40 section types have real implementations (including CUSTOM_HTML and 
 - Theme + ThemeCustomization
 - SiteSettings
 
-### Website Phase C (Website Builder Admin): DATA MODEL COMPLETE, ADMIN UI NOT IMPLEMENTED
+### Website Phase C v1 (Website Builder Admin — List-Based): COMPLETE
+
+The initial website builder admin UI with all core CRUD functionality:
+
+**API routes**: 20 endpoints across pages, sections, menus, theme, domains, site settings (all DONE).
+**Admin pages** (all functional):
+- `/cms/website/pages` — Pages manager (DataTable with search, sort, CRUD)
+- `/cms/website/pages/[slug]` — Page editor (sections list, section picker, JSON editor, display settings, reorder)
+- `/cms/website/theme` — Theme customizer (colors, fonts, font size, custom CSS)
+- `/cms/website/navigation` — Navigation editor (menu items CRUD, hierarchy, reorder)
+- `/cms/website/domains` — Domain manager (add/remove, DNS instructions)
+- `/cms/website/settings` — Site settings (general, logo, contact, social, service times, SEO, maintenance)
+
+**Components**: Section picker dialog (7 categories), section editor dialog (display settings + JSON content).
+
+See `docs/00_dev-notes/website-admin-implementation.md` for the full implementation tracker.
+
+### Website Phase C v2 (Full-Screen Builder): IN PROGRESS
+
+The full-screen website builder replaces the v1 list-based editor with a canvas-based WYSIWYG experience:
 
 **What exists:**
-- Database models for pages, sections, menus, themes, site settings (all seeded)
-- `resolveSectionData()` for dynamic section data resolution
-- DAL modules for pages, menus, and theme (read/write functions ready)
+- Builder layout at `app/cms/website/builder/layout.tsx` (full-screen, auth check, no CMS sidebar)
+- Builder entry page at `app/cms/website/builder/page.tsx` (redirect to homepage)
+- Dependencies installed: @dnd-kit/core ^6.3.1, motion ^12.34.3, sonner ^2.0.7
 
-**What does NOT exist (stub pages only):**
-- `/cms/website/pages` — 10-line stub page (title + description only)
-- `/cms/website/navigation` — 10-line stub page
-- `/cms/website/theme` — 10-line stub page
-- `/cms/website/domains` — 10-line stub page
-- No page builder UI, no section editor, no drag-and-drop, no menu editor, no theme customizer
-- No website builder API routes (pages CRUD, sections CRUD, menus CRUD, theme CRUD)
+**What is being built (48 tasks across 9 phases):**
+- BuilderShell, BuilderSidebar, BuilderDrawer, BuilderTopbar, BuilderCanvas
+- Live canvas rendering actual section components with interactive overlays
+- Drag-and-drop section reordering
+- Section picker modal with search and preview
+- Page tree with status badges
+- Type-specific section editor forms (replacing JSON editor)
+- Design panel for in-builder theme customization
+- Device preview (desktop/tablet/mobile)
 
-**Status: The website builder admin UI is the next major feature to implement.** The data model and DAL layer are ready; the API routes and admin interface both need to be built.
+**Status**: Phase 1 partially started (layout + entry page exist). Phases 2-9 not started.
 
-### Authentication: NOT STARTED (Critical Blocker)
+See `docs/00_dev-notes/website-builder-plan.md` for the master plan and `docs/00_dev-notes/website-builder-status.md` for task-level tracking.
 
-Schema exists (User, Session, ChurchMember tables with MemberRole enum) but no implementation:
-- No login/logout pages
-- No session management
-- No middleware protecting `/cms/*` routes
-- No password hashing
+### Authentication: COMPLETE
 
-**This is the hard gate for production deployment.**
+- Auth implemented at `lib/auth/` (config, require-auth, types, edge-config)
+- Session-based auth protecting `/cms/*` routes
+- Builder layout uses `auth()` for authentication check
 
 ### Phases D-F: NOT STARTED
 
@@ -111,42 +145,36 @@ Schema exists (User, Session, ChurchMember tables with MemberRole enum) but no i
 |---|---|---|
 | **A**: Single-Tenant Rendering | Replace mock data in `laubf-test/` with PostgreSQL queries | Public website renders real CMS content |
 | **B**: Component Migration | Move section components into root project (42 section types, 40 real + 2 placeholders), create `app/(website)/[[...slug]]` catch-all, section registry | One unified app, data-driven page rendering, `laubf-test/` can be retired |
-| **C**: Website Builder Admin | CRUD UI for pages, sections, menus, themes at `/cms/website/` | Church admins can manage their website structure |
+| **C (v1)**: Website Builder Admin | List-based CRUD UI for pages, sections, menus, themes at `/cms/website/` | Church admins can manage their website structure |
+| **C (v2)**: Full-Screen Builder | Canvas-based WYSIWYG editor with DnD, section picker, structured editors | Professional builder experience replacing v1 editor |
 
-After A-C, the full CMS + website builder + public rendering pipeline works end-to-end for a single church, with no authentication and no production deployment.
-
----
-
-## Recommended Order After A-C
-
-### 1. Auth (Database Phase 6.1) — Do This First
-
-**Why**: This is the hard gate for everything after it.
-
-Without auth:
-- The CMS admin is wide open — anyone can edit content
-- Multi-tenancy can't work (no way to verify "does this user belong to this church?")
-- You can't deploy to production responsibly
-
-**Scope** (~3-5 days):
-- Session-based auth (email/password) using the existing `User`, `Session`, and `ChurchMember` tables
-- Login / logout pages
-- Middleware to protect `/cms/*` routes (redirect to login if no session)
-- `ChurchMember` role checking (OWNER, ADMIN, EDITOR, VIEWER)
-- Password hashing (bcrypt or argon2)
-- Session token management (create on login, delete on logout, check expiry)
-
-**What already exists in the schema**:
-- `User` table (email, passwordHash, emailVerified, twoFactorEnabled)
-- `Session` table (userId, token, expiresAt, ipAddress, userAgent)
-- `ChurchMember` table (churchId, userId, role)
-- `MemberRole` enum (OWNER, ADMIN, EDITOR, VIEWER)
-
-No new tables needed — just the implementation.
+After A-C (v1), the full CMS + website builder + public rendering pipeline works end-to-end for a single church. Phase C (v2) upgrades the builder to a professional full-screen experience. Auth is now complete.
 
 ---
 
-### 2. Production Deployment (Phase F, Partial) — Before Multi-Tenancy
+## Recommended Order — Updated
+
+### 1. Auth (Database Phase 6.1) — COMPLETE
+
+Auth is implemented at `lib/auth/`. Session-based auth protects `/cms/*` routes with login/logout, role checking, and session management.
+
+---
+
+### 2. Full-Screen Website Builder (Phase C v2) — IN PROGRESS
+
+**Why next**: The v1 list-based editor is functional but basic. The full-screen builder provides the professional editing experience described in the PRD and Figma prototype.
+
+**Scope** (~10-15 days): 48 tasks across 9 phases.
+See `docs/00_dev-notes/website-builder-plan.md` for the master plan.
+
+**Key milestones**:
+- Phases 1-3 (P0): Layout shell + canvas + section picker = minimum functional builder
+- Phases 4-5 (P0): Page tree + section editors = full editing capability
+- Phases 6-9 (P1): Design panel + integration + polish
+
+---
+
+### 3. Production Deployment (Phase F, Partial) — Before Multi-Tenancy
 
 **Why**: Deploy for LA UBF as a single-tenant site before building multi-tenancy.
 
@@ -227,11 +255,16 @@ COMPLETED:
   Phase B.1: Route Group + Infrastructure .... DONE
   Phase B.2: Section Migration ............... 40/42 DONE (2 intentional placeholders)
   Phase B.3: Page Seeding .................... DONE
+  Auth (Database Phase 6.1) .................. DONE
+  Phase C v1: Website Builder Admin UI ....... DONE (list-based editor, all CRUD)
+
+IN PROGRESS:
+  Phase C v2: Full-Screen Builder ............ 10-15 days ← CURRENT
+    ├── Phases 1-3 (P0, layout+canvas+picker) ← NEXT
+    ├── Phases 4-5 (P0, pages+editors)
+    └── Phases 6-9 (P1, design+polish)
 
 REMAINING:
-  Phase B.2: Section Migration ............... DONE (40/42, 2 intentional placeholders)
-  Phase C: Website Builder Admin UI .......... 10-15 days ← NEXT
-  Auth (Database Phase 6.1) .................. 3-5 days ← GATE
   Phase F (partial): Deploy LA UBF ........... 3-5 days
 
   ════════════════════════════════════════════
@@ -242,7 +275,8 @@ REMAINING:
   Phase E: Caching & Performance ............. 3-5 days (when traffic justifies)
 ```
 
-**Remaining to first launch**: ~20-28 working days (Phase C + Auth + F)
+**Remaining to first launch**: ~13-20 working days (Phase C v2 + F)
+**Note**: v1 editor is functional now — launch could happen with v1 if needed.
 **Total to multi-tenant**: +3-5 days after launch
 
 ---
@@ -267,8 +301,12 @@ The key insight: **Phases D and E are growth infrastructure.** They add zero val
 
 | Topic | Document |
 |---|---|
-| Unified status, phase specs, AI prompts | `docs/development-status.md` (consolidates former database/04-05 and website-rendering/04-05) |
-| Hosting & domain setup | `docs/website-rendering/06-hosting-domain-strategy.md` |
-| Caching strategy | `docs/website-rendering/07-caching.md` |
-| Database visual guide | `docs/database/01-architecture.md` (Section 15) |
-| Development notes | `docs/development-notes.md` |
+| Unified status, phase specs, AI prompts | `docs/00_dev-notes/development-status.md` |
+| Website builder master plan | `docs/00_dev-notes/website-builder-plan.md` |
+| Website builder task tracker | `docs/00_dev-notes/website-builder-status.md` |
+| Website builder v1 implementation | `docs/00_dev-notes/website-admin-implementation.md` |
+| Website builder PRD | `docs/01_prd/02-prd-website-builder.md` |
+| Hosting & domain setup | `docs/03_website-rendering/06-hosting-domain-strategy.md` |
+| Caching strategy | `docs/03_website-rendering/07-caching.md` |
+| Database visual guide | `docs/02_database/01-architecture.md` (Section 15) |
+| Development notes | `docs/00_dev-notes/development-notes.md` |

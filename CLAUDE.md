@@ -22,10 +22,10 @@ Next.js 16 app using the App Router with React 19, TypeScript, and Tailwind CSS 
 
 **Key directories:**
 - `app/cms/` — CMS admin pages (messages, events, media, people, etc.)
-- `app/api/v1/` — REST API routes (15 files across 10 content types)
+- `app/api/v1/` — REST API routes (25 files across 14 content types)
 - `components/ui/` — shadcn/ui primitives (auto-generated, editable)
 - `components/cms/` — CMS-specific components
-- `lib/dal/` — Data access layer (15 modules, all take `churchId` as first param)
+- `lib/dal/` — Data access layer (16 modules, all take `churchId` as first param)
 - `lib/db/` — Prisma client singleton + type re-exports
 - `lib/generated/prisma/` — Generated Prisma client (do not edit)
 - `lib/api/get-church-id.ts` — Resolves `CHURCH_SLUG` env var to church UUID via DB lookup
@@ -109,8 +109,8 @@ Two doc sets govern implementation. **Read the relevant docs before starting any
 - **Website Phase B.1: COMPLETE** — `(website)` route group, section registry (42 entries), ThemeProvider, FontLoader, navbar, footer, SectionWrapper, catch-all page route, tenant context, design system CSS ported.
 - **Website Phase B.2: COMPLETE** — 40/42 section types have real implementations. 2 intentional placeholders remain: NAVBAR (handled by layout), DAILY_BREAD_FEATURE (no source exists). 23 shared components migrated.
 - **Website Phase B.3: COMPLETE** — Seeded 14 pages with PageSections, 2 menus with items, Theme + ThemeCustomization, SiteSettings.
-- **Website Phase C: DATA MODEL COMPLETE, ADMIN UI NOT IMPLEMENTED** — Database models (Page, PageSection, Menu, MenuItem, Theme, ThemeCustomization) and seed data exist. DAL modules for pages, menus, and theme are complete. Admin pages at `/cms/website/*` are stubs only (10-line placeholder pages with just a heading). No website builder API routes, no page builder UI, no section editor, no menu editor, no theme customizer exists yet.
-- **Authentication: NOT STARTED** — Critical blocker for production deployment. Schema exists (User, Session, ChurchMember) but no implementation.
+- **Website Phase C: COMPLETE** — Website builder admin UI (pages manager, page builder, navigation editor, theme manager, site settings, domain manager), 10 API route files (25 handlers), 4 DAL modules updated/created, section picker/editor dialogs.
+- **Authentication: COMPLETE** — Auth.js v5 with Google SSO + credentials login.
 - **Phases D-F: NOT STARTED** — Multi-tenant middleware, caching, production deployment.
 
 **Where to find status, roadmap, and AI-ready prompts:**

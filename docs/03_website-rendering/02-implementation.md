@@ -2,7 +2,7 @@
 
 ## Detailed Implementation Plan for the Shared Rendering Architecture
 
-> **Current state** (updated February 24, 2026): **Phase A COMPLETE**. **Phase B.1 COMPLETE**. **Phase B.2 COMPLETE** — 40/42 section types have real implementations (2 intentional placeholders: NAVBAR handled by layout, DAILY_BREAD_FEATURE has no source). **Phase B.3 COMPLETE**. **Phase C: DATA MODEL COMPLETE, ADMIN UI NOT IMPLEMENTED** — database models and DAL modules exist, but admin pages at `/cms/website/*` are stubs (10-line placeholder pages). No website builder API routes, no page builder, section editor, menu editor, or theme customizer UI. No middleware, no tenant resolution, no caching layer yet. Church ID resolution uses `CHURCH_SLUG` env var via `lib/tenant/context.ts`.
+> **Current state** (updated February 24, 2026): **Phase A COMPLETE**. **Phase B.1 COMPLETE**. **Phase B.2 COMPLETE** — 40/42 section types have real implementations (2 intentional placeholders: NAVBAR handled by layout, DAILY_BREAD_FEATURE has no source). **Phase B.3 COMPLETE**. **Phase C v1: COMPLETE** — list-based website builder admin with all CRUD operations (20 API routes, 6 admin pages, pages manager, section picker + JSON editor, theme customizer, navigation editor, domain manager, site settings). **Phase C v2: IN PROGRESS** — full-screen visual builder at `app/cms/website/builder/` with WYSIWYG canvas, drag-and-drop, structured section editors (see `docs/00_dev-notes/website-builder-plan.md`). **Auth: COMPLETE** — session-based auth at `lib/auth/`. No middleware, no tenant resolution, no caching layer yet. Church ID resolution uses `CHURCH_SLUG` env var via `lib/tenant/context.ts`.
 
 ---
 
@@ -23,19 +23,26 @@ app/
 │   ├── layout.tsx                  ← Injects theme, navbar, footer per church
 │   └── [[...slug]]/page.tsx        ← Catch-all: renders any page from DB
 │
-├── (admin)/                        ← CMS dashboard (currently at app/cms/, will be reorganized)
-│   ├── layout.tsx                  ← Admin sidebar, auth guard
-│   ├── dashboard/page.tsx
-│   ├── messages/...
-│   ├── events/...
-│   ├── website/                    ← Website builder admin (NEW)
-│   │   ├── pages/                  ← Page list + editor
-│   │   │   ├── page.tsx            ← List all pages
-│   │   │   └── [slug]/edit/page.tsx ← Section editor
-│   │   ├── navigation/page.tsx     ← Menu editor (exists as placeholder)
-│   │   └── theme/page.tsx          ← Theme customizer (exists as placeholder)
-│   └── settings/
-│       └── general/page.tsx        ← Site settings
+├── cms/                            ← CMS admin
+│   ├── (dashboard)/                ← Dashboard layout with sidebar
+│   │   ├── layout.tsx              ← Admin sidebar, auth guard
+│   │   ├── dashboard/page.tsx
+│   │   ├── messages/...
+│   │   ├── events/...
+│   │   ├── website/                ← Website admin pages (v1 editor, COMPLETE)
+│   │   │   ├── pages/              ← Page list + v1 section editor
+│   │   │   │   ├── page.tsx        ← List all pages
+│   │   │   │   └── [slug]/page.tsx ← v1 section editor (list-based)
+│   │   │   ├── navigation/page.tsx ← Menu editor (COMPLETE)
+│   │   │   ├── theme/page.tsx      ← Theme customizer (COMPLETE)
+│   │   │   ├── domains/page.tsx    ← Domain manager (COMPLETE)
+│   │   │   └── settings/page.tsx   ← Site settings (COMPLETE)
+│   │   └── settings/
+│   │       └── general/page.tsx    ← Site settings
+│   └── website/builder/            ← Full-screen builder (v2, IN PROGRESS)
+│       ├── layout.tsx              ← No CMS sidebar, auth check
+│       ├── page.tsx                ← Entry: redirect to homepage
+│       └── [pageId]/page.tsx       ← Builder for specific page
 │
 ├── api/v1/...                      ← Shared API routes (existing)
 └── middleware.ts                   ← Tenant resolution + routing (NEW)
@@ -751,11 +758,13 @@ Add `middleware.ts` with tenant resolution from hostname. This enables multiple 
 ### Step 8: Caching Layer
 Add Next.js tag-based caching with `revalidateTag()` for on-demand invalidation. Redis comes later.
 
-### Step 9: Page Builder Admin
-Build the CMS admin UI for managing pages: list pages, create page, edit page sections (add/remove/reorder), configure section content.
+### Step 9: Page Builder Admin — COMPLETE (v1), IN PROGRESS (v2)
+**v1 (COMPLETE):** List-based CMS admin UI for managing pages, sections, theme, navigation, domains, and site settings. All CRUD operations functional. See `docs/00_dev-notes/website-admin-implementation.md`.
 
-### Step 10: Theme Customizer + Menu Editor
-Build the admin UIs for customizing the theme tokens and editing navigation menus.
+**v2 (IN PROGRESS):** Full-screen visual builder at `app/cms/website/builder/` with WYSIWYG canvas, drag-and-drop, structured section editors. See `docs/00_dev-notes/website-builder-plan.md` for the 9-phase implementation plan.
+
+### Step 10: Theme Customizer + Menu Editor — COMPLETE (v1)
+**v1 (COMPLETE):** Theme customizer at `/cms/website/theme` (colors, fonts, custom CSS). Navigation editor at `/cms/website/navigation` (menu items CRUD, hierarchy). **v2:** In-builder design panel and page tree are part of the full-screen builder (Phases 4 and 6).
 
 ---
 
