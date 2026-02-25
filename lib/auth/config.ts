@@ -4,11 +4,16 @@ import Google from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/db'
 import type { MemberRole } from '@/lib/generated/prisma/client'
+import { edgeAuthConfig } from './edge-config'
 
-// Import type augmentations
-import './types'
-
+/**
+ * Full auth config — extends edge-safe config with providers and DB callbacks.
+ * Used by server components, API routes, and the NextAuth route handler.
+ * NOT used by middleware (use edge-config.ts for that).
+ */
 export const authConfig: NextAuthConfig = {
+  ...edgeAuthConfig,
+
   providers: [
     Google({
       clientId: process.env.AUTH_GOOGLE_ID,
@@ -45,15 +50,9 @@ export const authConfig: NextAuthConfig = {
     }),
   ],
 
-  session: {
-    strategy: 'jwt',
-  },
-
-  pages: {
-    signIn: '/cms/login',
-  },
-
   callbacks: {
+    ...edgeAuthConfig.callbacks,
+
     async signIn({ user, account }) {
       // For Google OAuth: create or link User + Account
       if (account?.provider === 'google' && user.email) {
@@ -63,7 +62,6 @@ export const authConfig: NextAuthConfig = {
         })
 
         if (!existingUser) {
-          // Create a new user and link the Google account
           const newUser = await prisma.user.create({
             data: {
               email: user.email,
@@ -87,10 +85,8 @@ export const authConfig: NextAuthConfig = {
               },
             },
           })
-          // Set the user id so the jwt callback can use it
           user.id = newUser.id
         } else {
-          // User exists — link account if not already linked
           const hasGoogleAccount = existingUser.accounts.some(
             (a) => a.provider === 'google'
           )
@@ -111,7 +107,6 @@ export const authConfig: NextAuthConfig = {
               },
             })
           }
-          // Use existing user id
           user.id = existingUser.id
         }
       }
@@ -120,7 +115,6 @@ export const authConfig: NextAuthConfig = {
     },
 
     async jwt({ token, user }) {
-      // On initial sign-in, user is present — look up church membership
       if (user?.id) {
         token.userId = user.id
 
@@ -150,8 +144,6 @@ export const authConfig: NextAuthConfig = {
     },
 
     async session({ session, token }) {
-      // Type-safe assignment from JWT token to session
-      // The session object starts as DefaultSession; we extend it with our custom fields
       const extSession = session as typeof session & {
         churchId: string
         churchSlug: string
