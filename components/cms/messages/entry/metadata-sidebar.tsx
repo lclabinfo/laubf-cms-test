@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select"
 import { DatePicker } from "@/components/ui/date-picker"
 import { SeriesSelect } from "./series-select"
+import { SpeakerSelect } from "./speaker-select"
 import type { Series, MessageStatus, Attachment } from "@/lib/messages-data"
 import { statusDisplay } from "@/lib/status"
 
@@ -24,9 +25,10 @@ interface MetadataSidebarProps {
   date: string
   onDateChange: (date: string) => void
   speaker: string
-  onSpeakerChange: (speaker: string) => void
-  seriesIds: string[]
-  onSeriesIdsChange: (ids: string[]) => void
+  speakerId?: string
+  onSpeakerChange: (name: string, id?: string) => void
+  seriesId: string | null
+  onSeriesIdChange: (id: string | null) => void
   passage: string
   onPassageChange: (passage: string) => void
   attachments: Attachment[]
@@ -45,8 +47,8 @@ export function MetadataSidebar({
   onDateChange,
   speaker,
   onSpeakerChange,
-  seriesIds,
-  onSeriesIdsChange,
+  seriesId,
+  onSeriesIdChange,
   passage,
   onPassageChange,
   attachments,
@@ -180,12 +182,10 @@ export function MetadataSidebar({
 
           {/* Speaker */}
           <div className="space-y-2">
-            <Label htmlFor="speaker">Speaker <span className="text-destructive">*</span></Label>
-            <Input
-              id="speaker"
+            <Label>Speaker <span className="text-destructive">*</span></Label>
+            <SpeakerSelect
               value={speaker}
-              onChange={(e) => onSpeakerChange(e.target.value)}
-              placeholder="e.g. Pastor David"
+              onChange={onSpeakerChange}
             />
           </div>
 
@@ -194,8 +194,8 @@ export function MetadataSidebar({
             <Label>Series</Label>
             <SeriesSelect
               series={allSeries}
-              selectedIds={seriesIds}
-              onChange={onSeriesIdsChange}
+              selectedId={seriesId}
+              onChange={onSeriesIdChange}
             />
           </div>
 

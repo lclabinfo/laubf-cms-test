@@ -35,7 +35,7 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
   const [manageOpen, setManageOpen] = useState(false)
 
   const seriesMessages = useMemo(
-    () => messages.filter((m) => m.seriesIds.includes(id)),
+    () => messages.filter((m) => m.seriesId === id),
     [messages, id]
   )
 

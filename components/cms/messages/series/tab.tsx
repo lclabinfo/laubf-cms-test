@@ -22,7 +22,7 @@ export function SeriesTab() {
       .filter((s) => !q || s.name.toLowerCase().includes(q))
       .map((s) => ({
         ...s,
-        count: messages.filter((m) => m.seriesIds.includes(s.id)).length,
+        count: messages.filter((m) => m.seriesId === s.id).length,
       }))
 
     switch (sort) {

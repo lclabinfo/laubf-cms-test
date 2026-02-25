@@ -1,11 +1,16 @@
 "use client"
 
 import Link from "next/link"
-import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal, Video, Pencil, Trash2, Clock } from "lucide-react"
+import { type Column, type ColumnDef } from "@tanstack/react-table"
+import { ArrowUp, ArrowDown, ArrowUpDown, MoreHorizontal, Video, BookOpen, Pencil, Trash2, Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,6 +35,13 @@ function formatDateTime(isoStr: string) {
     hour: "numeric",
     minute: "2-digit",
   })
+}
+
+function SortIcon<T>({ column }: { column: Column<T> }) {
+  const sorted = column.getIsSorted()
+  if (sorted === "asc") return <ArrowUp />
+  if (sorted === "desc") return <ArrowDown />
+  return <ArrowUpDown />
 }
 
 export function createColumns(series: Series[]): ColumnDef<Message>[] {
@@ -67,7 +79,7 @@ export function createColumns(series: Series[]): ColumnDef<Message>[] {
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
         Title
-        <ArrowUpDown />
+        <SortIcon column={column} />
       </Button>
     ),
     cell: ({ row }) => (
@@ -93,27 +105,32 @@ export function createColumns(series: Series[]): ColumnDef<Message>[] {
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
         Speaker
-        <ArrowUpDown />
+        <SortIcon column={column} />
       </Button>
     ),
     cell: ({ row }) => <span>{row.getValue("speaker")}</span>,
+    filterFn: (row, id, value: string[]) => {
+      return value.includes(row.getValue(id))
+    },
     size: 140,
   },
   {
-    accessorKey: "seriesIds",
+    accessorKey: "seriesId",
     header: "Series",
     cell: ({ row }) => {
-      const ids = row.original.seriesIds
-      const matched = series.filter((s) => ids.includes(s.id))
+      const seriesId = row.original.seriesId
+      const matched = seriesId ? series.find((s) => s.id === seriesId) : null
+      if (!matched) return null
       return (
-        <div className="flex flex-wrap gap-1">
-          {matched.map((s) => (
-            <Badge key={s.id} variant="outline" className="text-xs font-normal">
-              {s.name}
-            </Badge>
-          ))}
-        </div>
+        <Badge variant="outline" className="text-xs font-normal">
+          {matched.name}
+        </Badge>
       )
+    },
+    filterFn: (row, id, value: string[]) => {
+      const seriesId = row.getValue(id) as string | null
+      if (!seriesId) return false
+      return value.includes(seriesId)
     },
     enableSorting: false,
     size: 160,
@@ -128,7 +145,7 @@ export function createColumns(series: Series[]): ColumnDef<Message>[] {
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
         Message Date
-        <ArrowUpDown />
+        <SortIcon column={column} />
       </Button>
     ),
     cell: ({ row }) => (
@@ -146,7 +163,7 @@ export function createColumns(series: Series[]): ColumnDef<Message>[] {
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
       >
         Posted
-        <ArrowUpDown />
+        <SortIcon column={column} />
       </Button>
     ),
     cell: ({ row }) => {
@@ -188,25 +205,27 @@ export function createColumns(series: Series[]): ColumnDef<Message>[] {
     id: "resources",
     header: "Resources",
     cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <span
-          className={`flex items-center gap-1 text-xs ${row.original.hasVideo ? "text-blue-500" : "text-muted-foreground/40"}`}
-          title={row.original.hasVideo ? "Has video" : "No video"}
-        >
-          <span className={`size-2 rounded-full ${row.original.hasVideo ? "bg-blue-500" : "bg-muted-foreground/25"}`} />
-          Video
-        </span>
-        <span
-          className={`flex items-center gap-1 text-xs ${row.original.hasStudy ? "text-purple-500" : "text-muted-foreground/40"}`}
-          title={row.original.hasStudy ? "Has study guide" : "No study guide"}
-        >
-          <span className={`size-2 rounded-full ${row.original.hasStudy ? "bg-purple-500" : "bg-muted-foreground/25"}`} />
-          Study
-        </span>
+      <div className="flex items-center gap-3">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Video
+              className={`size-4 ${row.original.hasVideo ? "text-blue-500" : "text-muted-foreground/25"}`}
+            />
+          </TooltipTrigger>
+          <TooltipContent>{row.original.hasVideo ? "Has video" : "No video"}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <BookOpen
+              className={`size-4 ${row.original.hasStudy ? "text-purple-500" : "text-muted-foreground/25"}`}
+            />
+          </TooltipTrigger>
+          <TooltipContent>{row.original.hasStudy ? "Has study guide" : "No study guide"}</TooltipContent>
+        </Tooltip>
       </div>
     ),
     enableSorting: false,
-    size: 150,
+    size: 100,
   },
   {
     id: "actions",

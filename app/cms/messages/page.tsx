@@ -11,6 +11,7 @@ import {
   getSortedRowModel,
   type ColumnFiltersState,
   type SortingState,
+  type VisibilityState,
 } from "@tanstack/react-table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DataTable } from "@/components/ui/data-table"
@@ -50,9 +51,15 @@ function MessagesPageContent() {
     { id: "date", desc: true },
   ])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = useState({})
   const [globalFilter, setGlobalFilter] = useState("")
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
+
+  const speakers = useMemo(() => {
+    const names = new Set(messages.map((m) => m.speaker).filter(Boolean))
+    return Array.from(names).sort()
+  }, [messages])
 
   // Reset page index when filters change (replaces TanStack's autoResetPageIndex
   // which uses microtasks that fire before mount in React 19 strict mode)
@@ -82,12 +89,14 @@ function MessagesPageContent() {
     state: {
       sorting,
       columnFilters,
+      columnVisibility,
       rowSelection,
       globalFilter,
       pagination,
     },
     onSortingChange: setSorting,
     onColumnFiltersChange: handleColumnFiltersChange,
+    onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: handleGlobalFilterChange,
     onPaginationChange: setPagination,
@@ -119,6 +128,8 @@ function MessagesPageContent() {
             table={table}
             globalFilter={globalFilter}
             setGlobalFilter={handleGlobalFilterChange}
+            speakers={speakers}
+            allSeries={series}
           />
           {loading ? (
             <div className="flex items-center justify-center py-16">

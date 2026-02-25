@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Table as TanstackTable } from "@tanstack/react-table"
-import { Search, SlidersHorizontal, Plus, X } from "lucide-react"
+import { Search, SlidersHorizontal, Settings2, Plus, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -11,6 +11,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import type { Message, MessageStatus } from "@/lib/messages-data"
 
 const statuses: { value: MessageStatus; label: string }[] = [
@@ -20,15 +26,29 @@ const statuses: { value: MessageStatus; label: string }[] = [
   { value: "archived", label: "Archived" },
 ]
 
+const columnLabels: Record<string, string> = {
+  title: "Title",
+  speaker: "Speaker",
+  seriesId: "Series",
+  date: "Message Date",
+  publishedAt: "Posted",
+  status: "Status",
+  resources: "Resources",
+}
+
 interface ToolbarProps {
   table: TanstackTable<Message>
   globalFilter: string
   setGlobalFilter: (value: string) => void
+  speakers: string[]
+  allSeries: { id: string; name: string }[]
 }
 
-export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) {
+export function Toolbar({ table, globalFilter, setGlobalFilter, speakers, allSeries }: ToolbarProps) {
   const selectedCount = table.getFilteredSelectedRowModel().rows.length
   const statusFilter = (table.getColumn("status")?.getFilterValue() as MessageStatus[]) ?? []
+  const speakerFilter = (table.getColumn("speaker")?.getFilterValue() as string[]) ?? []
+  const seriesFilter = (table.getColumn("seriesId")?.getFilterValue() as string[]) ?? []
 
   function toggleStatus(status: MessageStatus) {
     const current = statusFilter
@@ -38,11 +58,30 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
     table.getColumn("status")?.setFilterValue(next.length ? next : undefined)
   }
 
-  function clearFilters() {
-    table.getColumn("status")?.setFilterValue(undefined)
+  function toggleSpeaker(speaker: string) {
+    const current = speakerFilter
+    const next = current.includes(speaker)
+      ? current.filter((s) => s !== speaker)
+      : [...current, speaker]
+    table.getColumn("speaker")?.setFilterValue(next.length ? next : undefined)
   }
 
-  const hasFilters = statusFilter.length > 0
+  function toggleSeries(seriesId: string) {
+    const current = seriesFilter
+    const next = current.includes(seriesId)
+      ? current.filter((s) => s !== seriesId)
+      : [...current, seriesId]
+    table.getColumn("seriesId")?.setFilterValue(next.length ? next : undefined)
+  }
+
+  function clearFilters() {
+    table.getColumn("status")?.setFilterValue(undefined)
+    table.getColumn("speaker")?.setFilterValue(undefined)
+    table.getColumn("seriesId")?.setFilterValue(undefined)
+  }
+
+  const filterCount = statusFilter.length + speakerFilter.length + seriesFilter.length
+  const hasFilters = filterCount > 0
 
   return (
     <div className="flex flex-wrap items-center gap-2 min-h-[38px]">
@@ -65,42 +104,109 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
               <span className="hidden sm:inline">Filters</span>
               {hasFilters && (
                 <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
-                  {statusFilter.length}
+                  {filterCount}
                 </Badge>
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-56" align="start">
-            <div className="space-y-3">
+          <PopoverContent className="w-64" align="start">
+            <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Status</span>
+                <span className="text-sm font-medium">Filters</span>
                 {hasFilters && (
                   <Button variant="ghost" size="xs" onClick={clearFilters}>
-                    Clear
+                    Clear all
                   </Button>
                 )}
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {statuses.map((s) => (
-                  <Badge
-                    key={s.value}
-                    variant={statusFilter.includes(s.value) ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => toggleStatus(s.value)}
-                  >
-                    {s.label}
-                  </Badge>
-                ))}
+
+              {/* Status */}
+              <div className="space-y-2">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {statuses.map((s) => (
+                    <Badge
+                      key={s.value}
+                      variant={statusFilter.includes(s.value) ? "default" : "outline"}
+                      className="cursor-pointer"
+                      onClick={() => toggleStatus(s.value)}
+                    >
+                      {s.label}
+                    </Badge>
+                  ))}
+                </div>
               </div>
+
+              {/* Speaker */}
+              {speakers.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Speaker</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {speakers.map((name) => (
+                      <Badge
+                        key={name}
+                        variant={speakerFilter.includes(name) ? "default" : "outline"}
+                        className="cursor-pointer"
+                        onClick={() => toggleSpeaker(name)}
+                      >
+                        {name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Series */}
+              {allSeries.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Series</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {allSeries.map((s) => (
+                      <Badge
+                        key={s.id}
+                        variant={seriesFilter.includes(s.id) ? "default" : "outline"}
+                        className="cursor-pointer"
+                        onClick={() => toggleSeries(s.id)}
+                      >
+                        {s.name}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </PopoverContent>
         </Popover>
 
+        {/* Column visibility */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="default">
+              <Settings2 />
+              <span className="hidden sm:inline">Columns</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            {table
+              .getAllColumns()
+              .filter((col) => col.getCanHide())
+              .map((col) => (
+                <DropdownMenuCheckboxItem
+                  key={col.id}
+                  checked={col.getIsVisible()}
+                  onCheckedChange={(value) => col.toggleVisibility(!!value)}
+                >
+                  {columnLabels[col.id] ?? col.id}
+                </DropdownMenuCheckboxItem>
+              ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {/* Active filter badges */}
         {hasFilters && (
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             {statusFilter.map((s) => (
-              <Badge key={s} variant="secondary" className="gap-1">
+              <Badge key={`status-${s}`} variant="secondary" className="gap-1">
                 {s}
                 <button
                   onClick={() => toggleStatus(s)}
@@ -110,6 +216,31 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
                 </button>
               </Badge>
             ))}
+            {speakerFilter.map((s) => (
+              <Badge key={`speaker-${s}`} variant="secondary" className="gap-1">
+                {s}
+                <button
+                  onClick={() => toggleSpeaker(s)}
+                  className="ml-0.5 rounded-full hover:bg-foreground/10"
+                >
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            ))}
+            {seriesFilter.map((id) => {
+              const name = allSeries.find((s) => s.id === id)?.name ?? id
+              return (
+                <Badge key={`series-${id}`} variant="secondary" className="gap-1">
+                  {name}
+                  <button
+                    onClick={() => toggleSeries(id)}
+                    className="ml-0.5 rounded-full hover:bg-foreground/10"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </Badge>
+              )
+            })}
           </div>
         )}
 

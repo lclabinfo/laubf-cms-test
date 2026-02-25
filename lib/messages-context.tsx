@@ -47,7 +47,8 @@ function apiMessageToCms(apiMsg: any): Message {
     title: apiMsg.title,
     passage: apiMsg.passage ?? "",
     speaker: apiMsg.speaker?.name ?? "",
-    seriesIds: (apiMsg.messageSeries ?? []).map((ms: { series: { id: string } }) => ms.series.id),
+    speakerId: apiMsg.speaker?.id ?? undefined,
+    seriesId: (apiMsg.messageSeries ?? []).length > 0 ? apiMsg.messageSeries[0].series.id : null,
     date: apiMsg.dateFor ? new Date(apiMsg.dateFor).toISOString().slice(0, 10) : "",
     publishedAt: apiMsg.publishedAt ? new Date(apiMsg.publishedAt).toISOString() : undefined,
     status: statusFromApi[apiMsg.status] ?? "draft",
@@ -87,8 +88,8 @@ function cmsMessageToApiCreate(data: Omit<Message, "id">) {
     studySections: data.studySections || null,
     attachments: data.attachments || null,
     publishedAt: data.publishedAt ? new Date(data.publishedAt).toISOString() : null,
-    // TODO: Map speaker name to speakerId once speaker dropdown is wired
-    // TODO: Map seriesIds to MessageSeries join records
+    speakerId: data.speakerId || null,
+    seriesId: data.seriesId || null,
   }
 }
 
@@ -108,6 +109,8 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
   if (data.studySections !== undefined) payload.studySections = data.studySections || null
   if (data.attachments !== undefined) payload.attachments = data.attachments || null
   if (data.publishedAt !== undefined) payload.publishedAt = data.publishedAt ? new Date(data.publishedAt).toISOString() : null
+  if (data.speakerId !== undefined) payload.speakerId = data.speakerId || null
+  if (data.seriesId !== undefined) payload.seriesId = data.seriesId || null
   return payload
 }
 
@@ -198,9 +201,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
     setSeries((prev) => prev.filter((s) => s.id !== id))
     setMessages((prev) =>
       prev.map((m) =>
-        m.seriesIds.includes(id)
-          ? { ...m, seriesIds: m.seriesIds.filter((sid) => sid !== id) }
-          : m
+        m.seriesId === id ? { ...m, seriesId: null } : m
       )
     )
     // TODO: Call DELETE /api/v1/series/[slug] when the route exists
@@ -210,12 +211,12 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
     setMessages((prev) =>
       prev.map((m) => {
         const inSelection = messageIds.includes(m.id)
-        const inSeries = m.seriesIds.includes(seriesId)
+        const inSeries = m.seriesId === seriesId
         if (inSelection && !inSeries) {
-          return { ...m, seriesIds: [...m.seriesIds, seriesId] }
+          return { ...m, seriesId }
         }
         if (!inSelection && inSeries) {
-          return { ...m, seriesIds: m.seriesIds.filter((s) => s !== seriesId) }
+          return { ...m, seriesId: null }
         }
         return m
       })

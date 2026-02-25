@@ -39,7 +39,7 @@ export function ManageMessagesDialog({
       setSelected(
         new Set(
           messages
-            .filter((m) => m.seriesIds.includes(series.id))
+            .filter((m) => m.seriesId === series.id)
             .map((m) => m.id)
         )
       )

@@ -52,7 +52,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const [status, setStatus] = useState<MessageStatus>(message?.status ?? "draft")
   const [date, setDate] = useState(message?.date ?? new Date().toISOString().slice(0, 10))
   const [speaker, setSpeaker] = useState(message?.speaker ?? "")
-  const [seriesIds, setSeriesIds] = useState<string[]>(message?.seriesIds ?? [])
+  const [speakerId, setSpeakerId] = useState<string | undefined>(message?.speakerId)
+  const [seriesId, setSeriesId] = useState<string | null>(message?.seriesId ?? null)
   const [passage, setPassage] = useState(message?.passage ?? "")
   const [attachments, setAttachments] = useState<Attachment[]>(message?.attachments ?? [])
   const [publishedAt, setPublishedAt] = useState(message?.publishedAt ?? "")
@@ -123,7 +124,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
       slug: title.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, ""),
       passage: passage.trim(),
       speaker: speaker.trim(),
-      seriesIds,
+      speakerId,
+      seriesId,
       date,
       publishedAt: finalPublishedAt,
       status,
@@ -294,9 +296,13 @@ export function EntryForm({ mode, message }: EntryFormProps) {
           date={date}
           onDateChange={setDate}
           speaker={speaker}
-          onSpeakerChange={setSpeaker}
-          seriesIds={seriesIds}
-          onSeriesIdsChange={setSeriesIds}
+          speakerId={speakerId}
+          onSpeakerChange={(name, id) => {
+            setSpeaker(name)
+            setSpeakerId(id)
+          }}
+          seriesId={seriesId}
+          onSeriesIdChange={setSeriesId}
           passage={passage}
           onPassageChange={setPassage}
           attachments={attachments}

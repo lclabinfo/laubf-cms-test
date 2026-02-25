@@ -16,13 +16,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,7 +46,7 @@ export function TranscriptEditor({
   const [mode, setMode] = useState<TranscriptMode>(segments.length > 0 ? "synced" : "raw")
   const [processing, setProcessing] = useState<ProcessingState>("idle")
 
-  // Mock: simulate AI alignment from raw text → synced segments
+  // Mock: simulate AI alignment from raw text -> synced segments
   function handleAiAlignment() {
     if (!rawTranscript.trim()) return
     setProcessing("processing")
@@ -151,7 +145,7 @@ export function TranscriptEditor({
   function handleUploadRawText() {
     const input = document.createElement("input")
     input.type = "file"
-    input.accept = ".txt,.docx"
+    input.accept = ".txt,.doc,.docx,.pdf,.rtf,.md"
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
@@ -214,18 +208,13 @@ export function TranscriptEditor({
   const hasContent = rawTranscript.trim() || segments.length > 0
 
   return (
-    <div className="space-y-4">
-      {/* Mode toggle + actions */}
+    <Tabs value={mode} onValueChange={(v) => setMode(v as TranscriptMode)} className="space-y-4">
+      {/* Tab toggle + actions */}
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={mode} onValueChange={(v) => setMode(v as TranscriptMode)}>
-          <SelectTrigger size="sm" className="w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="raw">Raw Transcript</SelectItem>
-            <SelectItem value="synced">Synced Transcript</SelectItem>
-          </SelectContent>
-        </Select>
+        <TabsList variant="line">
+          <TabsTrigger value="raw">Raw Transcript</TabsTrigger>
+          <TabsTrigger value="synced">Synced Transcript</TabsTrigger>
+        </TabsList>
 
         <div className="flex-1" />
 
@@ -246,7 +235,7 @@ export function TranscriptEditor({
               <>
                 <DropdownMenuItem onClick={handleUploadRawText}>
                   <Upload />
-                  Upload Text File (.TXT)
+                  Upload Text File
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={handleAiAlignment}
@@ -320,7 +309,7 @@ export function TranscriptEditor({
       )}
 
       {/* Content */}
-      {mode === "raw" ? (
+      <TabsContent value="raw" className="mt-0">
         <div className="space-y-2">
           <Textarea
             value={rawTranscript}
@@ -337,7 +326,9 @@ export function TranscriptEditor({
             </div>
           )}
         </div>
-      ) : (
+      </TabsContent>
+
+      <TabsContent value="synced" className="mt-0">
         <div className="space-y-3">
           {segments.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-10 text-center">
@@ -403,8 +394,8 @@ export function TranscriptEditor({
             </>
           )}
         </div>
-      )}
-    </div>
+      </TabsContent>
+    </Tabs>
   )
 }
 
