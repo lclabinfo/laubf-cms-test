@@ -1,3 +1,7 @@
+/*
+ * CMS SETTINGS:
+ * - type: 'meeting' | 'event' | 'program' -- determines color
+ */
 import { eventTypeColors, EVENT_TYPE_FALLBACK_COLOR } from "@/components/website/shared/theme-tokens"
 import { cn } from "@/lib/utils"
 

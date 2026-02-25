@@ -2,8 +2,8 @@
 
 import SectionContainer from "@/components/website/shared/section-container"
 import CTAButton from "@/components/website/shared/cta-button"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
-import { cn } from "@/lib/utils"
 import {
   IconBookOpen,
   IconGraduationCap,
@@ -49,10 +49,10 @@ export default function PathwayCardSection({ content, enableAnimations, colorSch
     <SectionContainer colorScheme={colorScheme}>
       <div className="flex flex-col items-center gap-16">
         {/* Section header */}
-        <div className={cn("flex flex-col items-center gap-5 text-center max-w-3xl mx-auto", animate && "animate-hero-fade-up")}>
+        <AnimateOnScroll animation="fade-up" enabled={animate} className="flex flex-col items-center gap-5 text-center max-w-3xl mx-auto">
           <h2 className={`text-h2 ${t.textPrimary}`}>{content.heading}</h2>
           <p className={`text-body-1 ${t.textSecondary}`}>{content.description}</p>
-        </div>
+        </AnimateOnScroll>
 
         {/* Cards grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10 lg:gap-14 w-full">
@@ -60,9 +60,13 @@ export default function PathwayCardSection({ content, enableAnimations, colorSch
             const Icon = iconMap[card.icon]
 
             return (
-              <div
+              <AnimateOnScroll
                 key={i}
-                className={cn("flex flex-col items-center text-center gap-5", animate && "animate-hero-fade-up-delayed")}
+                animation="fade-up"
+                staggerIndex={i}
+                staggerBaseMs={120}
+                enabled={animate}
+                className="flex flex-col items-center text-center gap-5"
               >
                 {/* Icon */}
                 {Icon && (
@@ -92,7 +96,7 @@ export default function PathwayCardSection({ content, enableAnimations, colorSch
                     }
                   />
                 </div>
-              </div>
+              </AnimateOnScroll>
             )
           })}
         </div>

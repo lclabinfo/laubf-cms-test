@@ -1,3 +1,10 @@
+/*
+ * CMS SETTINGS (per card):
+ * - title: string -- card heading
+ * - description: string -- card body text
+ * - imageUrl: string -- background image
+ * - href?: string -- link destination (when omitted, renders as static card without arrow)
+ */
 import { cn } from "@/lib/utils"
 import Image from "next/image"
 import ArrowButton from "./arrow-button"

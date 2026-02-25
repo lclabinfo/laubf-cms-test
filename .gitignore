@@ -43,6 +43,7 @@ next-env.d.ts
 # Local Claude & MCP files
 CLAUDE.md
 .mcp.json
+.playwright-mcp/
 /lib/generated/prisma
 /laubf-test/src/lib/generated/prisma
 

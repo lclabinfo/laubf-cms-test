@@ -1,3 +1,9 @@
+/*
+ * CMS SETTINGS (per video):
+ * - title: string -- video title
+ * - thumbnailUrl: string -- preview image
+ * - videoUrl: string -- YouTube/Vimeo URL
+ */
 import { cn } from "@/lib/utils"
 import Image from "next/image"
 
@@ -32,6 +38,7 @@ export default function VideoThumbnail({
         className="object-cover transition-transform duration-500 ease-smooth group-hover:scale-105"
       />
       <div className="absolute inset-0 bg-black/20 transition-colors group-hover:bg-black/30" />
+      {/* Play button */}
       <div className="absolute inset-0 flex items-center justify-center">
         <div
           className={cn(

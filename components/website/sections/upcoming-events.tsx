@@ -1,11 +1,12 @@
 "use client"
 
 import SectionContainer from "@/components/website/shared/section-container"
+import OverlineLabel from "@/components/website/shared/overline-label"
 import CTAButton from "@/components/website/shared/cta-button"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import EventGridCard from "@/components/website/shared/event-grid-card"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import { IconArrowRight } from "@/components/website/shared/icons"
-import { cn } from "@/lib/utils"
 
 interface Event {
   slug: string
@@ -39,13 +40,13 @@ export default function UpcomingEventsSection({ content, enableAnimations, color
 
   return (
     <SectionContainer colorScheme={colorScheme}>
-      {/* Header — centered */}
-      <div className={cn("flex flex-col items-center text-center mb-12 lg:mb-16", animate && "animate-hero-fade-up")}>
+      {/* Header -- centered */}
+      <AnimateOnScroll animation="fade-up" enabled={animate} className="flex flex-col items-center text-center mb-12 lg:mb-16">
         {content.overline && (
-          <p className="text-overline text-black-3 mb-3">{content.overline}</p>
+          <OverlineLabel text={content.overline} className="mb-3" />
         )}
         <h2 className={`text-h2 ${t.textPrimary}`}>{content.heading}</h2>
-      </div>
+      </AnimateOnScroll>
 
       {/* Event cards grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

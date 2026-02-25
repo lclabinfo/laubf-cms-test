@@ -2,9 +2,9 @@
 
 import SectionContainer from "@/components/website/shared/section-container"
 import CTAButton from "@/components/website/shared/cta-button"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import { themeTokens, type SectionTheme, type ThemeTokens } from "@/components/website/shared/theme-tokens"
 import { IconChevronDown } from "@/components/website/shared/icons"
-import { cn } from "@/lib/utils"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -56,7 +56,7 @@ export default function CampusCardGridSection({ content, enableAnimations, color
     <SectionContainer colorScheme={colorScheme}>
       {/* Decorative overlapping photos */}
       {content.decorativeImages && content.decorativeImages.length > 0 && (
-        <div className={cn("flex items-center justify-center mb-6 md:mb-12 overflow-hidden", animate && "animate-hero-fade-up")}>
+        <AnimateOnScroll animation="scale-up" enabled={animate} className="flex items-center justify-center mb-6 md:mb-12 overflow-hidden">
           <div className="relative w-[300px] h-[180px] md:w-[400px] md:h-[200px] overflow-hidden">
             {content.decorativeImages.map((img, i) => {
               const positions = [
@@ -89,11 +89,11 @@ export default function CampusCardGridSection({ content, enableAnimations, color
               )
             })}
           </div>
-        </div>
+        </AnimateOnScroll>
       )}
 
       {/* Section header */}
-      <div className={cn("text-center mb-10", animate && "animate-hero-fade-up")}>
+      <AnimateOnScroll animation="fade-up" enabled={animate} className="text-center mb-10">
         {content.overline && (
           <p className={`text-body-1 ${t.textSecondary} mb-2`}>
             {content.overline}
@@ -107,7 +107,7 @@ export default function CampusCardGridSection({ content, enableAnimations, color
             {content.description}
           </p>
         )}
-      </div>
+      </AnimateOnScroll>
 
       {/* Campus cards grid */}
       <div className="flex flex-wrap justify-center gap-2.5 md:gap-5 max-w-4xl mx-auto">

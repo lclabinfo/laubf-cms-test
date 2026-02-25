@@ -1,3 +1,22 @@
+/**
+ * AnimateOnScroll -- Reusable wrapper that triggers CSS animations when
+ * the element scrolls into view via Intersection Observer.
+ *
+ * Animation variants:
+ *   fade-up   -- fade in + slide up 24px (default)
+ *   fade-in   -- fade in only
+ *   fade-left -- fade in + slide from left
+ *   fade-right -- fade in + slide from right
+ *   scale-up  -- fade in + scale from 0.95
+ *   none      -- no animation (useful for conditional bypass)
+ *
+ * Stagger support: pass `staggerIndex` to auto-add stagger delay.
+ *
+ * Usage:
+ *   <AnimateOnScroll animation="fade-up">
+ *     <MyContent />
+ *   </AnimateOnScroll>
+ */
 "use client"
 
 import { useScrollReveal, staggerDelay } from "./use-scroll-reveal"
@@ -15,13 +34,19 @@ interface AnimateOnScrollProps {
   children: React.ReactNode
   animation?: AnimationVariant
   className?: string
+  /** Index for stagger delay in lists/grids */
   staggerIndex?: number
+  /** Base stagger delay in ms between items */
   staggerBaseMs?: number
+  /** Intersection Observer threshold */
   threshold?: number
+  /** Whether animations are enabled (default true) */
   enabled?: boolean
+  /** Element tag to render */
   as?: keyof React.JSX.IntrinsicElements
 }
 
+// CSS class map for initial (hidden) state
 const hiddenClasses: Record<AnimationVariant, string> = {
   "fade-up": "opacity-0 translate-y-6",
   "fade-in": "opacity-0",
@@ -31,6 +56,7 @@ const hiddenClasses: Record<AnimationVariant, string> = {
   none: "",
 }
 
+// CSS class for revealed (visible) state
 const visibleClasses: Record<AnimationVariant, string> = {
   "fade-up": "opacity-100 translate-y-0",
   "fade-in": "opacity-100",
@@ -52,6 +78,7 @@ export default function AnimateOnScroll({
 }: AnimateOnScrollProps) {
   const { ref, isVisible } = useScrollReveal({ threshold })
 
+  // If animations disabled, render children directly
   if (!enabled || animation === "none") {
     return <Tag className={className}>{children}</Tag>
   }

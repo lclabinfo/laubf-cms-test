@@ -1,3 +1,11 @@
+/*
+ * CMS SETTINGS:
+ * - label: string -- button text
+ * - href: string -- link destination
+ * - visible: boolean -- show/hide toggle
+ * - variant: 'primary' | 'secondary' -- filled or outline style
+ * Auto-resolves colors from SectionThemeContext (dark bg -> white fill, light bg -> dark fill)
+ */
 "use client"
 
 import { useResolvedTheme, type SectionTheme } from "./theme-tokens"
@@ -75,6 +83,7 @@ export default function CTAButton({
     </span>
   ) : null
 
+  // Anchor links: smooth scroll instead of navigation
   if (href && href.startsWith("#")) {
     return (
       <button

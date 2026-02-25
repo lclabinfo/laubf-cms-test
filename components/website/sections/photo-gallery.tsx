@@ -1,7 +1,7 @@
 "use client"
 
 import { SectionThemeContext, themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
-import { cn } from "@/lib/utils"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import Image from "next/image"
 
 const paddingYMap = {
@@ -36,14 +36,14 @@ export default function PhotoGallerySection({ content, enableAnimations, colorSc
       <section className={`${t.bg} ${paddingClass} overflow-hidden`}>
         {/* Centered heading inside container */}
         <div className="container-standard">
-          <div className={cn(animate && "animate-hero-fade-up")}>
+          <AnimateOnScroll animation="fade-up" enabled={animate}>
             <h2 className={`text-h2 ${t.textPrimary} text-center mb-12`}>
               {content.heading}
             </h2>
-          </div>
+          </AnimateOnScroll>
         </div>
 
-        {/* Full-width infinite scrolling carousel — no container */}
+        {/* Full-width infinite scrolling carousel -- no container */}
         <div className="w-full overflow-hidden">
           <div
             className="flex gap-4 animate-carousel"

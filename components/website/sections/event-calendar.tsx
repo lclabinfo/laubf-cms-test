@@ -3,7 +3,9 @@
 import { useState, useMemo } from "react"
 import Link from "next/link"
 import SectionContainer from "@/components/website/shared/section-container"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import CTAButton from "@/components/website/shared/cta-button"
+import EventCalendarGrid from "@/components/website/shared/event-calendar-grid"
 import EventListItem from "@/components/website/shared/event-list-item"
 import {
   IconChevronLeft,
@@ -22,8 +24,10 @@ interface Event {
   time: string
   type: string
   location?: string
+  description?: string
   isRecurring?: boolean
   recurrenceSchedule?: string
+  meetingUrl?: string
 }
 
 type ViewMode = "list" | "calendar"
@@ -113,13 +117,16 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
   return (
     <SectionContainer colorScheme={colorScheme} className="!pt-0 !pb-24 lg:!pb-30">
       <div className="flex flex-col gap-10">
-        <div className={cn(animate && "animate-hero-fade-up")}>
+        {/* Schedule heading */}
+        <AnimateOnScroll animation="fade-up" enabled={animate}>
           <h2 className="text-h2 text-black-1">{content.heading}</h2>
-        </div>
+        </AnimateOnScroll>
 
+        {/* Calendar/List container */}
         <div className="flex flex-col gap-5">
           {/* Header row: month toggle + view toggle */}
           <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* Month navigation */}
             <div className="flex items-center gap-3">
               <button
                 onClick={goToPrevMonth}
@@ -140,6 +147,7 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
               </button>
             </div>
 
+            {/* List / Month toggle */}
             <div className="flex rounded-[14px] bg-white-2 p-1">
               <button
                 onClick={() => setViewMode("list")}
@@ -198,13 +206,11 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
             )}
           </div>
 
-          {/* Content: List view */}
+          {/* Content: List or Calendar */}
           {viewMode === "list" ? (
             <EventListView events={monthEvents} filteredAll={filteredEvents} />
           ) : (
-            <div className="text-center py-16 text-body-2 text-black-3">
-              Calendar view
-            </div>
+            <EventCalendarGrid events={filteredEvents} month={currentMonth} year={currentYear} />
           )}
         </div>
 
@@ -232,6 +238,8 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
     </SectionContainer>
   )
 }
+
+/* ── List view with UPCOMING / RECURRING groups ── */
 
 const UPCOMING_LIMIT = 5
 const RECURRING_LIMIT = 3
@@ -275,10 +283,13 @@ function EventListView({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* UPCOMING group */}
       {hasUpcoming && (
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            <p className="text-body-1 text-black-3 uppercase tracking-wide">Upcoming</p>
+            <p className="text-body-1 text-black-3 uppercase tracking-wide">
+              Upcoming
+            </p>
             <span className="flex size-[22px] items-center justify-center rounded-full bg-black-1 text-[11px] font-medium text-white-0">
               {totalUpcoming}
             </span>
@@ -307,7 +318,10 @@ function EventListView({
                   <span className="text-[14px] text-black-3">
                     {moreUpcoming} more upcoming event{moreUpcoming !== 1 ? "s" : ""}
                   </span>
-                  <Link href="/events" className="text-[14px] font-medium text-black-1 hover:underline">
+                  <Link
+                    href="/events"
+                    className="text-[14px] font-medium text-black-1 hover:underline"
+                  >
                     View all
                   </Link>
                 </div>
@@ -317,10 +331,13 @@ function EventListView({
         </div>
       )}
 
+      {/* RECURRING group */}
       {hasRecurring && (
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            <p className="text-body-1 text-black-3 uppercase tracking-wide">Recurring</p>
+            <p className="text-body-1 text-black-3 uppercase tracking-wide">
+              Recurring
+            </p>
             <span className="flex size-[22px] items-center justify-center rounded-full bg-black-1 text-[11px] font-medium text-white-0">
               {totalRecurring}
             </span>
@@ -349,7 +366,10 @@ function EventListView({
                   <span className="text-[14px] text-black-3">
                     {moreRecurring} more recurring event{moreRecurring !== 1 ? "s" : ""}
                   </span>
-                  <Link href="/events" className="text-[14px] font-medium text-black-1 hover:underline">
+                  <Link
+                    href="/events"
+                    className="text-[14px] font-medium text-black-1 hover:underline"
+                  >
                     View all
                   </Link>
                 </div>

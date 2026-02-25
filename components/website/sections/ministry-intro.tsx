@@ -1,8 +1,8 @@
 "use client"
 
 import SectionContainer from "@/components/website/shared/section-container"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
-import { cn } from "@/lib/utils"
 import Image from "next/image"
 
 interface MinistryIntroContent {
@@ -27,8 +27,8 @@ export default function MinistryIntroSection({ content, enableAnimations, colorS
     return (
       <SectionContainer colorScheme={colorScheme}>
         <div className="flex flex-col lg:flex-row gap-10 lg:gap-16 items-center">
-          {/* Left — image */}
-          <div className={cn("w-full lg:w-[45%] shrink-0", animate && "animate-hero-fade-up")}>
+          {/* Left -- image */}
+          <AnimateOnScroll animation="fade-left" enabled={animate} className="w-full lg:w-[45%] shrink-0">
             <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden">
               <Image
                 src={content.image!.src}
@@ -38,10 +38,10 @@ export default function MinistryIntroSection({ content, enableAnimations, colorS
                 style={{ objectPosition: content.image?.objectPosition }}
               />
             </div>
-          </div>
+          </AnimateOnScroll>
 
-          {/* Right — text */}
-          <div className={cn("w-full lg:w-[55%]", animate && "animate-hero-fade-up-delayed")}>
+          {/* Right -- text */}
+          <AnimateOnScroll animation="fade-right" staggerIndex={1} staggerBaseMs={150} enabled={animate} className="w-full lg:w-[55%]">
             <p className={`text-h4 font-normal ${t.textMuted} mb-3`}>
               {content.overline}
             </p>
@@ -51,7 +51,7 @@ export default function MinistryIntroSection({ content, enableAnimations, colorS
             <p className={`text-body-1 ${t.textSecondary} leading-relaxed whitespace-pre-line`}>
               {content.description}
             </p>
-          </div>
+          </AnimateOnScroll>
         </div>
       </SectionContainer>
     )
@@ -60,7 +60,7 @@ export default function MinistryIntroSection({ content, enableAnimations, colorS
   /* Single-column variant (no image) */
   return (
     <SectionContainer colorScheme={colorScheme}>
-      <div className={cn("max-w-3xl", animate && "animate-hero-fade-up")}>
+      <AnimateOnScroll animation="fade-up" enabled={animate} className="max-w-3xl">
         <p className={`text-h4 font-normal ${t.textMuted} mb-3`}>
           {content.overline}
         </p>
@@ -70,7 +70,7 @@ export default function MinistryIntroSection({ content, enableAnimations, colorS
         <p className={`text-body-1 ${t.textSecondary} leading-relaxed whitespace-pre-line`}>
           {content.description}
         </p>
-      </div>
+      </AnimateOnScroll>
     </SectionContainer>
   )
 }

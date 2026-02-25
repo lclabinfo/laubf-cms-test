@@ -1,3 +1,7 @@
+/*
+ * CMS SETTINGS:
+ * - label: string -- badge text (e.g. "UPCOMING", "FEATURED")
+ */
 import { cn } from "@/lib/utils"
 
 export default function EventBadge({ label, className }: { label: string; className?: string }) {

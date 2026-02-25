@@ -1,9 +1,10 @@
 "use client"
 
 import SectionContainer from "@/components/website/shared/section-container"
+import OverlineLabel from "@/components/website/shared/overline-label"
 import CTAButton from "@/components/website/shared/cta-button"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
-import { cn } from "@/lib/utils"
 import Image from "next/image"
 
 interface PillarImage {
@@ -70,10 +71,10 @@ export default function PillarsSection({ content, enableAnimations, colorScheme 
   return (
     <SectionContainer colorScheme={colorScheme}>
       {/* Section header */}
-      <div className={cn("mb-12 lg:mb-16", animate && "animate-hero-fade-up")}>
-        <p className="text-overline text-black-3 mb-3">{content.overline}</p>
+      <AnimateOnScroll animation="fade-up" enabled={animate} className="mb-12 lg:mb-16">
+        <OverlineLabel text={content.overline} />
         <h2 className={`text-h2 ${t.textPrimary} mt-3`}>{content.heading}</h2>
-      </div>
+      </AnimateOnScroll>
 
       {/* Pillar items — alternating layout */}
       <div className="flex flex-col gap-12 lg:gap-12">
@@ -81,13 +82,15 @@ export default function PillarsSection({ content, enableAnimations, colorScheme 
           const isReversed = i % 2 !== 0
 
           return (
-            <div
+            <AnimateOnScroll
               key={i}
-              className={cn(
-                "flex flex-col lg:flex-row gap-8 lg:gap-12 items-center",
-                isReversed && "lg:flex-row-reverse",
-                animate && "animate-hero-fade-up-delayed"
-              )}
+              animation={isReversed ? "fade-left" : "fade-right"}
+              staggerIndex={i}
+              staggerBaseMs={100}
+              enabled={animate}
+              className={`flex flex-col lg:flex-row gap-8 lg:gap-12 items-center ${
+                isReversed ? "lg:flex-row-reverse" : ""
+              }`}
             >
               {/* Image collage — 56% width on desktop */}
               <div className="w-full lg:w-[56%] shrink-0">
@@ -100,7 +103,7 @@ export default function PillarsSection({ content, enableAnimations, colorScheme 
                   isReversed ? "lg:items-end lg:text-right" : ""
                 }`}
               >
-                <div className="max-w-[480px]">
+                <div className={isReversed ? "max-w-[480px]" : "max-w-[480px]"}>
                   <h3 className={`text-h3 ${t.textPrimary} mb-3`}>{item.title}</h3>
                   <p className={`text-body-2 ${t.textPrimary} leading-relaxed`}>
                     {item.description}
@@ -116,7 +119,7 @@ export default function PillarsSection({ content, enableAnimations, colorScheme 
                   </div>
                 )}
               </div>
-            </div>
+            </AnimateOnScroll>
           )
         })}
       </div>

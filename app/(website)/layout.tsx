@@ -1,10 +1,44 @@
+import { DM_Serif_Display } from 'next/font/google'
 import { ThemeProvider } from '@/components/website/theme/theme-provider'
 import { FontLoader } from '@/components/website/font-loader'
 import { WebsiteNavbar } from '@/components/website/layout/website-navbar'
 import { WebsiteFooter } from '@/components/website/layout/website-footer'
+import QuickLinksFAB from '@/components/website/layout/quick-links-fab'
 import { getChurchId } from '@/lib/tenant/context'
 import { getSiteSettings } from '@/lib/dal/site-settings'
 import { getMenuByLocation } from '@/lib/dal/menus'
+
+const dmSerifDisplay = DM_Serif_Display({
+  weight: '400',
+  style: 'italic',
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-dm-serif-display',
+})
+
+/**
+ * Build QuickLinks data from the "Quick Links" group within the header menu.
+ * These are children of the first top-level item whose groupLabel contains
+ * items with groupLabel === "Quick Links".
+ */
+function extractQuickLinks(headerMenu: Awaited<ReturnType<typeof getMenuByLocation>>) {
+  if (!headerMenu) return []
+
+  for (const topItem of headerMenu.items) {
+    const quickLinkChildren = topItem.children.filter(
+      (c) => c.groupLabel?.toLowerCase() === 'quick links' && c.isVisible,
+    )
+    if (quickLinkChildren.length > 0) {
+      return quickLinkChildren.map((c) => ({
+        label: c.label,
+        href: c.href || '',
+        icon: c.iconName || 'link',
+        description: c.description || undefined,
+      }))
+    }
+  }
+  return []
+}
 
 export default async function WebsiteLayout({
   children,
@@ -19,8 +53,10 @@ export default async function WebsiteLayout({
     getMenuByLocation(churchId, 'FOOTER'),
   ])
 
+  const quickLinks = extractQuickLinks(headerMenu)
+
   return (
-    <>
+    <div className={dmSerifDisplay.variable}>
       <FontLoader churchId={churchId} />
       <ThemeProvider churchId={churchId}>
         <WebsiteNavbar
@@ -28,8 +64,19 @@ export default async function WebsiteLayout({
           logoUrl={siteSettings?.logoUrl ?? null}
           logoAlt={siteSettings?.logoAlt ?? null}
           siteName={siteSettings?.siteName ?? 'Church'}
+          ctaLabel={siteSettings?.enableMemberLogin ? "I\u2019m new" : "I\u2019m new"}
+          ctaHref="/im-new"
+          ctaVisible={true}
+          memberLoginLabel="Member Login"
+          memberLoginHref="/member-login"
+          memberLoginVisible={siteSettings?.enableMemberLogin ?? false}
         />
         <main>{children}</main>
+        <QuickLinksFAB
+          visible={quickLinks.length > 0}
+          title="Quick Links"
+          links={quickLinks}
+        />
         {siteSettings && (
           <WebsiteFooter
             menu={footerMenu}
@@ -37,6 +84,6 @@ export default async function WebsiteLayout({
           />
         )}
       </ThemeProvider>
-    </>
+    </div>
   )
 }

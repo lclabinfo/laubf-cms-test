@@ -61,7 +61,7 @@ export default function RecurringMeetingsSection({ content, colorScheme = "light
         <div className="flex justify-center mt-[32px]">
           <Link
             href={viewAllHref}
-            className="inline-flex items-center gap-2 text-button-1 text-black-2 transition-colors hover:text-black-1 hover:underline"
+            className="inline-flex items-center gap-2 text-button-1 text-black-2 transition-colors hover:text-black-1 hover:underline transition-all duration-3000 ease-in-out"
           >
             View all ({overflowCount})
             <IconArrowUpRight className="size-5" />

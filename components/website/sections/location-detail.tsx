@@ -1,10 +1,11 @@
 "use client"
 
 import SectionContainer from "@/components/website/shared/section-container"
+import OverlineLabel from "@/components/website/shared/overline-label"
 import CTAButton from "@/components/website/shared/cta-button"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import { IconExternalLink } from "@/components/website/shared/icons"
-import { cn } from "@/lib/utils"
 import Image from "next/image"
 
 interface LocationDetailContent {
@@ -32,8 +33,8 @@ export default function LocationDetailSection({ content, enableAnimations, color
     <SectionContainer colorScheme={colorScheme}>
       <div className="flex flex-col lg:flex-row gap-12 lg:gap-16 items-start">
         {/* Left column -- info */}
-        <div className={cn("lg:w-[40%]", animate && "animate-hero-fade-up")}>
-          <p className="text-overline text-black-3">{content.overline}</p>
+        <AnimateOnScroll animation="fade-left" enabled={animate} className="lg:w-[40%]">
+          <OverlineLabel text={content.overline} />
 
           {/* Time block */}
           <div className="mt-8">
@@ -68,11 +69,11 @@ export default function LocationDetailSection({ content, enableAnimations, color
               icon={<IconExternalLink className="ml-2 size-4" />}
             />
           </div>
-        </div>
+        </AnimateOnScroll>
 
         {/* Right column -- single image */}
-        <div className={cn("lg:w-[60%]", animate && "animate-hero-fade-up-delayed")}>
-          {content.images?.[0] && (
+        <AnimateOnScroll animation="fade-right" staggerIndex={1} staggerBaseMs={150} enabled={animate} className="lg:w-[60%]">
+          {content.images[0] && (
             <div className="rounded-2xl overflow-hidden relative aspect-[16/10]">
               <Image
                 src={content.images[0].src}
@@ -83,7 +84,7 @@ export default function LocationDetailSection({ content, enableAnimations, color
               />
             </div>
           )}
-        </div>
+        </AnimateOnScroll>
       </div>
     </SectionContainer>
   )

@@ -1,3 +1,11 @@
+/*
+ * CMS SETTINGS:
+ * - heading: string -- section title
+ * - subheading: string -- optional description
+ * - ctaLabel: string -- link text
+ * - ctaHref: string -- link destination
+ * - showCta: boolean -- show/hide CTA link
+ */
 "use client"
 
 import { useSectionTheme } from "@/components/website/shared/theme-tokens"

@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import SectionContainer from "@/components/website/shared/section-container"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import { cn } from "@/lib/utils"
 import { IconQuestionMark, IconChevronDown } from "@/components/website/shared/icons"
@@ -35,7 +36,7 @@ export default function FAQSection({ content, enableAnimations, colorScheme = "l
   return (
     <SectionContainer colorScheme={colorScheme} containerWidth="narrow">
       {/* Question mark icon circle */}
-      <div className={cn(animate && "animate-hero-fade-up")}>
+      <AnimateOnScroll animation="scale-up" enabled={animate}>
         {content.showIcon && (
           <div className={`w-16 h-16 rounded-full ${t.surfaceBg} border ${t.borderSubtle} flex items-center justify-center mx-auto mb-6`}>
             <IconQuestionMark className={`size-7 ${t.textPrimary}`} />
@@ -46,7 +47,7 @@ export default function FAQSection({ content, enableAnimations, colorScheme = "l
         <h2 className={`text-h2 ${t.textPrimary} text-center mb-12`}>
           {content.heading}
         </h2>
-      </div>
+      </AnimateOnScroll>
 
       {/* Accordion items */}
       <div className="flex flex-col gap-3">
@@ -78,7 +79,7 @@ export default function FAQSection({ content, enableAnimations, colorScheme = "l
                 />
               </button>
 
-              {/* Answer — animated with CSS grid */}
+              {/* Answer -- animated with CSS grid */}
               <div
                 className="grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
                 style={{

@@ -1,3 +1,6 @@
+/*
+ * CMS: Non-editable UI primitive -- arrow navigation button
+ */
 import { cn } from "@/lib/utils"
 
 const rotations = {

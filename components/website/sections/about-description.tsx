@@ -1,8 +1,8 @@
 "use client"
 
 import SectionContainer from "@/components/website/shared/section-container"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
-import { cn } from "@/lib/utils"
 import Image from "next/image"
 
 interface AboutDescriptionContent {
@@ -26,7 +26,7 @@ export default function AboutDescriptionSection({ content, enableAnimations, col
   return (
     <SectionContainer colorScheme={colorScheme}>
       {/* Centered header with logo */}
-      <div className={cn("flex flex-col items-center text-center max-w-[840px] mx-auto", animate && "animate-hero-fade-up")}>
+      <AnimateOnScroll animation="fade-up" enabled={animate} className="flex flex-col items-center text-center max-w-[840px] mx-auto">
         {/* Logo */}
         <div className="mb-5">
           <Image
@@ -45,11 +45,11 @@ export default function AboutDescriptionSection({ content, enableAnimations, col
         <p className={`text-body-1 ${t.textSecondary} leading-relaxed`}>
           {content.description}
         </p>
-      </div>
+      </AnimateOnScroll>
 
       {/* Video embed */}
       {content.videoUrl && (
-        <div className={cn("mt-12 lg:mt-16 max-w-[854px] mx-auto", animate && "animate-hero-fade-up-delayed")}>
+        <AnimateOnScroll animation="scale-up" staggerIndex={1} staggerBaseMs={200} enabled={animate} className="mt-12 lg:mt-16 max-w-[854px] mx-auto">
           <div className="relative aspect-video rounded-2xl overflow-hidden">
             <iframe
               src={content.videoUrl}
@@ -59,7 +59,7 @@ export default function AboutDescriptionSection({ content, enableAnimations, col
               allowFullScreen
             />
           </div>
-        </div>
+        </AnimateOnScroll>
       )}
     </SectionContainer>
   )

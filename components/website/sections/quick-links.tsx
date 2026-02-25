@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react"
 import SectionContainer from "@/components/website/shared/section-container"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import { themeTokens, eventTypeColors, EVENT_TYPE_FALLBACK_COLOR, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import {
   IconClock,
@@ -12,7 +13,6 @@ import {
   IconChevronRight,
   IconChevronDown,
 } from "@/components/website/shared/icons"
-import { cn } from "@/lib/utils"
 import Link from "next/link"
 
 interface Meeting {
@@ -52,8 +52,8 @@ export default function QuickLinksSection({ content, enableAnimations, colorSche
 
   return (
     <SectionContainer colorScheme={colorScheme}>
-      {/* Header */}
-      <div className={cn("flex items-end justify-between mb-8", animate && "animate-hero-fade-up")}>
+      {/* Header -- left aligned with nav arrows (arrows desktop only) */}
+      <AnimateOnScroll animation="fade-up" enabled={animate} className="flex items-end justify-between mb-8">
         <div>
           <h2 className={`text-h2 ${t.textPrimary}`}>{content.heading}</h2>
           {content.subtitle && (
@@ -63,7 +63,7 @@ export default function QuickLinksSection({ content, enableAnimations, colorSche
           )}
         </div>
 
-        {/* Carousel nav arrows — desktop only */}
+        {/* Carousel nav arrows -- desktop only */}
         <div className="hidden lg:flex items-center gap-2">
           <button
             onClick={() => scrollBy("left")}
@@ -80,7 +80,7 @@ export default function QuickLinksSection({ content, enableAnimations, colorSche
             <IconChevronRight className="size-4" />
           </button>
         </div>
-      </div>
+      </AnimateOnScroll>
 
       {/* Desktop: Horizontal scrolling carousel */}
       <div
@@ -103,16 +103,19 @@ export default function QuickLinksSection({ content, enableAnimations, colorSche
 function DesktopMeetingCard({ meeting }: { meeting: Meeting }) {
   return (
     <div className="min-w-[280px] max-w-[300px] shrink-0 snap-start bg-white-0 rounded-[20px] border border-white-2-5 shadow-[0px_12px_20px_0px_rgba(0,0,0,0.05)] p-6 flex flex-col">
+      {/* Type pill */}
       <span
         className={`self-start text-white-0 text-[11px] tracking-[0.24px] font-medium px-2.5 py-0.5 rounded-full uppercase mb-2 ${eventTypeColors[meeting.type] ?? EVENT_TYPE_FALLBACK_COLOR}`}
       >
         {meeting.type}
       </span>
 
+      {/* Title -- max 2 lines */}
       <h3 className="text-[18px] font-medium text-black-1 leading-snug line-clamp-2 mb-3">
         {meeting.title}
       </h3>
 
+      {/* Date & time */}
       <div className="flex flex-col gap-1.5 mb-5">
         {meeting.recurrenceSchedule && (
           <div className="flex items-center gap-2">
@@ -126,6 +129,7 @@ function DesktopMeetingCard({ meeting }: { meeting: Meeting }) {
         </div>
       </div>
 
+      {/* Spacer + actions */}
       <div className="mt-auto flex flex-col gap-2">
         {meeting.meetingUrl && (
           <a
@@ -164,15 +168,21 @@ function MobileQuickLinksList({ meetings }: { meetings: Meeting[] }) {
           key={meeting.slug}
           className="flex items-center gap-4 rounded-2xl border border-white-2-5 bg-white-0 px-4 py-4"
         >
+          {/* Left: pill, title, date & time -- stacked vertically */}
           <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+            {/* Type pill */}
             <span
               className={`self-start text-white-0 text-[10px] tracking-[0.2px] font-medium px-2 py-0.5 rounded-full uppercase ${eventTypeColors[meeting.type] ?? EVENT_TYPE_FALLBACK_COLOR}`}
             >
               {meeting.type}
             </span>
+
+            {/* Title */}
             <h3 className="text-[15px] font-medium text-black-1 leading-snug truncate">
               {meeting.title}
             </h3>
+
+            {/* Date & time row */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               {meeting.recurrenceSchedule && (
                 <span className="inline-flex items-center gap-1.5 text-[13px] text-black-3">
@@ -187,6 +197,7 @@ function MobileQuickLinksList({ meetings }: { meetings: Meeting[] }) {
             </div>
           </div>
 
+          {/* Right: link button */}
           <a
             href={meeting.meetingUrl ?? `/events/${meeting.slug}`}
             target={meeting.meetingUrl ? "_blank" : undefined}
@@ -199,6 +210,7 @@ function MobileQuickLinksList({ meetings }: { meetings: Meeting[] }) {
         </div>
       ))}
 
+      {/* Show more / Show less toggle */}
       {needsExpand && (
         <button
           onClick={() => setExpanded((prev) => !prev)}

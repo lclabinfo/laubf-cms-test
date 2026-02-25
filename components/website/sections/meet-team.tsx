@@ -1,9 +1,10 @@
 "use client"
 
 import SectionContainer from "@/components/website/shared/section-container"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
-import { cn } from "@/lib/utils"
 
+/** "First Last" -> "First L." from the name prop. */
 function displayName(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return ""
@@ -38,20 +39,20 @@ export default function MeetTeamSection({ content, enableAnimations, colorScheme
 
   return (
     <SectionContainer colorScheme={colorScheme}>
-      {/* Header — centered */}
-      <div className={cn("flex flex-col items-center text-center mb-12 lg:mb-16", animate && "animate-hero-fade-up")}>
+      {/* Header -- centered */}
+      <AnimateOnScroll animation="fade-up" enabled={animate} className="flex flex-col items-center text-center mb-12 lg:mb-16">
         {content.overline && (
           <p className={`text-h4 font-normal ${t.textMuted} mb-3`}>
             {content.overline}
           </p>
         )}
         <h2 className={`text-h2 ${t.textPrimary}`}>{content.heading}</h2>
-      </div>
+      </AnimateOnScroll>
 
-      {/* Team member cards — centered */}
+      {/* Team member cards -- centered */}
       <div className="flex flex-wrap justify-center gap-6">
         {content.members.map((member, i) => (
-          <div key={i} className={cn("flex flex-col w-full max-w-[280px]", animate && "animate-hero-fade-up-delayed")}>
+          <AnimateOnScroll key={i} animation="fade-up" staggerIndex={i} enabled={animate} className="flex flex-col w-full max-w-[280px]">
             {/* Photo */}
             <div className="relative w-full aspect-square rounded-xl overflow-hidden mb-4 bg-gradient-to-br from-white-2 to-white-1-5">
               <div className="absolute inset-0 flex items-center justify-center">
@@ -64,7 +65,7 @@ export default function MeetTeamSection({ content, enableAnimations, colorScheme
               </div>
             </div>
 
-            {/* Name — first name + last initial only */}
+            {/* Name -- first name + last initial only */}
             <h3 className={`text-h3 ${t.textPrimary}`}>
               {displayName(member.name)}
             </h3>
@@ -82,7 +83,7 @@ export default function MeetTeamSection({ content, enableAnimations, colorScheme
                 {member.bio}
               </p>
             )}
-          </div>
+          </AnimateOnScroll>
         ))}
       </div>
     </SectionContainer>

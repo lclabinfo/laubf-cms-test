@@ -4,8 +4,8 @@ import Image from "next/image"
 import { Users } from "lucide-react"
 import SectionContainer from "@/components/website/shared/section-container"
 import CTAButton from "@/components/website/shared/cta-button"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
-import { cn } from "@/lib/utils"
 
 interface NewcomerContent {
   heading: string
@@ -28,11 +28,10 @@ export default function NewcomerSection({ content, enableAnimations, colorScheme
   return (
     <SectionContainer colorScheme={colorScheme}>
       <div className="flex flex-col items-center gap-16 lg:gap-20">
-        <div
-          className={cn(
-            "flex flex-col items-center gap-10 text-center max-w-[640px] mx-auto",
-            animate && "animate-hero-fade-up"
-          )}
+        <AnimateOnScroll
+          animation="fade-up"
+          enabled={animate}
+          className="flex flex-col items-center gap-10 text-center max-w-[640px] mx-auto"
         >
           {/* Icon + text group */}
           <div className="flex flex-col items-center gap-4 w-full">
@@ -51,10 +50,10 @@ export default function NewcomerSection({ content, enableAnimations, colorScheme
             variant="primary"
             theme={colorScheme === "dark" ? "dark" : "light"}
           />
-        </div>
+        </AnimateOnScroll>
 
         {content.image && (
-          <div className={cn("w-full", animate && "animate-hero-fade-up-delayed")}>
+          <AnimateOnScroll animation="fade-up" enabled={animate} className="w-full">
             <div className="relative w-full h-[240px] md:h-[320px] lg:h-[400px] rounded-xl overflow-hidden">
               <Image
                 src={content.image.src}
@@ -64,7 +63,7 @@ export default function NewcomerSection({ content, enableAnimations, colorScheme
                 style={{ objectPosition: content.image.objectPosition ?? "center" }}
               />
             </div>
-          </div>
+          </AnimateOnScroll>
         )}
       </div>
     </SectionContainer>

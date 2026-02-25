@@ -2,8 +2,8 @@
 
 import SectionContainer from "@/components/website/shared/section-container"
 import ImageCard from "@/components/website/shared/image-card"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import CTAButton from "@/components/website/shared/cta-button"
-import { cn } from "@/lib/utils"
 import type { SectionTheme } from "@/components/website/shared/theme-tokens"
 
 interface ImageCardData {
@@ -35,7 +35,7 @@ export default function ActionCardGridSection({ content, enableAnimations, color
     <SectionContainer colorScheme={colorScheme}>
       <div className="flex flex-col gap-10 lg:flex-row lg:gap-10">
         {/* Left header */}
-        <div className={cn("flex flex-col gap-5 lg:w-[280px] lg:shrink-0", animate && "animate-hero-fade-up")}>
+        <AnimateOnScroll animation="fade-left" enabled={animate} className="flex flex-col gap-5 lg:w-[280px] lg:shrink-0">
           <h2 className="text-h2 text-black-1 leading-none">
             <span>{content.heading.line1}</span>
             <br />
@@ -54,14 +54,14 @@ export default function ActionCardGridSection({ content, enableAnimations, color
               className="w-fit"
             />
           )}
-        </div>
+        </AnimateOnScroll>
 
         {/* 2x2 grid */}
         <div className="grid flex-1 grid-cols-1 gap-5 lg:grid-cols-2">
-          {content.cards.map((card) => (
-            <div key={card.id} className={cn(animate && "animate-hero-fade-up-delayed")}>
+          {content.cards.map((card, i) => (
+            <AnimateOnScroll key={card.id} animation="fade-up" staggerIndex={i} enabled={animate}>
               <ImageCard data={card} />
-            </div>
+            </AnimateOnScroll>
           ))}
         </div>
       </div>

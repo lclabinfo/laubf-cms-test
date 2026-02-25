@@ -1,3 +1,10 @@
+/*
+ * CMS SETTINGS:
+ * - visible: boolean -- toggles entire section rendering
+ * - colorScheme: 'dark' | 'light' -- sets theme context for all children
+ * - paddingY: 'compact' | 'default' | 'spacious' -- vertical spacing preset
+ * - containerWidth: 'standard' | 'narrow' | 'full' -- content width
+ */
 "use client"
 
 import { SectionThemeContext, themeTokens, type SectionTheme } from "./theme-tokens"

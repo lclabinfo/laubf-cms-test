@@ -2,8 +2,8 @@
 
 import SectionContainer from "@/components/website/shared/section-container"
 import CTAButton from "@/components/website/shared/cta-button"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
-import { cn } from "@/lib/utils"
 import Image from "next/image"
 
 interface FeatureBreakdownContent {
@@ -39,9 +39,9 @@ export default function FeatureBreakdownSection({ content, enableAnimations, col
 
       <div className="relative z-10 flex flex-col gap-4 lg:gap-0 mx-auto w-[80%] sm:w-full">
         {/* Heading */}
-        <div className={cn(animate && "animate-hero-fade-up")}>
+        <AnimateOnScroll animation="fade-up" enabled={animate}>
           <h2 className={`text-h2 ${t.textPrimary} mb-2 lg:mb-10`}>{content.heading}</h2>
-        </div>
+        </AnimateOnScroll>
 
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-16">
           {/* Left column — stacked acronym words with first-letter highlight */}
@@ -58,7 +58,7 @@ export default function FeatureBreakdownSection({ content, enableAnimations, col
           </div>
 
           {/* Right column — description + CTA */}
-          <div className={cn("flex flex-col gap-8 lg:w-[65%]", animate && "animate-hero-fade-up-delayed")}>
+          <AnimateOnScroll animation="fade-right" enabled={animate} className="flex flex-col gap-8 lg:w-[65%]">
             <p className={`text-body-1 ${t.textSecondary} leading-relaxed`}>
               {content.description}
             </p>
@@ -71,7 +71,7 @@ export default function FeatureBreakdownSection({ content, enableAnimations, col
                 className="self-start"
               />
             )}
-          </div>
+          </AnimateOnScroll>
         </div>
       </div>
     </SectionContainer>

@@ -1,3 +1,13 @@
+/*
+ * CMS SETTINGS (per card):
+ * - title: string -- event name
+ * - date: string -- formatted date/time string
+ * - location: string -- venue name
+ * - imageUrl: string -- card background image
+ * - badge: string -- optional badge text (e.g. "UPCOMING")
+ * - href: string -- link to event detail page
+ * Size: 'large' (590x500 primary) or 'small' (590x240 secondary)
+ */
 import { cn } from "@/lib/utils"
 import Image from "next/image"
 import EventBadge from "./event-badge"

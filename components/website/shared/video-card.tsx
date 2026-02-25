@@ -1,3 +1,11 @@
+/*
+ * VideoCard -- YouTube-inspired card for the Videos explore page
+ *
+ * Displays a thumbnail with play overlay + duration badge,
+ * then category pill, date, and title below. Clicking opens
+ * a video modal (onClick handler, not a Link).
+ */
+
 interface Video {
   id: string
   title: string
@@ -60,7 +68,9 @@ export default function VideoCard({
       </div>
 
       {/* Content area */}
+      {/* Content area */}
       <div className="pt-3 pb-1 px-1">
+        {/* Category + Date */}
         <div className="flex items-center gap-2 mb-1.5">
           <span className="text-[10px] font-bold text-black-1 uppercase tracking-[0.02em]">
             {video.category}
@@ -70,6 +80,8 @@ export default function VideoCard({
             {formatDate(video.datePublished)}
           </span>
         </div>
+
+        {/* Title */}
         <h3 className="text-[18px] font-medium text-black-1 leading-[1.2] tracking-[-0.36px] line-clamp-2">
           {video.title}
         </h3>

@@ -1,8 +1,9 @@
 "use client"
 
 import SectionContainer from "@/components/website/shared/section-container"
+import OverlineLabel from "@/components/website/shared/overline-label"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
-import { cn } from "@/lib/utils"
 import Image from "next/image"
 
 interface TimelineItem {
@@ -34,8 +35,8 @@ export default function TimelineSection({ content, enableAnimations, colorScheme
   return (
     <SectionContainer colorScheme={colorScheme}>
       {/* Header area */}
-      <div className={cn("mb-12", animate && "animate-hero-fade-up")}>
-        <p className="text-overline text-brand-1">{content.overline}</p>
+      <AnimateOnScroll animation="fade-up" enabled={animate} className="mb-12">
+        <OverlineLabel text={content.overline} className="text-brand-1" />
         <h2 className={`text-h2 ${t.textPrimary} mt-3`}>
           {content.heading}
         </h2>
@@ -44,12 +45,12 @@ export default function TimelineSection({ content, enableAnimations, colorScheme
             {content.description}
           </p>
         )}
-      </div>
+      </AnimateOnScroll>
 
       {/* Two-column layout: image left, timeline right */}
       <div className="flex flex-col lg:flex-row gap-12 lg:gap-16">
         {/* Left column -- image */}
-        <div className={cn("lg:w-[40%] shrink-0", animate && "animate-hero-fade-up-delayed")}>
+        <AnimateOnScroll animation="fade-left" enabled={animate} className="lg:w-[40%] shrink-0">
           {content.imageSrc ? (
             <div className="relative aspect-[3/4] w-full max-h-[500px] rounded-2xl overflow-hidden">
               <Image
@@ -70,7 +71,7 @@ export default function TimelineSection({ content, enableAnimations, colorScheme
               />
             </div>
           ) : null}
-        </div>
+        </AnimateOnScroll>
 
         {/* Right column -- timeline items */}
         <div className="lg:w-[60%] flex items-center">

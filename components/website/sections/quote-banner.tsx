@@ -1,7 +1,8 @@
 "use client"
 
 import SectionContainer from "@/components/website/shared/section-container"
-import { cn } from "@/lib/utils"
+import OverlineLabel from "@/components/website/shared/overline-label"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import type { SectionTheme } from "@/components/website/shared/theme-tokens"
 
 interface QuoteBannerContent {
@@ -40,19 +41,19 @@ export default function QuoteBannerSection({ content, enableAnimations }: Props)
         />
 
         {/* Content */}
-        <div className={cn("relative flex flex-col items-center gap-4 lg:gap-6", animate && "animate-hero-fade-up")}>
-          <p className="text-overline text-white-3">{content.overline}</p>
+        <AnimateOnScroll animation="fade-up" enabled={animate} className="relative flex flex-col items-center gap-4 lg:gap-6">
+          <OverlineLabel text={content.overline} className="text-white-3" />
           <h2 className="text-script-heading text-white-1">
             {content.heading}
           </h2>
-        </div>
+        </AnimateOnScroll>
 
-        <div className={cn("relative flex flex-col items-center gap-4", animate && "animate-hero-fade-up-delayed")}>
+        <AnimateOnScroll animation="fade-in" staggerIndex={1} staggerBaseMs={200} enabled={animate} className="relative flex flex-col items-center gap-4">
           <p className="text-body-1 text-white-2 max-w-[960px] leading-[1.5]">
             {content.verse.text}
           </p>
           <p className="text-h4 text-white-3">{content.verse.reference}</p>
-        </div>
+        </AnimateOnScroll>
       </div>
     </SectionContainer>
   )

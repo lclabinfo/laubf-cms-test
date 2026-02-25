@@ -2,9 +2,9 @@
 
 import SectionContainer from "@/components/website/shared/section-container"
 import CTAButton from "@/components/website/shared/cta-button"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import { IconMapPin, IconExternalLink } from "@/components/website/shared/icons"
-import { cn } from "@/lib/utils"
 import Image from "next/image"
 
 interface ScheduleEntry {
@@ -42,7 +42,7 @@ export default function MinistryScheduleSection({ content, enableAnimations, col
     <SectionContainer colorScheme={colorScheme}>
       <div className="flex flex-col lg:flex-row gap-10 lg:gap-16 items-start">
         {/* Left column */}
-        <div className={cn(hasImage ? "w-full lg:w-[50%]" : "w-full lg:w-[40%]", animate && "animate-hero-fade-up")}>
+        <AnimateOnScroll animation="fade-left" enabled={animate} className={hasImage ? "w-full lg:w-[50%]" : "w-full lg:w-[40%]"}>
           {content.logo && (
             <div className="mb-6">
               <Image
@@ -65,6 +65,7 @@ export default function MinistryScheduleSection({ content, enableAnimations, col
             </p>
           )}
 
+          {/* Simple time + address layout (children variant) */}
           {content.timeValue && (
             <div className="mb-4">
               <p className={`text-h4 ${t.textMuted} mb-1`}>Time</p>
@@ -96,10 +97,10 @@ export default function MinistryScheduleSection({ content, enableAnimations, col
               />
             </div>
           )}
-        </div>
+        </AnimateOnScroll>
 
         {/* Right column */}
-        <div className={cn(hasImage ? "w-full lg:w-[50%]" : "w-full lg:w-[60%]", animate && "animate-hero-fade-up-delayed")}>
+        <AnimateOnScroll animation="fade-right" staggerIndex={1} staggerBaseMs={150} enabled={animate} className={hasImage ? "w-full lg:w-[50%]" : "w-full lg:w-[60%]"}>
           {hasImage ? (
             <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden">
               <Image
@@ -111,6 +112,7 @@ export default function MinistryScheduleSection({ content, enableAnimations, col
               />
             </div>
           ) : (
+            /* Schedule entries layout (college variant) */
             content.scheduleEntries && content.scheduleEntries.length > 0 && (
               <div>
                 {content.scheduleLabel && (
@@ -132,6 +134,7 @@ export default function MinistryScheduleSection({ content, enableAnimations, col
                   ))}
                 </div>
 
+                {/* Buttons below schedule */}
                 {content.buttons && content.buttons.length > 0 && (
                   <div className="flex flex-wrap gap-3 mt-8">
                     {content.buttons.map((btn, i) => (
@@ -147,7 +150,7 @@ export default function MinistryScheduleSection({ content, enableAnimations, col
               </div>
             )
           )}
-        </div>
+        </AnimateOnScroll>
       </div>
     </SectionContainer>
   )

@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import SectionContainer from "@/components/website/shared/section-container"
+import OverlineLabel from "@/components/website/shared/overline-label"
+import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import CTAButton from "@/components/website/shared/cta-button"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import { IconChevronDown, IconCheck } from "@/components/website/shared/icons"
@@ -60,18 +62,19 @@ export default function FormSection({ content, enableAnimations, colorScheme = "
   return (
     <SectionContainer colorScheme={colorScheme}>
       {/* Header area -- centered text */}
-      <div className={cn("flex flex-col items-center text-center mb-12", animate && "animate-hero-fade-up")}>
-        <p className="text-overline text-black-3 mb-4">{content.overline}</p>
+      <AnimateOnScroll animation="fade-up" enabled={animate} className="flex flex-col items-center text-center mb-12">
+        <OverlineLabel text={content.overline} className="mb-4" />
         <h2 className={`text-h2 ${t.textPrimary} text-center`}>
           {content.heading}
         </h2>
         <p className={`text-body-1 ${t.textSecondary} text-center max-w-2xl mx-auto mt-4`}>
           {content.description}
         </p>
-      </div>
+      </AnimateOnScroll>
 
       {/* White form card */}
       {submitted ? (
+        /* Success state */
         <div className="bg-white-0 rounded-[40px] p-8 lg:p-12 max-w-[800px] mx-auto">
           <div className="flex flex-col items-center justify-center text-center gap-4 py-16">
             <div className="w-16 h-16 rounded-full bg-brand-1/20 flex items-center justify-center">
@@ -139,6 +142,7 @@ export default function FormSection({ content, enableAnimations, colorScheme = "
                 ))}
               </div>
 
+              {/* Other specify field */}
               {showOtherField && (
                 <div className="mt-3">
                   <input

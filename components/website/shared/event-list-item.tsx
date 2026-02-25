@@ -1,3 +1,12 @@
+/*
+ * CMS SETTINGS (per list item):
+ * - title: string -- event name
+ * - dateStart: Date -- start date
+ * - dateEnd: Date -- optional end date
+ * - time: string -- formatted time range
+ * - type: 'meeting' | 'event' -- determines type pill color
+ * - href: string -- link to event detail
+ */
 import { cn } from "@/lib/utils"
 import TypePill from "./type-pill"
 
@@ -82,11 +91,15 @@ export default function EventListItem({
                 {data.recurrenceSchedule}
               </span>
             ) : (
-              <span className="sm:hidden text-body-3 text-black-3 whitespace-nowrap">
-                {formatMobileDate(data.dateStart, data.dateEnd ?? undefined)}
-              </span>
+              <>
+                {/* Mobile inline date */}
+                <span className="sm:hidden text-body-3 text-black-3 whitespace-nowrap">
+                  {formatMobileDate(data.dateStart, data.dateEnd ?? undefined)}
+                </span>
+              </>
             )}
           </div>
+          {/* Time -- stacks below pill row on mobile */}
           {!data.recurrenceSchedule && data.time && (
             <span className="text-body-3 text-black-3 whitespace-nowrap">{data.time}</span>
           )}

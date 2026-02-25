@@ -1,3 +1,7 @@
+/*
+ * CMS SETTINGS:
+ * - text: string -- overline label text (auto-uppercased via CSS)
+ */
 "use client"
 
 import { useSectionTheme } from "./theme-tokens"
