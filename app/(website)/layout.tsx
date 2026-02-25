@@ -1,4 +1,3 @@
-import { DM_Serif_Display } from 'next/font/google'
 import { ThemeProvider } from '@/components/website/theme/theme-provider'
 import { FontLoader } from '@/components/website/font-loader'
 import { WebsiteNavbar } from '@/components/website/layout/website-navbar'
@@ -7,14 +6,6 @@ import QuickLinksFAB from '@/components/website/layout/quick-links-fab'
 import { getChurchId } from '@/lib/tenant/context'
 import { getSiteSettings } from '@/lib/dal/site-settings'
 import { getMenuByLocation } from '@/lib/dal/menus'
-
-const dmSerifDisplay = DM_Serif_Display({
-  weight: '400',
-  style: 'italic',
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-dm-serif-display',
-})
 
 /**
  * Build QuickLinks data from the "Quick Links" group within the header menu.
@@ -56,7 +47,7 @@ export default async function WebsiteLayout({
   const quickLinks = extractQuickLinks(headerMenu)
 
   return (
-    <div className={dmSerifDisplay.variable}>
+    <>
       <FontLoader churchId={churchId} />
       <ThemeProvider churchId={churchId}>
         <WebsiteNavbar
@@ -84,6 +75,6 @@ export default async function WebsiteLayout({
           />
         )}
       </ThemeProvider>
-    </div>
+    </>
   )
 }

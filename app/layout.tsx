@@ -1,9 +1,17 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Inter } from "next/font/google";
+import { Geist, Geist_Mono, Inter, DM_Serif_Display } from "next/font/google";
 import "./globals.css";
 import { Agentation } from "agentation";
 
-const inter = Inter({subsets:['latin'],variable:'--font-sans'});
+const inter = Inter({subsets:['latin'],variable:'--font-inter'});
+
+const dmSerifDisplay = DM_Serif_Display({
+  weight: '400',
+  style: 'italic',
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-dm-serif-display',
+});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,7 +34,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang="en" className={`${inter.variable} ${dmSerifDisplay.variable}`}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >

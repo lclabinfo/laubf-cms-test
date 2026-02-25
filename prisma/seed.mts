@@ -571,8 +571,10 @@ async function main() {
       backgroundColor: '#FAFAFA',
       textColor: '#0D0D0D',
       headingColor: '#0D0D0D',
-      headingFont: 'Helvetica Neue',
-      bodyFont: 'Helvetica Neue',
+      // headingFont and bodyFont left null — LA UBF uses the CSS defaults
+      // (DM Serif Display for headings, Helvetica Neue for body) defined in
+      // globals.css.  Setting null lets ThemeProvider skip overriding --font-serif
+      // and --font-sans, preserving the next/font-optimized font stacks.
       baseFontSize: 16,
       borderRadius: '0.5rem',
       tokenOverrides: {
