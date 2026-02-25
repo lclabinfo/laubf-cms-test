@@ -13,6 +13,10 @@ import {
   BuilderRightDrawer,
   type SectionEditorData,
 } from "./builder-right-drawer"
+import {
+  type NavbarSettings,
+  defaultNavbarSettings,
+} from "./section-editors/navbar-editor"
 import { PageTree } from "./page-tree"
 import { PageSettingsModal, type PageSettingsData } from "./page-settings-modal"
 import { AddPageModal } from "./add-page-modal"
@@ -87,6 +91,12 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
 
   // Right drawer editing: track which section is being edited
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null)
+
+  // Navbar editor
+  const [editingNavbar, setEditingNavbar] = useState(false)
+  const [navbarSettings, setNavbarSettings] = useState<NavbarSettings>(
+    defaultNavbarSettings,
+  )
 
   // Page modals
   const [pageSettingsOpen, setPageSettingsOpen] = useState(false)
@@ -271,7 +281,9 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        if (editingSectionId) {
+        if (editingNavbar) {
+          setEditingNavbar(false)
+        } else if (editingSectionId) {
           setEditingSectionId(null)
         } else if (selectedSectionId) {
           setSelectedSectionId(null)
@@ -305,7 +317,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [selectedSectionId, activeTool, editingSectionId])
+  }, [selectedSectionId, activeTool, editingSectionId, editingNavbar])
 
   // -------------------------------------------------------------------------
   // Publish toggle
@@ -437,6 +449,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
 
   const handleEditSection = useCallback(
     (sectionId: string) => {
+      setEditingNavbar(false)
       setEditingSectionId(sectionId)
       setSelectedSectionId(sectionId)
     },
@@ -511,6 +524,28 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
       setIsDirty(true)
     },
     [editingSectionId, pushSnapshot],
+  )
+
+  // -------------------------------------------------------------------------
+  // Navbar editing
+  // -------------------------------------------------------------------------
+
+  const handleNavbarClick = useCallback(() => {
+    // Close any section editor and open navbar editor
+    setEditingSectionId(null)
+    setEditingNavbar(true)
+  }, [])
+
+  const handleNavbarClose = useCallback(() => {
+    setEditingNavbar(false)
+  }, [])
+
+  const handleNavbarSettingsChange = useCallback(
+    (settings: NavbarSettings) => {
+      setNavbarSettings(settings)
+      // TODO: persist navbar settings via API when site-settings supports it
+    },
+    [],
   )
 
   // -------------------------------------------------------------------------
@@ -775,10 +810,14 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
         <BuilderCanvas
           sections={sections}
           selectedSectionId={selectedSectionId}
-          onSelectSection={setSelectedSectionId}
+          onSelectSection={(id) => {
+            setSelectedSectionId(id)
+            setEditingNavbar(false)
+          }}
           onDeselectSection={() => {
             setSelectedSectionId(null)
             setEditingSectionId(null)
+            setEditingNavbar(false)
           }}
           onAddSection={openSectionPicker}
           onDeleteSection={handleDeleteSection}
@@ -789,14 +828,19 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
           pageSlug={pageData.slug}
           websiteThemeTokens={websiteThemeTokens}
           navbarData={navbarData}
+          onNavbarClick={handleNavbarClick}
+          isNavbarEditing={editingNavbar}
         />
 
-        {/* Right Drawer (320px, animated) — inline section editor */}
+        {/* Right Drawer (320px, animated) — inline section / navbar editor */}
         <BuilderRightDrawer
           section={editingSection}
           onClose={handleCloseEditor}
           onChange={handleSectionEditorChange}
           onDelete={handleDeleteSection}
+          navbarSettings={editingNavbar ? navbarSettings : null}
+          onNavbarClose={handleNavbarClose}
+          onNavbarChange={handleNavbarSettingsChange}
         />
       </div>
 

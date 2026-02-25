@@ -19,6 +19,10 @@ import {
   type DisplaySettingsData,
 } from "./section-editors/display-settings"
 import { JsonEditor } from "./section-editors/json-editor"
+import {
+  NavbarEditor,
+  type NavbarSettings,
+} from "./section-editors/navbar-editor"
 
 // Re-export these types for use in builder-shell
 export interface SectionEditorData {
@@ -38,6 +42,10 @@ interface BuilderRightDrawerProps {
   onClose: () => void
   onChange: (data: Partial<SectionEditorData>) => void
   onDelete: (sectionId: string) => void
+  /** Navbar editor mode */
+  navbarSettings: NavbarSettings | null
+  onNavbarClose: () => void
+  onNavbarChange: (settings: NavbarSettings) => void
 }
 
 /**
@@ -183,11 +191,20 @@ export function BuilderRightDrawer({
   onClose,
   onChange,
   onDelete,
+  navbarSettings,
+  onNavbarClose,
+  onNavbarChange,
 }: BuilderRightDrawerProps) {
-  const isOpen = section !== null
+  const showSection = section !== null && navbarSettings === null
+  const showNavbar = navbarSettings !== null
+  const isOpen = showSection || showNavbar
+
   const typeLabel = section
     ? sectionTypeLabels[section.sectionType] ?? section.sectionType
     : ""
+
+  const title = showNavbar ? "Navbar" : `Edit ${typeLabel}`
+  const handleClose = showNavbar ? onNavbarClose : onClose
 
   return (
     <div
@@ -196,18 +213,18 @@ export function BuilderRightDrawer({
         isOpen ? "w-[320px] opacity-100" : "w-0 opacity-0",
       )}
     >
-      {isOpen && section && (
+      {isOpen && (
         <>
           {/* Header */}
           <div className="h-14 border-b flex items-center justify-between px-4 bg-muted/30 shrink-0">
             <h3 className="font-semibold text-xs uppercase tracking-wider text-foreground truncate pr-2">
-              Edit {typeLabel}
+              {title}
             </h3>
             <Button
               variant="ghost"
               size="icon-xs"
               className="rounded-full text-muted-foreground shrink-0"
-              onClick={onClose}
+              onClick={handleClose}
             >
               <X className="size-3.5" />
             </Button>
@@ -216,12 +233,20 @@ export function BuilderRightDrawer({
           {/* Scrollable content */}
           <ScrollArea className="flex-1">
             <div className="p-4">
-              <SectionEditorInline
-                key={section.id}
-                section={section}
-                onChange={onChange}
-                onDelete={onDelete}
-              />
+              {showNavbar && navbarSettings && (
+                <NavbarEditor
+                  settings={navbarSettings}
+                  onChange={onNavbarChange}
+                />
+              )}
+              {showSection && section && (
+                <SectionEditorInline
+                  key={section.id}
+                  section={section}
+                  onChange={onChange}
+                  onDelete={onDelete}
+                />
+              )}
             </div>
           </ScrollArea>
         </>

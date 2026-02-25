@@ -18,12 +18,13 @@ import {
   arrayMove,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable"
+import { GripVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { SortableSection } from "./sortable-section"
 import { SectionAddTrigger } from "./section-add-trigger"
-import { SectionPreview } from "./section-preview"
 import { BuilderSectionRenderer } from "./builder-section-renderer"
 import { WebsiteNavbar } from "@/components/website/layout/website-navbar"
+import { sectionTypeLabels } from "@/components/cms/website/pages/section-picker-dialog"
 import type { NavbarData } from "./builder-shell"
 import type { BuilderSection, DeviceMode } from "./types"
 
@@ -41,6 +42,8 @@ interface BuilderCanvasProps {
   pageSlug: string
   websiteThemeTokens?: Record<string, string>
   navbarData?: NavbarData
+  onNavbarClick?: () => void
+  isNavbarEditing?: boolean
 }
 
 const deviceWidths: Record<DeviceMode, string> = {
@@ -62,6 +65,8 @@ export function BuilderCanvas({
   churchId,
   websiteThemeTokens,
   navbarData,
+  onNavbarClick,
+  isNavbarEditing,
 }: BuilderCanvasProps) {
   const [activeId, setActiveId] = useState<string | null>(null)
 
@@ -111,28 +116,45 @@ export function BuilderCanvas({
       {/* Device preview container — website theme scoped here only */}
       <div
         data-website=""
-        className={cn(
-          "mx-auto bg-white transition-all duration-300 ease-in-out overflow-hidden shadow-sm border rounded-lg",
-        )}
+        className="mx-auto bg-white transition-all duration-300 ease-in-out overflow-hidden shadow-sm border"
         style={{
           maxWidth: deviceWidths[deviceMode],
           minHeight: "calc(100vh - 120px)",
           ...(websiteThemeTokens as React.CSSProperties),
         }}
       >
-        {/* Website navbar preview (non-draggable, read-only) */}
+        {/* Website navbar preview — click body to edit, links are disabled in builder
+             The [&_header]:!static override removes sticky positioning so the border
+             overlay can cover the navbar correctly inside the builder canvas. */}
         {navbarData && (
-          <div className="pointer-events-none relative z-10">
-            <WebsiteNavbar
-              menu={navbarData.menu as Parameters<typeof WebsiteNavbar>[0]["menu"]}
-              logoUrl={navbarData.logoUrl}
-              logoAlt={navbarData.logoAlt}
-              siteName={navbarData.siteName}
-              ctaLabel={navbarData.ctaLabel}
-              ctaHref={navbarData.ctaHref}
-              ctaVisible={navbarData.ctaVisible}
-              memberLoginVisible={navbarData.memberLoginVisible}
-            />
+          <div
+            className={cn(
+              "relative z-[60] cursor-pointer group/navbar [&_header]:!static [&_header]:!z-auto",
+              isNavbarEditing
+                ? "border-2 border-blue-600 shadow-[0_0_0_4px_rgba(37,99,235,0.1)]"
+                : "border-2 border-transparent hover:border-blue-600/30",
+              "transition-all duration-200",
+            )}
+            onClick={(e) => {
+              // Prevent link navigation in builder context
+              e.preventDefault()
+              e.stopPropagation()
+              onNavbarClick?.()
+            }}
+          >
+            {/* pointer-events-none prevents links inside from navigating away from builder */}
+            <div className="pointer-events-none">
+              <WebsiteNavbar
+                menu={navbarData.menu as Parameters<typeof WebsiteNavbar>[0]["menu"]}
+                logoUrl={navbarData.logoUrl}
+                logoAlt={navbarData.logoAlt}
+                siteName={navbarData.siteName}
+                ctaLabel={navbarData.ctaLabel}
+                ctaHref={navbarData.ctaHref}
+                ctaVisible={navbarData.ctaVisible}
+                memberLoginVisible={navbarData.memberLoginVisible}
+              />
+            </div>
           </div>
         )}
 
@@ -202,16 +224,21 @@ export function BuilderCanvas({
             )}
           </SortableContext>
 
-          {/* Drag overlay — lightweight preview, not real component */}
-          <DragOverlay>
+          {/* Drag overlay — compact label card, positioned at cursor */}
+          <DragOverlay dropAnimation={null}>
             {activeDragSection && (
-              <div className="opacity-80 shadow-2xl rounded-lg overflow-hidden">
-                <SectionPreview
-                  type={activeDragSection.sectionType}
-                  content={activeDragSection.content}
-                  colorScheme={activeDragSection.colorScheme}
-                  label={activeDragSection.label}
-                />
+              <div className="bg-background/95 backdrop-blur-sm shadow-2xl rounded-lg border px-4 py-3 flex items-center gap-3 w-[280px]">
+                <GripVertical className="size-4 text-muted-foreground shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-sm font-medium truncate">
+                    {activeDragSection.label ||
+                      sectionTypeLabels[activeDragSection.sectionType] ||
+                      activeDragSection.sectionType}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {sectionTypeLabels[activeDragSection.sectionType] || activeDragSection.sectionType}
+                  </div>
+                </div>
               </div>
             )}
           </DragOverlay>
