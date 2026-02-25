@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getPageForAdmin, updatePage, deletePage } from '@/lib/dal/pages'
 
@@ -42,6 +43,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
 
     const updated = await updatePage(churchId, existing.id, body)
+
+    // Revalidate both the old slug path and new slug path (if slug changed)
+    revalidatePath(`/${slug}`)
+    if (body.slug && body.slug !== slug) {
+      revalidatePath(`/${body.slug}`)
+    }
+    // If this is the homepage, also revalidate the root
+    if (existing.isHomepage || body.isHomepage) {
+      revalidatePath('/')
+    }
+
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
     console.error('PATCH /api/v1/pages/[slug] error:', error)
@@ -66,6 +78,14 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     }
 
     await deletePage(churchId, existing.id)
+
+    // Revalidate the deleted page's path
+    revalidatePath(`/${slug}`)
+    // If this was the homepage, also revalidate root
+    if (existing.isHomepage) {
+      revalidatePath('/')
+    }
+
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {
     console.error('DELETE /api/v1/pages/[slug] error:', error)

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { updateDailyBread } from '@/lib/dal/daily-bread'
 import { prisma } from '@/lib/db'
@@ -55,6 +56,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
 
     const updated = await updateDailyBread(churchId, existing.id, body)
+
+    // Revalidate public website pages that display daily bread
+    revalidatePath('/(website)', 'layout')
+
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
     console.error('PATCH /api/v1/daily-bread/[date] error:', error)

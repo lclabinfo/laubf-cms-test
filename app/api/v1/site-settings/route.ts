@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getSiteSettings, updateSiteSettings } from '@/lib/dal/site-settings'
 
@@ -23,6 +24,10 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
 
     const updated = await updateSiteSettings(churchId, body)
+
+    // Revalidate entire website layout (site settings affect navbar, footer, etc.)
+    revalidatePath('/(website)', 'layout')
+
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
     console.error('PATCH /api/v1/site-settings error:', error)

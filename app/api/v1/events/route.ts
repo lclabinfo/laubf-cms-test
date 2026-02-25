@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getEvents, createEvent, type EventFilters } from '@/lib/dal/events'
 import { ContentStatus, type EventType } from '@/lib/generated/prisma/client'
@@ -59,6 +60,9 @@ export async function POST(request: NextRequest) {
     }
 
     const event = await createEvent(churchId, body)
+
+    // Revalidate public website pages that display events
+    revalidatePath('/(website)', 'layout')
 
     return NextResponse.json({ success: true, data: event }, { status: 201 })
   } catch (error) {

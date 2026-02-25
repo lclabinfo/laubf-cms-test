@@ -499,7 +499,7 @@ export function AddPageModal({
                         className={cn(
                           "size-10 rounded-md flex items-center justify-center shrink-0 mt-0.5",
                           template.category === "cms"
-                            ? "bg-amber-100 text-amber-700"
+                            ? "bg-amber-500/15 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400"
                             : "bg-muted text-muted-foreground"
                         )}
                       >
@@ -614,8 +614,8 @@ export function AddPageModal({
                       {selectedTemplate.category === "cms" && (
                         <div className="absolute inset-0 bg-background/60 backdrop-blur-[2px] flex items-center justify-center z-20">
                           <div className="bg-background p-8 rounded-2xl shadow-2xl border max-w-md text-center">
-                            <div className="size-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-100">
-                              <Database className="size-8 text-amber-600" />
+                            <div className="size-16 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-amber-500/20">
+                              <Database className="size-8 text-amber-600 dark:text-amber-400" />
                             </div>
                             <h3 className="font-bold text-xl mb-2">
                               Data-Driven Template
@@ -629,7 +629,7 @@ export function AddPageModal({
                               <span className="text-[10px] font-mono bg-muted px-2 py-1 rounded text-muted-foreground">
                                 Read-only Structure
                               </span>
-                              <span className="text-[10px] font-mono bg-amber-50 px-2 py-1 rounded text-amber-700">
+                              <span className="text-[10px] font-mono bg-amber-500/10 px-2 py-1 rounded text-amber-700 dark:text-amber-400">
                                 Dynamic Content
                               </span>
                             </div>
@@ -677,13 +677,13 @@ export function AddPageModal({
                 /* CMS template configuration */
                 <div className="space-y-5">
                   {/* CMS info banner */}
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
-                    <Database className="size-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3 dark:bg-amber-950/30 dark:border-amber-900">
+                    <Database className="size-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="font-medium text-amber-900 text-sm">
+                      <h4 className="font-medium text-amber-900 dark:text-amber-200 text-sm">
                         CMS Connection Required
                       </h4>
-                      <p className="text-amber-700 text-xs mt-1">
+                      <p className="text-amber-700 dark:text-amber-300 text-xs mt-1">
                         The{" "}
                         <strong>{selectedTemplate.title}</strong>{" "}
                         template requires a data source.

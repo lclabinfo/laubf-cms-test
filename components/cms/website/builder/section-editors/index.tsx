@@ -6,7 +6,13 @@ import { ContentEditor } from "./content-editor"
 import { CardsEditor } from "./cards-editor"
 import { DataSectionEditor } from "./data-section-editor"
 import { FAQEditor } from "./faq-editor"
+import { TimelineEditor } from "./timeline-editor"
+import { FormEditor } from "./form-editor"
 import { CustomEditor } from "./custom-editor"
+import { MinistryEditor } from "./ministry-editor"
+import { FooterEditor } from "./footer-editor"
+import { PhotoGalleryEditor } from "./photo-gallery-editor"
+import { ScheduleEditor } from "./schedule-editor"
 import { JsonEditor } from "./json-editor"
 
 /**
@@ -29,7 +35,7 @@ const HERO_TYPES: SectionType[] = [
   "MINISTRY_HERO",
 ]
 
-// Content section types
+// Content section types (with dedicated sub-editors in content-editor.tsx)
 const CONTENT_TYPES: SectionType[] = [
   "MEDIA_TEXT",
   "QUOTE_BANNER",
@@ -49,7 +55,7 @@ const CARDS_TYPES: SectionType[] = [
   "NEWCOMER",
 ]
 
-// Data-driven section types
+// Data-driven section types (content fetched from CMS database)
 const DATA_TYPES: SectionType[] = [
   "ALL_MESSAGES",
   "ALL_EVENTS",
@@ -58,8 +64,19 @@ const DATA_TYPES: SectionType[] = [
   "UPCOMING_EVENTS",
   "EVENT_CALENDAR",
   "RECURRING_MEETINGS",
-  "RECURRING_SCHEDULE",
   "MEDIA_GRID",
+  "QUICK_LINKS",
+  "DAILY_BREAD_FEATURE",
+]
+
+// Ministry section types
+const MINISTRY_TYPES: SectionType[] = [
+  "MINISTRY_INTRO",
+  "MINISTRY_SCHEDULE",
+  "CAMPUS_CARD_GRID",
+  "MEET_TEAM",
+  "LOCATION_DETAIL",
+  "DIRECTORY_LIST",
 ]
 
 // Custom section types
@@ -119,9 +136,45 @@ export function SectionContentEditor({
     )
   }
 
+  // Ministry
+  if (MINISTRY_TYPES.includes(sectionType)) {
+    return (
+      <MinistryEditor
+        sectionType={sectionType}
+        content={content}
+        onChange={onChange}
+      />
+    )
+  }
+
   // FAQ
   if (sectionType === "FAQ_SECTION") {
     return <FAQEditor content={content} onChange={onChange} />
+  }
+
+  // Timeline
+  if (sectionType === "TIMELINE_SECTION") {
+    return <TimelineEditor content={content} onChange={onChange} />
+  }
+
+  // Contact Form
+  if (sectionType === "FORM_SECTION") {
+    return <FormEditor content={content} onChange={onChange} />
+  }
+
+  // Footer
+  if (sectionType === "FOOTER") {
+    return <FooterEditor content={content} onChange={onChange} />
+  }
+
+  // Photo Gallery
+  if (sectionType === "PHOTO_GALLERY") {
+    return <PhotoGalleryEditor content={content} onChange={onChange} />
+  }
+
+  // Recurring Schedule (static, not data-driven)
+  if (sectionType === "RECURRING_SCHEDULE") {
+    return <ScheduleEditor content={content} onChange={onChange} />
   }
 
   // Custom HTML / Embed
@@ -149,7 +202,13 @@ export function hasStructuredEditor(sectionType: SectionType): boolean {
     CONTENT_TYPES.includes(sectionType) ||
     CARDS_TYPES.includes(sectionType) ||
     DATA_TYPES.includes(sectionType) ||
+    MINISTRY_TYPES.includes(sectionType) ||
     CUSTOM_TYPES.includes(sectionType) ||
-    sectionType === "FAQ_SECTION"
+    sectionType === "FAQ_SECTION" ||
+    sectionType === "TIMELINE_SECTION" ||
+    sectionType === "FORM_SECTION" ||
+    sectionType === "FOOTER" ||
+    sectionType === "PHOTO_GALLERY" ||
+    sectionType === "RECURRING_SCHEDULE"
   )
 }

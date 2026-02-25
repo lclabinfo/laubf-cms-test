@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getPages, createPage } from '@/lib/dal/pages'
 
@@ -30,6 +31,9 @@ export async function POST(request: NextRequest) {
     }
 
     const page = await createPage(churchId, body)
+
+    // Revalidate public website so the new page is accessible
+    revalidatePath('/(website)', 'layout')
 
     return NextResponse.json({ success: true, data: page }, { status: 201 })
   } catch (error) {

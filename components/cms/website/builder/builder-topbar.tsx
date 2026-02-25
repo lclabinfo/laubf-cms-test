@@ -1,7 +1,19 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Monitor, Tablet, Smartphone, Save, Globe, GlobeLock, Loader2 } from "lucide-react"
+import {
+  ArrowLeft,
+  Monitor,
+  Tablet,
+  Smartphone,
+  Save,
+  Globe,
+  GlobeLock,
+  Loader2,
+  Undo2,
+  Redo2,
+  Check,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -9,6 +21,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import type { DeviceMode, BuilderPage, PageSummary } from "./types"
 
@@ -20,8 +38,13 @@ interface BuilderTopbarProps {
   onSave: () => void
   onPublishToggle: () => void
   onTitleChange: (title: string) => void
+  onUndo: () => void
+  onRedo: () => void
+  canUndo: boolean
+  canRedo: boolean
   isDirty: boolean
   isSaving: boolean
+  saveState: "idle" | "saving" | "saved"
 }
 
 const deviceOptions: { mode: DeviceMode; icon: typeof Monitor; label: string }[] = [
@@ -37,8 +60,13 @@ export function BuilderTopbar({
   onDeviceChange,
   onSave,
   onPublishToggle,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
   isDirty,
   isSaving,
+  saveState,
 }: BuilderTopbarProps) {
   const router = useRouter()
 
@@ -62,7 +90,7 @@ export function BuilderTopbar({
             <Button variant="ghost" size="sm" className="font-medium text-sm gap-1.5">
               {page.title}
               {page.isHomepage && (
-                <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">
+                <span className="text-[10px] font-medium bg-amber-500/15 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 px-1.5 py-0.5 rounded-full">
                   Home
                 </span>
               )}
@@ -83,7 +111,7 @@ export function BuilderTopbar({
               >
                 <span className="flex-1 truncate">{p.title}</span>
                 {p.isHomepage && (
-                  <span className="text-[10px] font-medium bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full ml-2">
+                  <span className="text-[10px] font-medium bg-amber-500/15 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 px-1.5 py-0.5 rounded-full ml-2">
                     Home
                   </span>
                 )}
@@ -98,48 +126,101 @@ export function BuilderTopbar({
         </DropdownMenu>
       </div>
 
-      {/* Center: Device preview toggle */}
-      <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-        {deviceOptions.map(({ mode, icon: Icon, label }) => (
-          <Button
-            key={mode}
-            variant="ghost"
-            size="icon-sm"
-            onClick={() => onDeviceChange(mode)}
-            className={cn(
-              "rounded-md transition-all",
-              deviceMode === mode
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            title={label}
-          >
-            <Icon className="size-4" />
-          </Button>
-        ))}
+      {/* Center: Undo/Redo + Device preview toggle */}
+      <div className="flex items-center gap-2">
+        <TooltipProvider>
+          <div className="flex items-center gap-0.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={onUndo}
+                  disabled={!canUndo}
+                  className="text-muted-foreground disabled:opacity-30"
+                >
+                  <Undo2 className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={4}>
+                Undo (Ctrl+Z)
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={onRedo}
+                  disabled={!canRedo}
+                  className="text-muted-foreground disabled:opacity-30"
+                >
+                  <Redo2 className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={4}>
+                Redo (Ctrl+Shift+Z)
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
+
+        <div className="h-5 w-px bg-border" />
+
+        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+          {deviceOptions.map(({ mode, icon: Icon, label }) => (
+            <Button
+              key={mode}
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => onDeviceChange(mode)}
+              className={cn(
+                "rounded-md transition-all",
+                deviceMode === mode
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              title={label}
+            >
+              <Icon className="size-4" />
+            </Button>
+          ))}
+        </div>
       </div>
 
       {/* Right: Save + Publish */}
       <div className="flex items-center gap-2">
-        {isDirty && (
+        {isDirty && saveState === "idle" && (
           <span className="text-xs text-amber-600 font-medium mr-1">
             Unsaved changes
           </span>
         )}
 
         <Button
-          variant="outline"
+          variant={isDirty && saveState === "idle" ? "default" : "outline"}
           size="sm"
           onClick={onSave}
           disabled={isSaving || !isDirty}
-          className="gap-1.5"
+          className={cn("gap-1.5 relative transition-all")}
         >
-          {isSaving ? (
+          {saveState === "saving" ? (
             <Loader2 className="size-3.5 animate-spin" />
+          ) : saveState === "saved" ? (
+            <Check className="size-3.5 text-green-500" />
           ) : (
-            <Save className="size-3.5" />
+            <span className="relative inline-flex">
+              <Save className="size-3.5" />
+              {isDirty && (
+                <span className="absolute -top-1 -right-1 size-2 rounded-full bg-amber-500" />
+              )}
+            </span>
           )}
-          Save
+          {saveState === "saving"
+            ? "Saving..."
+            : saveState === "saved"
+              ? "Saved"
+              : "Save"}
         </Button>
 
         <Button

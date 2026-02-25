@@ -9,8 +9,12 @@ export default async function BuilderLayout({
 }) {
   const session = await auth()
 
-  if (!session?.churchId) {
+  if (!session?.user) {
     redirect("/cms/login")
+  }
+
+  if (!session.churchId) {
+    redirect("/cms/no-access")
   }
 
   return (

@@ -67,7 +67,7 @@ export function BuilderSidebar({
                       isDisabled
                         ? "text-muted-foreground/40 cursor-not-allowed bg-muted/30"
                         : activeTool === tool.id
-                          ? "bg-blue-50 text-blue-600 shadow-sm"
+                          ? "bg-primary/10 text-primary shadow-sm"
                           : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >

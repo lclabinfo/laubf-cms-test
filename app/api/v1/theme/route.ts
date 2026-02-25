@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getThemeWithCustomization, updateThemeCustomization } from '@/lib/dal/theme'
 
@@ -23,6 +24,10 @@ export async function PATCH(request: NextRequest) {
     const body = await request.json()
 
     const updated = await updateThemeCustomization(churchId, body)
+
+    // Revalidate entire website (theme affects all pages via ThemeProvider)
+    revalidatePath('/(website)', 'layout')
+
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
     console.error('PATCH /api/v1/theme error:', error)

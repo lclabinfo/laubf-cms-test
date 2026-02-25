@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getVideoBySlug, updateVideo, deleteVideo } from '@/lib/dal/videos'
 
@@ -42,6 +43,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
 
     const updated = await updateVideo(churchId, existing.id, body)
+
+    // Revalidate public website pages that display videos
+    revalidatePath('/(website)', 'layout')
+
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
     console.error('PATCH /api/v1/videos/[slug] error:', error)
@@ -66,6 +71,10 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     }
 
     await deleteVideo(churchId, existing.id)
+
+    // Revalidate public website pages that display videos
+    revalidatePath('/(website)', 'layout')
+
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {
     console.error('DELETE /api/v1/videos/[slug] error:', error)

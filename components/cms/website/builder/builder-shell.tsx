@@ -8,14 +8,25 @@ import { BuilderSidebar } from "./builder-sidebar"
 import { BuilderDrawer } from "./builder-drawer"
 import { BuilderCanvas } from "./builder-canvas"
 import { SectionPickerModal } from "./section-picker-modal"
+import { AddSectionDrawer } from "./add-section-drawer"
 import {
-  SectionEditorModal,
+  BuilderRightDrawer,
   type SectionEditorData,
-  type SectionEditorSaveData,
-} from "./section-editor-modal"
+} from "./builder-right-drawer"
 import { PageTree } from "./page-tree"
 import { PageSettingsModal, type PageSettingsData } from "./page-settings-modal"
 import { AddPageModal } from "./add-page-modal"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import { useBuilderHistory } from "./use-builder-history"
 import type {
   BuilderTool,
   DeviceMode,
@@ -24,6 +35,14 @@ import type {
   PageSummary,
 } from "./types"
 import type { SectionType } from "@/lib/db/types"
+
+/** Snapshot stored in the undo/redo history. */
+interface BuilderSnapshot {
+  sections: BuilderSection[]
+  pageTitle: string
+}
+
+const AUTO_SAVE_DELAY_MS = 30_000
 
 interface BuilderShellProps {
   page: BuilderPage
@@ -42,26 +61,70 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
   const [isSaving, setIsSaving] = useState(false)
   const [pages, setPages] = useState<PageSummary[]>(allPages)
 
+  // Save button visual state: idle -> saving -> saved -> idle
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle")
+
+  // Unsaved changes dialog for page navigation
+  const [pendingNavigationId, setPendingNavigationId] = useState<string | null>(null)
+  const [discardDialogOpen, setDiscardDialogOpen] = useState(false)
+
   // Section picker modal
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerInsertIndex, setPickerInsertIndex] = useState(-1)
 
-  // Section editor modal
-  const [editorOpen, setEditorOpen] = useState(false)
-  const [editingSection, setEditingSection] = useState<SectionEditorData | null>(null)
+  // Right drawer editing: track which section is being edited
+  const [editingSectionId, setEditingSectionId] = useState<string | null>(null)
 
   // Page modals
   const [pageSettingsOpen, setPageSettingsOpen] = useState(false)
   const [pageSettingsTarget, setPageSettingsTarget] = useState<PageSettingsData | null>(null)
   const [addPageOpen, setAddPageOpen] = useState(false)
 
+  // -------------------------------------------------------------------------
+  // Undo / Redo history
+  // -------------------------------------------------------------------------
+
+  const history = useBuilderHistory<BuilderSnapshot>()
+
+  /** Push the current state as a snapshot before mutating. */
+  const pushSnapshot = useCallback(() => {
+    history.push({ sections, pageTitle: pageData.title })
+  }, [history, sections, pageData.title])
+
+  const handleUndo = useCallback(() => {
+    const snapshot = history.undo({ sections, pageTitle: pageData.title })
+    if (snapshot) {
+      setSections(snapshot.sections)
+      setPageData((prev) => ({ ...prev, title: snapshot.pageTitle }))
+      setIsDirty(true)
+    }
+  }, [history, sections, pageData.title])
+
+  const handleRedo = useCallback(() => {
+    const snapshot = history.redo({ sections, pageTitle: pageData.title })
+    if (snapshot) {
+      setSections(snapshot.sections)
+      setPageData((prev) => ({ ...prev, title: snapshot.pageTitle }))
+      setIsDirty(true)
+    }
+  }, [history, sections, pageData.title])
+
+  // Keep latest undo/redo in refs so the keydown handler never goes stale
+  const handleUndoRef = useRef(handleUndo)
+  handleUndoRef.current = handleUndo
+  const handleRedoRef = useRef(handleRedo)
+  handleRedoRef.current = handleRedo
+
   // Reset state when page prop changes (navigating to different page)
   useEffect(() => {
     setSections(page.sections)
     setPageData(page)
     setSelectedSectionId(null)
+    setEditingSectionId(null)
     setIsDirty(false)
-  }, [page])
+    setSaveState("idle")
+    history.reset()
+  }, [page, history])
 
   // Sync allPages prop
   useEffect(() => {
@@ -76,11 +139,29 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
   )
 
   // -------------------------------------------------------------------------
+  // Beforeunload — warn when closing tab with unsaved changes
+  // -------------------------------------------------------------------------
+
+  const isDirtyRef = useRef(isDirty)
+  isDirtyRef.current = isDirty
+
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (isDirtyRef.current) {
+        e.preventDefault()
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [])
+
+  // -------------------------------------------------------------------------
   // Save
   // -------------------------------------------------------------------------
 
   const handleSave = useCallback(async () => {
     setIsSaving(true)
+    setSaveState("saving")
     try {
       // Save page metadata
       const pageRes = await fetch(`/api/v1/pages/${pageData.slug}`, {
@@ -102,25 +183,81 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
       })
       if (!reorderRes.ok) throw new Error("Failed to reorder sections")
 
+      // Save each section's content and display settings
+      const sectionSaves = sections.map((s) =>
+        fetch(`/api/v1/pages/${pageData.slug}/sections/${s.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: s.content,
+            colorScheme: s.colorScheme,
+            paddingY: s.paddingY,
+            containerWidth: s.containerWidth,
+            enableAnimations: s.enableAnimations,
+            visible: s.visible,
+            label: s.label,
+          }),
+        }),
+      )
+      const results = await Promise.all(sectionSaves)
+      const failedSections = results.filter((r) => !r.ok)
+      if (failedSections.length > 0) {
+        throw new Error(`Failed to save ${failedSections.length} section(s)`)
+      }
+
       setIsDirty(false)
+      setSaveState("saved")
+      router.refresh()
       toast.success("Page saved")
+
+      // Revert to idle after brief "Saved" display
+      setTimeout(() => setSaveState("idle"), 2000)
     } catch (err) {
       console.error("Save error:", err)
+      setSaveState("idle")
       toast.error("Failed to save page")
     } finally {
       setIsSaving(false)
     }
-  }, [pageData, sections])
+  }, [pageData, sections, router])
 
   // Use a ref to always have the latest handleSave without re-subscribing the effect
   const handleSaveRef = useRef(handleSave)
   handleSaveRef.current = handleSave
 
+  // -------------------------------------------------------------------------
+  // Auto-save draft (debounced, 30s after last change)
+  // -------------------------------------------------------------------------
+
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    // Clear any existing timer
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = null
+    }
+
+    if (isDirty && !isSaving) {
+      autoSaveTimerRef.current = setTimeout(() => {
+        handleSaveRef.current()
+      }, AUTO_SAVE_DELAY_MS)
+    }
+
+    return () => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current)
+      }
+    }
+  }, [isDirty, isSaving, sections, pageData.title])
+
   // Handle keyboard shortcuts
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        if (selectedSectionId) {
+        if (editingSectionId) {
+          setEditingSectionId(null)
+        } else if (selectedSectionId) {
           setSelectedSectionId(null)
         } else if (activeTool) {
           setActiveTool(null)
@@ -131,10 +268,28 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
         e.preventDefault()
         handleSaveRef.current()
       }
+      // Cmd/Ctrl+Z to undo, Cmd/Ctrl+Shift+Z to redo
+      if ((e.metaKey || e.ctrlKey) && e.key === "z") {
+        // Don't intercept when focus is inside an input/textarea/contenteditable
+        const active = document.activeElement
+        if (
+          active instanceof HTMLInputElement ||
+          active instanceof HTMLTextAreaElement ||
+          (active instanceof HTMLElement && active.isContentEditable)
+        ) {
+          return
+        }
+        e.preventDefault()
+        if (e.shiftKey) {
+          handleRedoRef.current()
+        } else {
+          handleUndoRef.current()
+        }
+      }
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [selectedSectionId, activeTool])
+  }, [selectedSectionId, activeTool, editingSectionId])
 
   // -------------------------------------------------------------------------
   // Publish toggle
@@ -158,12 +313,13 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
         isPublished: newPublished,
         publishedAt: newPublished ? new Date().toISOString() : null,
       }))
+      router.refresh()
       toast.success(newPublished ? "Page published" : "Page unpublished")
     } catch (err) {
       console.error("Publish toggle error:", err)
       toast.error("Failed to update publish status")
     }
-  }, [pageData])
+  }, [pageData, router])
 
   // -------------------------------------------------------------------------
   // Section CRUD
@@ -208,12 +364,14 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
           content: data.content as Record<string, unknown>,
         }
 
+        pushSnapshot()
         setSections((prev) => {
           const updated = [...prev]
           updated.splice(pickerInsertIndex + 1, 0, newSection)
           return updated.map((s, i) => ({ ...s, sortOrder: i }))
         })
         setSelectedSectionId(newSection.id)
+        setEditingSectionId(newSection.id)
         setIsDirty(true)
         toast.success("Section added")
       } catch (err) {
@@ -221,7 +379,7 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
         toast.error("Failed to add section")
       }
     },
-    [pageData.slug, pickerInsertIndex],
+    [pageData.slug, pickerInsertIndex, pushSnapshot],
   )
 
   const handleDeleteSection = useCallback(
@@ -233,9 +391,13 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
         )
         if (!res.ok) throw new Error("Failed to delete section")
 
+        pushSnapshot()
         setSections((prev) => prev.filter((s) => s.id !== sectionId))
         if (selectedSectionId === sectionId) {
           setSelectedSectionId(null)
+        }
+        if (editingSectionId === sectionId) {
+          setEditingSectionId(null)
         }
         setIsDirty(true)
         toast.success("Section deleted")
@@ -244,80 +406,95 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
         toast.error("Failed to delete section")
       }
     },
-    [pageData.slug, selectedSectionId],
+    [pageData.slug, selectedSectionId, editingSectionId, pushSnapshot],
   )
 
   const handleReorderSections = useCallback((reordered: BuilderSection[]) => {
+    pushSnapshot()
     setSections(reordered)
     setIsDirty(true)
-  }, [])
+  }, [pushSnapshot])
 
   // -------------------------------------------------------------------------
-  // Section editing
+  // Section editing (inline right drawer)
   // -------------------------------------------------------------------------
 
   const handleEditSection = useCallback(
     (sectionId: string) => {
-      const section = sections.find((s) => s.id === sectionId)
-      if (!section) return
-
-      setEditingSection({
-        id: section.id,
-        sectionType: section.sectionType,
-        content: section.content,
-        colorScheme: section.colorScheme,
-        paddingY: section.paddingY,
-        containerWidth: section.containerWidth,
-        enableAnimations: section.enableAnimations,
-        visible: section.visible,
-        label: section.label,
-      })
-      setEditorOpen(true)
+      setEditingSectionId(sectionId)
+      setSelectedSectionId(sectionId)
     },
-    [sections],
+    [],
   )
 
-  const handleSectionEditorSave = useCallback(
-    async (data: SectionEditorSaveData) => {
-      if (!editingSection) return
+  const handleCloseEditor = useCallback(() => {
+    setEditingSectionId(null)
+  }, [])
 
-      try {
-        const res = await fetch(
-          `/api/v1/pages/${pageData.slug}/sections/${editingSection.id}`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(data),
-          },
-        )
-        if (!res.ok) throw new Error("Failed to save section")
+  // Derive the editing section data from sections array + editingSectionId
+  const editingSection: SectionEditorData | null = (() => {
+    if (!editingSectionId) return null
+    const section = sections.find((s) => s.id === editingSectionId)
+    if (!section) return null
+    return {
+      id: section.id,
+      sectionType: section.sectionType,
+      content: section.content,
+      colorScheme: section.colorScheme,
+      paddingY: section.paddingY,
+      containerWidth: section.containerWidth,
+      enableAnimations: section.enableAnimations,
+      visible: section.visible,
+      label: section.label,
+    }
+  })()
 
-        // Update local state
-        setSections((prev) =>
-          prev.map((s) =>
-            s.id === editingSection.id
-              ? {
-                  ...s,
-                  content: data.content,
-                  colorScheme: data.colorScheme as BuilderSection["colorScheme"],
-                  paddingY: data.paddingY as BuilderSection["paddingY"],
-                  containerWidth: data.containerWidth as BuilderSection["containerWidth"],
-                  enableAnimations: data.enableAnimations,
-                  visible: data.visible,
-                  label: data.label ?? null,
-                }
-              : s,
-          ),
-        )
-        setEditorOpen(false)
-        setEditingSection(null)
-        toast.success("Section updated")
-      } catch (err) {
-        console.error("Section save error:", err)
-        toast.error("Failed to save section")
+  // Track whether we've pushed a snapshot for the current editing "gesture"
+  const editingSnapshotPushedRef = useRef(false)
+
+  // Reset the flag when the editing section changes
+  useEffect(() => {
+    editingSnapshotPushedRef.current = false
+  }, [editingSectionId])
+
+  // Handle inline changes from the right drawer (updates local state immediately)
+  const handleSectionEditorChange = useCallback(
+    (data: Partial<SectionEditorData>) => {
+      if (!editingSectionId) return
+
+      // Push a snapshot once per editing "session" (when editor opens and user starts changing)
+      if (!editingSnapshotPushedRef.current) {
+        pushSnapshot()
+        editingSnapshotPushedRef.current = true
       }
+
+      setSections((prev) =>
+        prev.map((s) =>
+          s.id === editingSectionId
+            ? {
+                ...s,
+                ...(data.content !== undefined && { content: data.content }),
+                ...(data.colorScheme !== undefined && {
+                  colorScheme: data.colorScheme as BuilderSection["colorScheme"],
+                }),
+                ...(data.paddingY !== undefined && {
+                  paddingY: data.paddingY as BuilderSection["paddingY"],
+                }),
+                ...(data.containerWidth !== undefined && {
+                  containerWidth: data.containerWidth as BuilderSection["containerWidth"],
+                }),
+                ...(data.enableAnimations !== undefined && {
+                  enableAnimations: data.enableAnimations,
+                }),
+                ...(data.visible !== undefined && { visible: data.visible }),
+                ...(data.label !== undefined && { label: data.label ?? null }),
+              }
+            : s,
+        ),
+      )
+      setIsDirty(true)
     },
-    [editingSection, pageData.slug],
+    [editingSectionId, pushSnapshot],
   )
 
   // -------------------------------------------------------------------------
@@ -325,9 +502,10 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
   // -------------------------------------------------------------------------
 
   const handleTitleChange = useCallback((title: string) => {
+    pushSnapshot()
     setPageData((prev) => ({ ...prev, title }))
     setIsDirty(true)
-  }, [])
+  }, [pushSnapshot])
 
   // -------------------------------------------------------------------------
   // Page tree actions (Pages drawer)
@@ -335,12 +513,31 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
 
   const handlePageSelect = useCallback(
     (pageId: string) => {
-      if (pageId !== pageData.id) {
+      if (pageId === pageData.id) return
+
+      if (isDirty) {
+        setPendingNavigationId(pageId)
+        setDiscardDialogOpen(true)
+      } else {
         router.push(`/cms/website/builder/${pageId}`)
       }
     },
-    [router, pageData.id],
+    [router, pageData.id, isDirty],
   )
+
+  const handleDiscardAndNavigate = useCallback(() => {
+    setDiscardDialogOpen(false)
+    if (pendingNavigationId) {
+      setIsDirty(false)
+      router.push(`/cms/website/builder/${pendingNavigationId}`)
+      setPendingNavigationId(null)
+    }
+  }, [pendingNavigationId, router])
+
+  const handleCancelNavigation = useCallback(() => {
+    setDiscardDialogOpen(false)
+    setPendingNavigationId(null)
+  }, [])
 
   const handlePageSettings = useCallback((pageSummary: PageSummary) => {
     setPageSettingsTarget({
@@ -483,17 +680,14 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
     switch (activeTool) {
       case "add":
         return (
-          <div className="p-4 space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Click the + buttons on the canvas to add sections, or select a section type below.
-            </p>
-            <button
-              onClick={() => openSectionPicker(sections.length - 1)}
-              className="w-full rounded-lg border-2 border-dashed border-border p-6 text-center text-sm text-muted-foreground hover:border-primary hover:text-foreground transition-colors"
-            >
-              Browse all sections
-            </button>
-          </div>
+          <AddSectionDrawer
+            onAddSection={(type, defaultContent) => {
+              // Insert after the last section (or at position 0 if empty)
+              setPickerInsertIndex(sections.length - 1)
+              handlePickerSelect(type, defaultContent)
+            }}
+            onBrowseAll={() => openSectionPicker(sections.length - 1)}
+          />
         )
       case "pages":
         return (
@@ -534,8 +728,13 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
         onSave={handleSave}
         onPublishToggle={handlePublishToggle}
         onTitleChange={handleTitleChange}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
+        canUndo={history.canUndo}
+        canRedo={history.canRedo}
         isDirty={isDirty}
         isSaving={isSaving}
+        saveState={saveState}
       />
 
       {/* Main content area */}
@@ -561,7 +760,10 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
           sections={sections}
           selectedSectionId={selectedSectionId}
           onSelectSection={setSelectedSectionId}
-          onDeselectSection={() => setSelectedSectionId(null)}
+          onDeselectSection={() => {
+            setSelectedSectionId(null)
+            setEditingSectionId(null)
+          }}
           onAddSection={openSectionPicker}
           onDeleteSection={handleDeleteSection}
           onEditSection={handleEditSection}
@@ -570,6 +772,14 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
           churchId={churchId}
           pageSlug={pageData.slug}
         />
+
+        {/* Right Drawer (320px, animated) — inline section editor */}
+        <BuilderRightDrawer
+          section={editingSection}
+          onClose={handleCloseEditor}
+          onChange={handleSectionEditorChange}
+          onDelete={handleDeleteSection}
+        />
       </div>
 
       {/* Section Picker Modal */}
@@ -577,14 +787,6 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         onSelect={handlePickerSelect}
-      />
-
-      {/* Section Editor Modal */}
-      <SectionEditorModal
-        open={editorOpen}
-        onOpenChange={setEditorOpen}
-        section={editingSection}
-        onSave={handleSectionEditorSave}
       />
 
       {/* Page Settings Modal */}
@@ -602,6 +804,30 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
         onOpenChange={setAddPageOpen}
         onPageCreated={handlePageCreated}
       />
+
+      {/* Unsaved Changes Confirmation Dialog */}
+      <AlertDialog open={discardDialogOpen} onOpenChange={setDiscardDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes on this page. If you navigate away, your
+              changes will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelNavigation}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={handleDiscardAndNavigate}
+            >
+              Discard changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

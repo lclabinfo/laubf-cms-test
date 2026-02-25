@@ -1,8 +1,6 @@
 "use client"
 
-import { useRef, useState } from "react"
 import { Plus } from "lucide-react"
-import { motion, AnimatePresence } from "motion/react"
 import { cn } from "@/lib/utils"
 
 interface SectionAddTriggerProps {
@@ -11,60 +9,37 @@ interface SectionAddTriggerProps {
 }
 
 export function SectionAddTrigger({ onClick, className }: SectionAddTriggerProps) {
-  const buttonRef = useRef<HTMLButtonElement>(null)
-  const [isHovered, setIsHovered] = useState(false)
-
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
     onClick()
   }
 
   return (
-    <motion.button
-      ref={buttonRef}
-      layout
-      initial={false}
-      animate={{
-        width: isHovered ? "auto" : 28,
-        paddingLeft: isHovered ? 16 : 0,
-        paddingRight: isHovered ? 16 : 0,
-      }}
-      transition={{
-        type: "spring",
-        stiffness: 500,
-        damping: 30,
-        bounce: 0,
-      }}
+    <button
+      type="button"
       className={cn(
-        "h-7 bg-blue-600 text-white shadow-md flex items-center justify-center overflow-hidden hover:shadow-lg hover:bg-blue-500 rounded-full cursor-pointer",
+        "group relative flex items-center justify-center",
+        "h-7 min-w-7 rounded-full",
+        "bg-blue-600 text-white shadow-md",
+        "hover:shadow-lg hover:bg-blue-500",
+        "transition-all duration-200 ease-out",
+        "hover:pl-3 hover:pr-3.5",
+        "cursor-pointer",
         className,
       )}
-      style={{
-        height: "28px",
-        minWidth: "28px",
-      }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       onClick={handleClick}
     >
-      <div className="flex items-center flex-nowrap whitespace-nowrap">
-        <Plus className="size-4 text-white shrink-0" strokeWidth={3} />
-
-        <AnimatePresence>
-          {isHovered && (
-            <motion.span
-              key="text"
-              initial={{ width: 0, opacity: 0, marginLeft: 0 }}
-              animate={{ width: "auto", opacity: 1, marginLeft: 8 }}
-              exit={{ width: 0, opacity: 0, marginLeft: 0 }}
-              transition={{ duration: 0.2 }}
-              className="text-xs font-semibold uppercase tracking-wide overflow-hidden whitespace-nowrap"
-            >
-              Add Section
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </div>
-    </motion.button>
+      <Plus className="size-4 shrink-0" strokeWidth={3} />
+      <span
+        className={cn(
+          "text-xs font-semibold uppercase tracking-wide whitespace-nowrap overflow-hidden",
+          "max-w-0 opacity-0 ml-0",
+          "group-hover:max-w-32 group-hover:opacity-100 group-hover:ml-1.5",
+          "transition-all duration-200 ease-out",
+        )}
+      >
+        Add Section
+      </span>
+    </button>
   )
 }

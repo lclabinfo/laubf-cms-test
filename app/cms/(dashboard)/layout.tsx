@@ -5,8 +5,12 @@ import { CmsShell } from "@/components/cms/cms-shell"
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
 
-  if (!session?.churchId) {
+  if (!session?.user) {
     redirect("/cms/login")
+  }
+
+  if (!session.churchId) {
+    redirect("/cms/no-access")
   }
 
   return (

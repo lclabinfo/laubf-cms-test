@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getDailyBreads, getTodaysDailyBread, createDailyBread } from '@/lib/dal/daily-bread'
 
@@ -39,6 +40,9 @@ export async function POST(request: NextRequest) {
     }
 
     const entry = await createDailyBread(churchId, body)
+
+    // Revalidate public website pages that display daily bread
+    revalidatePath('/(website)', 'layout')
 
     return NextResponse.json({ success: true, data: entry }, { status: 201 })
   } catch (error) {

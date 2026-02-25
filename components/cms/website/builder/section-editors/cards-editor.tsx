@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Plus, Trash2, GripVertical } from "lucide-react"
 import type { SectionType } from "@/lib/db/types"
@@ -755,16 +756,14 @@ function FeatureBreakdownEditor({
       <div className="space-y-3 rounded-lg border p-4">
         <div className="flex items-center justify-between">
           <Label className="text-sm font-medium">CTA Button</Label>
-          <input
-            type="checkbox"
+          <Switch
             checked={button.visible}
-            onChange={(e) =>
+            onCheckedChange={(v) =>
               onChange({
                 ...content,
-                button: { ...button, visible: e.target.checked },
+                button: { ...button, visible: v },
               })
             }
-            className="size-4"
           />
         </div>
         {button.visible && (

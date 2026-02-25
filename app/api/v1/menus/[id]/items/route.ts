@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getMenuWithItems, createMenuItem, reorderMenuItems } from '@/lib/dal/menus'
 
@@ -51,6 +52,9 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     const item = await createMenuItem(churchId, menuId, body)
 
+    // Revalidate website layout (menus affect navbar/footer)
+    revalidatePath('/(website)', 'layout')
+
     return NextResponse.json({ success: true, data: item }, { status: 201 })
   } catch (error) {
     console.error('POST /api/v1/menus/[id]/items error:', error)
@@ -84,6 +88,9 @@ export async function PUT(request: NextRequest, { params }: Params) {
     }
 
     await reorderMenuItems(menuId, body.itemIds)
+
+    // Revalidate website layout (menus affect navbar/footer)
+    revalidatePath('/(website)', 'layout')
 
     return NextResponse.json({ success: true, data: { reordered: true } })
   } catch (error) {

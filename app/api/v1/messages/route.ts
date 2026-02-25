@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getMessages, createMessage, type MessageFilters } from '@/lib/dal/messages'
 import { ContentStatus } from '@/lib/generated/prisma/client'
@@ -55,6 +56,9 @@ export async function POST(request: NextRequest) {
     }
 
     const message = await createMessage(churchId, body)
+
+    // Revalidate public website pages that display messages
+    revalidatePath('/(website)', 'layout')
 
     return NextResponse.json({ success: true, data: message }, { status: 201 })
   } catch (error) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getPageForAdmin, createPageSection, reorderPageSections } from '@/lib/dal/pages'
 
@@ -26,6 +27,12 @@ export async function POST(request: NextRequest, { params }: Params) {
     }
 
     const section = await createPageSection(churchId, page.id, body)
+
+    // Revalidate the public page so new section appears
+    revalidatePath(`/${slug}`)
+    if (page.isHomepage) {
+      revalidatePath('/')
+    }
 
     return NextResponse.json({ success: true, data: section }, { status: 201 })
   } catch (error) {
@@ -59,6 +66,12 @@ export async function PUT(request: NextRequest, { params }: Params) {
     }
 
     await reorderPageSections(churchId, page.id, body.sectionIds)
+
+    // Revalidate the public page so reordered sections render correctly
+    revalidatePath(`/${slug}`)
+    if (page.isHomepage) {
+      revalidatePath('/')
+    }
 
     return NextResponse.json({ success: true, data: { reordered: true } })
   } catch (error) {

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { getChurchId } from "@/lib/api/get-church-id"
 import { getPages, getHomepageForAdmin } from "@/lib/dal/pages"
+import { BuilderEmptyState } from "@/components/cms/website/builder/builder-empty-state"
 
 export default async function BuilderEntryPage() {
   const churchId = await getChurchId()
@@ -17,15 +18,6 @@ export default async function BuilderEntryPage() {
     redirect(`/cms/website/builder/${pages[0].id}`)
   }
 
-  // No pages exist - show empty state
-  return (
-    <div className="flex h-screen items-center justify-center">
-      <div className="text-center space-y-4">
-        <h2 className="text-xl font-semibold">No pages yet</h2>
-        <p className="text-muted-foreground text-sm">
-          Create your first page to get started with the website builder.
-        </p>
-      </div>
-    </div>
-  )
+  // No pages exist - show onboarding empty state
+  return <BuilderEmptyState />
 }

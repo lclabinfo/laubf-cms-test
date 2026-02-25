@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getVideos, createVideo, type VideoFilters } from '@/lib/dal/videos'
 import { ContentStatus, type VideoCategory } from '@/lib/generated/prisma/client'
@@ -50,6 +51,9 @@ export async function POST(request: NextRequest) {
     }
 
     const video = await createVideo(churchId, body)
+
+    // Revalidate public website pages that display videos
+    revalidatePath('/(website)', 'layout')
 
     return NextResponse.json({ success: true, data: video }, { status: 201 })
   } catch (error) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getMessageBySlug, updateMessage, deleteMessage } from '@/lib/dal/messages'
 
@@ -42,6 +43,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
 
     const updated = await updateMessage(churchId, existing.id, body)
+
+    // Revalidate public website pages that display messages
+    revalidatePath('/(website)', 'layout')
+
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
     console.error('PATCH /api/v1/messages/[slug] error:', error)
@@ -66,6 +71,10 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     }
 
     await deleteMessage(churchId, existing.id)
+
+    // Revalidate public website pages that display messages
+    revalidatePath('/(website)', 'layout')
+
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {
     console.error('DELETE /api/v1/messages/[slug] error:', error)

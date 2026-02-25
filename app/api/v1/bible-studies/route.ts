@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getBibleStudies, createBibleStudy, type BibleStudyFilters } from '@/lib/dal/bible-studies'
 import { ContentStatus, type BibleBook } from '@/lib/generated/prisma/client'
@@ -51,6 +52,9 @@ export async function POST(request: NextRequest) {
     }
 
     const study = await createBibleStudy(churchId, body)
+
+    // Revalidate public website pages that display bible studies
+    revalidatePath('/(website)', 'layout')
 
     return NextResponse.json({ success: true, data: study }, { status: 201 })
   } catch (error) {

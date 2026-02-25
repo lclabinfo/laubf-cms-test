@@ -159,8 +159,8 @@ function SectionEditorForm({ section, onSave, onCancel }: SectionEditorFormProps
         </div>
 
         {/* Content tab */}
-        <TabsContent value="content" className="flex-1 min-h-0 mt-0">
-          <ScrollArea className="h-full max-h-[calc(90vh-200px)]">
+        <TabsContent value="content" className="flex-1 min-h-0 mt-0 overflow-hidden">
+          <ScrollArea className="h-full">
             <div className="px-6 py-4">
               <SectionContentEditor
                 sectionType={section.sectionType}
@@ -172,8 +172,8 @@ function SectionEditorForm({ section, onSave, onCancel }: SectionEditorFormProps
         </TabsContent>
 
         {/* Display tab */}
-        <TabsContent value="display" className="flex-1 min-h-0 mt-0">
-          <ScrollArea className="h-full max-h-[calc(90vh-200px)]">
+        <TabsContent value="display" className="flex-1 min-h-0 mt-0 overflow-hidden">
+          <ScrollArea className="h-full">
             <div className="px-6 py-4">
               <DisplaySettings
                 data={displaySettings}
@@ -185,8 +185,8 @@ function SectionEditorForm({ section, onSave, onCancel }: SectionEditorFormProps
 
         {/* Raw JSON tab (only for sections with structured editors) */}
         {isStructured && (
-          <TabsContent value="json" className="flex-1 min-h-0 mt-0">
-            <ScrollArea className="h-full max-h-[calc(90vh-200px)]">
+          <TabsContent value="json" className="flex-1 min-h-0 mt-0 overflow-hidden">
+            <ScrollArea className="h-full">
               <div className="px-6 py-4">
                 <JsonEditor
                   content={content}
@@ -221,7 +221,7 @@ export function SectionEditorModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col gap-0 p-0">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
         {/* Key forces remount when a different section is opened */}
         <SectionEditorForm
           key={section.id}
