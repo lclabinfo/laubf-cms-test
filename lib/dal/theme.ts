@@ -13,3 +13,14 @@ export async function getThemeWithCustomization(
     include: { theme: true },
   })
 }
+
+export async function updateThemeCustomization(
+  churchId: string,
+  data: Prisma.ThemeCustomizationUncheckedUpdateInput,
+) {
+  return prisma.themeCustomization.update({
+    where: { churchId },
+    data,
+    include: { theme: true },
+  })
+}

@@ -123,6 +123,11 @@ const navGroups: NavGroup[] = [
         href: "/cms/website/domains",
         icon: GlobeIcon,
       },
+      {
+        title: "Settings",
+        href: "/cms/website/settings",
+        icon: SettingsIcon,
+      },
     ],
   },
   {

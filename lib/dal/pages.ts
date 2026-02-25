@@ -65,3 +65,58 @@ export async function deletePage(churchId: string, id: string) {
     data: { deletedAt: new Date() },
   })
 }
+
+// Get page for admin (includes unpublished, includes sections)
+export async function getPageForAdmin(
+  churchId: string,
+  slug: string,
+): Promise<PageWithSections | null> {
+  return prisma.page.findFirst({
+    where: { churchId, slug, deletedAt: null },
+    include: {
+      sections: { orderBy: { sortOrder: 'asc' } },
+    },
+  })
+}
+
+// Section CRUD
+export async function createPageSection(
+  churchId: string,
+  pageId: string,
+  data: Omit<Prisma.PageSectionUncheckedCreateInput, 'churchId' | 'pageId'>,
+) {
+  return prisma.pageSection.create({
+    data: { ...data, churchId, pageId },
+  })
+}
+
+export async function updatePageSection(
+  churchId: string,
+  id: string,
+  data: Prisma.PageSectionUncheckedUpdateInput,
+) {
+  return prisma.pageSection.update({
+    where: { id, churchId },
+    data,
+  })
+}
+
+export async function deletePageSection(churchId: string, id: string) {
+  return prisma.pageSection.delete({
+    where: { id, churchId },
+  })
+}
+
+export async function reorderPageSections(
+  churchId: string,
+  pageId: string,
+  sectionIds: string[],
+) {
+  const updates = sectionIds.map((id, index) =>
+    prisma.pageSection.update({
+      where: { id, churchId },
+      data: { sortOrder: index },
+    }),
+  )
+  return prisma.$transaction(updates)
+}
