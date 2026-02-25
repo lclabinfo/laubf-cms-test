@@ -14,6 +14,7 @@ import {
   PaletteIcon,
   FileTextIcon,
   NavigationIcon,
+  PenToolIcon,
   UsersIcon,
   UserPlusIcon,
   ContactIcon,
@@ -103,6 +104,11 @@ const navGroups: NavGroup[] = [
   {
     label: "Website",
     items: [
+      {
+        title: "Builder",
+        href: "/cms/website/builder",
+        icon: PenToolIcon,
+      },
       {
         title: "Pages",
         href: "/cms/website/pages",
@@ -334,8 +340,8 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
               </DropdownMenuTrigger>
               <DropdownMenuContent
                 className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                side="bottom"
-                align="end"
+                side="top"
+                align="start"
                 sideOffset={4}
               >
                 <DropdownMenuItem asChild>

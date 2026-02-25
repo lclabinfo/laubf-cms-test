@@ -79,6 +79,31 @@ export async function getPageForAdmin(
   })
 }
 
+// Get page by ID for admin (includes unpublished, includes sections)
+export async function getPageById(
+  churchId: string,
+  id: string,
+): Promise<PageWithSections | null> {
+  return prisma.page.findFirst({
+    where: { churchId, id, deletedAt: null },
+    include: {
+      sections: { orderBy: { sortOrder: 'asc' } },
+    },
+  })
+}
+
+// Get homepage for admin (includes unpublished)
+export async function getHomepageForAdmin(
+  churchId: string,
+): Promise<PageWithSections | null> {
+  return prisma.page.findFirst({
+    where: { churchId, isHomepage: true, deletedAt: null },
+    include: {
+      sections: { orderBy: { sortOrder: 'asc' } },
+    },
+  })
+}
+
 // Section CRUD
 export async function createPageSection(
   churchId: string,
