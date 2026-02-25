@@ -40,6 +40,8 @@ All publishable content types share a unified status model:
 ## 1. Messages (Sermons & Bible Studies)
 
 > Messages are the unified entry point for sermon videos and linked Bible study materials. In the prototype, sermons and Bible studies are managed together as a single content type ("Message") with two facets — video and study — rather than as separate modules. This reduces duplication and ensures the sermon-to-study link is a first-class relationship.
+>
+> **See also:** [AI Transcript & Caption Services](./ai-transcript-services.md) for integration details on YouTube caption import, AI transcript generation (Whisper/AssemblyAI), forced alignment, and DOCX/Google Drive import. All transcript features in the Messages Entry Editor are currently stubbed with mock data and ready for backend integration.
 
 ### 1.1 Message List View
 
@@ -261,23 +263,47 @@ All publishable content types share a unified status model:
 ### 2.1 Event Creation & Details
 
 - ✅ [P0] Admins can create events with:
-  - ✅ Title
-  - ✅ Date and time (start date, start time, end time, end date with auto-sync)
+  - ✅ Title *(borderless heading-style input for streamlined editing)*
+  - ✅ Date and time (start date, start time, end time; collapsible end date section with proper start/end time layout)
   - ✅ Location / online meeting link (radio toggle for in-person vs. online with dynamic input)
+  - ✅ Address field for in-person events *(new field added to form)*
+  - ✅ Directions URL for in-person events *(new field added to form)*
+  - ✅ Meeting URL with validation *(must start with `http://` or `https://`)*
   - ✅ Description *(plain textarea; rich text editor not yet integrated)*
   - ✅ Cover picture *(upload button present; AI generation mock with random Unsplash images)*
   - ✅ Ministry / categories (dropdown with 12 ministry options)
-  - ✅ Point of contact (badge-based list with add/remove)
+  - ✅ Point of contact (badge-based list with add/remove; "Browse People" button placeholder — coming soon)
   - ✅ Type (Event, Meeting, Program)
 - ❌ [P0] Events use system-defined, template-governed pages. *(No public-facing event pages yet.)*
 - ⚠️ [P0] Admins can create and manage event categories. *(Predefined list of 12 ministries exists; admin cannot create new categories via UI.)*
-- ✅ [P0] Admins can set recurrence rules: daily, weekly, monthly, yearly, or custom. *(Full custom recurrence dialog with interval, days, and end conditions.)*
+- ✅ [P0] Admins can set recurrence rules: daily, weekly, monthly, yearly, or custom. *(Full custom recurrence dialog with interval, days, and end conditions. Monthly recurrence supports "day of month" vs. "nth weekday of month" selection via `monthlyType` field.)*
 - ✅ [P1] Admins can set a customized welcome message (e.g., "First Time? We'd love to meet you!"). *(Input field exists in the form.)*
-- ❌ [P1] Registration tracking for events that require sign-up.
+- ⚠️ [P1] Registration tracking for events that require sign-up. *(Registration URL field exists in sidebar; no attendee tracking yet.)*
+
+#### Form Layout Changes (Implementation Update — Feb 2026)
+
+> The event form received a significant redesign:
+> - **Title input** restyled to borderless heading-style input (consistent with modern CMS patterns).
+> - **Date & Time section** redesigned — end date is collapsible, start/end time layout improved.
+> - **Monthly recurrence** now supports "day of month" vs. "nth weekday of month" selection (`monthlyType` field).
+> - **Meeting URL** has client-side validation (must start with `http://` or `https://`).
+> - **Location section** improved — added Address field and Directions URL field for in-person events.
+> - **Links section removed** from the main form body. Registration URL moved to sidebar.
+> - **"isPinned" renamed to "isFeatured"** throughout (Star icon replaces Pin icon).
+> - **Points of Contact** has a "Browse People" button placeholder (coming soon — will integrate with People module).
+> - **Registration URL** now in the sidebar rather than main form body.
+
+#### New Fields Added to `ChurchEvent` Type
+
+> The following fields were added to the `ChurchEvent` type in `lib/events-data.ts`:
+> - `address?: string` — Street address for in-person events.
+> - `directionsUrl?: string` — URL for driving directions (Google Maps, etc.).
+> - `monthlyType?: MonthlyRecurrenceType` — `"day-of-month"` or `"day-of-week"` for monthly recurrence.
+> - `isFeatured: boolean` — Replaces the former `isPinned` field. Star icon in UI.
 
 ### 2.2 Calendar & Scheduling
 
-- ⚠️ [P0] Events automatically populate a centralized church calendar. *(Placeholder "Calendar View Coming Soon" tab exists; no functional calendar.)*
+- ✅ [P0] Events automatically populate a centralized church calendar. *(Calendar view implemented with event dots on dates and date selection for filtering.)*
 - ✅ [P0] Events appear in "upcoming" and "past" views based on date. *(Past events visually faded in data table.)*
 - ✅ [P0] Time-sensitive events automatically transition out of prominent views after completion. *(Default sort is date descending; past events fade.)*
 - ✅ [P1] Admins can schedule when events become visible on the site. *(Status model supports Scheduled state.)*
@@ -296,7 +322,7 @@ All publishable content types share a unified status model:
 
 - ❌ [P0] Events generate clean, shareable links.
 - ❌ [P0] Events can be added to personal calendars (Google, Apple).
-- ✅ [P0] Events can be filtered/searched by type, date range, ministry/campus, and location. *(Search across title/location/ministry; filters for status and event type; no date range picker yet.)*
+- ✅ [P0] Events can be filtered/searched by type, date range, ministry/campus, and location. *(Search across title/location/ministry; filters for status, event type, recurrence, and ministry. No date range picker yet.)*
 - ❌ [P2] Public-facing event collections (e.g., "This Week").
 
 ### 2.5 Publishing, Updates & Lifecycle
@@ -314,9 +340,115 @@ All publishable content types share a unified status model:
 - ⚠️ [P1] Admins can duplicate events to speed up creation. *(Duplicate option in row action menu; handler not yet wired.)*
 - ❌ [P2] Admins can view basic engagement signals (clicks, calendar adds).
 
+#### List View Enhancements (Implementation Update — Feb 2026)
+
+> The event list page received significant enhancements:
+> - **Calendar view** implemented with event dots on dates and date selection for filtering.
+> - **Card grid view** added as an alternative to the data table list view. Cards show cover image, title, date, location, status badge, ministry tag, and type badge.
+> - **Column visibility toggle** added to the data table for customizable column display.
+> - **Expanded filters** — recurrence and ministry filters added (in addition to existing status and type filters).
+> - **Improved date formatting** — multi-day date ranges and recurring event schedules displayed clearly in the Date column.
+> - **Type column** now visible in the data table with Badge display.
+> - **"isFeatured" replaces "isPinned"** — Star icon used instead of Pin icon throughout the list and form views.
+
 ### 2.7 Event Detail View (Read-Only)
 
 > ❌ **Not yet implemented.** Navigation goes directly from list → edit form. No read-only event detail/preview view exists.
+
+### 2.8 Known Gaps & Required Changes
+
+> **Source:** Events Data Gap Analysis (February 2026). Field-by-field comparison between the public website's `Event` type (`laubf-test/`) and the CMS `ChurchEvent` type revealed critical mismatches that must be resolved before the database schema can serve both systems.
+>
+> **Update (Feb 24, 2026):** Several gaps have been addressed in the latest implementation round. Items marked ✅ below are now resolved in the CMS TypeScript type and form UI. Items still requiring Prisma schema migration are noted.
+
+#### 2.8.1 Missing CMS Fields
+
+The following fields exist on the website but have no CMS equivalent:
+
+| # | Field | Type | Status | Notes |
+|---|---|------|--------|-------|
+| 1 | `slug` | `string` | ❌ Pending | Website uses URL slugs (`/events/friday-night-bible-study`); CMS uses auto-generated IDs. **Fix:** Add `slug` field (auto-generated from title, editable). |
+| 2 | `shortDescription` | `string` | ❌ Pending | Website has a plain-text short summary for cards (1-2 sentences) separate from the rich text body. CMS only has one `description` field. **Fix:** Add `shortDescription` (plain text, ~200 char limit). |
+| 3 | `campus` | `CampusTag` | ❌ Pending | Website supports filtering events by campus (CSULB, UCLA, USC, etc.). CMS has no campus concept. **Fix:** Add `campus` select field. |
+| 4 | `tags` | `string[]` | ❌ Pending | Website uses tags (`#YAM`, `#BIBLE STUDY`, `#OPEN EVENT`) for filtering/display. CMS has no tag system. **Fix:** Add `tags` field with tag input UI. |
+| 5 | `meetingUrl` | `string` | ✅ Done | CMS now has `meetingUrl` field with URL validation (must start with `http://` or `https://`). Shown for online events. |
+| 6 | `registrationUrl` | `string` | ✅ Done | CMS now has `registrationUrl` in sidebar. |
+| 7 | `links` | `{ label, href, external? }[]` | ⚠️ Deferred | Links section removed from form. Registration URL moved to sidebar. Dynamic label+URL list not yet implemented. |
+| 8 | `image.alt` | `string` | ❌ Pending | Website uses structured image data `{ src, alt, objectPosition }`. CMS only stores a URL string. **Fix:** Add `imageAlt` text input. |
+| 9 | `image.objectPosition` | `string` | ❌ Pending | Same as above. **Fix:** Add `imageObjectPosition` selector. |
+
+**New fields added (not in original gap analysis):**
+
+| # | Field | Type | Status | Notes |
+|---|---|------|--------|-------|
+| 10 | `address` | `string?` | ✅ Done | Street address for in-person events. Added to CMS form and `ChurchEvent` type. Already in Prisma schema. |
+| 11 | `directionsUrl` | `string?` | ✅ Done | Directions URL for in-person events. Added to CMS form and `ChurchEvent` type. **Needs Prisma schema migration** (see 2.8.6). |
+| 12 | `monthlyType` | `MonthlyRecurrenceType` | ✅ Done | "day-of-month" or "day-of-week" for monthly recurrence. Added to CMS form and `ChurchEvent` type. **Needs Prisma schema migration** (see 2.8.6). |
+| 13 | `isFeatured` | `boolean` | ✅ Done | Replaces `isPinned`. Star icon in UI. Already in Prisma schema. `isPinned` field still in Prisma schema but no longer used in CMS UI — can be removed in a future migration. |
+
+#### 2.8.2 Ministry Taxonomy Mismatch
+
+The most critical mismatch. The two systems use completely different ministry categories:
+
+| Website (`MinistryTag`) | Website Label | CMS Equivalent |
+|------------------------|---------------|----------------|
+| `"young-adult"` | Young Adult | "Youth"? (loose) |
+| `"adult"` | Adult | "Men"/"Women"? (no direct match) |
+| `"children"` | Children | "Children"/"Kids" |
+| `"high-school"` | Middle & High School | *None* |
+| `"church-wide"` | Church-wide | *None* |
+
+CMS currently has 12 free-text ministries. **Decision:** The CMS ministry options must match the website's `MinistryTag` values since these are stored in the database and consumed by the website.
+
+#### 2.8.3 Recurrence Model Gaps
+
+The CMS recurrence model needs these additions to support all website scenarios:
+
+1. **Show day-of-week picker** when recurrence is `"weekly"`, `"biweekly"`, or `"weekday"` (not just "custom")
+2. **Add recurrence end date** visible for ALL recurring types (daily, weekly, etc.) — not just custom
+3. **Add recurrence end type** (never, on date) for all types
+4. ✅ **Monthly recurrence type** — CMS now supports "day of month" vs. "nth weekday of month" selection via `monthlyType` field
+5. **Auto-compute `recurrenceSchedule`** label from the structured fields
+
+Specific scenarios requiring these changes:
+- **Daily Bread (M-F):** Need `recurrenceDays: ["MON","TUE","WED","THU","FRI"]` + `recurrenceEnd: null`
+- **Evening Prayer (daily with end date):** Need `recurrenceEnd: "2026-03-08"`
+- **Sunday Livestream (weekly, specific day):** Need `recurrenceDays: ["SUN"]`
+
+#### 2.8.4 Recommended CMS Form Layout Changes
+
+**Main Content Area — status:**
+- ❌ Add **Slug** (auto-generated, editable) after Title
+- ❌ Add **Short Description** (plain text, ~200 chars) after Slug
+- ❌ Add **Day-of-week picker** in Date & Time section (when weekly/biweekly selected)
+- ❌ Add **Recurrence end date** in Date & Time section (when any recurrence selected)
+- ✅ **Meeting URL** in Location section (with `http://https://` validation)
+- ✅ **Address** and **Directions URL** in Location section (for in-person events)
+- ⚠️ **Links section** removed from form; Registration URL moved to sidebar. Dynamic label+URL list deferred.
+
+**Sidebar — status:**
+- ✅ **Registration URL** moved to sidebar
+- ❌ Add **Campus** selector under Organization
+- ❌ Add **Tags** input under Organization
+- ❌ Add **Alt Text** and **Object Position** to Cover Image section
+
+#### 2.8.5 Website Data Inconsistencies
+
+Issues found in the website mock data that should be corrected:
+- Several events tagged `#RECURRING` have `isRecurring: false` (Friday Night Bible Study, CSULB Campus Bible Study, Children's Sunday School, Saturday Morning Prayer Meeting, Adult Bible Study: Book of Romans)
+- The `time` field stores formatted strings (`"7:00 PM - 9:00 PM"`) rather than structured start/end times — should be computed from structured fields
+- Hybrid events combine physical and online locations into one string — should be split into `location` + `meetingUrl`
+
+#### 2.8.6 Pending Schema Migration (New)
+
+> The following fields exist in the CMS `ChurchEvent` TypeScript type and form UI but do **not** yet exist in the Prisma schema (`prisma/schema.prisma`). A migration is needed to add them to the `ChurchEvent` model:
+>
+> | Field | Type | Notes |
+> |---|---|---|
+> | `directionsUrl` | `String?` | URL for driving directions. Add next to `meetingUrl` in the Location section of the schema. |
+> | `monthlyRecurrenceType` | `MonthlyRecurrenceType` enum (`DAY_OF_MONTH`, `DAY_OF_WEEK`) | Controls whether monthly recurrence uses "same day of month" or "nth weekday of month". Add to Recurrence section. Default: `DAY_OF_MONTH`. |
+>
+> Additionally, the `isPinned` field in the Prisma schema is no longer used in the CMS UI (replaced by `isFeatured`). Consider removing `isPinned` and its index (`@@index([churchId, isPinned])`) in a future migration to avoid confusion.
 
 ---
 
@@ -542,6 +674,31 @@ All publishable content types share a unified status model:
 ### 7.6 Data Propagation
 
 - ❌ [P1] Changes to church profile data propagate automatically to all locations on the website where they appear (header, footer, contact page, etc.).
+
+### 7.7 Core Interface
+
+- ❌ [P0] Page Header with Title, Description, and Save Action (primary button to persist all profile changes).
+- ❌ [P0] Form Structure: A single page, long-scrolling form divided into logical sections with card containers.
+
+### 7.8 Data Inputs Summary
+
+| Section | Field | Type | Required | Notes |
+|---------|-------|------|----------|-------|
+| Identity | Name | String | Yes | |
+| Identity | Description | String | No | Mission statement or brief bio. Used for SEO and website footers. |
+| Location | Street | String | No | |
+| Location | City | String | No | |
+| Location | State | String | No | |
+| Location | Zip | String | No | |
+| Location | Notes | String | No | Parking instructions, entrance details, etc. |
+| Contact | Emails | Array | No | `{ label, value }` — dynamic list, add/remove |
+| Contact | Phones | Array | No | `{ label, value }` — dynamic list, add/remove |
+| Schedule | Schedule Items | Array | No | `{ day, openTime, closeTime, description }` — dynamic list |
+| Socials | Facebook | String | No | URL |
+| Socials | Instagram | String | No | URL |
+| Socials | YouTube | String | No | URL |
+| Socials | X (Twitter) | String | No | URL |
+| Socials | Custom Links | Array | No | `{ platform, url }` — dynamic list, add/remove |
 
 ---
 

@@ -1,19 +1,18 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
   ArrowLeft,
   CalendarIcon,
+  CalendarPlus,
   Globe,
-  LinkIcon,
   MapPin,
   MessageSquare,
-  Plus,
+  Navigation,
   Repeat,
-  Trash2,
-  ExternalLink,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,7 +22,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import { DatePicker } from "@/components/ui/date-picker"
 import { Separator } from "@/components/ui/separator"
-import { Switch } from "@/components/ui/switch"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Toggle } from "@/components/ui/toggle"
 import {
@@ -33,6 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { cn } from "@/lib/utils"
 import { EventSidebar } from "./event-sidebar"
 import { CustomRecurrenceDialog } from "./custom-recurrence-dialog"
 import { useEvents } from "@/lib/events-context"
@@ -53,6 +52,7 @@ import {
   type RecurrenceEndType,
   type DayOfWeek,
   type CustomRecurrence,
+  type MonthlyRecurrenceType,
 } from "@/lib/events-data"
 
 interface EventFormProps {
@@ -75,6 +75,24 @@ const recurrenceOptions: Recurrence[] = [
 /** Recurrence types that should show the day-of-week picker */
 const dayPickerRecurrences: Recurrence[] = ["weekly"]
 
+const URL_REGEX = /^https?:\/\/.+/
+
+/** Helper: get ordinal suffix for a day number (1st, 2nd, 3rd, etc.) */
+function getOrdinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"]
+  const v = n % 100
+  return n + (s[(v - 20) % 10] || s[v] || s[0])
+}
+
+/** Helper: get the "Nth weekday" label for a date, e.g. "3rd Thursday" */
+function getNthWeekdayLabel(dateStr: string): string {
+  const date = new Date(dateStr + "T00:00:00")
+  const dayOfMonth = date.getDate()
+  const nth = Math.ceil(dayOfMonth / 7)
+  const weekday = date.toLocaleDateString("en-US", { weekday: "long" })
+  return `${getOrdinal(nth)} ${weekday}`
+}
+
 export function EventForm({ mode, event }: EventFormProps) {
   const router = useRouter()
   const { addEvent, updateEvent } = useEvents()
@@ -90,6 +108,9 @@ export function EventForm({ mode, event }: EventFormProps) {
   const [endDate, setEndDate] = useState(event?.endDate ?? today)
   const [startTime, setStartTime] = useState(event?.startTime ?? "10:00")
   const [endTime, setEndTime] = useState(event?.endTime ?? "11:00")
+  const [showEndDate, setShowEndDate] = useState(
+    event ? event.endDate !== event.date : false
+  )
   const [recurrence, setRecurrence] = useState<Recurrence>(event?.recurrence ?? "none")
   const [recurrenceDays, setRecurrenceDays] = useState<DayOfWeek[]>(event?.recurrenceDays ?? [])
   const [recurrenceEndType, setRecurrenceEndType] = useState<RecurrenceEndType>(event?.recurrenceEndType ?? "never")
@@ -98,19 +119,25 @@ export function EventForm({ mode, event }: EventFormProps) {
     event?.customRecurrence
   )
   const [customRecurrenceOpen, setCustomRecurrenceOpen] = useState(false)
+  const [monthlyType, setMonthlyType] = useState<MonthlyRecurrenceType>(
+    event?.monthlyType ?? "day-of-month"
+  )
 
   // Location
   const [locationType, setLocationType] = useState<LocationType>(event?.locationType ?? "in-person")
   const [location, setLocation] = useState(event?.location ?? "")
+  const [address, setAddress] = useState(event?.address ?? "")
+  const [directionsUrl, setDirectionsUrl] = useState(event?.directionsUrl ?? "")
   const [meetingUrl, setMeetingUrl] = useState(event?.meetingUrl ?? "")
+  const [meetingUrlError, setMeetingUrlError] = useState<string | null>(null)
 
   // Content
   const [description, setDescription] = useState(event?.description ?? "")
   const [welcomeMessage, setWelcomeMessage] = useState(event?.welcomeMessage ?? "")
 
-  // Links
+  // Links (kept for backwards compatibility, UI section removed)
   const [registrationUrl, setRegistrationUrl] = useState(event?.registrationUrl ?? "")
-  const [links, setLinks] = useState<EventLink[]>(event?.links ?? [])
+  const [links] = useState<EventLink[]>(event?.links ?? [])
 
   // Sidebar state
   const [status, setStatus] = useState<ContentStatus>(event?.status ?? "draft")
@@ -126,6 +153,17 @@ export function EventForm({ mode, event }: EventFormProps) {
   const statusConfig = statusDisplay[status]
   const isRecurring = recurrence !== "none"
   const showDayPicker = dayPickerRecurrences.includes(recurrence)
+
+  // Compute monthly recurrence options based on start date
+  const monthlyOptions = useMemo(() => {
+    if (!startDate) return { dayOfMonth: "Monthly on the 1st", nthWeekday: "Monthly on the 1st Monday" }
+    const date = new Date(startDate + "T00:00:00")
+    const dayOfMonth = date.getDate()
+    return {
+      dayOfMonth: `Monthly on the ${getOrdinal(dayOfMonth)}`,
+      nthWeekday: `Monthly on the ${getNthWeekdayLabel(startDate)}`,
+    }
+  }, [startDate])
 
   function handleTitleChange(value: string) {
     setTitle(value)
@@ -183,18 +221,22 @@ export function EventForm({ mode, event }: EventFormProps) {
     if (value > endDate) setEndDate(value)
   }
 
-  function handleAddLink() {
-    setLinks(prev => [...prev, { label: "", href: "", external: true }])
+  function handleShowEndDate() {
+    setShowEndDate(true)
   }
 
-  function handleUpdateLink(index: number, field: keyof EventLink, value: string | boolean) {
-    setLinks(prev => prev.map((link, i) =>
-      i === index ? { ...link, [field]: value } : link
-    ))
+  function handleRemoveEndDate() {
+    setShowEndDate(false)
+    setEndDate(startDate)
   }
 
-  function handleRemoveLink(index: number) {
-    setLinks(prev => prev.filter((_, i) => i !== index))
+  function handleMeetingUrlChange(value: string) {
+    setMeetingUrl(value)
+    if (value.trim() && !URL_REGEX.test(value.trim())) {
+      setMeetingUrlError("Please enter a valid URL starting with http:// or https://")
+    } else {
+      setMeetingUrlError(null)
+    }
   }
 
   function handleSave() {
@@ -205,7 +247,7 @@ export function EventForm({ mode, event }: EventFormProps) {
       title: title.trim(),
       type: eventType,
       date: startDate,
-      endDate,
+      endDate: showEndDate ? endDate : startDate,
       startTime,
       endTime,
       recurrence,
@@ -215,11 +257,14 @@ export function EventForm({ mode, event }: EventFormProps) {
       customRecurrence: recurrence === "custom" ? customRecurrence : undefined,
       locationType,
       location: location.trim(),
+      address: address.trim() || undefined,
+      directionsUrl: directionsUrl.trim() || undefined,
       meetingUrl: meetingUrl.trim() || undefined,
+      monthlyType: recurrence === "monthly" ? monthlyType : undefined,
       ministry,
       campus: campus || undefined,
       status,
-      isPinned: event?.isPinned ?? false,
+      isFeatured: event?.isFeatured ?? false,
       shortDescription: shortDescription.trim() || undefined,
       description: description || undefined,
       welcomeMessage: welcomeMessage || undefined,
@@ -278,7 +323,7 @@ export function EventForm({ mode, event }: EventFormProps) {
             value={title}
             onChange={(e) => handleTitleChange(e.target.value)}
             placeholder="Event title"
-            className="text-lg font-medium h-12"
+            className="text-2xl font-semibold h-14 border-0 bg-transparent shadow-none px-0 rounded-none border-b border-transparent focus-visible:border-border focus-visible:ring-0 placeholder:text-muted-foreground/50"
             aria-label="Event title"
           />
           {title.trim().length > 0 && title.trim().length < 2 && (
@@ -298,7 +343,7 @@ export function EventForm({ mode, event }: EventFormProps) {
       </div>
 
       {/* Two-column layout */}
-      <div className="flex flex-1 gap-6 min-h-0">
+      <div className="flex flex-col lg:flex-row flex-1 gap-6 min-h-0">
         {/* Main content */}
         <div className="flex-1 min-w-0 overflow-y-auto space-y-6 p-0.5 -m-0.5">
           {/* Short Description */}
@@ -328,8 +373,8 @@ export function EventForm({ mode, event }: EventFormProps) {
             </div>
 
             <div className="p-5 space-y-4">
-              {/* Start row */}
-              <div className="grid grid-cols-[1fr_auto_auto] items-end gap-3">
+              {/* Start row: Start Date + Start Time */}
+              <div className="grid grid-cols-[1fr_auto] items-end gap-3">
                 <div className="space-y-2">
                   <Label>Start Date</Label>
                   <DatePicker
@@ -348,28 +393,65 @@ export function EventForm({ mode, event }: EventFormProps) {
                     className="w-32"
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="end-time">End Time</Label>
-                  <Input
-                    id="end-time"
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="w-32"
-                  />
-                </div>
               </div>
 
-              {/* End date row */}
-              <div className="space-y-2">
-                <Label>End Date</Label>
-                <DatePicker
-                  value={endDate}
-                  onChange={setEndDate}
-                  min={startDate}
-                  placeholder="Select end date"
-                />
-              </div>
+              {/* End row: End Date + End Time (collapsible) */}
+              {showEndDate ? (
+                <div className="grid grid-cols-[1fr_auto_auto] items-end gap-3">
+                  <div className="space-y-2">
+                    <Label>End Date</Label>
+                    <DatePicker
+                      value={endDate}
+                      onChange={setEndDate}
+                      min={startDate}
+                      placeholder="Select end date"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="end-time">End Time</Label>
+                    <Input
+                      id="end-time"
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="w-32"
+                    />
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={handleRemoveEndDate}
+                    aria-label="Remove end date"
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-[1fr_auto] items-end gap-3">
+                  <div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-foreground -ml-2"
+                      onClick={handleShowEndDate}
+                    >
+                      <CalendarPlus className="size-3.5" />
+                      Add end date
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="end-time">End Time</Label>
+                    <Input
+                      id="end-time"
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="w-32"
+                    />
+                  </div>
+                </div>
+              )}
 
               <Separator />
 
@@ -410,6 +492,29 @@ export function EventForm({ mode, event }: EventFormProps) {
                     >
                       Edit
                     </Button>
+                  </div>
+                )}
+
+                {/* Monthly recurrence type selector */}
+                {recurrence === "monthly" && (
+                  <div className="space-y-2">
+                    <Label className="text-xs text-muted-foreground">Repeats</Label>
+                    <Select
+                      value={monthlyType}
+                      onValueChange={(v) => setMonthlyType(v as MonthlyRecurrenceType)}
+                    >
+                      <SelectTrigger className="w-full sm:w-80">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="day-of-month">
+                          {monthlyOptions.dayOfMonth}
+                        </SelectItem>
+                        <SelectItem value="day-of-week">
+                          {monthlyOptions.nthWeekday}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
 
@@ -499,7 +604,7 @@ export function EventForm({ mode, event }: EventFormProps) {
 
               <div className="space-y-2">
                 <Label htmlFor="location-input">
-                  {locationType === "in-person" ? "Address / Venue" : "Location Name"}
+                  {locationType === "in-person" ? "Venue / Location Name" : "Location Name"}
                 </Label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -517,6 +622,38 @@ export function EventForm({ mode, event }: EventFormProps) {
                 </div>
               </div>
 
+              {/* Address & Directions - only for in-person events */}
+              {locationType === "in-person" && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="address-input">Address</Label>
+                    <Input
+                      id="address-input"
+                      value={address}
+                      onChange={(e) => setAddress(e.target.value)}
+                      placeholder="e.g. 1234 Main St, Los Angeles, CA 90001"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="directions-url">Directions URL</Label>
+                    <div className="relative">
+                      <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                      <Input
+                        id="directions-url"
+                        value={directionsUrl}
+                        onChange={(e) => setDirectionsUrl(e.target.value)}
+                        placeholder="e.g. https://maps.google.com/..."
+                        className="pl-9"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Link to Google Maps or other directions service. Shown as a &quot;Get Directions&quot; button.
+                    </p>
+                  </div>
+                </>
+              )}
+
               <Separator />
 
               {/* Meeting URL - always visible */}
@@ -527,14 +664,18 @@ export function EventForm({ mode, event }: EventFormProps) {
                   <Input
                     id="meeting-url"
                     value={meetingUrl}
-                    onChange={(e) => setMeetingUrl(e.target.value)}
+                    onChange={(e) => handleMeetingUrlChange(e.target.value)}
                     placeholder="e.g. https://zoom.us/j/..."
-                    className="pl-9"
+                    className={cn("pl-9", meetingUrlError && "border-destructive")}
                   />
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Online meeting link (Zoom, YouTube, Google Meet). Shown as a &quot;Join Online&quot; button on the event page.
-                </p>
+                {meetingUrlError ? (
+                  <p className="text-xs text-destructive">{meetingUrlError}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Online meeting link (Zoom, YouTube, Google Meet). Shown as a &quot;Join Online&quot; button on the event page.
+                  </p>
+                )}
               </div>
             </div>
           </section>
@@ -573,90 +714,6 @@ export function EventForm({ mode, event }: EventFormProps) {
               </div>
             </div>
           </section>
-
-          {/* Links */}
-          <section className="rounded-xl border bg-card">
-            <div className="px-5 py-3 border-b flex items-center gap-2">
-              <LinkIcon className="size-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">Links</h2>
-            </div>
-
-            <div className="p-5 space-y-4">
-              {/* Registration URL */}
-              <div className="space-y-2">
-                <Label htmlFor="registration-url">Registration URL</Label>
-                <div className="relative">
-                  <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                  <Input
-                    id="registration-url"
-                    value={registrationUrl}
-                    onChange={(e) => setRegistrationUrl(e.target.value)}
-                    placeholder="e.g. https://forms.google.com/..."
-                    className="pl-9"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Shows a &quot;Register Now&quot; button on the event page.
-                </p>
-              </div>
-
-              <Separator />
-
-              {/* Important Links */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label>Important Links</Label>
-                  <Button variant="outline" size="sm" onClick={handleAddLink}>
-                    <Plus className="size-3.5" />
-                    Add Link
-                  </Button>
-                </div>
-
-                {links.length === 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    No additional links. Add links that will appear on the event detail page.
-                  </p>
-                )}
-
-                {links.map((link, index) => (
-                  <div key={index} className="flex items-start gap-2 p-3 rounded-lg border bg-muted/30">
-                    <div className="flex-1 space-y-2">
-                      <Input
-                        value={link.label}
-                        onChange={(e) => handleUpdateLink(index, "label", e.target.value)}
-                        placeholder="Link label (e.g. Conference Schedule)"
-                        className="h-8 text-sm"
-                      />
-                      <Input
-                        value={link.href}
-                        onChange={(e) => handleUpdateLink(index, "href", e.target.value)}
-                        placeholder="https://..."
-                        className="h-8 text-sm"
-                      />
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          id={`link-external-${index}`}
-                          checked={link.external ?? true}
-                          onCheckedChange={(checked) => handleUpdateLink(index, "external", checked)}
-                        />
-                        <Label htmlFor={`link-external-${index}`} className="text-xs font-normal text-muted-foreground">
-                          Open in new tab
-                        </Label>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      onClick={() => handleRemoveLink(index)}
-                      className="shrink-0"
-                    >
-                      <Trash2 className="size-3.5 text-destructive" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </section>
         </div>
 
         {/* Sidebar */}
@@ -677,6 +734,8 @@ export function EventForm({ mode, event }: EventFormProps) {
           onCoverImageChange={setCoverImage}
           imageAlt={imageAlt}
           onImageAltChange={setImageAlt}
+          registrationUrl={registrationUrl}
+          onRegistrationUrlChange={setRegistrationUrl}
         />
       </div>
 

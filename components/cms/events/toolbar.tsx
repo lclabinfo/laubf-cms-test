@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Table as TanstackTable } from "@tanstack/react-table"
-import { Search, SlidersHorizontal, Plus, X } from "lucide-react"
+import { Search, SlidersHorizontal, Plus, X, Columns3, List, LayoutGrid } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -11,7 +11,15 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import type { ChurchEvent, EventType } from "@/lib/events-data"
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import type { ChurchEvent, EventType, Recurrence, MinistryTag } from "@/lib/events-data"
 import type { ContentStatus } from "@/lib/status"
 
 const statuses: { value: ContentStatus; label: string }[] = [
@@ -27,16 +35,48 @@ const eventTypes: { value: EventType; label: string }[] = [
   { value: "program", label: "Program" },
 ]
 
+const recurrences: { value: Recurrence; label: string }[] = [
+  { value: "none", label: "None" },
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "monthly", label: "Monthly" },
+  { value: "yearly", label: "Yearly" },
+  { value: "weekday", label: "Weekday" },
+  { value: "custom", label: "Custom" },
+]
+
+const ministries: { value: MinistryTag; label: string }[] = [
+  { value: "young-adult", label: "Young Adult" },
+  { value: "adult", label: "Adult" },
+  { value: "children", label: "Children" },
+  { value: "high-school", label: "Middle & High School" },
+  { value: "church-wide", label: "Church-wide" },
+]
+
+const columnLabels: Record<string, string> = {
+  title: "Event",
+  type: "Type",
+  date: "Date & Time",
+  recurrence: "Recurrence",
+  location: "Location",
+  ministry: "Ministry",
+  status: "Status",
+}
+
 interface ToolbarProps {
   table: TanstackTable<ChurchEvent>
   globalFilter: string
   setGlobalFilter: (value: string) => void
+  view: "list" | "card"
+  onViewChange: (view: "list" | "card") => void
 }
 
-export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) {
+export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChange }: ToolbarProps) {
   const selectedCount = table.getFilteredSelectedRowModel().rows.length
   const statusFilter = (table.getColumn("status")?.getFilterValue() as ContentStatus[]) ?? []
   const typeFilter = (table.getColumn("type")?.getFilterValue() as EventType[]) ?? []
+  const recurrenceFilter = (table.getColumn("recurrence")?.getFilterValue() as Recurrence[]) ?? []
+  const ministryFilter = (table.getColumn("ministry")?.getFilterValue() as MinistryTag[]) ?? []
 
   function toggleStatus(status: ContentStatus) {
     const current = statusFilter
@@ -54,12 +94,30 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
     table.getColumn("type")?.setFilterValue(next.length ? next : undefined)
   }
 
+  function toggleRecurrence(recurrence: Recurrence) {
+    const current = recurrenceFilter
+    const next = current.includes(recurrence)
+      ? current.filter((r) => r !== recurrence)
+      : [...current, recurrence]
+    table.getColumn("recurrence")?.setFilterValue(next.length ? next : undefined)
+  }
+
+  function toggleMinistry(ministry: MinistryTag) {
+    const current = ministryFilter
+    const next = current.includes(ministry)
+      ? current.filter((m) => m !== ministry)
+      : [...current, ministry]
+    table.getColumn("ministry")?.setFilterValue(next.length ? next : undefined)
+  }
+
   function clearFilters() {
     table.getColumn("status")?.setFilterValue(undefined)
     table.getColumn("type")?.setFilterValue(undefined)
+    table.getColumn("recurrence")?.setFilterValue(undefined)
+    table.getColumn("ministry")?.setFilterValue(undefined)
   }
 
-  const filterCount = statusFilter.length + typeFilter.length
+  const filterCount = statusFilter.length + typeFilter.length + recurrenceFilter.length + ministryFilter.length
   const hasFilters = filterCount > 0
 
   return (
@@ -88,7 +146,7 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-56" align="start">
+        <PopoverContent className="w-64" align="start">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Filters</span>
@@ -132,13 +190,69 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
                 ))}
               </div>
             </div>
+
+            {/* Recurrence filter */}
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-muted-foreground">Recurrence</span>
+              <div className="flex flex-wrap gap-1.5">
+                {recurrences.map((r) => (
+                  <Badge
+                    key={r.value}
+                    variant={recurrenceFilter.includes(r.value) ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => toggleRecurrence(r.value)}
+                  >
+                    {r.label}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+
+            {/* Ministry filter */}
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-muted-foreground">Ministry</span>
+              <div className="flex flex-wrap gap-1.5">
+                {ministries.map((m) => (
+                  <Badge
+                    key={m.value}
+                    variant={ministryFilter.includes(m.value) ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => toggleMinistry(m.value)}
+                  >
+                    {m.label}
+                  </Badge>
+                ))}
+              </div>
+            </div>
           </div>
         </PopoverContent>
       </Popover>
 
+      {/* View toggle */}
+      <div className="flex items-center rounded-md border">
+        <Button
+          variant={view === "list" ? "secondary" : "ghost"}
+          size="icon-sm"
+          className="rounded-r-none"
+          onClick={() => onViewChange("list")}
+          aria-label="List view"
+        >
+          <List className="size-4" />
+        </Button>
+        <Button
+          variant={view === "card" ? "secondary" : "ghost"}
+          size="icon-sm"
+          className="rounded-l-none"
+          onClick={() => onViewChange("card")}
+          aria-label="Card view"
+        >
+          <LayoutGrid className="size-4" />
+        </Button>
+      </div>
+
       {/* Active filter badges */}
       {hasFilters && (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
           {statusFilter.map((s) => (
             <Badge key={s} variant="secondary" className="gap-1">
               {s}
@@ -155,6 +269,28 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
               {t}
               <button
                 onClick={() => toggleType(t)}
+                className="ml-0.5 rounded-full hover:bg-foreground/10"
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ))}
+          {recurrenceFilter.map((r) => (
+            <Badge key={r} variant="secondary" className="gap-1">
+              {r}
+              <button
+                onClick={() => toggleRecurrence(r)}
+                className="ml-0.5 rounded-full hover:bg-foreground/10"
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ))}
+          {ministryFilter.map((m) => (
+            <Badge key={m} variant="secondary" className="gap-1">
+              {m}
+              <button
+                onClick={() => toggleMinistry(m)}
                 className="ml-0.5 rounded-full hover:bg-foreground/10"
               >
                 <X className="size-3" />
@@ -196,12 +332,40 @@ export function Toolbar({ table, globalFilter, setGlobalFilter }: ToolbarProps) 
           </Button>
         </div>
       ) : (
-        <Button asChild>
-          <Link href="/cms/events/new">
-            <Plus />
-            <span className="hidden sm:inline">New Event</span>
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Column visibility toggle */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="icon">
+                <Columns3 className="size-4" />
+                <span className="sr-only">Toggle columns</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {table
+                .getAllColumns()
+                .filter((column) => column.getCanHide())
+                .map((column) => (
+                  <DropdownMenuCheckboxItem
+                    key={column.id}
+                    checked={column.getIsVisible()}
+                    onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                  >
+                    {columnLabels[column.id] ?? column.id}
+                  </DropdownMenuCheckboxItem>
+                ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Button asChild>
+            <Link href="/cms/events/new">
+              <Plus />
+              <span className="hidden sm:inline">New Event</span>
+            </Link>
+          </Button>
+        </div>
       )}
     </div>
   )

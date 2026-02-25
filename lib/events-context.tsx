@@ -118,7 +118,10 @@ function apiEventToCms(apiEvt: any): ChurchEvent {
     ministry: (apiEvt.ministry?.slug as MinistryTag) ?? "church-wide",
     campus: (apiEvt.campus?.slug as CampusTag) ?? undefined,
     status: statusFromApi[apiEvt.status] ?? "draft",
-    isPinned: apiEvt.isPinned ?? false,
+    isFeatured: apiEvt.isFeatured ?? false,
+    address: apiEvt.address ?? undefined,
+    directionsUrl: apiEvt.directionsUrl ?? undefined,
+    monthlyType: apiEvt.monthlyRecurrenceType === "DAY_OF_WEEK" ? "day-of-week" : apiEvt.monthlyRecurrenceType === "DAY_OF_MONTH" ? "day-of-month" : undefined,
     shortDescription: apiEvt.shortDescription ?? undefined,
     description: apiEvt.description ?? undefined,
     welcomeMessage: apiEvt.welcomeMessage ?? undefined,
@@ -154,8 +157,9 @@ function cmsEventToApiCreate(data: Omit<ChurchEvent, "id">) {
     coverImage: data.coverImage || null,
     imageAlt: data.imageAlt || null,
     registrationUrl: data.registrationUrl || null,
-    isPinned: data.isPinned ?? false,
-    isFeatured: false,
+    isFeatured: data.isFeatured ?? false,
+    address: data.address || null,
+    directionsUrl: data.directionsUrl || null,
     isRecurring: data.recurrence !== "none",
     recurrence: recurrenceToApi[data.recurrence] ?? "NONE",
     recurrenceDays: data.recurrenceDays ?? [],
@@ -256,7 +260,9 @@ export function EventsProvider({ children }: { children: ReactNode }) {
     if (data.coverImage !== undefined) payload.coverImage = data.coverImage || null
     if (data.imageAlt !== undefined) payload.imageAlt = data.imageAlt || null
     if (data.registrationUrl !== undefined) payload.registrationUrl = data.registrationUrl || null
-    if (data.isPinned !== undefined) payload.isPinned = data.isPinned
+    if (data.isFeatured !== undefined) payload.isFeatured = data.isFeatured
+    if (data.address !== undefined) payload.address = data.address || null
+    if (data.directionsUrl !== undefined) payload.directionsUrl = data.directionsUrl || null
     if (data.recurrence !== undefined) {
       payload.recurrence = recurrenceToApi[data.recurrence] ?? "NONE"
       payload.isRecurring = data.recurrence !== "none"

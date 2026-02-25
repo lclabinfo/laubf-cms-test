@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ImageIcon, Plus, Sparkles, Upload, X, Library, Hash } from "lucide-react"
+import { ExternalLink, ImageIcon, Plus, Sparkles, Upload, Users, X, Library, Hash } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -13,6 +13,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { statusDisplay } from "@/lib/status"
 import type { ContentStatus } from "@/lib/status"
 import {
@@ -43,6 +48,8 @@ interface EventSidebarProps {
   onCoverImageChange: (url: string) => void
   imageAlt: string
   onImageAltChange: (alt: string) => void
+  registrationUrl: string
+  onRegistrationUrlChange: (url: string) => void
 }
 
 const statusOptions: ContentStatus[] = ["draft", "published", "scheduled", "archived"]
@@ -71,6 +78,8 @@ export function EventSidebar({
   onCoverImageChange,
   imageAlt,
   onImageAltChange,
+  registrationUrl,
+  onRegistrationUrlChange,
 }: EventSidebarProps) {
   const [contactInput, setContactInput] = useState("")
   const [tagInput, setTagInput] = useState("")
@@ -233,6 +242,24 @@ export function EventSidebar({
             </Select>
           </div>
 
+          {/* Registration URL */}
+          <div className="space-y-2">
+            <Label htmlFor="registration-url-sidebar">Registration URL</Label>
+            <div className="relative">
+              <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+              <Input
+                id="registration-url-sidebar"
+                value={registrationUrl}
+                onChange={(e) => onRegistrationUrlChange(e.target.value)}
+                placeholder="https://forms.google.com/..."
+                className="pl-9 text-sm"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Shows a &quot;Register&quot; button on the event page.
+            </p>
+          </div>
+
           {/* Points of Contact */}
           <div className="space-y-2">
             <Label>Points of Contact</Label>
@@ -244,6 +271,7 @@ export function EventSidebar({
                     <button
                       onClick={() => handleRemoveContact(name)}
                       className="rounded-full hover:bg-foreground/10 p-0.5"
+                      aria-label={`Remove ${name}`}
                     >
                       <X className="size-3" />
                     </button>
@@ -268,6 +296,17 @@ export function EventSidebar({
                 <Plus className="size-4" />
               </Button>
             </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" disabled className="w-full">
+                  <Users className="size-3.5" />
+                  Browse People
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Coming soon</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
         </div>
       </div>
@@ -288,6 +327,7 @@ export function EventSidebar({
                   <button
                     onClick={() => handleRemoveTag(tag)}
                     className="rounded-full hover:bg-foreground/10 p-0.5"
+                    aria-label={`Remove tag ${tag}`}
                   >
                     <X className="size-3" />
                   </button>

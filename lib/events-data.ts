@@ -4,6 +4,8 @@ export type EventType = "event" | "meeting" | "program"
 
 export type Recurrence = "none" | "daily" | "weekly" | "monthly" | "yearly" | "weekday" | "custom"
 
+export type MonthlyRecurrenceType = "day-of-month" | "day-of-week"
+
 export type LocationType = "in-person" | "online"
 
 export type DayOfWeek = "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat"
@@ -63,11 +65,14 @@ export type ChurchEvent = {
   customRecurrence?: CustomRecurrence
   locationType: LocationType
   location: string
+  address?: string
+  directionsUrl?: string
   meetingUrl?: string
+  monthlyType?: MonthlyRecurrenceType
   ministry: MinistryTag
   campus?: CampusTag
   status: ContentStatus
-  isPinned: boolean
+  isFeatured: boolean
   // Detail fields
   shortDescription?: string
   description?: string
@@ -237,7 +242,7 @@ export const events: ChurchEvent[] = [
     ministry: "church-wide",
     campus: "all",
     status: "published",
-    isPinned: true,
+    isFeatured: true,
     shortDescription: "Join us for our weekly Sunday worship service. Everyone is welcome!",
     description: "<p>Join us for our weekly Sunday worship service. Everyone is welcome!</p><p>Communion is observed on the first Sunday of each month. Childcare and a children's program are available during the service.</p>",
     welcomeMessage: "Welcome to LA UBF! We're so glad you're here.",
@@ -267,7 +272,7 @@ export const events: ChurchEvent[] = [
     ministry: "young-adult",
     campus: "all",
     status: "published",
-    isPinned: true,
+    isFeatured: true,
     shortDescription: "Weekly Bible study for young adults. We study the Gospel of Mark together and share fellowship over snacks.",
     description: "<p>Join us every Friday evening for our cornerstone weekly Bible study. We gather to study God's word together, share what we are learning, and encourage one another in faith.</p><h3>What to Expect</h3><p>Each session opens with a time of worship and prayer, followed by inductive Bible study in small groups. We are currently working through the <strong>Gospel of Mark</strong>.</p>",
     contacts: ["Youth Pastor Mark"],
@@ -293,7 +298,7 @@ export const events: ChurchEvent[] = [
     meetingUrl: "https://zoom.us/j/123456789",
     ministry: "church-wide",
     status: "scheduled",
-    isPinned: false,
+    isFeatured: false,
     shortDescription: "Monthly meeting for the elder board to discuss church matters.",
     contacts: ["Elder James", "Elder Ruth"],
     tags: ["#CHURCH-WIDE"],
@@ -315,7 +320,7 @@ export const events: ChurchEvent[] = [
     location: "LA UBF Main Center",
     ministry: "church-wide",
     status: "draft",
-    isPinned: true,
+    isFeatured: true,
     shortDescription: "Celebrate the resurrection of Jesus Christ with special worship, choir performance, and a shared Easter meal.",
     description: "<p>A special Easter celebration with worship, drama, and fellowship brunch.</p>",
     welcomeMessage: "He is risen! Welcome to our Easter celebration.",
@@ -342,7 +347,7 @@ export const events: ChurchEvent[] = [
     ministry: "young-adult",
     campus: "csulb",
     status: "published",
-    isPinned: true,
+    isFeatured: true,
     shortDescription: "Meet us at the CSULB campus for our spring semester welcome week with free food, games, and Bible study invitations.",
     description: "<p>It is the start of a new semester and we want every student at Cal State Long Beach to know they have a home at LA UBF.</p>",
     coverImage: "",
@@ -368,7 +373,7 @@ export const events: ChurchEvent[] = [
     ministry: "church-wide",
     campus: "all",
     status: "published",
-    isPinned: false,
+    isFeatured: false,
     shortDescription: "Start your morning in the Word. A short daily devotional and prayer time open to everyone, Monday through Friday.",
     description: "<p>Daily Bread is a morning devotional gathering where we read a passage of Scripture together, share reflections, and pray to start the day grounded in God's word.</p><p>No preparation is needed \u2014 just come with an open heart. Coffee is ready by 5:45 AM.</p>",
     tags: ["#CHURCH-WIDE", "#RECURRING", "#DEVOTIONAL"],
@@ -393,7 +398,7 @@ export const events: ChurchEvent[] = [
     ministry: "church-wide",
     campus: "all",
     status: "published",
-    isPinned: false,
+    isFeatured: false,
     shortDescription: "A daily evening prayer meeting to close the day in worship, reflection, and corporate prayer.",
     description: "<p>Join us every evening for a time of focused prayer. We gather to reflect on God's word, lift up prayer topics, and encourage one another in faith.</p><p>This is a daily commitment open to all members. Come as you are \u2014 no preparation needed.</p>",
     tags: ["#CHURCH-WIDE", "#RECURRING", "#WORSHIP", "#PRAYER"],
@@ -416,7 +421,7 @@ export const events: ChurchEvent[] = [
     meetingUrl: "https://zoom.us",
     ministry: "church-wide",
     status: "published",
-    isPinned: false,
+    isFeatured: false,
     shortDescription: "A weekly gathering for men to study Scripture, share life, and hold one another accountable in faith.",
     description: "<p>Men's Bible Study meets every Saturday morning for an in-depth study of God's word. We are currently working through the Book of Proverbs.</p><p>Breakfast is provided. All men are welcome regardless of where you are in your faith journey.</p>",
     tags: ["#CHURCH-WIDE", "#RECURRING", "#BIBLE STUDY"],
@@ -438,7 +443,7 @@ export const events: ChurchEvent[] = [
     location: "City Park",
     ministry: "church-wide",
     status: "scheduled",
-    isPinned: false,
+    isFeatured: false,
     shortDescription: "Serving our community through food distribution and cleanup.",
     description: "<p>Serving our community through food distribution and cleanup.</p>",
     contacts: ["Outreach Coordinator Kim"],
@@ -466,7 +471,7 @@ export const events: ChurchEvent[] = [
     location: "Room 201",
     ministry: "church-wide",
     status: "draft",
-    isPinned: false,
+    isFeatured: false,
     shortDescription: "Introduction to LA UBF for new and prospective members.",
     welcomeMessage: "Welcome to our church family! We're excited to get to know you.",
     tags: [],
@@ -488,7 +493,7 @@ export const events: ChurchEvent[] = [
     location: "UC Riverside Conference Center, Riverside, CA",
     ministry: "church-wide",
     status: "draft",
-    isPinned: false,
+    isFeatured: false,
     shortDescription: "Annual multi-church mission conference with keynote speakers, workshops, and a call to world campus mission.",
     description: "<p>The Summer Mission Conference is the highlight of our ministry calendar. Churches from across the West Coast gather for a weekend of powerful messages, deep fellowship, and renewed commitment to God's world mission calling.</p>",
     coverImage: "",
@@ -517,7 +522,7 @@ export const events: ChurchEvent[] = [
     ministry: "young-adult",
     campus: "ucla",
     status: "published",
-    isPinned: false,
+    isFeatured: false,
     shortDescription: "Three days of outreach at UCLA with free coffee, conversations about faith, and Bible study sign-ups.",
     description: "<p>Our UCLA ministry team sets up on Bruin Walk each spring to connect with students who are searching for community and purpose.</p>",
     imageAlt: "Students at UCLA campus outreach table",

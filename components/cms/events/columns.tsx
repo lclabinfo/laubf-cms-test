@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal, MapPin, Globe, Pin, Pencil, Copy, Trash2 } from "lucide-react"
+import { ArrowUpDown, MoreHorizontal, MapPin, Globe, Star, Pencil, Copy, Trash2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -14,10 +14,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import type { ChurchEvent } from "@/lib/events-data"
-import { eventTypeDisplay, recurrenceDisplay, ministryDisplay } from "@/lib/events-data"
+import { eventTypeDisplay, recurrenceDisplay, ministryDisplay, computeRecurrenceSchedule } from "@/lib/events-data"
 import { statusDisplay } from "@/lib/status"
 
-function formatDate(dateStr: string) {
+function formatDateShort(dateStr: string) {
+  const date = new Date(dateStr + "T00:00:00")
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
+
+function formatDateFull(dateStr: string) {
   const date = new Date(dateStr + "T00:00:00")
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 }
@@ -34,6 +39,10 @@ function isPast(dateStr: string) {
   today.setHours(0, 0, 0, 0)
   const date = new Date(dateStr + "T00:00:00")
   return date < today
+}
+
+function sameYear(a: string, b: string) {
+  return new Date(a + "T00:00:00").getFullYear() === new Date(b + "T00:00:00").getFullYear()
 }
 
 export const columns: ColumnDef<ChurchEvent>[] = [
@@ -75,18 +84,29 @@ export const columns: ColumnDef<ChurchEvent>[] = [
     ),
     cell: ({ row }) => (
       <div className="flex items-center gap-2 min-w-0">
-        {row.original.isPinned && (
-          <Pin className="size-3.5 shrink-0 text-amber-500 fill-amber-500" />
+        {row.original.isFeatured && (
+          <Star className="size-3.5 shrink-0 text-amber-500 fill-amber-500" />
         )}
         <div className="min-w-0">
           <div className="font-medium truncate">{row.getValue("title")}</div>
-          <div className="text-muted-foreground text-xs truncate">
-            {eventTypeDisplay[row.original.type]}
-          </div>
         </div>
       </div>
     ),
-    size: 280,
+    size: 260,
+  },
+  {
+    accessorKey: "type",
+    header: "Type",
+    cell: ({ row }) => (
+      <Badge variant="secondary">
+        {eventTypeDisplay[row.original.type]}
+      </Badge>
+    ),
+    filterFn: (row, id, value: string[]) => {
+      return value.includes(row.getValue(id))
+    },
+    enableSorting: false,
+    size: 100,
   },
   {
     accessorKey: "date",
@@ -102,17 +122,52 @@ export const columns: ColumnDef<ChurchEvent>[] = [
       </Button>
     ),
     cell: ({ row }) => {
-      const past = isPast(row.original.date)
+      const event = row.original
+      const past = isPast(event.date)
+      const schedule = computeRecurrenceSchedule(event)
+
+      // Recurring events: show schedule instead of single date
+      if (schedule) {
+        return (
+          <div className={past ? "opacity-60" : ""}>
+            <div className="text-sm">{schedule}</div>
+            <div className="text-muted-foreground text-xs">
+              {formatTime(event.startTime)} &ndash; {formatTime(event.endTime)}
+            </div>
+          </div>
+        )
+      }
+
+      // Multi-day events: show date range
+      const isMultiDay = event.endDate && event.endDate !== event.date
+      if (isMultiDay) {
+        const startLabel = formatDateShort(event.date)
+        const endLabel = sameYear(event.date, event.endDate)
+          ? formatDateFull(event.endDate)
+          : `${formatDateShort(event.endDate)}, ${new Date(event.endDate + "T00:00:00").getFullYear()}`
+        return (
+          <div className={past ? "opacity-60" : ""}>
+            <div className="text-sm">
+              {startLabel} &ndash; {endLabel}
+            </div>
+            <div className="text-muted-foreground text-xs">
+              {formatTime(event.startTime)} &ndash; {formatTime(event.endTime)}
+            </div>
+          </div>
+        )
+      }
+
+      // Single-day events
       return (
         <div className={past ? "opacity-60" : ""}>
-          <div className="text-sm">{formatDate(row.original.date)}</div>
+          <div className="text-sm">{formatDateFull(event.date)}</div>
           <div className="text-muted-foreground text-xs">
-            {formatTime(row.original.startTime)} – {formatTime(row.original.endTime)}
+            {formatTime(event.startTime)} &ndash; {formatTime(event.endTime)}
           </div>
         </div>
       )
     },
-    size: 180,
+    size: 200,
   },
   {
     accessorKey: "recurrence",
@@ -122,6 +177,9 @@ export const columns: ColumnDef<ChurchEvent>[] = [
         {recurrenceDisplay[row.original.recurrence]}
       </span>
     ),
+    filterFn: (row, id, value: string[]) => {
+      return value.includes(row.getValue(id))
+    },
     enableSorting: false,
     size: 100,
   },
@@ -149,6 +207,9 @@ export const columns: ColumnDef<ChurchEvent>[] = [
       const label = ministryDisplay[ministry] ?? ministry
       return <span className="text-sm">{label}</span>
     },
+    filterFn: (row, id, value: string[]) => {
+      return value.includes(row.getValue(id))
+    },
     enableSorting: false,
     size: 120,
   },
@@ -168,16 +229,6 @@ export const columns: ColumnDef<ChurchEvent>[] = [
       return value.includes(row.getValue(id))
     },
     size: 110,
-  },
-  {
-    accessorKey: "type",
-    header: () => null,
-    cell: () => null,
-    filterFn: (row, id, value: string[]) => {
-      return value.includes(row.getValue(id))
-    },
-    enableSorting: false,
-    size: 0,
   },
   {
     id: "actions",
