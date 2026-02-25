@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { Table as TanstackTable } from "@tanstack/react-table"
-import { Search, SlidersHorizontal, Plus, X, Columns3, List, LayoutGrid } from "lucide-react"
+import { Search, SlidersHorizontal, Settings2, Plus, X, List, LayoutGrid } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -15,8 +15,6 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import type { ChurchEvent, EventType, Recurrence, MinistryTag } from "@/lib/events-data"
@@ -228,6 +226,30 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChan
         </PopoverContent>
       </Popover>
 
+      {/* Column visibility */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline" size="default">
+            <Settings2 />
+            <span className="hidden sm:inline">Columns</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          {table
+            .getAllColumns()
+            .filter((col) => col.getCanHide())
+            .map((col) => (
+              <DropdownMenuCheckboxItem
+                key={col.id}
+                checked={col.getIsVisible()}
+                onCheckedChange={(value) => col.toggleVisibility(!!value)}
+              >
+                {columnLabels[col.id] ?? col.id}
+              </DropdownMenuCheckboxItem>
+            ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
       {/* View toggle */}
       <div className="flex items-center rounded-md border">
         <Button
@@ -332,40 +354,12 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChan
           </Button>
         </div>
       ) : (
-        <div className="flex items-center gap-2">
-          {/* Column visibility toggle */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon">
-                <Columns3 className="size-4" />
-                <span className="sr-only">Toggle columns</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {table
-                .getAllColumns()
-                .filter((column) => column.getCanHide())
-                .map((column) => (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    checked={column.getIsVisible()}
-                    onCheckedChange={(value) => column.toggleVisibility(!!value)}
-                  >
-                    {columnLabels[column.id] ?? column.id}
-                  </DropdownMenuCheckboxItem>
-                ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <Button asChild>
-            <Link href="/cms/events/new">
-              <Plus />
-              <span className="hidden sm:inline">New Event</span>
-            </Link>
-          </Button>
-        </div>
+        <Button asChild>
+          <Link href="/cms/events/new">
+            <Plus />
+            <span className="hidden sm:inline">New Event</span>
+          </Link>
+        </Button>
       )}
     </div>
   )

@@ -70,8 +70,8 @@ function AddVideoDialogInner({
               {platform && (
                 <span className={`absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
                   platform === "YouTube"
-                    ? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
-                    : "bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300"
+                    ? "bg-destructive/10 text-destructive dark:bg-destructive/20"
+                    : "bg-info/10 text-info dark:bg-info/20"
                 }`}>
                   {platform}
                 </span>

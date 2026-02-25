@@ -156,7 +156,7 @@ export default function WebsitePagesPage() {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               {row.original.isHomepage && (
-                <Star className="size-3.5 shrink-0 text-amber-500 fill-amber-500" />
+                <Star className="size-3.5 shrink-0 text-warning fill-warning" />
               )}
               <span className="font-medium truncate">{row.getValue("title")}</span>
             </div>
@@ -183,7 +183,7 @@ export default function WebsitePagesPage() {
         cell: ({ row }) => {
           const isPublished = row.getValue("isPublished") as boolean
           return (
-            <Badge variant={isPublished ? "default" : "secondary"}>
+            <Badge variant={isPublished ? "success" : "secondary"}>
               {isPublished ? "Published" : "Draft"}
             </Badge>
           )
@@ -196,7 +196,7 @@ export default function WebsitePagesPage() {
         cell: ({ row }) => {
           const isHomepage = row.getValue("isHomepage") as boolean
           return isHomepage ? (
-            <Star className="size-4 text-amber-500 fill-amber-500" />
+            <Star className="size-4 text-warning fill-warning" />
           ) : null
         },
         size: 90,

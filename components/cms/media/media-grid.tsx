@@ -85,10 +85,12 @@ export function MediaGrid({
             }`}
           >
             {/* Thumbnail — click to preview */}
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
               className="aspect-video relative bg-muted w-full cursor-pointer"
               onClick={() => onEdit(item.id)}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onEdit(item.id) } }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -98,7 +100,7 @@ export function MediaGrid({
               />
 
               {item.type === "video" && (
-                <div className="absolute inset-0 flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="flex items-center justify-center size-8 rounded-full bg-black/40">
                     <Play className="size-4 text-white fill-white" />
                   </div>
@@ -117,7 +119,7 @@ export function MediaGrid({
                   className="bg-background/80 backdrop-blur-sm"
                 />
               </div>
-            </button>
+            </div>
 
             {/* Footer */}
             <div className="p-2.5 space-y-1.5">

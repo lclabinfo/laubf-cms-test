@@ -85,7 +85,7 @@ export const columns: ColumnDef<ChurchEvent>[] = [
     cell: ({ row }) => (
       <div className="flex items-center gap-2 min-w-0">
         {row.original.isFeatured && (
-          <Star className="size-3.5 shrink-0 text-amber-500 fill-amber-500" />
+          <Star className="size-3.5 shrink-0 text-warning fill-warning" />
         )}
         <div className="min-w-0">
           <div className="font-medium truncate">{row.getValue("title")}</div>
@@ -189,7 +189,7 @@ export const columns: ColumnDef<ChurchEvent>[] = [
     cell: ({ row }) => (
       <div className="flex items-center gap-1.5 min-w-0">
         {row.original.locationType === "online" ? (
-          <Globe className="size-3.5 shrink-0 text-blue-500" />
+          <Globe className="size-3.5 shrink-0 text-info" />
         ) : (
           <MapPin className="size-3.5 shrink-0 text-muted-foreground" />
         )}

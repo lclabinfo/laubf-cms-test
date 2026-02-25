@@ -83,14 +83,9 @@ export function createColumns(series: Series[]): ColumnDef<Message>[] {
       </Button>
     ),
     cell: ({ row }) => (
-      <div className="flex items-center gap-2 min-w-0">
-        {row.original.hasVideo && (
-          <Video className="size-4 shrink-0 text-blue-500" />
-        )}
-        <div className="min-w-0">
-          <div className="font-medium truncate">{row.getValue("title")}</div>
-          <div className="text-muted-foreground text-xs truncate">{row.original.passage}</div>
-        </div>
+      <div className="min-w-0">
+        <div className="font-medium truncate">{row.getValue("title")}</div>
+        <div className="text-muted-foreground text-xs truncate">{row.original.passage}</div>
       </div>
     ),
     size: 280,
@@ -175,7 +170,7 @@ export function createColumns(series: Series[]): ColumnDef<Message>[] {
       if (status === "scheduled") {
         return (
           <span className="flex items-center gap-1.5 text-sm">
-            <Clock className="size-3 text-amber-500" />
+            <Clock className="size-3 text-warning" />
             {formatDateTime(publishedAt)}
           </span>
         )
@@ -209,7 +204,7 @@ export function createColumns(series: Series[]): ColumnDef<Message>[] {
         <Tooltip>
           <TooltipTrigger asChild>
             <Video
-              className={`size-4 ${row.original.hasVideo ? "text-blue-500" : "text-muted-foreground/25"}`}
+              className={`size-4 ${row.original.hasVideo ? "text-info" : "text-muted-foreground/25"}`}
             />
           </TooltipTrigger>
           <TooltipContent>{row.original.hasVideo ? "Has video" : "No video"}</TooltipContent>
@@ -217,7 +212,7 @@ export function createColumns(series: Series[]): ColumnDef<Message>[] {
         <Tooltip>
           <TooltipTrigger asChild>
             <BookOpen
-              className={`size-4 ${row.original.hasStudy ? "text-purple-500" : "text-muted-foreground/25"}`}
+              className={`size-4 ${row.original.hasStudy ? "text-violet-500" : "text-muted-foreground/25"}`}
             />
           </TooltipTrigger>
           <TooltipContent>{row.original.hasStudy ? "Has study guide" : "No study guide"}</TooltipContent>

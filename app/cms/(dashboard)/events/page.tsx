@@ -291,7 +291,7 @@ export default function EventsPage() {
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
                                       {event.isFeatured && (
-                                        <Star className="size-3.5 shrink-0 text-amber-500 fill-amber-500" />
+                                        <Star className="size-3.5 shrink-0 text-warning fill-warning" />
                                       )}
                                       <span className="font-medium text-sm truncate">
                                         {event.title}
@@ -381,7 +381,7 @@ function EventCard({ event }: { event: ChurchEvent }) {
           {/* Featured star overlay */}
           {event.isFeatured && (
             <div className="absolute top-2 left-2">
-              <Star className="size-4 text-amber-500 fill-amber-500 drop-shadow" />
+              <Star className="size-4 text-warning fill-warning drop-shadow" />
             </div>
           )}
         </div>
@@ -406,7 +406,7 @@ function EventCard({ event }: { event: ChurchEvent }) {
 
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             {event.locationType === "online" ? (
-              <Globe className="size-3 shrink-0 text-blue-500" />
+              <Globe className="size-3 shrink-0 text-info" />
             ) : (
               <MapPin className="size-3 shrink-0" />
             )}

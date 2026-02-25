@@ -295,14 +295,14 @@ export function TranscriptEditor({
 
       {/* Processing indicator */}
       {processing === "processing" && (
-        <div className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700 dark:border-blue-500/30 dark:bg-blue-950/50 dark:text-blue-300">
+        <div className="flex items-center gap-2 rounded-lg border border-info/20 bg-info/5 px-3 py-2 text-sm text-info dark:border-info/30 dark:bg-info/10">
           <Loader2 className="size-4 animate-spin" />
           Processing transcript... This may take a moment. You can continue editing and save — processing will complete in the background.
         </div>
       )}
 
       {processing === "done" && (
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-950/50 dark:text-emerald-300">
+        <div className="flex items-center gap-2 rounded-lg border border-success/20 bg-success/5 px-3 py-2 text-sm text-success dark:border-success/30 dark:bg-success/10">
           <Sparkles className="size-4" />
           Transcript processed successfully. Review and edit the segments below.
         </div>
@@ -318,7 +318,7 @@ export function TranscriptEditor({
             className="min-h-[200px] font-mono text-sm"
           />
           {rawTranscript.trim() && segments.length === 0 && (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700 dark:border-amber-500/30 dark:bg-amber-950/50 dark:text-amber-300">
+            <div className="flex items-start gap-2 rounded-lg border border-warning/20 bg-warning/5 px-3 py-2 text-sm text-warning-foreground dark:border-warning/30 dark:bg-warning/10 dark:text-warning">
               <AlertCircle className="size-4 mt-0.5 shrink-0" />
               <span>
                 Raw transcript entered. Use <strong>AI Auto-Align</strong> to generate timestamp segments, or switch to <strong>Synced Transcript</strong> to manually add segments.
