@@ -17,8 +17,53 @@ interface WebsiteFooterProps {
   siteSettings: SiteSettings
 }
 
+/**
+ * Groups flat menu items by `groupLabel` into columns.
+ * Falls back to parent→children hierarchy if groupLabels aren't present.
+ */
+function buildFooterColumns(menu: MenuWithItems | null) {
+  if (!menu) return []
+
+  const visibleItems = menu.items.filter(item => item.isVisible)
+
+  // Strategy 1: If items have children (parent→child hierarchy from menu editor)
+  const itemsWithChildren = visibleItems.filter(item => item.children && item.children.length > 0)
+  if (itemsWithChildren.length > 0) {
+    return itemsWithChildren.map(item => ({
+      heading: item.label,
+      links: (item.children ?? [])
+        .filter(child => child.isVisible)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map(child => ({
+          label: child.label,
+          href: child.href || '#',
+          external: child.isExternal || child.openInNewTab || false,
+        })),
+    }))
+  }
+
+  // Strategy 2: Group flat items by groupLabel (seed data pattern)
+  const grouped = new Map<string, typeof visibleItems>()
+  for (const item of visibleItems) {
+    const group = item.groupLabel || 'Links'
+    if (!grouped.has(group)) grouped.set(group, [])
+    grouped.get(group)!.push(item)
+  }
+
+  return Array.from(grouped.entries()).map(([heading, items]) => ({
+    heading,
+    links: items
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map(item => ({
+        label: item.label,
+        href: item.href || '#',
+        external: item.isExternal || item.openInNewTab || false,
+      })),
+  }))
+}
+
 export function WebsiteFooter({ menu, siteSettings }: WebsiteFooterProps) {
-  const footerItems = menu?.items?.filter(item => item.isVisible) || []
+  const columns = buildFooterColumns(menu)
 
   return (
     <footer className="bg-black-1 px-4 py-20 lg:px-30">
@@ -65,23 +110,23 @@ export function WebsiteFooter({ menu, siteSettings }: WebsiteFooterProps) {
             </div>
           </div>
 
-          {/* Nav columns from menu -- hidden on mobile */}
-          {footerItems.map((item) => (
-            <div key={item.id} className="hidden sm:flex flex-col gap-3">
+          {/* Nav columns — hidden on mobile */}
+          {columns.map((col) => (
+            <div key={col.heading} className="hidden sm:flex flex-col gap-3">
               <h4 className="text-button-2 text-white-2-5 uppercase">
-                {item.label}
+                {col.heading}
               </h4>
               <nav className="flex flex-col">
-                {item.children?.filter(child => child.isVisible).map((child) => (
+                {col.links.map((link) => (
                   <Link
-                    key={child.id}
-                    href={child.href || '#'}
+                    key={link.label}
+                    href={link.href}
                     className="px-2 py-1.5 text-body-2 text-white-2 transition-colors hover:text-white-1"
-                    {...(child.isExternal || child.openInNewTab
+                    {...(link.external
                       ? { target: '_blank', rel: 'noopener noreferrer' }
                       : {})}
                   >
-                    {child.label}
+                    {link.label}
                   </Link>
                 ))}
               </nav>

@@ -3,6 +3,7 @@ import { getFeaturedEvents, getUpcomingEvents, getEvents } from '@/lib/dal/event
 import { getVideos } from '@/lib/dal/videos'
 import { getBibleStudies } from '@/lib/dal/bible-studies'
 import { getTodaysDailyBread } from '@/lib/dal/daily-bread'
+import { bibleBookLabel } from '@/lib/website/bible-book-labels'
 import type { SectionType } from '@/lib/db/types'
 
 type Content = Record<string, unknown>
@@ -158,7 +159,7 @@ export async function resolveSectionData(
             hasQuestions: s.hasQuestions,
             hasAnswers: s.hasAnswers,
             hasTranscript: s.hasTranscript,
-            book: s.book || undefined,
+            book: s.book ? bibleBookLabel(s.book) : undefined,
           })),
         },
       }
