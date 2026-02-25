@@ -33,10 +33,12 @@ interface Props {
   content: RecurringMeetingsContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
   events?: Event[]
 }
 
-export default function RecurringMeetingsSection({ content, colorScheme = "light", events = [] }: Props) {
+export default function RecurringMeetingsSection({ content, colorScheme = "light", paddingY, containerWidth, events = [] }: Props) {
   const maxVisible = content.maxVisible ?? DEFAULT_MAX_VISIBLE
   const viewAllHref = content.viewAllHref ?? "/events"
 
@@ -46,7 +48,7 @@ export default function RecurringMeetingsSection({ content, colorScheme = "light
   const hasOverflow = recurringEvents.length > maxVisible
 
   return (
-    <SectionContainer colorScheme={colorScheme} className="pt-[40px] pb-[80px]">
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth} className="pt-[40px] pb-[80px]">
       <h2 className="text-h2 text-black-1 text-center mb-[48px]">
         {content.heading}
       </h2>

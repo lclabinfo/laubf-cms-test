@@ -102,7 +102,7 @@ export default function AllMessagesClient({ messages, heading }: Props) {
   }
 
   return (
-    <SectionContainer colorScheme="light" className="pt-0 py-30">
+    <SectionContainer colorScheme="light" paddingY="none" className="pb-24 lg:pb-30">
       {/* Tabs */}
       <div className="flex items-center gap-6 mb-6 border-b border-white-2">
         {[

@@ -26,13 +26,15 @@ interface Props {
   content: ActionCardGridContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function ActionCardGridSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function ActionCardGridSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const animate = enableAnimations !== false
 
   return (
-    <SectionContainer colorScheme={colorScheme}>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       <div className="flex flex-col gap-10 lg:flex-row lg:gap-10">
         {/* Left header */}
         <AnimateOnScroll animation="fade-left" enabled={animate} className="flex flex-col gap-5 lg:w-[280px] lg:shrink-0">

@@ -35,14 +35,16 @@ interface Props {
   content: RecurringScheduleContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function RecurringScheduleSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function RecurringScheduleSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
 
   return (
-    <SectionContainer colorScheme={colorScheme}>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       {/* Header */}
       <AnimateOnScroll animation="fade-up" enabled={animate} className="mb-8">
         <h2 className={`text-h2 ${t.textPrimary}`}>{content.heading}</h2>

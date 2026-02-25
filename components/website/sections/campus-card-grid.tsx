@@ -46,14 +46,16 @@ interface Props {
   content: CampusCardGridContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function CampusCardGridSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function CampusCardGridSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
 
   return (
-    <SectionContainer colorScheme={colorScheme}>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       {/* Decorative overlapping photos */}
       {content.decorativeImages && content.decorativeImages.length > 0 && (
         <AnimateOnScroll animation="scale-up" enabled={animate} className="flex items-center justify-center mb-6 md:mb-12 overflow-hidden">

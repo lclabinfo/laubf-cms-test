@@ -62,14 +62,16 @@ interface Props {
   content: PillarsContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function PillarsSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function PillarsSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
 
   return (
-    <SectionContainer colorScheme={colorScheme}>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       {/* Section header */}
       <AnimateOnScroll animation="fade-up" enabled={animate} className="mb-12 lg:mb-16">
         <OverlineLabel text={content.overline} />

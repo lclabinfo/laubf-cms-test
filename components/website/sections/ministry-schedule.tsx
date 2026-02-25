@@ -31,15 +31,17 @@ interface Props {
   content: MinistryScheduleContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function MinistryScheduleSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function MinistryScheduleSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
   const hasImage = !!content.image
 
   return (
-    <SectionContainer colorScheme={colorScheme}>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       <div className="flex flex-col lg:flex-row gap-10 lg:gap-16 items-start">
         {/* Left column */}
         <AnimateOnScroll animation="fade-left" enabled={animate} className={hasImage ? "w-full lg:w-[50%]" : "w-full lg:w-[40%]"}>

@@ -19,14 +19,16 @@ interface Props {
   content: NewcomerContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function NewcomerSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function NewcomerSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
 
   return (
-    <SectionContainer colorScheme={colorScheme}>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       <div className="flex flex-col items-center gap-16 lg:gap-20">
         <AnimateOnScroll
           animation="fade-up"

@@ -60,9 +60,11 @@ interface Props {
   content: PageHeroContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function PageHeroSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function PageHeroSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
   const gradientColor = colorScheme === "dark" ? "rgba(13,13,13," : "rgba(250,250,250,"
   const animate = enableAnimations !== false
@@ -78,7 +80,7 @@ export default function PageHeroSection({ content, enableAnimations, colorScheme
     .join("\n")
 
   return (
-    <SectionContainer colorScheme={colorScheme} className="!py-0" noContainer>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth} className="!py-0" noContainer>
       <style dangerouslySetInnerHTML={{ __html: orbitCSS }} />
 
       <div className="relative min-h-[calc(100dvh-76px)] w-full overflow-hidden flex items-center justify-center">

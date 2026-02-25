@@ -22,9 +22,11 @@ interface Props {
   content: FAQContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function FAQSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function FAQSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
   const [openIndex, setOpenIndex] = useState<number | null>(null)
@@ -34,7 +36,7 @@ export default function FAQSection({ content, enableAnimations, colorScheme = "l
   }
 
   return (
-    <SectionContainer colorScheme={colorScheme} containerWidth="narrow">
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth ?? "narrow"}>
       {/* Question mark icon circle */}
       <AnimateOnScroll animation="scale-up" enabled={animate}>
         {content.showIcon && (

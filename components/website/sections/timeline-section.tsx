@@ -26,14 +26,16 @@ interface Props {
   content: TimelineContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function TimelineSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function TimelineSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
 
   return (
-    <SectionContainer colorScheme={colorScheme}>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       {/* Header area */}
       <AnimateOnScroll animation="fade-up" enabled={animate} className="mb-12">
         <OverlineLabel text={content.overline} className="text-brand-1" />

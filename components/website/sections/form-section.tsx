@@ -24,9 +24,11 @@ interface Props {
   content: FormSectionContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function FormSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function FormSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
 
@@ -60,7 +62,7 @@ export default function FormSection({ content, enableAnimations, colorScheme = "
     "w-full bg-white-1-5 border border-white-2 rounded-lg px-4 py-3.5 text-body-2 text-black-1 placeholder:text-white-3 outline-none focus:border-brand-1 transition-colors"
 
   return (
-    <SectionContainer colorScheme={colorScheme}>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       {/* Header area -- centered text */}
       <AnimateOnScroll animation="fade-up" enabled={animate} className="flex flex-col items-center text-center mb-12">
         <OverlineLabel text={content.overline} className="mb-4" />

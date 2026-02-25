@@ -23,14 +23,16 @@ interface Props {
   content: LocationDetailContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function LocationDetailSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function LocationDetailSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
 
   return (
-    <SectionContainer colorScheme={colorScheme}>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       <div className="flex flex-col lg:flex-row gap-12 lg:gap-16 items-start">
         {/* Left column -- info */}
         <AnimateOnScroll animation="fade-left" enabled={animate} className="lg:w-[40%]">

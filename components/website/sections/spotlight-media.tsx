@@ -23,9 +23,11 @@ interface Props {
   content: SpotlightMediaContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function SpotlightMediaSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function SpotlightMediaSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const sermon = content.sermon
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
@@ -35,7 +37,7 @@ export default function SpotlightMediaSection({ content, enableAnimations, color
   const sermonHref = sermon.slug ? `/messages/${sermon.slug}` : undefined
 
   return (
-    <SectionContainer colorScheme={colorScheme}>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       <div className="flex flex-col gap-10">
         {/* Section heading + title */}
         <AnimateOnScroll animation="fade-up" enabled={animate} className="flex flex-col gap-2">

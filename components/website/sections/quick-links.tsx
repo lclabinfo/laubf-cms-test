@@ -33,10 +33,12 @@ interface Props {
   content: QuickLinksContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
   meetings?: Meeting[]
 }
 
-export default function QuickLinksSection({ content, enableAnimations, colorScheme = "light", meetings = [] }: Props) {
+export default function QuickLinksSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth, meetings = [] }: Props) {
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -51,7 +53,7 @@ export default function QuickLinksSection({ content, enableAnimations, colorSche
   }
 
   return (
-    <SectionContainer colorScheme={colorScheme}>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       {/* Header -- left aligned with nav arrows (arrows desktop only) */}
       <AnimateOnScroll animation="fade-up" enabled={animate} className="flex items-end justify-between mb-8">
         <div>

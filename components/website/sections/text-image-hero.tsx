@@ -24,16 +24,18 @@ interface Props {
   content: TextImageHeroContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function TextImageHeroSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function TextImageHeroSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
   const align = content.textAlign ?? "left"
   const a = alignmentClasses[align]
 
   return (
-    <SectionContainer colorScheme={colorScheme} className="pt-12 lg:pt-16">
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth} className="pt-12 lg:pt-16">
       <div className={cn(`mb-12 lg:mb-16 flex flex-col ${a.wrapper}`, animate && "animate-hero-fade-up")}>
         <p className={`text-overline ${t.textMuted} mb-4`}>{content.overline}</p>
         <h1 className={`mb-6 ${a.heading}`}>

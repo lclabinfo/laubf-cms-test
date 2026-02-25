@@ -29,10 +29,12 @@ interface Props {
   content: AllVideosContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
   videos?: Video[]
 }
 
-export default function AllVideosSection({ content, enableAnimations, colorScheme = "light", videos = [] }: Props) {
+export default function AllVideosSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth, videos = [] }: Props) {
   const t = themeTokens[colorScheme]
 
   const [search, setSearch] = useState("")
@@ -60,7 +62,7 @@ export default function AllVideosSection({ content, enableAnimations, colorSchem
   const hasMore = displayCount < filteredVideos.length
 
   return (
-    <SectionContainer colorScheme={colorScheme} className="pt-0 py-30">
+    <SectionContainer colorScheme={colorScheme} paddingY="none" containerWidth={containerWidth} className="pb-24 lg:pb-30">
       {/* Search bar */}
       <div className="mb-8 flex flex-col gap-4">
         <div className="relative max-w-md">

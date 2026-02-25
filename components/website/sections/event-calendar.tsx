@@ -49,10 +49,12 @@ interface Props {
   content: EventCalendarContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
   events?: Event[]
 }
 
-export default function EventCalendarSection({ content, enableAnimations, colorScheme = "light", events = [] }: Props) {
+export default function EventCalendarSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth, events = [] }: Props) {
   const animate = enableAnimations !== false
 
   const today = new Date()
@@ -115,7 +117,7 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
   }
 
   return (
-    <SectionContainer colorScheme={colorScheme} className="!pt-0 !pb-24 lg:!pb-30">
+    <SectionContainer colorScheme={colorScheme} paddingY="none" containerWidth={containerWidth} className="pb-24 lg:pb-30">
       <div className="flex flex-col gap-10">
         {/* Schedule heading */}
         <AnimateOnScroll animation="fade-up" enabled={animate}>

@@ -167,6 +167,8 @@ export function SectionRenderer({
   type,
   content,
   colorScheme,
+  paddingY,
+  containerWidth,
   enableAnimations,
   churchId,
   resolvedData,
@@ -174,8 +176,10 @@ export function SectionRenderer({
   const Component = SECTION_COMPONENTS[type]
   if (!Component) return null
 
-  // Map DB enum values to the component's expected colorScheme format
+  // Map DB enum values to the component's expected lowercase format
   const sectionColorScheme = colorScheme === 'DARK' ? 'dark' : 'light'
+  const sectionPaddingY = paddingY?.toLowerCase() as 'none' | 'compact' | 'default' | 'spacious'
+  const sectionContainerWidth = containerWidth?.toLowerCase() as 'standard' | 'narrow' | 'full'
 
   return (
     <Component
@@ -183,6 +187,8 @@ export function SectionRenderer({
       churchId={churchId}
       enableAnimations={enableAnimations}
       colorScheme={sectionColorScheme}
+      paddingY={sectionPaddingY}
+      containerWidth={sectionContainerWidth}
       {...resolvedData}
     />
   )

@@ -39,10 +39,12 @@ interface Props {
   content: AllBibleStudiesContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
   studies?: BibleStudy[]
 }
 
-export default function AllBibleStudiesSection({ content, enableAnimations, colorScheme = "light", studies = [] }: Props) {
+export default function AllBibleStudiesSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth, studies = [] }: Props) {
   const t = themeTokens[colorScheme]
 
   const [search, setSearch] = useState("")
@@ -70,7 +72,7 @@ export default function AllBibleStudiesSection({ content, enableAnimations, colo
   const hasMore = displayCount < filteredStudies.length
 
   return (
-    <SectionContainer colorScheme={colorScheme} className="pt-0 py-30">
+    <SectionContainer colorScheme={colorScheme} paddingY="none" containerWidth={containerWidth} className="pb-24 lg:pb-30">
       {/* Search bar */}
       <div className="mb-8 flex flex-col gap-4">
         <div className="relative max-w-md">

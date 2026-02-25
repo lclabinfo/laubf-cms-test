@@ -15,15 +15,18 @@ interface Props {
   content: QuoteBannerContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function QuoteBannerSection({ content, enableAnimations }: Props) {
+export default function QuoteBannerSection({ content, enableAnimations, paddingY, containerWidth }: Props) {
   const animate = enableAnimations !== false
 
   return (
     <SectionContainer
       colorScheme="dark"
-      containerWidth="narrow"
+      paddingY={paddingY}
+      containerWidth={containerWidth ?? "narrow"}
       bgOverride="bg-gradient-to-b from-black-gradient to-black-1 to-[67%]"
     >
       <div className="relative flex flex-col items-center gap-10 text-center overflow-hidden">

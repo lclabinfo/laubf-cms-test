@@ -156,7 +156,7 @@ export default function AllEventsClient({ events, heading }: Props) {
   ]
 
   return (
-    <SectionContainer colorScheme="light" className="pt-0 py-30">
+    <SectionContainer colorScheme="light" paddingY="none" className="pb-24 lg:pb-30">
       {/* Filter toolbar */}
       <FilterToolbar
         tabs={{

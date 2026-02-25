@@ -29,14 +29,16 @@ interface Props {
   content: HighlightCardsContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function HighlightCardsSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function HighlightCardsSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const events = content.featuredEvents ?? []
   const animate = enableAnimations !== false
 
   return (
-    <SectionContainer colorScheme={colorScheme} className="!pt-24 lg:!pt-25 lg:!pb-10">
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth} className="!pt-24 lg:!pt-25 lg:!pb-10">
       <div className="flex flex-col gap-8 lg:gap-10">
         <AnimateOnScroll animation="fade-up" enabled={animate}>
           <SectionHeader

@@ -101,13 +101,15 @@ interface Props {
   content: StatementContent_
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function StatementSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function StatementSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
 
   return (
-    <SectionContainer colorScheme={colorScheme}>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       {/* Header — centered */}
       <div className="flex flex-col items-center text-center mb-16 lg:mb-20">
         {content.showIcon && (

@@ -27,6 +27,8 @@ interface Props {
   content: MediaTextContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
 /* ---------- Constants ---------- */
@@ -203,7 +205,7 @@ function MobileCarousel({
 
 /* ---------- Main Section ---------- */
 
-export default function MediaTextSection({ content, colorScheme = "dark" }: Props) {
+export default function MediaTextSection({ content, colorScheme = "dark", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
   const speed = content.rotationSpeed ?? 50
 
@@ -218,7 +220,7 @@ export default function MediaTextSection({ content, colorScheme = "dark" }: Prop
       : "linear-gradient(rgb(250,250,250) 0%, rgba(250,250,250,0.5) 24.5%, rgba(250,250,250,0) 50%, rgba(250,250,250,0.5) 75%, rgb(250,250,250) 100%)"
 
   return (
-    <SectionContainer colorScheme={colorScheme} className="py-0!" noContainer>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth} className="py-0!" noContainer>
       {/* Desktop layout */}
       <div className="hidden md:grid grid-cols-[4fr_5fr] w-full overflow-hidden pr-10">
         <div className="relative overflow-hidden h-[573px]">

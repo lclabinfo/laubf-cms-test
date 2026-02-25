@@ -13,11 +13,13 @@ interface Props {
   content: CustomEmbedContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function CustomEmbedSection({ content, colorScheme = "light" }: Props) {
+export default function CustomEmbedSection({ content, colorScheme = "light", paddingY, containerWidth }: Props) {
   return (
-    <SectionContainer colorScheme={colorScheme}>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       <div className="relative w-full" style={{ aspectRatio: content.aspectRatio ?? "16/9" }}>
         <iframe
           src={content.embedUrl}

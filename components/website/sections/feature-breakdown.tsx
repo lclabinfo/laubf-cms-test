@@ -17,14 +17,16 @@ interface Props {
   content: FeatureBreakdownContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function FeatureBreakdownSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function FeatureBreakdownSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
 
   return (
-    <SectionContainer colorScheme={colorScheme} bgOverride="bg-brand-2" className="relative overflow-hidden !py-14 lg:!py-30">
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth} bgOverride="bg-brand-2" className="relative overflow-hidden !py-14 lg:!py-30">
       {/* Background watermark logo */}
       <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-[0.08] pointer-events-none">
         <Image

@@ -11,11 +11,13 @@ interface Props {
   content: CustomHtmlContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function CustomHtmlSection({ content, colorScheme = "light" }: Props) {
+export default function CustomHtmlSection({ content, colorScheme = "light", paddingY, containerWidth }: Props) {
   return (
-    <SectionContainer colorScheme={colorScheme}>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       <div dangerouslySetInnerHTML={{ __html: content.html }} />
     </SectionContainer>
   )

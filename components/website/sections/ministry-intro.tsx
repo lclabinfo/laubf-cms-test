@@ -16,16 +16,18 @@ interface Props {
   content: MinistryIntroContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function MinistryIntroSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function MinistryIntroSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
   const hasSideImage = !!content.image
 
   if (hasSideImage) {
     return (
-      <SectionContainer colorScheme={colorScheme}>
+      <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
         <div className="flex flex-col lg:flex-row gap-10 lg:gap-16 items-center">
           {/* Left -- image */}
           <AnimateOnScroll animation="fade-left" enabled={animate} className="w-full lg:w-[45%] shrink-0">
@@ -59,7 +61,7 @@ export default function MinistryIntroSection({ content, enableAnimations, colorS
 
   /* Single-column variant (no image) */
   return (
-    <SectionContainer colorScheme={colorScheme}>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       <AnimateOnScroll animation="fade-up" enabled={animate} className="max-w-3xl">
         <p className={`text-h4 font-normal ${t.textMuted} mb-3`}>
           {content.overline}

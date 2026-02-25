@@ -38,15 +38,17 @@ interface Props {
   content: MediaGridContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
   videos?: Video[]
 }
 
-export default function MediaGridSection({ content, enableAnimations, colorScheme = "light", videos }: Props) {
+export default function MediaGridSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth, videos }: Props) {
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
   const animate = enableAnimations !== false
 
   return (
-    <SectionContainer colorScheme={colorScheme} className="!pt-0">
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth} className="!pt-0">
       <div className="flex flex-col gap-8">
         <AnimateOnScroll animation="fade-up" enabled={animate}>
           <SectionHeader

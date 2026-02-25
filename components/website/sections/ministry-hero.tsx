@@ -29,15 +29,17 @@ interface Props {
   content: MinistryHeroContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function MinistryHeroSection({ content, enableAnimations, colorScheme = "light" }: Props) {
+export default function MinistryHeroSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
   const isSans = content.headingStyle === "sans"
 
   return (
-    <SectionContainer colorScheme={colorScheme} className="pt-[104px] !pb-0">
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth} className="pt-[104px] !pb-0">
       <div className={cn("container-standard flex flex-col items-center text-center mb-10 lg:mb-14", animate && "animate-hero-fade-up")}>
         {content.overline && (
           <p className={`${isSans ? "text-h4 font-normal" : "text-overline"} ${t.textMuted} mb-4`}>{content.overline}</p>

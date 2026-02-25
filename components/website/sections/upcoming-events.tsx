@@ -31,15 +31,17 @@ interface Props {
   content: UpcomingEventsContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
   events?: Event[]
 }
 
-export default function UpcomingEventsSection({ content, enableAnimations, colorScheme = "light", events = [] }: Props) {
+export default function UpcomingEventsSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth, events = [] }: Props) {
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
 
   return (
-    <SectionContainer colorScheme={colorScheme}>
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       {/* Header -- centered */}
       <AnimateOnScroll animation="fade-up" enabled={animate} className="flex flex-col items-center text-center mb-12 lg:mb-16">
         {content.overline && (
