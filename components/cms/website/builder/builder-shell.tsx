@@ -8,7 +8,6 @@ import { BuilderSidebar } from "./builder-sidebar"
 import { BuilderDrawer } from "./builder-drawer"
 import { BuilderCanvas } from "./builder-canvas"
 import { SectionPickerModal } from "./section-picker-modal"
-import { AddSectionDrawer } from "./add-section-drawer"
 import {
   BuilderRightDrawer,
   type SectionEditorData,
@@ -157,11 +156,21 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
     setPages(allPages)
   }, [allPages])
 
+  const openSectionPicker = useCallback((afterIndex: number) => {
+    setPickerInsertIndex(afterIndex)
+    setPickerOpen(true)
+  }, [])
+
   const handleToolClick = useCallback(
     (tool: BuilderTool) => {
+      // "add" opens the section picker modal directly instead of a drawer
+      if (tool === "add") {
+        openSectionPicker(sections.length - 1)
+        return
+      }
       setActiveTool((prev) => (prev === tool ? null : tool))
     },
-    [],
+    [openSectionPicker, sections.length],
   )
 
   // -------------------------------------------------------------------------
@@ -353,10 +362,6 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
   // Section CRUD
   // -------------------------------------------------------------------------
 
-  const openSectionPicker = useCallback((afterIndex: number) => {
-    setPickerInsertIndex(afterIndex)
-    setPickerOpen(true)
-  }, [])
 
   const handlePickerSelect = useCallback(
     async (sectionType: SectionType, defaultContent: Record<string, unknown>) => {
@@ -713,15 +718,13 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
   // -------------------------------------------------------------------------
 
   const drawerTitle =
-    activeTool === "add"
-      ? "Add Section"
-      : activeTool === "pages"
-        ? "Pages & Menu"
-        : activeTool === "design"
-          ? "Design"
-          : activeTool === "media"
-            ? "Media"
-            : ""
+    activeTool === "pages"
+      ? "Pages & Menu"
+      : activeTool === "design"
+        ? "Design"
+        : activeTool === "media"
+          ? "Media"
+          : ""
 
   // -------------------------------------------------------------------------
   // Render drawer content based on active tool
@@ -729,17 +732,6 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
 
   const renderDrawerContent = () => {
     switch (activeTool) {
-      case "add":
-        return (
-          <AddSectionDrawer
-            onAddSection={(type, defaultContent) => {
-              // Insert after the last section (or at position 0 if empty)
-              setPickerInsertIndex(sections.length - 1)
-              handlePickerSelect(type, defaultContent)
-            }}
-            onBrowseAll={() => openSectionPicker(sections.length - 1)}
-          />
-        )
       case "pages":
         return (
           <PageTree

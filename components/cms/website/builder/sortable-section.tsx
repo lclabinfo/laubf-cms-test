@@ -59,15 +59,15 @@ export function SortableSection({
         onSelect()
       }}
     >
-      {/* Selection Border */}
-      {isSelected && (
-        <div className="absolute inset-0 z-30 pointer-events-none border-2 border-blue-600 shadow-[0_0_0_4px_rgba(37,99,235,0.1)] transition-all duration-200" />
-      )}
-
-      {/* Hover Border (when not selected) */}
-      {!isSelected && !isDragging && (
-        <div className="absolute inset-0 z-20 pointer-events-none border-2 border-transparent group-hover/section:border-blue-600/30 transition-all duration-200" />
-      )}
+      {/* Selection / hover outline — uses outline so it expands outward and never affects layout */}
+      <div
+        className={cn(
+          "absolute inset-0 z-30 pointer-events-none transition-all duration-200",
+          isSelected
+            ? "outline outline-2 outline-blue-600 shadow-[0_0_0_4px_rgba(37,99,235,0.1)]"
+            : !isDragging && "outline outline-2 outline-transparent group-hover/section:outline-blue-600/30",
+        )}
+      />
 
       {/* Floating Toolbar - Visible when selected */}
       {isSelected && !isDragging && (

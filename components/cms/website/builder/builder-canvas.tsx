@@ -123,26 +123,23 @@ export function BuilderCanvas({
           ...(websiteThemeTokens as React.CSSProperties),
         }}
       >
-        {/* Website navbar preview — click body to edit, links are disabled in builder
-             The [&_header]:!static override removes sticky positioning so the border
-             overlay can cover the navbar correctly inside the builder canvas. */}
+        {/* Website navbar preview — click to edit, links disabled in builder */}
         {navbarData && (
           <div
             className={cn(
-              "relative z-[60] cursor-pointer group/navbar [&_header]:!static [&_header]:!z-auto",
+              "relative z-[60] cursor-pointer group/navbar",
               isNavbarEditing
-                ? "border-2 border-blue-600 shadow-[0_0_0_4px_rgba(37,99,235,0.1)]"
-                : "border-2 border-transparent hover:border-blue-600/30",
+                ? "outline outline-2 outline-blue-600 shadow-[0_0_0_4px_rgba(37,99,235,0.1)]"
+                : "outline outline-2 outline-transparent hover:outline-blue-600/30",
               "transition-all duration-200",
             )}
             onClick={(e) => {
-              // Prevent link navigation in builder context
               e.preventDefault()
               e.stopPropagation()
               onNavbarClick?.()
             }}
           >
-            {/* pointer-events-none prevents links inside from navigating away from builder */}
+            {/* pointer-events-none prevents links inside from navigating away */}
             <div className="pointer-events-none">
               <WebsiteNavbar
                 menu={navbarData.menu as Parameters<typeof WebsiteNavbar>[0]["menu"]}
