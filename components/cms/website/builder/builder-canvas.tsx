@@ -22,6 +22,9 @@ import { cn } from "@/lib/utils"
 import { SortableSection } from "./sortable-section"
 import { SectionAddTrigger } from "./section-add-trigger"
 import { SectionPreview } from "./section-preview"
+import { BuilderSectionRenderer } from "./builder-section-renderer"
+import { WebsiteNavbar } from "@/components/website/layout/website-navbar"
+import type { NavbarData } from "./builder-shell"
 import type { BuilderSection, DeviceMode } from "./types"
 
 interface BuilderCanvasProps {
@@ -36,6 +39,8 @@ interface BuilderCanvasProps {
   deviceMode: DeviceMode
   churchId: string
   pageSlug: string
+  websiteThemeTokens?: Record<string, string>
+  navbarData?: NavbarData
 }
 
 const deviceWidths: Record<DeviceMode, string> = {
@@ -54,6 +59,9 @@ export function BuilderCanvas({
   onEditSection,
   onReorderSections,
   deviceMode,
+  churchId,
+  websiteThemeTokens,
+  navbarData,
 }: BuilderCanvasProps) {
   const [activeId, setActiveId] = useState<string | null>(null)
 
@@ -97,21 +105,37 @@ export function BuilderCanvas({
 
   return (
     <div
-      className="flex-1 bg-muted/30 overflow-y-auto overflow-x-hidden"
+      className="flex-1 bg-muted/30 overflow-y-auto overflow-x-hidden p-4"
       onClick={handleCanvasClick}
     >
-      {/* Device preview container */}
+      {/* Device preview container — website theme scoped here only */}
       <div
+        data-website=""
         className={cn(
-          "mx-auto bg-background transition-all duration-300 ease-in-out",
-          deviceMode !== "desktop" &&
-            "shadow-xl my-6 rounded-lg overflow-hidden border",
+          "mx-auto bg-white transition-all duration-300 ease-in-out overflow-hidden shadow-sm border rounded-lg",
         )}
         style={{
           maxWidth: deviceWidths[deviceMode],
-          minHeight: deviceMode === "desktop" ? "100%" : "auto",
+          minHeight: "calc(100vh - 120px)",
+          ...(websiteThemeTokens as React.CSSProperties),
         }}
       >
+        {/* Website navbar preview (non-draggable, read-only) */}
+        {navbarData && (
+          <div className="pointer-events-none relative z-10">
+            <WebsiteNavbar
+              menu={navbarData.menu as Parameters<typeof WebsiteNavbar>[0]["menu"]}
+              logoUrl={navbarData.logoUrl}
+              logoAlt={navbarData.logoAlt}
+              siteName={navbarData.siteName}
+              ctaLabel={navbarData.ctaLabel}
+              ctaHref={navbarData.ctaHref}
+              ctaVisible={navbarData.ctaVisible}
+              memberLoginVisible={navbarData.memberLoginVisible}
+            />
+          </div>
+        )}
+
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -149,11 +173,15 @@ export function BuilderCanvas({
                 isFirst={index === 0}
               >
                 <div className={cn(!section.visible && "opacity-40 relative")}>
-                  <SectionPreview
+                  <BuilderSectionRenderer
                     type={section.sectionType}
                     content={section.content}
                     colorScheme={section.colorScheme}
-                    label={section.label}
+                    paddingY={section.paddingY}
+                    containerWidth={section.containerWidth}
+                    enableAnimations={false}
+                    churchId={churchId}
+                    resolvedData={section.resolvedData}
                   />
                   {!section.visible && (
                     <div className="absolute top-2 left-2 z-40 bg-muted/80 text-muted-foreground text-xs font-medium px-2 py-1 rounded">
@@ -174,7 +202,7 @@ export function BuilderCanvas({
             )}
           </SortableContext>
 
-          {/* Drag overlay */}
+          {/* Drag overlay — lightweight preview, not real component */}
           <DragOverlay>
             {activeDragSection && (
               <div className="opacity-80 shadow-2xl rounded-lg overflow-hidden">

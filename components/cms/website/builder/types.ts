@@ -15,6 +15,8 @@ export interface BuilderSection {
   containerWidth: ContainerWidth
   enableAnimations: boolean
   content: Record<string, unknown>
+  /** Server-resolved data for dynamic sections (events, messages, etc.) */
+  resolvedData?: Record<string, unknown>
 }
 
 export interface BuilderPage {

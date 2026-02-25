@@ -44,13 +44,26 @@ interface BuilderSnapshot {
 
 const AUTO_SAVE_DELAY_MS = 30_000
 
+export interface NavbarData {
+  menu: unknown
+  logoUrl: string | null
+  logoAlt: string | null
+  siteName: string
+  ctaLabel: string
+  ctaHref: string
+  ctaVisible: boolean
+  memberLoginVisible: boolean
+}
+
 interface BuilderShellProps {
   page: BuilderPage
   allPages: PageSummary[]
   churchId: string
+  websiteThemeTokens?: Record<string, string>
+  navbarData?: NavbarData
 }
 
-export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
+export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, navbarData }: BuilderShellProps) {
   const router = useRouter()
   const [activeTool, setActiveTool] = useState<BuilderTool>(null)
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
@@ -774,6 +787,8 @@ export function BuilderShell({ page, allPages, churchId }: BuilderShellProps) {
           deviceMode={deviceMode}
           churchId={churchId}
           pageSlug={pageData.slug}
+          websiteThemeTokens={websiteThemeTokens}
+          navbarData={navbarData}
         />
 
         {/* Right Drawer (320px, animated) — inline section editor */}

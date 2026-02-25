@@ -1,4 +1,4 @@
-import { getLatestMessage } from '@/lib/dal/messages'
+import { getLatestMessage, getMessages } from '@/lib/dal/messages'
 import { getFeaturedEvents, getUpcomingEvents, getEvents } from '@/lib/dal/events'
 import { getVideos } from '@/lib/dal/videos'
 import { getBibleStudies } from '@/lib/dal/bible-studies'
@@ -140,10 +140,54 @@ export async function resolveSectionData(
       }
     }
 
-    case 'all-messages':
-    case 'all-events':
-      // These are server components that fetch their own data
-      return { content }
+    case 'all-messages': {
+      const messagesResult = await getMessages(churchId, { pageSize: 200 })
+      return {
+        content,
+        resolvedData: {
+          messages: messagesResult.data.map((m) => ({
+            id: m.id,
+            slug: m.slug,
+            title: m.title,
+            passage: m.passage || '',
+            speaker: m.speaker?.name || 'Unknown',
+            series: m.messageSeries?.[0]?.series?.name || '',
+            dateFor: m.dateFor instanceof Date ? m.dateFor.toISOString().split('T')[0] : String(m.dateFor),
+            description: m.description || '',
+            youtubeId: m.youtubeId || '',
+            thumbnailUrl: m.thumbnailUrl || (m.youtubeId ? `https://img.youtube.com/vi/${m.youtubeId}/maxresdefault.jpg` : ''),
+            duration: m.duration || '',
+          })),
+        },
+      }
+    }
+
+    case 'all-events': {
+      const eventsResult = await getEvents(churchId, { pageSize: 200 })
+      return {
+        content,
+        resolvedData: {
+          events: eventsResult.data.map((e) => ({
+            id: e.id,
+            slug: e.slug,
+            title: e.title,
+            description: e.description || '',
+            type: e.type.toLowerCase(),
+            dateStart: e.dateStart instanceof Date ? e.dateStart.toISOString() : String(e.dateStart),
+            dateEnd: e.dateEnd instanceof Date ? e.dateEnd.toISOString() : e.dateEnd ? String(e.dateEnd) : null,
+            timeStart: e.startTime || '',
+            timeEnd: e.endTime || '',
+            location: e.location || '',
+            locationDetail: e.address || '',
+            ministry: e.ministry?.name || '',
+            campus: e.campus?.name || '',
+            thumbnailUrl: e.coverImage || '',
+            isFeatured: e.isFeatured,
+            isRecurring: e.isRecurring,
+          })),
+        },
+      }
+    }
 
     case 'all-bible-studies': {
       const result = await getBibleStudies(churchId, { pageSize: 200 })
@@ -199,7 +243,7 @@ export async function resolveSectionData(
               id: c.slug,
               abbreviation: c.shortName || '',
               fullName: c.name,
-              href: `/ministries/campus/${c.slug}`,
+              href: `/website/ministries/campus/${c.slug}`,
             })),
         },
       }

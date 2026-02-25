@@ -783,7 +783,7 @@ export function SectionPickerModal({
           </div>
 
           {/* Category filter pills (desktop) */}
-          <div className="hidden sm:flex items-center gap-1.5 ml-4 overflow-x-auto">
+          <div className="hidden sm:flex items-center gap-1.5 ml-4 overflow-x-auto scrollbar-hide">
             <button
               onClick={() => setActiveCategory(null)}
               className={cn(
