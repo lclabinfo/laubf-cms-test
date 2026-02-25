@@ -27,6 +27,24 @@ import {
 import type { SectionType } from "@/lib/db/types"
 
 /**
+ * Safely extract a display string from a content field that may be
+ * a plain string, an object with line1/line2, or something else entirely.
+ */
+function extractString(value: unknown): string {
+  if (typeof value === "string") return value
+  if (value && typeof value === "object") {
+    const obj = value as Record<string, unknown>
+    // Handle {line1, line2, line3} heading pattern
+    if (typeof obj.line1 === "string") {
+      return [obj.line1, obj.line2, obj.line3].filter(Boolean).join(" ")
+    }
+    // Handle {text} pattern
+    if (typeof obj.text === "string") return obj.text
+  }
+  return ""
+}
+
+/**
  * Section type labels - reused from section-picker-dialog.tsx
  */
 const sectionTypeLabels: Record<string, string> = {
@@ -151,21 +169,23 @@ export function SectionPreview({
   const heightClass = sectionHeights[type] || "min-h-[160px]"
   const isDark = colorScheme === "DARK"
 
-  // Try to extract key content fields for richer preview
-  const heading =
-    (content?.heading as string) ||
-    (content?.heading as { line1?: string })?.line1 ||
-    (content?.title as string) ||
+  // Try to extract key content fields for richer preview.
+  // Content values may be strings or objects (e.g. heading: {line1, line2}),
+  // so we must guard against rendering non-string values as React children.
+  const heading = extractString(content?.heading) ||
+    extractString(content?.title) ||
     ""
-  const subheading =
-    (content?.subheading as string) ||
-    (content?.subtitle as string) ||
-    (content?.description as string) ||
+  const subheading = extractString(content?.subheading) ||
+    extractString(content?.subtitle) ||
+    extractString(content?.description) ||
     ""
   const backgroundImage =
-    (content?.backgroundImage as { src?: string })?.src ||
-    (content?.backgroundImage as string) ||
-    (content?.imageUrl as string) ||
+    (typeof content?.backgroundImage === "object" && content?.backgroundImage !== null
+      ? (content.backgroundImage as { src?: string }).src
+      : typeof content?.backgroundImage === "string"
+        ? content.backgroundImage
+        : "") ||
+    (typeof content?.imageUrl === "string" ? content.imageUrl : "") ||
     ""
 
   return (
