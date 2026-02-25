@@ -272,7 +272,7 @@ The project currently has two separate Next.js applications:
 /laubf-test/               ← Public website (separate Next.js app)
 ├── src/app/               ← Public pages (messages, events, bible-study, etc.)
 ├── src/components/
-│   └── sections/          ← 38 section components
+│   └── sections/          ← 42 section types (40 real + 2 placeholders)
 └── src/lib/
     ├── mock-data/         ← Currently using mock data
     └── types/             ← TypeScript interfaces
@@ -300,13 +300,12 @@ app/
 
 ### Migration Path
 
-The consolidation from two apps to one happens during the **Website Rendering Integration Phase** (see `04-development-phases.md`). The approach:
+The consolidation from two apps to one happens during the **Website Rendering Integration Phase** (see `docs/development-status.md` Section 4 for detailed phase specs). The approach:
 
-1. **Phase A**: Get the single-tenant MVP working — root CMS + laubf-test public site, both reading from the same database, no route groups needed yet.
-2. **Phase B**: Move public website components (`sections/`, layouts, theme) from `laubf-test/` into the root project under `components/website/` and `app/(website)/`. Retire `laubf-test/` as a standalone app.
-3. **Phase C**: Add middleware for tenant resolution and route group separation.
-
-Phase A is where we are heading now. Phase B happens after the website builder admin is ready. Phase C enables multi-tenancy.
+1. **Phase A**: Get the single-tenant MVP working — root CMS + laubf-test public site, both reading from the same database, no route groups needed yet. **STATUS: COMPLETE.**
+2. **Phase B**: Move public website components (`sections/`, layouts, theme) from `laubf-test/` into the root project under `components/website/` and `app/(website)/`. Retire `laubf-test/` as a standalone app. **STATUS: B.1, B.2, and B.3 COMPLETE (40/42 section types have real implementations; 2 intentional placeholders).**
+3. **Phase C**: Website builder admin UI. **STATUS: Data model and DAL complete, admin UI and API routes not yet implemented (stub pages only).** See `docs/implementation-roadmap.md` for details.
+4. **Phase D**: Add middleware for tenant resolution and route group separation. **STATUS: NOT STARTED.**
 
 ---
 
@@ -365,3 +364,310 @@ Our website builder is intentionally closer to **Shopify** than **Wix/Framer**:
 The "website builder" doesn't mean each church gets custom code. It means each church gets a **custom configuration** that the shared rendering engine interprets. The database schema (Pages, PageSections, ThemeCustomization, Menus) is the website builder's storage layer. The section component registry is the rendering layer. Together, they produce unique websites from shared code.
 
 The template-based approach means we ship a polished, professional website to every church from day one — then give them safe knobs to customize it. The CMS handles the daily content work; the builder handles the occasional design work. Both share the same rendering engine.
+
+---
+
+## 12. Operational Details — Rendering Pipeline & Data Flow
+
+> This section provides the operational/tactical counterpart to the strategic architecture above. It documents the actual rendering pipeline, section data resolution, and component specifications as implemented.
+
+### 12.1 End-to-End Rendering Pipeline
+
+The public website uses a **single catch-all route** that renders any page from the database:
+
+```
+Browser request → Next.js App Router
+  → app/(website)/layout.tsx
+    → ThemeProvider (injects CSS vars from ThemeCustomization)
+    → FontLoader (loads Google Fonts + custom @font-face per tenant)
+    → Navbar (from Menu records, location=HEADER)
+    → app/(website)/[[...slug]]/page.tsx
+      → Resolves churchId (from tenant context)
+      → Fetches Page by slug (or homepage if no slug)
+      → For each PageSection (sorted by sortOrder):
+        → resolveSectionData() if content.dataSource exists
+        → SectionWrapper (padding, color scheme, visibility, animations)
+          → Registry lookup → Render section component
+    → Footer (from Menu records, location=FOOTER + SiteSettings)
+    → QuickLinksFAB (floating quick links)
+```
+
+#### Key Files
+
+| File | Purpose |
+|---|---|
+| `app/(website)/layout.tsx` | Website layout shell — theme, fonts, navbar, footer |
+| `app/(website)/[[...slug]]/page.tsx` | Catch-all page route — fetches page + sections from DB |
+| `lib/website/resolve-section-data.ts` | Resolves `dataSource` fields by calling DAL functions |
+| `lib/tenant/context.ts` | `getChurchId()` — reads `x-tenant-id` header or env var |
+| `components/website/sections/registry.tsx` | Maps SectionType enum → React component |
+| `components/website/sections/section-wrapper.tsx` | Wraps each section with padding, theme, animation |
+| `components/website/theme/theme-provider.tsx` | Injects CSS custom properties from ThemeCustomization |
+| `components/website/font-loader.tsx` | Generates `<link>` or `@font-face` for tenant fonts |
+
+### 12.2 Data Flow: How Sections Receive Data
+
+There are **two categories** of sections:
+
+#### A. Static Sections (Content from JSONB)
+
+These sections render directly from the `PageSection.content` JSON column. No additional data fetching needed.
+
+```
+PageSection.content (JSONB) → SectionWrapper → Component(content, colorScheme, ...)
+```
+
+**Examples**: HeroBanner, QuoteBanner, CTABanner, ActionCardGrid, DirectoryList, MediaText, TextImageHero, FormSection, FAQSection, PillarsSection, TimelineSection, etc.
+
+#### B. Dynamic Sections (Content + Data Resolution)
+
+These sections have a `dataSource` field in their JSONB content. The `resolveSectionData()` function reads this field, calls the appropriate DAL function, and merges the result into the content before passing to the component.
+
+```
+PageSection.content = { heading: "...", dataSource: "latest-message" }
+  ↓ resolveSectionData(churchId, sectionType, content)
+  ↓ Calls getLatestMessage(churchId) from DAL
+  ↓ Returns { content: { ...content, sermon: { title, speaker, ... } } }
+  ↓ Component receives fully-populated content object
+```
+
+**Supported `dataSource` values:**
+
+| dataSource | DAL Function | Used By |
+|---|---|---|
+| `latest-message` | `getLatestMessage()` | SpotlightMedia |
+| `featured-events` | `getFeaturedEvents()` | HighlightCards |
+| `upcoming-events` | `getUpcomingEvents()` | EventCalendar, UpcomingEvents |
+| `ministry-events` | `getUpcomingEvents()` + filter | Ministry pages |
+| `latest-videos` | `getVideos()` | MediaGrid |
+| `all-messages` | _(self-fetching RSC)_ | AllMessages |
+| `all-events` | _(self-fetching RSC)_ | AllEvents |
+| `all-bible-studies` | `getBibleStudies()` | AllBibleStudies |
+| `all-videos` | `getVideos()` | AllVideos |
+| `latest-daily-bread` | `getTodaysDailyBread()` | DailyBreadFeature |
+
+#### C. Self-Fetching Server Components
+
+`AllMessages` and `AllEvents` are async Server Components that receive `churchId` and fetch their own data internally. They don't use `resolveSectionData()`.
+
+### 12.3 Section Registry
+
+The registry (`components/website/sections/registry.tsx`) maps every `SectionType` enum value to a React component:
+
+```typescript
+const SECTION_REGISTRY: Record<SectionType, ComponentType> = {
+  HERO_BANNER: HeroBannerSection,
+  MEDIA_TEXT: MediaTextSection,
+  SPOTLIGHT_MEDIA: SpotlightMediaSection,
+  // ... 35+ entries
+}
+```
+
+### 12.4 Section Component Prop Interface
+
+All section components in the root project follow a **standardized prop interface**:
+
+```typescript
+interface SectionProps {
+  content: Record<string, unknown>  // JSONB content, section-specific shape
+  colorScheme?: 'LIGHT' | 'DARK'   // From PageSection.colorScheme
+  enableAnimations?: boolean         // From PageSection.enableAnimations
+  churchId?: string                  // For self-fetching components
+  resolvedData?: Record<string, unknown>  // From resolveSectionData()
+}
+```
+
+**vs. laubf-test (source of truth) pattern:**
+
+```typescript
+interface SectionProps {
+  settings: {
+    id: string
+    visible: boolean
+    colorScheme: 'light' | 'dark'
+    enableAnimations: boolean
+    content: { /* section-specific fields */ }
+  }
+  // Some sections also receive data arrays:
+  events?: Event[]
+  messages?: Message[]
+}
+```
+
+The root project flattens the `settings` wrapper — `content` is passed directly, and `colorScheme` / `enableAnimations` are separate props. The `SectionWrapper` handles `visible`, `paddingY`, and `containerWidth`.
+
+### 12.5 Navbar Architecture & Edge Cases
+
+The navbar is the most complex layout component. It uses a **mega menu** pattern with multiple structural elements per dropdown.
+
+#### Navigation Data Structure
+
+```
+Navigation
+├── Dropdowns (3): "Our Church", "Ministries", "Resources"
+│   ├── Sections (2-4 per dropdown): grouped columns of links
+│   │   ├── title: string (section header, e.g., "About")
+│   │   ├── items[]: { label, href, description?, icon?, isExternal? }
+│   │   ├── compact?: boolean (for Quick Links section — 2-col grid)
+│   │   ├── columns?: number (grid column count override)
+│   │   ├── footerLink?: { label, href } (bottom link per section)
+│   │   └── width?: string (CSS width override)
+│   ├── featuredCard?: { image, title, description, href }
+│   ├── overviewLink?: { label, description, href }
+│   └── offsetX?: number (dropdown horizontal position offset)
+├── Direct Links (1): "Giving" (no dropdown)
+├── CTA Button: "I'm New" (right side)
+└── Member Login Link: small text link
+```
+
+#### Database Mapping (MenuItem Model)
+
+| laubf-test Field | MenuItem Column | Notes |
+|---|---|---|
+| dropdown.label | `label` | Top-level item (parentId=null) |
+| section.title | `groupLabel` | On child items, groups them visually |
+| item.label | `label` | Child item |
+| item.href | `href` | Navigation URL |
+| item.description | `description` | Shown under label in wide columns |
+| item.icon | `iconName` | Lucide icon name string |
+| item.isExternal | `isExternal` | Shows external arrow icon |
+| featuredCard.image | `featuredImage` | On parent item |
+| featuredCard.title | `featuredTitle` | On parent item |
+| featuredCard.description | `featuredDescription` | On parent item |
+| featuredCard.href | `featuredHref` | On parent item |
+| overviewLink | stored as special child | `sortOrder: 999` convention |
+| compact mode | via `groupLabel` convention | e.g., groupLabel starts with "compact:" |
+
+#### Edge Cases & Scalability
+
+**Fewer items than LA UBF:**
+- A church with 1 dropdown + 2 direct links → mega menu degrades to simple dropdown
+- Minimum viable nav: logo + 3 direct links + CTA button
+
+**More items than LA UBF:**
+- Additional dropdowns (4+) → horizontal scroll or "More" overflow menu on desktop
+- Deep nesting (3+ levels) → not supported; flatten to 2 levels
+
+**Mobile adaptation:**
+- All dropdowns → accordion sections in mobile drawer
+- Featured cards → hidden on mobile
+- CTA button → shown in mobile drawer footer
+
+#### Logo Behavior
+
+- **Over hero section** (not scrolled): Light/inverted logo (`logoInvertedUrl`)
+- **Scrolled past hero**: Dark logo (`logoUrl`) with white background navbar
+- **Transition**: Smooth opacity crossfade on scroll threshold
+
+### 12.6 Color System
+
+#### Color Palette (CSS Variables)
+
+```css
+/* Blacks */
+--color-black-1: #111111    /* Primary dark bg */
+--color-black-2: #1A1A1A    /* Secondary dark bg */
+--color-black-3: #2A2A2A    /* Tertiary dark */
+
+/* Whites */
+--color-white-0: #FFFFFF    /* Pure white */
+--color-white-1: #FAFAFA    /* Off-white bg */
+--color-white-1-5: #F5F5F5  /* Light gray bg */
+--color-white-2: #E5E5E5    /* Muted text on dark */
+--color-white-3: #999999    /* Secondary text on dark */
+
+/* Brand */
+--color-brand-1: #2563EB    /* Primary brand (blue) */
+--color-brand-2: #1E3A5F    /* Dark brand / navy */
+
+/* Semantic */
+--color-surface-page: var(--color-white-1)
+--color-surface-dark: var(--color-black-1)
+--color-border-light: #E5E5E5
+```
+
+#### Section Color Schemes
+
+Each `PageSection` has a `colorScheme` field (`LIGHT` or `DARK`). The `SectionWrapper` applies the corresponding theme:
+
+- **LIGHT**: white background, dark text
+- **DARK**: black-1 background, white text
+
+### 12.7 Animation System
+
+**AnimateOnScroll** — The primary animation wrapper uses Intersection Observer:
+
+```tsx
+<AnimateOnScroll animation="fade-up" staggerIndex={0} staggerBaseMs={100}>
+  <div>Content fades up when scrolled into view</div>
+</AnimateOnScroll>
+```
+
+**Animations available**: `fade-up`, `fade-left`, `fade-right`, `scale-up`, `fade-in`
+
+**CSS Keyframe Animations** (defined in `globals.css`):
+- `dropdown-in` — navbar dropdown entrance
+- `hero-fade-up` / `hero-fade-in` — hero section entrance
+- `scale-in` — scale from 95% to 100%
+- `slide-in-left` / `slide-in-right` — horizontal slides
+- `pulse-glow` — accent glow effect
+
+**Motion Library** — Some sections use `motion/react` (from Framer Motion) for physics-based animations (MediaText, Statement, DirectoryList).
+
+### 12.8 Font System Summary
+
+| CSS Variable | Font | Source | Usage |
+|---|---|---|---|
+| `--font-sans` | Helvetica Neue | Custom `@font-face` (3 weights: 400, 500, 700) | Body text, UI elements |
+| `--font-serif` | DM Serif Display | Google Fonts (weight: 400, italic) | Heading accents, display |
+| `--font-display` | DM Serif Display | Same as serif | Hero headings |
+| `--font-script` | Strude | Custom `@font-face` | Script/decorative headings |
+
+See `docs/website-rendering/08-font-system.md` for the full font architecture.
+
+### 12.9 Typography Scale
+
+| Utility | Mobile | Desktop | Font | Usage |
+|---|---|---|---|---|
+| `.text-h1` | 32px/110% | 48px/110% | sans, 700 | Page headings |
+| `.text-h2` | 24px/120% | 36px/120% | sans, 700 | Section headings |
+| `.text-h3` | 18px/130% | 24px/130% | sans, 600 | Subsection headings |
+| `.text-h4` | 16px/140% | 18px/140% | sans, 600 | Card headings |
+| `.text-body-1` | 16px/160% | 18px/160% | sans, 400 | Primary body |
+| `.text-body-2` | 14px/160% | 16px/160% | sans, 400 | Secondary body |
+| `.text-body-3` | 13px/150% | 14px/150% | sans, 400 | Small body |
+| `.text-hero-accent` | 28px/120% | 40px/120% | serif (italic) | Hero accent lines |
+| `.text-display-heading` | 40px/100% | 80px/100% | serif (italic) | Display headings |
+| `.text-script-heading` | 28px/120% | 40px/120% | script | Decorative headings |
+
+### 12.10 Container Utilities
+
+| Utility | Width | Max Width | Padding |
+|---|---|---|---|
+| `.container-standard` | 85% | 1200px | auto margins |
+| `.container-narrow` | 85% | 840px | auto margins |
+| `.container-nav` | 100% → 90% (lg) | 1140px | 1.25rem → 0 (lg) |
+
+### 12.11 Section Catalog Summary (42 Section Types)
+
+See `docs/website-rendering/09-section-component-guide.md` for the full catalog with CMS field specifications, comment header format, and migration instructions.
+
+| Category | Sections | Count |
+|---|---|---|
+| **Hero & Banner** | HeroBanner, PageHero, TextImageHero, MinistryHero, EventsHero, QuoteBanner | 6 |
+| **Content Grids** | HighlightCards, ActionCardGrid, MediaGrid, AllMessages, AllBibleStudies, AllVideos, AllEvents, DailyBreadFeature | 8 |
+| **Feature & Showcase** | SpotlightMedia, MediaText, Timeline, Pillars, FeatureBreakdown, Statement, AboutDescription | 7 |
+| **Events & Schedule** | UpcomingEvents, EventCalendar, QuickLinks, RecurringMeetings, RecurringSchedule, MinistrySchedule | 6 |
+| **Directory & Gallery** | DirectoryList, PhotoGallery, FormSection, PathwayCard, CampusCardGrid | 5 |
+| **Team & Ministry** | MeetTeam, MinistryIntro, Newcomer, CTABanner | 4 |
+| **Navigation** | Footer, LocationDetail, Navbar (placeholder) | 3 |
+| **Generic / Custom** | CustomHtml, CustomEmbed | 2 |
+
+| Type | Sections | Data Source |
+|---|---|---|
+| **Static** (JSONB only) | 28 sections | Content edited in CMS page builder |
+| **Dynamic** (dataSource) | 6 sections | `resolveSectionData()` fetches from DAL |
+| **Self-fetching RSC** | 2 sections | AllMessages, AllEvents fetch own data |
+| **Layout** | 2 sections | Navbar, Footer rendered in layout |
+| **Generic** | 2 sections | CustomHtml, CustomEmbed for arbitrary content |
+| **Placeholder** | 2 sections | Navbar (layout-handled), DailyBreadFeature (unimplemented) |

@@ -1,10 +1,14 @@
-# shadcn Data Table — Best Practices & Scalability Audit
+# Development Notes
 
-How to use shadcn components so that visual changes propagate consistently, and an honest audit of where the current Messages implementation follows (or breaks) these rules.
+> Implementation notes, best practices, and technical decisions made during development. This is a living collection of lessons learned.
 
 ---
 
-## The Core Principle: Three Layers
+## 1. shadcn Data Table — Best Practices & Scalability Audit
+
+How to use shadcn components so that visual changes propagate consistently, and an honest audit of where the current Messages implementation follows (or breaks) these rules.
+
+### 1.1 The Core Principle: Three Layers
 
 shadcn is built on a cascade. Changes flow downward through three layers:
 
@@ -18,31 +22,27 @@ Layer 3: Page compositions   (components/cms/messages/, app/cms/messages/)
 
 **When this breaks:** When you bypass the cascade by putting raw Tailwind classes on a shadcn component that override its variant system. That inline style is invisible to the layer above it — the Badge component doesn't know about it, the CSS variables don't control it, and the next page that needs the same look will have to copy-paste those classes.
 
----
+### 1.2 Where to Put Customization
 
-## Where to Put Customization
-
-### Do: Use CSS variables in `globals.css` (Layer 1)
+**Do: Use CSS variables in `globals.css` (Layer 1)**
 
 This is your single source of truth for colors, radii, and spacing. Every shadcn component reads from these variables. Changing `--primary` updates every Button, Badge, and sidebar link at once.
 
-### Do: Add variants to `components/ui/` files (Layer 2)
+**Do: Add variants to `components/ui/` files (Layer 2)**
 
 If you need a new visual state that shadcn doesn't ship (e.g., a "warning" badge), add it as a variant inside the component's `cva()` definition. Every page that uses `variant="warning"` will get the same look, and future changes only require editing one file.
 
-### Do: Compose shadcn primitives in shared components (Layer 2.5)
+**Do: Compose shadcn primitives in shared components (Layer 2.5)**
 
 For patterns you'll reuse across pages — like a DataTable with pagination, or a search input with an icon — create a shared component that wraps shadcn primitives. This is composition, not customization. The shared component calls `<Table>`, `<Button>`, `<Select>` — it doesn't redefine how they look.
 
-### Don't: Add one-off Tailwind overrides to shadcn components in page code (Layer 3)
+**Don't: Add one-off Tailwind overrides to shadcn components in page code (Layer 3)**
 
 This is where drift starts. If `columns.tsx` puts `className="border-orange-300 bg-orange-50 text-orange-700"` on a Badge, that orange style is trapped in that file. When Events needs the same "scheduled" badge, someone (or an AI model) will either copy the classes or invent a slightly different version.
 
----
+### 1.3 Current Implementation: Audit
 
-## Current Implementation: Audit
-
-### What's correct
+#### What's correct
 
 **State ownership pattern.** All TanStack Table state lives in `page.tsx` and flows down via the `table` instance. The DataTable and Toolbar don't own state — they receive it. This means every future data table page follows the same pattern:
 
@@ -56,31 +56,21 @@ page.tsx        → owns useState + useReactTable
 
 **Primitives are used correctly in most places.** Button variants (`ghost`, `outline`, `destructive`), Badge variants (`default`, `secondary`, `outline`), Dialog composition, DropdownMenu composition — these all use shadcn's built-in API the way it's intended. Changing Button's `outline` variant in `components/ui/button.tsx` will update every outline button across the app.
 
-### Resolved issues
+#### Resolved issues
 
-**Fixed: DataTable moved to `components/ui/data-table.tsx`.**
+**Fixed: DataTable moved to `components/ui/data-table.tsx`.** Previously in `components/cms/messages/data-table.tsx` — looked page-specific. Now lives alongside other shadcn primitives. Any page imports `import { DataTable } from "@/components/ui/data-table"`. The component also no longer re-exports TanStack hooks — pages import `useReactTable`, `getCoreRowModel`, etc. directly from `@tanstack/react-table`.
 
-Previously in `components/cms/messages/data-table.tsx` — looked page-specific. Now lives alongside other shadcn primitives. Any page imports `import { DataTable } from "@/components/ui/data-table"`. The component also no longer re-exports TanStack hooks — pages import `useReactTable`, `getCoreRowModel`, etc. directly from `@tanstack/react-table`.
+**Fixed: "scheduled" badge uses the `warning` variant.** Added `warning` variant to `components/ui/badge.tsx`. The status column now uses `variant="warning"` — no inline Tailwind. Changing the orange to amber requires editing one line in `badge.tsx`.
 
-**Fixed: "scheduled" badge uses the `warning` variant.**
+**Fixed: Shared status config in `lib/status.ts`.** `statusDisplay` maps `ContentStatus` → `{ label, variant }`. Columns import it: `import { statusDisplay } from "@/lib/status"`. When Events or Announcements need status badges, they use the same mapping.
 
-Added `warning` variant to `components/ui/badge.tsx`. The status column now uses `variant="warning"` — no inline Tailwind. Changing the orange to amber requires editing one line in `badge.tsx`.
+#### Watch for later
 
-**Fixed: Shared status config in `lib/status.ts`.**
-
-`statusDisplay` maps `ContentStatus` → `{ label, variant }`. Columns import it: `import { statusDisplay } from "@/lib/status"`. When Events or Announcements need status badges, they use the same mapping.
-
-### Watch for later
-
-**The toolbar is tightly coupled to Messages.**
-
-`toolbar.tsx` imports `Message` and `MessageStatus` types directly. The filter options are hardcoded to message-specific statuses. This is fine — the toolbar SHOULD be page-specific because each entity has different filters. But the reusable parts inside it (search input with icon, bulk action bar, filter badge chips) should be extractable.
+**The toolbar is tightly coupled to Messages.** `toolbar.tsx` imports `Message` and `MessageStatus` types directly. The filter options are hardcoded to message-specific statuses. This is fine — the toolbar SHOULD be page-specific because each entity has different filters. But the reusable parts inside it (search input with icon, bulk action bar, filter badge chips) should be extractable.
 
 This isn't an urgent problem — you can keep page-specific toolbars. But watch for copy-paste of the search input pattern. If you find yourself rebuilding the `<div className="relative"><Search /><Input className="pl-8" /></div>` pattern on 3+ pages, extract it to a shared `SearchInput` component.
 
----
-
-## How to Structure for Multiple Data Table Pages
+### 1.4 How to Structure for Multiple Data Table Pages
 
 The pattern that scales:
 
@@ -117,9 +107,7 @@ app/cms/events/page.tsx   ← Composes: Toolbar + DataTable (same DataTable!)
 - `toolbar.tsx` — different entities have different filters and actions
 - `page.tsx` — different entities may or may not have tabs, different CTAs
 
----
-
-## The Cascade Test
+### 1.5 The Cascade Test
 
 Before shipping any data table page, ask:
 

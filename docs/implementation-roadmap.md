@@ -1,9 +1,107 @@
 # Implementation Roadmap
 
-## What to Build Next After Phases A-C, and Why
+## Current Status and What to Build Next
 
-> **Last updated**: February 2026
-> **Current state**: Database Phases 1.1-4.1 complete (Prisma schema, migration, seed, DAL, API routes, CMS integration). Public website (`laubf-test/`) runs on mock data. No auth, no middleware, no multi-tenancy, no `app/(website)/` route group.
+> **Last updated**: February 24, 2026
+> **Current state**: See Status Dashboard below.
+
+---
+
+## Phase Mapping: Database ↔ Website Rendering
+
+The project uses two phase numbering systems. This table shows how they map:
+
+| Database Phase | Website Phase | Description | Status |
+|---|---|---|---|
+| Phases 1-4 | — | Schema, migration, seed, DAL, API routes, CMS integration | **COMPLETE** |
+| Phase 5.1 | Phase A | Single-tenant rendering (Prisma + DAL in laubf-test) | **COMPLETE** |
+| — | Phase B.1 | Route group, registry, ThemeProvider, FontLoader, 6 sections | **COMPLETE** |
+| — | Phase B.2 | Section component migration (40/42 migrated) | **COMPLETE** |
+| Phase 8.1 | Phase B.3 | Section registry + page seeding | **COMPLETE** |
+| — | Phase C | Website builder admin UI | **DATA MODEL COMPLETE, ADMIN UI NOT IMPLEMENTED** |
+| Phase 6.1 | — | Authentication | **NOT STARTED** |
+| Phase 7.1 | Phase D | Multi-tenant middleware | **NOT STARTED** |
+| — | Phase E | Caching & performance | **NOT STARTED** |
+| — | Phase F | Production deployment | **NOT STARTED** |
+
+---
+
+## Status Dashboard
+
+### Database (Phases 1-4): COMPLETE
+
+- Prisma schema: 32 models, 22 enums
+- Migration applied and working
+- Seed script: idempotent, creates LA UBF data (14 pages, 2 menus, theme, site settings)
+- DAL: 15 modules, all take `churchId` as first param
+- API routes: 15 files across 10 content types
+- CMS integration: context providers wired to API
+
+### Website Phase A (Single-Tenant Rendering): COMPLETE
+
+- Prisma + read-only DAL installed in `laubf-test/`
+- All 13 page files converted from mock data to DAL calls
+- Adapter layer at `laubf-test/src/lib/adapters.ts`
+
+### Website Phase B.1 (Route Group + Infrastructure): COMPLETE
+
+- `app/(website)/` route group with `layout.tsx` and `[[...slug]]/page.tsx`
+- Section registry at `components/website/sections/registry.tsx`
+- ThemeProvider, FontLoader, SectionWrapper
+- Tenant context (`lib/tenant/context.ts`)
+- Website navbar and footer components
+- 7 shared components at `components/website/shared/`
+- Website design system CSS ported to root `app/globals.css`
+
+### Website Phase B.2 (Section Migration): COMPLETE — 40/42 sections migrated
+
+44 files in `components/website/sections/` (including registry.tsx, section-wrapper.tsx, and 2 client component companions). SectionType enum has 42 values total.
+
+**Remaining placeholders (2):**
+- `NAVBAR` — rendered in layout, not as a per-page section (placeholder is intentional)
+- `DAILY_BREAD_FEATURE` — placeholder, no source implementation exists in laubf-test
+
+All other 40 section types have real implementations (including CUSTOM_HTML and CUSTOM_EMBED added during migration).
+
+### Website Phase B.3 (Page Seeding): COMPLETE
+
+- Seed script creates 14 pages with PageSections
+- 2 menus (Header, Footer) with menu items
+- Theme + ThemeCustomization
+- SiteSettings
+
+### Website Phase C (Website Builder Admin): DATA MODEL COMPLETE, ADMIN UI NOT IMPLEMENTED
+
+**What exists:**
+- Database models for pages, sections, menus, themes, site settings (all seeded)
+- `resolveSectionData()` for dynamic section data resolution
+- DAL modules for pages, menus, and theme (read/write functions ready)
+
+**What does NOT exist (stub pages only):**
+- `/cms/website/pages` — 10-line stub page (title + description only)
+- `/cms/website/navigation` — 10-line stub page
+- `/cms/website/theme` — 10-line stub page
+- `/cms/website/domains` — 10-line stub page
+- No page builder UI, no section editor, no drag-and-drop, no menu editor, no theme customizer
+- No website builder API routes (pages CRUD, sections CRUD, menus CRUD, theme CRUD)
+
+**Status: The website builder admin UI is the next major feature to implement.** The data model and DAL layer are ready; the API routes and admin interface both need to be built.
+
+### Authentication: NOT STARTED (Critical Blocker)
+
+Schema exists (User, Session, ChurchMember tables with MemberRole enum) but no implementation:
+- No login/logout pages
+- No session management
+- No middleware protecting `/cms/*` routes
+- No password hashing
+
+**This is the hard gate for production deployment.**
+
+### Phases D-F: NOT STARTED
+
+- **Phase D** (Multi-Tenant Middleware): No middleware.ts, no hostname→church resolution
+- **Phase E** (Caching): No cache layer, no Redis, no revalidation tags
+- **Phase F** (Production Deployment): No Azure VM, no Caddy, no DNS
 
 ---
 
@@ -12,7 +110,7 @@
 | Phase | What It Does | Result |
 |---|---|---|
 | **A**: Single-Tenant Rendering | Replace mock data in `laubf-test/` with PostgreSQL queries | Public website renders real CMS content |
-| **B**: Component Migration | Move 38 section components into root project, create `app/(website)/[[...slug]]` catch-all, section registry | One unified app, data-driven page rendering, `laubf-test/` can be retired |
+| **B**: Component Migration | Move section components into root project (42 section types, 40 real + 2 placeholders), create `app/(website)/[[...slug]]` catch-all, section registry | One unified app, data-driven page rendering, `laubf-test/` can be retired |
 | **C**: Website Builder Admin | CRUD UI for pages, sections, menus, themes at `/cms/website/` | Church admins can manage their website structure |
 
 After A-C, the full CMS + website builder + public rendering pipeline works end-to-end for a single church, with no authentication and no production deployment.
@@ -111,7 +209,7 @@ This is counterintuitive but practical. Every SaaS founder who waited for multi-
 - Add `'use cache'` / `cacheTag()` to DAL functions for website queries
 - Add `revalidateTag()` calls to all CMS write API routes
 - Configure Cloudflare Cache Rules for static assets and ISR pages
-- Add Redis only if running multiple processes/servers (see `docs/website-rendering/07-caching-explained.md`)
+- Add Redis only if running multiple processes/servers (see `docs/website-rendering/07-caching.md`)
 
 **What you already get for free** (no work needed):
 - Next.js built-in filesystem + in-memory cache (works on self-hosted)
@@ -123,35 +221,28 @@ This is counterintuitive but practical. Every SaaS founder who waited for multi-
 ## The Revised Critical Path
 
 ```
-Current state (DB + CMS integration done)
-  │
-  ▼
-Phase A: Single-Tenant Rendering .............. 5-7 days
-  │
-  ▼
-Phase B: Component Migration + Registry ....... 7-10 days
-  │
-  ▼
-Phase C: Website Builder Admin ................ 10-15 days (overlaps B after B6)
-  │
-  ▼
-Auth (Database Phase 6.1) .................... 3-5 days ← GATE
-  │
-  ▼
-Phase F (partial): Deploy LA UBF ............. 3-5 days
-  │
+COMPLETED:
+  Database Phases 1-4 ........................ DONE
+  Phase A: Single-Tenant Rendering ........... DONE
+  Phase B.1: Route Group + Infrastructure .... DONE
+  Phase B.2: Section Migration ............... 40/42 DONE (2 intentional placeholders)
+  Phase B.3: Page Seeding .................... DONE
+
+REMAINING:
+  Phase B.2: Section Migration ............... DONE (40/42, 2 intentional placeholders)
+  Phase C: Website Builder Admin UI .......... 10-15 days ← NEXT
+  Auth (Database Phase 6.1) .................. 3-5 days ← GATE
+  Phase F (partial): Deploy LA UBF ........... 3-5 days
+
   ════════════════════════════════════════════
   ║  LA UBF IS LIVE — real users, real data  ║
   ════════════════════════════════════════════
-  │
-  ▼ (when church #2 is ready)
-Phase D: Multi-Tenant Middleware .............. 3-5 days
-  │
-  ▼ (when traffic justifies it)
-Phase E: Caching & Performance ............... 3-5 days
+
+  Phase D: Multi-Tenant Middleware ........... 3-5 days (when church #2 ready)
+  Phase E: Caching & Performance ............. 3-5 days (when traffic justifies)
 ```
 
-**Total to first launch**: ~28-42 working days (Phases A + B + C + Auth + F)
+**Remaining to first launch**: ~20-28 working days (Phase C + Auth + F)
 **Total to multi-tenant**: +3-5 days after launch
 
 ---
@@ -176,9 +267,8 @@ The key insight: **Phases D and E are growth infrastructure.** They add zero val
 
 | Topic | Document |
 |---|---|
-| Phase A-F detailed steps | `docs/website-rendering/04-development-phases.md` |
-| Agent prompts for each phase | `docs/website-rendering/05-ai-optimized-next-steps.md` |
-| Database phases (including Auth 6.1) | `docs/database/05-ai-optimized-next-steps.md` |
-| Hosting & domain setup | `docs/website-rendering/06-hosting-and-domain-strategy.md` |
-| Caching strategy | `docs/website-rendering/07-caching-explained.md` |
-| Schema visual guide | `docs/database/06-schema-visual-guide.md` |
+| Unified status, phase specs, AI prompts | `docs/development-status.md` (consolidates former database/04-05 and website-rendering/04-05) |
+| Hosting & domain setup | `docs/website-rendering/06-hosting-domain-strategy.md` |
+| Caching strategy | `docs/website-rendering/07-caching.md` |
+| Database visual guide | `docs/database/01-architecture.md` (Section 15) |
+| Development notes | `docs/development-notes.md` |

@@ -1,12 +1,472 @@
-# Database Schema — Visual Guide
+# High-Level Database Architecture
 
-## How All the Tables Connect, How Multi-Tenancy Works, and Key Principles
-
-> **Audience**: Someone who's worked with databases before but doesn't live in them daily. This is the "show me the big picture" document.
+## Multi-Tenant Church Platform — PostgreSQL + Prisma
 
 ---
 
-## 1. The Big Picture: Four Layers
+## 1. Architecture Overview
+
+This document defines the database architecture for a multi-tenant SaaS platform serving 1,000+ churches. Each church (tenant) gets its own isolated data space within a **shared database, shared schema** model using PostgreSQL Row-Level Security (RLS) for enforcement.
+
+### Why Shared Database + RLS
+
+| Approach | Pros | Cons |
+|---|---|---|
+| **Database-per-tenant** | Full isolation | Expensive, hard to manage at 1,000+ tenants |
+| **Schema-per-tenant** | Good isolation | Migration complexity, connection pooling limits |
+| **Shared DB + RLS** (chosen) | Cost-efficient, single migration path, scales to 100K+ tenants | Requires discipline with `church_id` on every query |
+
+At 1,000 churches, separate databases would mean 1,000 PostgreSQL instances — operationally untenable. The shared approach with RLS gives us data isolation guarantees at the database level while keeping operations simple.
+
+---
+
+## 2. Tenant Resolution Flow
+
+```
+Request → Edge Middleware → Resolve Tenant → Inject Context → Application
+                ↓
+    ┌───────────────────────────┐
+    │ 1. Custom domain lookup   │  gracechurch.org → church_abc
+    │ 2. Subdomain extraction   │  grace.lclab.io → church_abc
+    │ 3. Platform routing       │  lclab.io → marketing site
+    └───────────────────────────┘
+                ↓
+    AsyncLocalStorage sets church_id for entire request lifecycle
+                ↓
+    Prisma middleware auto-injects WHERE church_id = ? on all queries
+```
+
+---
+
+## 3. Table Categories
+
+The database is organized into **4 layers**, each with a specific purpose:
+
+### Layer 1: Platform (no church_id)
+Global system tables that exist outside of any tenant context.
+
+| Table | Purpose |
+|---|---|
+| `Church` | Tenant registry — one row per church |
+| `User` | Global user accounts (can belong to multiple orgs) |
+| `Plan` | Subscription plan definitions |
+| `PlatformSetting` | Global platform configuration |
+
+### Layer 2: Tenant Management (church_id required)
+Tables that configure each tenant's access, billing, and team.
+
+| Table | Purpose |
+|---|---|
+| `ChurchMember` | User ↔ Org membership with roles |
+| `Subscription` | Billing state per org |
+| `CustomDomain` | Custom domain mappings |
+| `ApiKey` | API access tokens |
+| `AuditLog` | Action history per org |
+
+### Layer 3: CMS Content (church_id required)
+All content managed through the CMS admin interface.
+
+| Table | Purpose |
+|---|---|
+| `Message` | Sermons/messages |
+| `Series` | Sermon/study series grouping |
+| `Speaker` | Pastors, speakers |
+| `Event` | Events, meetings, programs |
+| `EventLink` | Associated links per event |
+| `BibleStudy` | Bible study content |
+| `BibleStudyAttachment` | File attachments for studies |
+| `Video` | Video library entries |
+| `DailyBread` | Daily devotional content |
+| `Ministry` | Ministry groups (per org) |
+| `Campus` | Campus locations (per org) |
+| `MediaAsset` | Centralized media/file storage |
+| `Tag` | Flexible tagging system |
+| `ContentTag` | Polymorphic tag assignments |
+| `Announcement` | Church announcements |
+| `ContactSubmission` | Form submissions |
+
+### Layer 4: Website/Builder (church_id required)
+Tables that define the public-facing website structure.
+
+| Table | Purpose |
+|---|---|
+| `SiteSettings` | Global site configuration per org |
+| `Page` | Website pages |
+| `PageSection` | Ordered sections within pages (JSONB content) |
+| `Menu` | Navigation menus |
+| `MenuItem` | Individual menu items |
+| `Theme` | Template/theme selection |
+| `ThemeCustomization` | Per-org theme overrides |
+
+---
+
+## 4. Entity Relationship Diagram (Simplified)
+
+```
+Church (tenant)
+├── ChurchMember ── User
+├── Subscription ── Plan
+├── CustomDomain
+│
+├── Speaker
+├── Series
+├── Ministry
+├── Campus
+│
+├── Message ──┬── Speaker
+│             ├── Series
+│             └── BibleStudy (bidirectional)
+│
+├── Event ────┬── Ministry
+│             ├── Campus
+│             └── EventLink[]
+│
+├── BibleStudy ┬── Series
+│              ├── Speaker (messenger)
+│              ├── Message (related)
+│              └── BibleStudyAttachment[]
+│
+├── Video
+├── DailyBread
+├── MediaAsset
+│
+├── SiteSettings
+├── Page ── PageSection[] (ordered, JSONB content)
+├── Menu ── MenuItem[] (nested tree)
+└── Theme ── ThemeCustomization
+```
+
+---
+
+## 5. Indexing Strategy for 1,000+ Tenants
+
+### The Cardinal Rule
+**Every query hits a composite index starting with `church_id`.** Without this, PostgreSQL scans the entire table across all tenants.
+
+### Scale Estimation (1,000 churches)
+
+| Table | Rows per church (avg) | Total rows (1K churches) | Total rows (10K churches) |
+|---|---|---|---|
+| Message | 500 | 500K | 5M |
+| Event | 200 | 200K | 2M |
+| BibleStudy | 300 | 300K | 3M |
+| Video | 100 | 100K | 1M |
+| DailyBread | 365/year × 3 years | 1.1M | 11M |
+| PageSection | 50 | 50K | 500K |
+| MediaAsset | 500 | 500K | 5M |
+| AuditLog | 10K/year | 10M | 100M |
+
+### Index Patterns
+
+**Pattern 1: Tenant-scoped lookup by slug (most common)**
+```sql
+-- Every content table
+CREATE UNIQUE INDEX idx_{table}_org_slug ON {table}(church_id, slug);
+```
+This covers the primary access pattern: "get this specific item for this church."
+
+**Pattern 2: Tenant-scoped listing with sort**
+```sql
+-- Messages: latest first
+CREATE INDEX idx_messages_org_date ON messages(church_id, date_for DESC);
+
+-- Events: upcoming first
+CREATE INDEX idx_events_org_date_start ON events(church_id, date_start);
+
+-- Daily bread: by date
+CREATE INDEX idx_daily_bread_org_date ON daily_breads(church_id, date DESC);
+```
+
+**Pattern 3: Tenant-scoped filtering**
+```sql
+-- Events by type
+CREATE INDEX idx_events_org_type ON events(church_id, type);
+
+-- Events by ministry
+CREATE INDEX idx_events_org_ministry ON events(church_id, ministry_id);
+
+-- Messages by speaker
+CREATE INDEX idx_messages_org_speaker ON messages(church_id, speaker_id);
+
+-- Messages by series
+CREATE INDEX idx_messages_org_series ON messages(church_id, series_id);
+```
+
+**Pattern 4: Full-text search (per tenant)**
+```sql
+-- GIN index on tsvector for search
+CREATE INDEX idx_messages_search ON messages
+  USING GIN(to_tsvector('english', title || ' ' || description));
+
+-- Filter by church_id first, then search
+-- Application: WHERE church_id = ? AND search_vector @@ to_tsquery(?)
+```
+
+**Pattern 5: Partial indexes for common filters**
+```sql
+-- Only active/published content
+CREATE INDEX idx_events_org_active ON events(church_id, date_start)
+  WHERE deleted_at IS NULL AND status = 'PUBLISHED';
+
+-- Only featured events
+CREATE INDEX idx_events_org_featured ON events(church_id, date_start)
+  WHERE is_featured = TRUE AND deleted_at IS NULL;
+
+-- Only recurring events
+CREATE INDEX idx_events_org_recurring ON events(church_id)
+  WHERE is_recurring = TRUE AND deleted_at IS NULL;
+```
+
+### Index Size Estimation
+
+At 1,000 churches with the above data volumes:
+- B-tree indexes: ~50-200MB per index (manageable)
+- GIN full-text indexes: ~500MB-1GB per indexed table
+- Total index footprint: ~5-10GB (well within standard PostgreSQL capabilities)
+
+---
+
+## 6. Row-Level Security (RLS)
+
+### Policy Design
+
+Every tenant-scoped table gets the same RLS pattern:
+
+```sql
+-- Enable RLS
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+
+-- Tenant isolation policy
+CREATE POLICY tenant_isolation ON messages
+  USING (church_id = current_setting('app.current_church_id')::uuid);
+
+-- Insert policy (ensure church_id matches)
+CREATE POLICY tenant_insert ON messages
+  FOR INSERT
+  WITH CHECK (church_id = current_setting('app.current_church_id')::uuid);
+```
+
+### Setting Tenant Context
+
+On every request, before any query:
+
+```sql
+SET LOCAL app.current_church_id = 'church_uuid_here';
+```
+
+In Prisma, this is done via a `$queryRaw` in middleware or via the `@prisma/extension-accelerate` tenant context.
+
+### RLS as Defense-in-Depth
+
+RLS is the **second line of defense**. The primary line is the Prisma middleware that auto-injects `WHERE church_id = ?`. RLS catches any query that accidentally bypasses the application layer.
+
+---
+
+## 7. Soft Deletes
+
+All content tables use soft deletes:
+
+```prisma
+model Message {
+  // ...
+  deletedAt DateTime?
+
+  @@index([churchId, deletedAt]) // Partial index candidate
+}
+```
+
+**Cleanup strategy:**
+- Soft-deleted records are excluded from all queries via Prisma middleware
+- Background job purges records older than 90 days (configurable per org)
+- `AuditLog` entry created on both soft delete and hard delete
+
+---
+
+## 8. Audit Trail
+
+```prisma
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  churchId     String   @db.Uuid
+  userId    String?  @db.Uuid
+  action    String   // CREATE, UPDATE, DELETE, LOGIN, EXPORT, etc.
+  entity    String   // "Message", "Event", etc.
+  entityId  String?  @db.Uuid
+  changes   Json?    // { field: { old: X, new: Y } }
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([churchId, createdAt DESC])
+  @@index([churchId, entity, entityId])
+}
+```
+
+> **Scalability concern — 100M+ rows**: At 10K churches x 10K audit entries/year, this table
+> reaches 100M rows within a year. Recommendations:
+> 1. **Partition by month** using PostgreSQL native range partitioning on `createdAt`.
+>    Prisma does not manage partitions directly — use raw SQL migrations.
+> 2. **Archive old partitions**: Move partitions older than 1 year to cold storage (S3/GCS).
+> 3. **Avoid JSONB indexes** on the `changes` column — only index `churchId`, `createdAt`, and
+>    `entity`/`entityId` for lookups.
+> 4. Consider a dedicated audit service (e.g., append-only log store) at 10K+ tenants.
+
+---
+
+## 9. Connection Pooling & Performance
+
+### Connection Pool Configuration
+
+For 1,000+ tenants on a shared database:
+
+| Setting | Value | Rationale |
+|---|---|---|
+| Pool size (PgBouncer) | 200 connections | Shared across all tenants |
+| Prisma pool size | 10 per instance | 3 app instances = 30 Prisma connections |
+| Statement timeout | 30s | Prevent runaway queries |
+| Idle timeout | 300s | Free unused connections |
+
+### PgBouncer (Required at Scale)
+
+Direct Prisma → PostgreSQL connections won't scale past ~100 concurrent tenants. Use PgBouncer in **transaction mode**:
+
+```
+[pgbouncer]
+pool_mode = transaction
+max_client_conn = 10000
+default_pool_size = 200
+```
+
+> **Critical: PgBouncer + RLS compatibility**
+> PgBouncer in **transaction mode** resets session state between transactions, which means
+> `SET LOCAL app.current_church_id` only persists within a single transaction. This is actually
+> *safer* than session mode — it guarantees tenant context cannot leak between requests that
+> share a connection. However, every transaction must begin with `SET LOCAL` before any queries.
+> The Prisma middleware must wrap all operations in `$transaction` to ensure the `SET LOCAL`
+> and subsequent queries share the same database transaction. Failing to do this is a
+> **data isolation vulnerability**.
+
+### Read Replicas
+
+At 1,000+ churches:
+- **Primary**: All writes
+- **Read replica 1**: Public website queries (high volume, read-only)
+- **Read replica 2**: CMS admin queries + analytics
+
+Prisma supports read replicas natively:
+
+```prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+```
+
+---
+
+## 10. Caching Layer
+
+### Cache Key Namespace
+
+All cache keys are prefixed with `church:{church_id}:` to prevent cross-tenant contamination:
+
+```
+church:abc123:messages:latest        → 5 min TTL
+church:abc123:events:upcoming        → 5 min TTL
+church:abc123:site-settings          → 60 min TTL
+church:abc123:theme                  → 60 min TTL
+church:abc123:page:about             → 10 min TTL
+```
+
+### Cache Invalidation
+
+On CMS write operations:
+1. Update database
+2. Invalidate relevant cache keys for that `church_id`
+3. Redis Pub/Sub notifies other app instances
+
+---
+
+## 11. Data Types & Conventions
+
+| Convention | Standard |
+|---|---|
+| Primary keys | UUID v4 (`@db.Uuid`) |
+| Timestamps | `DateTime` with timezone (UTC storage) |
+| Money | `Decimal(10,2)` or integer cents |
+| Rich text | `Text` (HTML from TinyMCE) |
+| Flexible content | `Json` (`@db.JsonB`) |
+| Enums | Prisma enums → PostgreSQL enums |
+| Slugs | `String` with unique constraint per org |
+| URLs | `String` (validated at application layer) |
+| Durations | `String` format "HH:MM:SS" or `Int` seconds |
+| Recurrence days | `String[]` array (`@db.Text`) |
+| Tags | Normalized via join table |
+| Phone numbers | `String` E.164 format |
+
+---
+
+## 12. Migration Strategy
+
+### Prisma Migrate Workflow
+
+```bash
+# Development: create and apply migration
+npx prisma migrate dev --name add_messages_table
+
+# Production: apply pending migrations
+npx prisma migrate deploy
+
+# Seed: populate initial data (plans, platform settings)
+npx prisma db seed
+```
+
+### Migration Safety Rules
+
+1. **Never drop columns in production** — add new columns, migrate data, then remove old ones in a later release
+2. **Always add new columns as nullable** or with defaults
+3. **Create indexes concurrently** (`CREATE INDEX CONCURRENTLY`) — Prisma doesn't do this by default, so use raw SQL migrations for large tables
+4. **Test migrations against a snapshot** of production data volume before deploying
+
+---
+
+## 13. Backup & Disaster Recovery
+
+| Component | Strategy | Frequency | Retention |
+|---|---|---|---|
+| Full database backup | pg_dump / managed snapshot | Daily | 30 days |
+| WAL archiving | Continuous | Real-time | 7 days |
+| Point-in-time recovery | PostgreSQL PITR | — | 7-day window |
+| Cross-region backup | Replicate to secondary region | Daily | 14 days |
+
+**RTO**: 1 hour (restore from snapshot)
+**RPO**: < 1 hour (WAL-based recovery)
+
+---
+
+## 14. Security Checklist
+
+- [ ] All tenant-scoped tables have `church_id` column with foreign key
+- [ ] RLS policies enabled on all tenant-scoped tables
+- [ ] Prisma middleware auto-injects `church_id` filter on all read queries
+- [ ] Prisma middleware auto-sets `church_id` on all insert operations
+- [ ] No raw SQL queries without explicit `church_id` WHERE clause
+- [ ] PgBouncer configured in transaction mode (prevents session-level RLS leaks)
+- [ ] API endpoints validate that requested `church_id` matches authenticated user's org
+- [ ] Superadmin queries use a separate connection pool that bypasses RLS
+- [ ] Audit log captures all write operations with `church_id` context
+- [ ] Soft deletes prevent accidental data loss
+- [ ] Database credentials rotated every 90 days
+- [ ] Connection strings never committed to source control
+
+---
+
+## 15. Visual Guide — How All the Tables Connect
+
+> **Audience**: Someone who's worked with databases before but doesn't live in them daily. This is the "show me the big picture" section.
+
+### 15.1 The Big Picture: Four Layers
 
 The database has 32 models organized into four layers. Think of it like a building:
 
@@ -41,11 +501,9 @@ The database has 32 models organized into four layers. Think of it like a buildi
 
 Everything above Layer 1 belongs to a specific Church. That's the multi-tenancy.
 
----
+### 15.2 The Church is the Center of Everything
 
-## 2. The Church is the Center of Everything
-
-`Church` is the root table. Almost every other table has a `churchId` column that points back to it. Here's what that looks like:
+`Church` is the root table. Almost every other table has a `churchId` column that points back to it:
 
 ```
                                     ┌──────────────┐
@@ -76,13 +534,11 @@ Everything above Layer 1 belongs to a specific Church. That's the multi-tenancy.
 
 **The rule**: If a table has `churchId`, that row belongs to exactly one church. No exceptions.
 
----
+### 15.3 Relationship Map (All Tables)
 
-## 3. Relationship Map (All Tables)
+Every table and how they connect. Arrows mean "belongs to" or "references."
 
-Here's every table and how they connect. Arrows mean "belongs to" or "references."
-
-### Layer 1: Tenant & Auth
+#### Layer 1: Tenant & Auth
 
 ```
 User ──────────┐
@@ -105,7 +561,7 @@ User ←──many──→ ChurchMember ←──many──→ Church
                      └── role: OWNER | ADMIN | EDITOR | VIEWER
 ```
 
-### Layer 2: Shared References
+#### Layer 2: Shared References
 
 These are things that CMS content points to. They're all scoped to a church.
 
@@ -118,7 +574,7 @@ Church
   └──→ Tag[]        ← Any content can be tagged (via ContentTag join table)
 ```
 
-### Layer 3: CMS Content (the big one)
+#### Layer 3: CMS Content
 
 ```
 Church
@@ -156,9 +612,7 @@ Tag (churchId, name, slug)
                      └── "Message" | "Event" | "BibleStudy" | etc.
 ```
 
-Instead of having `message_tags`, `event_tags`, `bible_study_tags` tables (one per content type), there's one `ContentTag` table that stores the type as a string. This is simpler to manage but means there's no foreign key constraint on `entityId` — the app layer is responsible for keeping it consistent.
-
-### Layer 4: Website Builder
+#### Layer 4: Website Builder
 
 ```
 Church
@@ -183,11 +637,9 @@ Church
 - `Page.parentId → Page` — pages can be nested (e.g., `/ministries/youth`)
 - `MenuItem.parentId → MenuItem` — menu items can have dropdowns
 
----
+### 15.4 The Complete Relationship Diagram
 
-## 4. The Complete Relationship Diagram
-
-Here's everything on one map. Read top-to-bottom. Lines mean foreign keys.
+Everything on one map. Read top-to-bottom. Lines mean foreign keys.
 
 ```
                               ┌─────────┐
@@ -244,23 +696,21 @@ Here's everything on one map. Read top-to-bottom. Lines mean foreign keys.
 └──────────────────────────────────────────────────────────────────┘
 ```
 
----
+### 15.5 How Multi-Tenancy Works (The `churchId` Pattern)
 
-## 5. How Multi-Tenancy Works (The `churchId` Pattern)
-
-### The Core Principle
+#### The Core Principle
 
 Every table that stores church-specific data has a `churchId` column. This is the **tenant boundary**. When you query the database, you always filter by `churchId`:
 
 ```sql
--- ✅ Correct: always scoped to a church
+-- Correct: always scoped to a church
 SELECT * FROM messages WHERE church_id = 'abc-123' AND status = 'PUBLISHED';
 
--- ❌ NEVER do this: returns ALL churches' messages
+-- NEVER do this: returns ALL churches' messages
 SELECT * FROM messages WHERE status = 'PUBLISHED';
 ```
 
-### Which tables have `churchId`?
+#### Which tables have `churchId`?
 
 **Has `churchId` (tenant-scoped — 25 tables):**
 
@@ -304,7 +754,7 @@ SELECT * FROM messages WHERE status = 'PUBLISHED';
 | BibleStudyAttachment | Gets churchId indirectly via BibleStudy |
 | MenuItem | Gets churchId indirectly via Menu |
 
-### How `churchId` is enforced
+#### How `churchId` is enforced
 
 Three layers of protection (defense in depth):
 
@@ -324,7 +774,7 @@ Layer 3: PostgreSQL Row-Level Security (future)
 
 Right now, only Layer 1 is active. Layers 2 and 3 are planned for when multi-tenancy is enabled (Phase D).
 
-### The Slug Uniqueness Pattern
+#### The Slug Uniqueness Pattern
 
 Slugs (URL-friendly identifiers) are unique **per church**, not globally. This is done with composite unique constraints:
 
@@ -334,18 +784,7 @@ Slugs (URL-friendly identifiers) are unique **per church**, not globally. This i
                                 DailyBread, Page, Menu
 ```
 
-This means:
-- LA UBF can have a message with slug `grace-alone`
-- Grace Church can also have a message with slug `grace-alone`
-- They don't conflict because they belong to different churches
-
----
-
-## 6. Index Strategy (Why Those `@@index` Lines Matter)
-
-Indexes make queries fast. Without them, the database has to scan every row in the table to find what you're looking for. With them, it can jump directly to the right rows.
-
-### The `churchId`-First Pattern
+### 15.6 Index Strategy (Visual)
 
 Almost every index starts with `churchId`:
 
@@ -359,41 +798,9 @@ Almost every index starts with `churchId`:
 
 **Why?** Because every query in a multi-tenant app starts with `WHERE churchId = ?`. By putting `churchId` first in the index, PostgreSQL can immediately narrow down to just that church's rows before filtering further.
 
-Think of it like a phone book:
-- Index on `[churchId, dateFor]` = "Find LA UBF's messages, sorted by date"
-- Index on just `[dateFor]` = "Find messages by date across ALL churches" ← useless for us
+### 15.7 Key Relationships Explained
 
-### Composite Indexes for Common Queries
-
-Some tables have multi-column indexes for specific query patterns:
-
-```prisma
-// "Get all published messages for a church, newest first"
-@@index([churchId, status, dateFor(sort: Desc)])
-
-// "Get all events of a specific type, by status and date"
-@@index([churchId, type, status, dateStart])
-```
-
-These indexes let PostgreSQL answer the full query without touching the main table data at all — it just reads the index.
-
-### Unique Constraints That Double as Indexes
-
-Every `@@unique()` constraint automatically creates an index:
-
-```prisma
-@@unique([churchId, slug])     // Fast slug lookups AND prevents duplicate slugs per church
-@@unique([churchId, userId])   // Fast membership lookups AND prevents duplicate memberships
-@@unique([churchId, date])     // DailyBread: one entry per day per church
-```
-
----
-
-## 7. Key Relationships Explained
-
-### Message ↔ BibleStudy (One-to-One, Optional)
-
-A sermon (Message) can be linked to a BibleStudy, and vice versa. This is a one-to-one optional relationship:
+#### Message ↔ BibleStudy (One-to-One, Optional)
 
 ```
 Message                          BibleStudy
@@ -404,9 +811,7 @@ Message                          BibleStudy
 
 The FK lives on Message (`relatedStudyId` is `@unique`). Either side can exist without the other.
 
-### Message ↔ Series (Many-to-Many)
-
-A message can belong to multiple series, and a series can contain multiple messages. This uses a join table:
+#### Message ↔ Series (Many-to-Many)
 
 ```
 Message ←──── MessageSeries ────→ Series
@@ -414,9 +819,7 @@ Message ←──── MessageSeries ────→ Series
                   └── sortOrder (position within the series)
 ```
 
-### Page ↔ PageSection (One-to-Many, Ordered)
-
-A page has multiple sections, ordered by `sortOrder`:
+#### Page ↔ PageSection (One-to-Many, Ordered)
 
 ```
 Page
@@ -428,11 +831,7 @@ Page
       ]
 ```
 
-The `content` field is JSONB — its shape depends on `sectionType`. A `HERO_BANNER` section's content looks completely different from an `ALL_MESSAGES` section's content.
-
-### Theme → ThemeCustomization (One-to-Many, but One-per-Church)
-
-`Theme` is a platform-level template (shared across all churches). `ThemeCustomization` is a church's overrides for that template:
+#### Theme → ThemeCustomization (One-to-Many, but One-per-Church)
 
 ```
 Theme (platform-level, no churchId)
@@ -446,11 +845,7 @@ Theme (platform-level, no churchId)
                            └── customCss: "..."           ← additional CSS
 ```
 
-The rendering pipeline merges `Theme.defaultTokens` with `ThemeCustomization` overrides to produce the final CSS variables for each church's website.
-
-### Menu → MenuItem (Tree Structure)
-
-Menus use a self-referencing tree for nested navigation:
+#### Menu → MenuItem (Tree Structure)
 
 ```
 Menu (HEADER)
@@ -464,131 +859,16 @@ Menu (HEADER)
         └── MenuItem: "Events"        (parentId: null, sortOrder: 3)
 ```
 
-Top-level items have `parentId: null`. Child items reference their parent's ID.
+### 15.8 Key Design Principles (Visual Summary)
 
----
+1. **Soft Deletes** — `deletedAt DateTime?` on most content tables. Null = active, non-null = soft-deleted.
+2. **JSONB for Flexible Content** — `PageSection.content`, `Theme.defaultTokens`, `ThemeCustomization.tokenOverrides`, `Message.transcriptSegments`, `Event.links`, etc.
+3. **Cascade Deletes** — Church deleted → all its content deleted automatically via `onDelete: Cascade`.
+4. **SetNull for Optional References** — Speaker deleted → Messages keep existing but `speakerId` becomes null.
+5. **Content Status Workflow** — `DRAFT → SCHEDULED → PUBLISHED → ARCHIVED` (used by Message, Event, BibleStudy, Video, DailyBread, Announcement).
+6. **UUIDs Everywhere** — globally unique, no information leakage, client-side generation possible.
 
-## 8. Key Design Principles
-
-### 1. Single Source of Truth
-
-Each piece of data lives in exactly one place. `Church.name` is the church's name — not duplicated in `SiteSettings.siteName` (well, `SiteSettings` has its own `siteName` for the public website display name, which can differ from the legal church name).
-
-### 2. Soft Deletes
-
-Most content tables have a `deletedAt` column instead of actually deleting rows:
-
-```
-deletedAt   DateTime?    // null = active, non-null = soft-deleted
-```
-
-This means:
-- Deleted content can be recovered
-- Foreign key references don't break
-- Audit trail is preserved
-- Queries must filter `WHERE deletedAt IS NULL` (the DAL handles this)
-
-Tables with soft deletes: Church, User, Speaker, Series, Ministry, Campus, Message, Event, BibleStudy, Video, DailyBread, Announcement, MediaAsset, Page.
-
-Tables WITHOUT soft deletes (hard delete): Session, ChurchMember, Subscription, CustomDomain, ApiKey, AuditLog, ContentTag, MessageSeries, EventLink, BibleStudyAttachment, PageSection, Menu, MenuItem, SiteSettings, ThemeCustomization, Theme.
-
-### 3. JSONB for Flexible Content
-
-Several tables use PostgreSQL's JSONB type for data that doesn't fit neatly into columns:
-
-| Table | JSONB Column | What It Stores |
-|---|---|---|
-| PageSection | `content` | Section-specific data (different shape per SectionType) |
-| Theme | `defaultTokens` | Default design tokens (colors, fonts, spacing) |
-| Theme | `defaultPages` | Template's default page structure |
-| ThemeCustomization | `tokenOverrides` | Church's design token overrides |
-| ThemeCustomization | `navbarStyle`, `footerStyle`, `buttonStyle`, `cardStyle` | Component-level style overrides |
-| Church | `settings` | Misc church settings |
-| SiteSettings | `serviceTimes` | Structured service time data |
-| Message | `transcriptSegments`, `studySections`, `attachments` | Structured content blocks |
-| Event | `links`, `customRecurrence` | Flexible link lists, custom recurrence rules |
-| ContactSubmission | `fields` | Dynamic form field values |
-| AuditLog | `changes` | Before/after snapshots of edited records |
-
-**Why JSONB instead of more columns?** For data that varies in shape. A `HERO_BANNER` section's content has `heading`, `subheading`, `backgroundImage`, `ctaText`, `ctaLink`. An `ALL_MESSAGES` section's content has `layout`, `itemsPerPage`, `showFilters`. These can't share the same columns — JSONB lets each section type define its own shape while sharing one table.
-
-### 4. Cascade Deletes
-
-When a Church is deleted, everything belonging to it is automatically deleted:
-
-```prisma
-church  Church  @relation(fields: [churchId], references: [id], onDelete: Cascade)
-```
-
-This `onDelete: Cascade` is on virtually every foreign key pointing to Church. Delete a church → all its messages, events, pages, settings, members, etc. are gone. Same for sub-relationships: delete a Page → all its PageSections are gone.
-
-The cascade chain:
-```
-Church deleted
-  → All Messages deleted → All MessageSeries deleted
-  → All Events deleted → All EventLinks deleted
-  → All BibleStudies deleted → All BibleStudyAttachments deleted
-  → All Pages deleted → All PageSections deleted
-  → All Menus deleted → All MenuItems deleted
-  → All Tags deleted → All ContentTags deleted
-  → All ChurchMembers deleted
-  → SiteSettings deleted
-  → ThemeCustomization deleted
-  → etc.
-```
-
-### 5. SetNull for Optional References
-
-When a referenced entity is deleted but the referencing entity should survive:
-
-```prisma
-speaker  Speaker?  @relation(fields: [speakerId], references: [id], onDelete: SetNull)
-ministry Ministry? @relation(fields: [ministryId], references: [id], onDelete: SetNull)
-campus   Campus?   @relation(fields: [campusId], references: [id], onDelete: SetNull)
-```
-
-Delete a Speaker → their Messages still exist, but `speakerId` becomes `null` instead of breaking.
-
-### 6. Content Status Workflow
-
-All publishable content shares the same status enum:
-
-```
-DRAFT → SCHEDULED → PUBLISHED → ARCHIVED
-```
-
-Used by: Message, Event, BibleStudy, Video, DailyBread, Announcement.
-
-The public website only shows `PUBLISHED` content. The CMS admin shows all statuses.
-
-### 7. Audit Trail
-
-The `AuditLog` table records who did what:
-
-```
-AuditLog
-├── churchId     ← which church
-├── userId       ← who did it
-├── action       ← "CREATE" | "UPDATE" | "DELETE" | etc.
-├── entity       ← "Message" | "Event" | etc.
-├── entityId     ← which record
-├── changes      ← JSONB: { before: {...}, after: {...} }
-├── ipAddress    ← where from
-└── createdAt    ← when
-```
-
-This is append-only — audit logs are never updated or deleted.
-
-### 8. UUIDs Everywhere
-
-Every primary key is a UUID (`@default(uuid()) @db.Uuid`), not an auto-incrementing integer. This is important for multi-tenancy because:
-- IDs are globally unique (no collision between churches)
-- IDs don't leak information (you can't guess "there are 500 messages" from an ID of 500)
-- IDs can be generated client-side before insert (useful for offline/batch operations)
-
----
-
-## 9. Table Count Summary
+### 15.9 Table Count Summary
 
 | Layer | Tables | Purpose |
 |---|---|---|
@@ -601,6 +881,13 @@ Every primary key is a UUID (`@default(uuid()) @db.Uuid`), not an auto-increment
 | Enums | Count |
 |---|---|
 | Total enum types | 22 |
-| Notable: SectionType | 38 variants (one per website section component) |
+| Notable: SectionType | 42 variants (one per website section component) |
 | Notable: BibleBook | 66 variants (one per book of the Bible) |
 | Notable: ContentStatus | 4 variants (DRAFT → SCHEDULED → PUBLISHED → ARCHIVED) |
+
+---
+
+## Next Documents
+
+- **[02 — CMS Schema](./02-cms-schema.md)**: Complete Prisma schema for all CMS content tables with exact field mappings from the current TypeScript types
+- **[03 — Website Schema](./03-website-schema.md)**: Complete Prisma schema for website builder, pages, sections, menus, themes

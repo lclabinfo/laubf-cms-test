@@ -564,6 +564,15 @@ The most complex content type. Supports one-time events, recurring meetings, and
 > a discriminator. The schema stores this as a `LocationType` enum to preserve the UI's two-mode
 > behavior, rather than the earlier `isOnline` boolean approach.
 
+> **Migration note — Pending schema additions (Feb 2026)**: The CMS `ChurchEvent` TypeScript type
+> now includes fields that are **not yet in the Prisma schema**. These require a migration:
+> - `directionsUrl: String?` — URL for driving directions (in-person events). Add next to `meetingUrl`.
+> - `monthlyRecurrenceType: MonthlyRecurrenceType` — enum with `DAY_OF_MONTH` (default), `DAY_OF_WEEK`.
+>   Controls whether monthly recurrence uses "same day of month" or "nth weekday of month". Add to Recurrence section.
+>
+> Additionally, `isPinned` is no longer used in the CMS UI (replaced by `isFeatured` with Star icon).
+> The `isPinned` field and its index can be removed in a future migration.
+
 ```prisma
 model Event {
   id                String        @id @default(uuid()) @db.Uuid
@@ -1153,20 +1162,22 @@ This table maps every field from the current TypeScript interfaces to their data
 | `tags` | via `ContentTag` | — | **Normalized** to join table |
 | `ministry` | `ministryId` | `UUID? → Ministry` | **Normalized**: enum → FK |
 | `campus` | `campusId` | `UUID? → Campus` | **Normalized**: enum → FK |
-| `isPinned` | `isPinned` | `Boolean` | Sticky ordering |
-| `isFeatured` (website) | `isFeatured` | `Boolean` | Homepage highlight |
-| `registrationUrl` | `registrationUrl` | `String?` | External registration |
-| `links` | `links` (JSONB) + `EventLink` | `Json?` | Both JSONB and normalized |
+| ~~`isPinned`~~ | `isPinned` | `Boolean` | **Deprecated** — no longer used in CMS UI. Replaced by `isFeatured`. Remove in future migration. |
+| `isFeatured` | `isFeatured` | `Boolean` | Featured event (Star icon in UI). Replaces former `isPinned`. |
+| `registrationUrl` | `registrationUrl` | `String?` | External registration (now in sidebar) |
+| `links` | `links` (JSONB) + `EventLink` | `Json?` | Both JSONB and normalized. Links section removed from CMS form; dynamic links deferred. |
 | `recurrence` | `recurrence` | `Recurrence` | NONE/DAILY/WEEKLY/MONTHLY/YEARLY/WEEKDAY/CUSTOM |
 | `recurrenceDays` | `recurrenceDays` | `String[]` | ["mon", "tue", ...] |
 | `recurrenceEndType` | `recurrenceEndType` | `RecurrenceEndType` | NEVER/ON_DATE/AFTER |
 | `recurrenceEndDate` | `recurrenceEndDate` | `Date?` | — |
 | — (derived) | `recurrenceEndAfter` | `Int?` | After N occurrences |
 | `customRecurrence` | `customRecurrence` | `Json?` | { interval, days, endType, endDate, endAfter } |
+| `monthlyType` | — **PENDING** | `MonthlyRecurrenceType` | **Needs migration.** "day-of-month" or "day-of-week" for monthly recurrence. |
 | — (computed) | `recurrenceSchedule` | `String?` | Pre-computed label |
 | `status` | `status` | `ContentStatus` | from `lib/status.ts` |
 | — (new) | `churchId` | `UUID → Church` | **Multi-tenant key** |
-| — (new) | `address` | `String?` | Full address for maps |
+| `address` | `address` | `String?` | Full address for maps (in CMS form) |
+| `directionsUrl` | — **PENDING** | `String?` | **Needs migration.** URL for driving directions (in-person events). |
 | — (new) | `latitude/longitude` | `Decimal?` | Geolocation |
 | — (new) | `allDay` | `Boolean` | All-day event |
 | — (new) | `capacity` | `Int?` | Registration limit |

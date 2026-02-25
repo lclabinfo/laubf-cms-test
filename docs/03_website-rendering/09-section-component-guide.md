@@ -219,7 +219,7 @@ The JSONB payload contains configuration (heading text, display options), but th
 
 ## 4. JSONB Content to Component Props Mapping
 
-The `PageSection.content` JSONB maps to component props. The JSONB structure is documented in `docs/database/03-website-database-schema.md` section 4 and verified against the TypeScript interfaces in `laubf-test/src/lib/types/sections.ts`.
+The `PageSection.content` JSONB maps to component props. The JSONB structure is documented in `docs/database/03-website-schema.md` section 4 and verified against the TypeScript interfaces in `laubf-test/src/lib/types/sections.ts`.
 
 Example mapping for `HERO_BANNER`:
 
@@ -470,8 +470,8 @@ Components should be migrated in the following order based on page importance:
 | `laubf-test/src/lib/types/sections.ts` | EXISTS | TypeScript interfaces for section props and JSONB content |
 | `laubf-test/src/lib/theme.ts` | EXISTS | Theme tokens and color scheme context |
 | `laubf-test/src/app/globals.css` | EXISTS | Typography utility classes referenced by sections |
-| `docs/database/03-website-database-schema.md` | EXISTS | SectionType enum, JSONB examples, page templates |
-| `docs/website-rendering/01-website-rendering-architecture.md` | EXISTS | Static vs dynamic section architecture |
+| `docs/database/03-website-schema.md` | EXISTS | SectionType enum, JSONB examples, page templates |
+| `docs/website-rendering/01-architecture.md` | EXISTS | Static vs dynamic section architecture |
 | `components/website/sections/` | PARTIAL | Target directory — 6 sections migrated + placeholders for rest |
 | `components/website/sections/registry.tsx` | EXISTS | Maps all 40 SectionType enum values to components (6 real, 34 placeholders) |
 | `components/website/sections/section-wrapper.tsx` | EXISTS | SectionWrapper with colorScheme, paddingY, containerWidth, visible |
@@ -495,19 +495,16 @@ Components should be migrated in the following order based on page importance:
 | `app/(website)/layout.tsx` | EXISTS | Wraps pages with ThemeProvider + FontLoader. Navbar/footer are placeholder comments (to be built from Menu/SiteSettings data) |
 | `app/(website)/[[...slug]]/page.tsx` | EXISTS | Catch-all route: resolves churchId, fetches Page + sections, renders via registry + SectionWrapper |
 
-### Migration Progress (Phase B.1 COMPLETE, B.2 IN PROGRESS — 6/38 migrated)
+### Migration Progress (Phase B.1 COMPLETE, B.2 COMPLETE — 40/42 migrated)
 
-| Component | Migrated? | File |
-|---|---|---|
-| `HeroBannerSection` | YES | `components/website/sections/hero-banner.tsx` |
-| `MediaTextSection` | YES | `components/website/sections/media-text.tsx` |
-| `SpotlightMediaSection` | YES | `components/website/sections/spotlight-media.tsx` |
-| `CTABannerSection` | YES | `components/website/sections/cta-banner.tsx` |
-| `AllMessagesSection` | YES | `components/website/sections/all-messages.tsx` + `all-messages-client.tsx` |
-| `AllEventsSection` | YES | `components/website/sections/all-events.tsx` + `all-events-client.tsx` |
-| Remaining 32 sections | IN PROGRESS | Phase B.2 actively migrating; placeholder components in registry |
+40 out of 42 section types have real component implementations. Only 2 remain as placeholders:
 
-The registry (`registry.tsx`) already maps all 40 `SectionType` enum values (38 sections + CUSTOM_HTML + CUSTOM_EMBED). Unmigrated sections render a placeholder `<div>` showing the section type name.
+| Placeholder | Reason |
+|---|---|
+| `NAVBAR` | Rendered in the layout, not as a per-page section. Placeholder is intentional. |
+| `DAILY_BREAD_FEATURE` | No source implementation exists in laubf-test. |
+
+The registry (`registry.tsx`) maps all 42 `SectionType` enum values. The 2 placeholder sections render a development-only yellow box showing the section type name (hidden in production).
 
 ### Design System CSS (Ported to Root)
 

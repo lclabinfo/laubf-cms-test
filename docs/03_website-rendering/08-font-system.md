@@ -421,5 +421,5 @@ The `null` values for `bodyFont` and `headingFont` signal to the ThemeProvider t
 | `laubf-test/src/app/layout.tsx` | EXISTS | laubf-test Google Font loading (`next/font/google` for DM Serif Display) |
 | `laubf-test/src/lib/theme.ts` | EXISTS | Theme tokens and color scheme context |
 | `laubf-test/public/fonts/` | EXISTS | Self-hosted font files (Helvetica Neue, Strude) |
-| `docs/database/03-website-database-schema.md` | EXISTS | ThemeCustomization model with font fields |
+| `docs/database/03-website-schema.md` | EXISTS | ThemeCustomization model with font fields |
 | `app/(website)/layout.tsx` | EXISTS | Uses ThemeProvider + FontLoader to inject fonts and theme CSS variables |
