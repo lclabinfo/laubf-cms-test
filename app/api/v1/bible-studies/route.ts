@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     const study = await createBibleStudy(churchId, body)
 
     // Revalidate public website pages that display bible studies
-    revalidatePath('/(website)', 'layout')
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: study }, { status: 201 })
   } catch (error) {

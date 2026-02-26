@@ -12,7 +12,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const updated = await updateMenuItem(itemId, body)
 
     // Revalidate website layout (menus affect navbar/footer)
-    revalidatePath('/(website)', 'layout')
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -31,7 +31,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     await deleteMenuItem(itemId)
 
     // Revalidate website layout (menus affect navbar/footer)
-    revalidatePath('/(website)', 'layout')
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {

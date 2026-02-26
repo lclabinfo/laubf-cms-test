@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     const video = await createVideo(churchId, body)
 
     // Revalidate public website pages that display videos
-    revalidatePath('/(website)', 'layout')
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: video }, { status: 201 })
   } catch (error) {

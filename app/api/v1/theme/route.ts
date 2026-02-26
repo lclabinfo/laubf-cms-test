@@ -26,7 +26,7 @@ export async function PATCH(request: NextRequest) {
     const updated = await updateThemeCustomization(churchId, body)
 
     // Revalidate entire website (theme affects all pages via ThemeProvider)
-    revalidatePath('/(website)', 'layout')
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {

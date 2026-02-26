@@ -58,7 +58,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const updated = await updateDailyBread(churchId, existing.id, body)
 
     // Revalidate public website pages that display daily bread
-    revalidatePath('/(website)', 'layout')
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {

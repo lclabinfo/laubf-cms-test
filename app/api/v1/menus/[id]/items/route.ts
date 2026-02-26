@@ -53,7 +53,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const item = await createMenuItem(churchId, menuId, body)
 
     // Revalidate website layout (menus affect navbar/footer)
-    revalidatePath('/(website)', 'layout')
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: item }, { status: 201 })
   } catch (error) {
@@ -90,7 +90,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     await reorderMenuItems(menuId, body.itemIds)
 
     // Revalidate website layout (menus affect navbar/footer)
-    revalidatePath('/(website)', 'layout')
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: { reordered: true } })
   } catch (error) {

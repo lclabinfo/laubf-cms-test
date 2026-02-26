@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const entry = await createDailyBread(churchId, body)
 
     // Revalidate public website pages that display daily bread
-    revalidatePath('/(website)', 'layout')
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: entry }, { status: 201 })
   } catch (error) {

@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     const page = await createPage(churchId, body)
 
     // Revalidate public website so the new page is accessible
-    revalidatePath('/(website)', 'layout')
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: page }, { status: 201 })
   } catch (error) {

@@ -45,7 +45,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const updated = await updateVideo(churchId, existing.id, body)
 
     // Revalidate public website pages that display videos
-    revalidatePath('/(website)', 'layout')
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -73,7 +73,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     await deleteVideo(churchId, existing.id)
 
     // Revalidate public website pages that display videos
-    revalidatePath('/(website)', 'layout')
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {

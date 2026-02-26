@@ -26,7 +26,7 @@ export async function PATCH(request: NextRequest) {
     const updated = await updateSiteSettings(churchId, body)
 
     // Revalidate entire website layout (site settings affect navbar, footer, etc.)
-    revalidatePath('/(website)', 'layout')
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {

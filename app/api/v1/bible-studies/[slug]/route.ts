@@ -45,7 +45,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const updated = await updateBibleStudy(churchId, existing.id, body)
 
     // Revalidate public website pages that display bible studies
-    revalidatePath('/(website)', 'layout')
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -73,7 +73,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     await deleteBibleStudy(churchId, existing.id)
 
     // Revalidate public website pages that display bible studies
-    revalidatePath('/(website)', 'layout')
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {
