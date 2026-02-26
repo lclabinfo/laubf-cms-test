@@ -46,6 +46,7 @@ function apiMessageToCms(apiMsg: any): Message {
     slug: apiMsg.slug ?? "",
     title: apiMsg.title,
     passage: apiMsg.passage ?? "",
+    description: apiMsg.description ?? undefined,
     speaker: apiMsg.speaker?.name ?? "",
     speakerId: apiMsg.speaker?.id ?? undefined,
     seriesId: (apiMsg.messageSeries ?? []).length > 0 ? apiMsg.messageSeries[0].series.id : null,
@@ -56,7 +57,12 @@ function apiMessageToCms(apiMsg: any): Message {
     hasStudy: apiMsg.hasStudy ?? false,
     videoUrl: apiMsg.videoUrl ?? undefined,
     videoDescription: apiMsg.videoDescription ?? undefined,
+    youtubeId: apiMsg.youtubeId ?? undefined,
+    thumbnailUrl: apiMsg.thumbnailUrl ?? undefined,
+    duration: apiMsg.duration ?? undefined,
+    audioUrl: apiMsg.audioUrl ?? undefined,
     rawTranscript: apiMsg.rawTranscript ?? undefined,
+    liveTranscript: apiMsg.liveTranscript ?? undefined,
     transcriptSegments: apiMsg.transcriptSegments ?? undefined,
     studySections: apiMsg.studySections ?? undefined,
     attachments: apiMsg.attachments ?? undefined,
@@ -72,18 +78,30 @@ function apiSeriesToCms(apiSeries: any): Series {
   }
 }
 
+function extractYouTubeId(url: string): string | null {
+  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]+)/)
+  return match?.[1] ?? null
+}
+
 function cmsMessageToApiCreate(data: Omit<Message, "id">) {
+  const youtubeId = data.videoUrl ? extractYouTubeId(data.videoUrl) : null
   return {
     title: data.title,
     slug: data.title.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, ""),
     passage: data.passage || null,
+    description: data.description || null,
     dateFor: data.date ? new Date(data.date + "T00:00:00").toISOString() : new Date().toISOString(),
     status: statusToApi[data.status] ?? "DRAFT",
     hasVideo: data.hasVideo,
     hasStudy: data.hasStudy,
     videoUrl: data.videoUrl || null,
     videoDescription: data.videoDescription || null,
+    youtubeId: youtubeId || data.youtubeId || null,
+    thumbnailUrl: data.thumbnailUrl || (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null),
+    duration: data.duration || null,
+    audioUrl: data.audioUrl || null,
     rawTranscript: data.rawTranscript || null,
+    liveTranscript: data.liveTranscript || null,
     transcriptSegments: data.transcriptSegments || null,
     studySections: data.studySections || null,
     attachments: data.attachments || null,
@@ -98,13 +116,25 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
   const payload: Record<string, any> = {}
   if (data.title !== undefined) payload.title = data.title
   if (data.passage !== undefined) payload.passage = data.passage || null
+  if (data.description !== undefined) payload.description = data.description || null
   if (data.date !== undefined) payload.dateFor = new Date(data.date + "T00:00:00").toISOString()
   if (data.status !== undefined) payload.status = statusToApi[data.status] ?? "DRAFT"
   if (data.hasVideo !== undefined) payload.hasVideo = data.hasVideo
   if (data.hasStudy !== undefined) payload.hasStudy = data.hasStudy
-  if (data.videoUrl !== undefined) payload.videoUrl = data.videoUrl || null
+  if (data.videoUrl !== undefined) {
+    payload.videoUrl = data.videoUrl || null
+    // Auto-extract youtubeId and thumbnailUrl from video URL
+    const ytId = data.videoUrl ? extractYouTubeId(data.videoUrl) : null
+    if (ytId) {
+      payload.youtubeId = ytId
+      payload.thumbnailUrl = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`
+    }
+  }
   if (data.videoDescription !== undefined) payload.videoDescription = data.videoDescription || null
+  if (data.duration !== undefined) payload.duration = data.duration || null
+  if (data.audioUrl !== undefined) payload.audioUrl = data.audioUrl || null
   if (data.rawTranscript !== undefined) payload.rawTranscript = data.rawTranscript || null
+  if (data.liveTranscript !== undefined) payload.liveTranscript = data.liveTranscript || null
   if (data.transcriptSegments !== undefined) payload.transcriptSegments = data.transcriptSegments || null
   if (data.studySections !== undefined) payload.studySections = data.studySections || null
   if (data.attachments !== undefined) payload.attachments = data.attachments || null
@@ -177,7 +207,10 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
         imageUrl: data.imageUrl || null,
       }),
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to create series (${res.status})`)
+        return res.json()
+      })
       .then((json) => {
         if (json.success && json.data) {
           setSeries((prev) =>
@@ -185,7 +218,11 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
           )
         }
       })
-      .catch(console.error)
+      .catch((err) => {
+        console.error("addSeries error:", err)
+        // Rollback: remove temp series
+        setSeries((prev) => prev.filter((s) => s.id !== tempSeries.id))
+      })
 
     return tempSeries
   }, [])
@@ -239,7 +276,10 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cmsMessageToApiCreate(data)),
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to create message (${res.status})`)
+        return res.json()
+      })
       .then((json) => {
         if (json.success && json.data) {
           setMessages((prev) =>
@@ -247,45 +287,77 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
           )
         }
       })
-      .catch(console.error)
+      .catch((err) => {
+        console.error("addMessage error:", err)
+        // Rollback: remove temp message
+        setMessages((prev) => prev.filter((m) => m.id !== tempMessage.id))
+      })
 
     return tempMessage
   }, [])
 
   const updateMessage = useCallback((id: string, data: Partial<Omit<Message, "id">>) => {
-    // Optimistic update
-    setMessages((prev) =>
-      prev.map((m) => (m.id === id ? { ...m, ...data } : m))
-    )
-
-    // Find the message to get its slug for the API call
-    const msg = messages.find((m) => m.id === id)
-    if (!msg?.slug) return
-
-    fetch(`/api/v1/messages/${msg.slug}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(cmsMessageToApiUpdate(data)),
+    // Capture pre-update snapshot for rollback, then optimistic update
+    let snapshot: Message | undefined
+    setMessages((prev) => {
+      snapshot = prev.find((m) => m.id === id)
+      return prev.map((m) => (m.id === id ? { ...m, ...data } : m))
     })
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.success && json.data) {
-          setMessages((prev) =>
-            prev.map((m) => (m.id === id ? apiMessageToCms(json.data) : m))
-          )
-        }
+
+    // Find the message slug from current state
+    setMessages((prev) => {
+      const msg = prev.find((m) => m.id === id)
+      if (!msg?.slug) return prev
+
+      fetch(`/api/v1/messages/${msg.slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cmsMessageToApiUpdate(data)),
       })
-      .catch(console.error)
-  }, [messages])
+        .then((res) => {
+          if (!res.ok) throw new Error(`Failed to update message (${res.status})`)
+          return res.json()
+        })
+        .then((json) => {
+          if (json.success && json.data) {
+            setMessages((p) =>
+              p.map((m) => (m.id === id ? apiMessageToCms(json.data) : m))
+            )
+          }
+        })
+        .catch((err) => {
+          console.error("updateMessage error:", err)
+          // Rollback to snapshot
+          if (snapshot) {
+            setMessages((p) => p.map((m) => (m.id === id ? snapshot! : m)))
+          }
+        })
+
+      return prev // no state change in this call, just reading slug
+    })
+  }, [])
 
   const deleteMessage = useCallback((id: string) => {
-    const msg = messages.find((m) => m.id === id)
-    setMessages((prev) => prev.filter((m) => m.id !== id))
+    let deleted: Message | undefined
+    setMessages((prev) => {
+      deleted = prev.find((m) => m.id === id)
+      return prev.filter((m) => m.id !== id)
+    })
 
-    if (msg?.slug) {
-      fetch(`/api/v1/messages/${msg.slug}`, { method: "DELETE" }).catch(console.error)
+    if (deleted?.slug) {
+      fetch(`/api/v1/messages/${deleted.slug}`, { method: "DELETE" })
+        .then((res) => {
+          if (!res.ok) throw new Error(`Failed to delete message (${res.status})`)
+        })
+        .catch((err) => {
+          console.error("deleteMessage error:", err)
+          // Rollback: re-add deleted message
+          if (deleted) {
+            setMessages((prev) => [deleted!, ...prev])
+          }
+        })
     }
-  }, [messages])
+  }, [])
 
   const value = useMemo(
     () => ({

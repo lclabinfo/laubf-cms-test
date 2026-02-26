@@ -7,6 +7,7 @@
  */
 import { cn } from "@/lib/utils"
 import Image from "next/image"
+import { resolveHref } from "@/lib/website/resolve-href"
 import ArrowButton from "./arrow-button"
 
 interface ImageCardData {
@@ -25,7 +26,7 @@ export default function ImageCard({ data, className }: { data: ImageCardData; cl
 
   return (
     <Tag
-      {...(hasLink ? { href: data.href } : {})}
+      {...(hasLink ? { href: resolveHref(data.href) } : {})}
       className={cn(
         "group relative flex flex-col overflow-hidden rounded-xl",
         "min-h-[180px] sm:min-h-[200px] lg:aspect-[430/370] lg:min-h-0",

@@ -15,8 +15,14 @@ interface VideoTabProps {
   onVideoUrlChange: (value: string) => void
   description: string
   onDescriptionChange: (value: string) => void
+  duration: string
+  onDurationChange: (value: string) => void
+  audioUrl: string
+  onAudioUrlChange: (value: string) => void
   rawTranscript: string
   onRawTranscriptChange: (value: string) => void
+  liveTranscript: string
+  onLiveTranscriptChange: (value: string) => void
   segments: TranscriptSegment[]
   onSegmentsChange: (segments: TranscriptSegment[]) => void
 }
@@ -39,8 +45,14 @@ export function VideoTab({
   onVideoUrlChange,
   description,
   onDescriptionChange,
+  duration,
+  onDurationChange,
+  audioUrl,
+  onAudioUrlChange,
   rawTranscript,
   onRawTranscriptChange,
+  liveTranscript,
+  onLiveTranscriptChange,
   segments,
   onSegmentsChange,
 }: VideoTabProps) {
@@ -153,7 +165,7 @@ export function VideoTab({
 
       {/* Description */}
       <div className="space-y-2">
-        <Label htmlFor="video-description">Description</Label>
+        <Label htmlFor="video-description">Video Description</Label>
         <Textarea
           id="video-description"
           value={description}
@@ -163,7 +175,29 @@ export function VideoTab({
         />
       </div>
 
-      {/* Transcript */}
+      {/* Duration + Audio URL row */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="duration">Duration</Label>
+          <Input
+            id="duration"
+            value={duration}
+            onChange={(e) => onDurationChange(e.target.value)}
+            placeholder="e.g. 45:32"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="audio-url">Audio URL</Label>
+          <Input
+            id="audio-url"
+            value={audioUrl}
+            onChange={(e) => onAudioUrlChange(e.target.value)}
+            placeholder="Audio file URL (optional)"
+          />
+        </div>
+      </div>
+
+      {/* Transcript (prepared message text) */}
       <div className="space-y-2">
         <Label>Transcript</Label>
         <TranscriptEditor
@@ -173,6 +207,21 @@ export function VideoTab({
           onSegmentsChange={onSegmentsChange}
           hasVideoUrl={!!videoUrl}
         />
+      </div>
+
+      {/* Live Transcript (auto-generated captions) */}
+      <div className="space-y-2">
+        <Label htmlFor="live-transcript">Live Transcript (Auto-generated)</Label>
+        <Textarea
+          id="live-transcript"
+          value={liveTranscript}
+          onChange={(e) => onLiveTranscriptChange(e.target.value)}
+          placeholder="Paste auto-generated captions here (e.g. from YouTube auto-captions)..."
+          className="min-h-[120px] font-mono text-xs"
+        />
+        <p className="text-xs text-muted-foreground">
+          Auto-generated transcripts from YouTube or other services. Shown as &quot;Live Caption&quot; tab on the public page.
+        </p>
       </div>
     </div>
   )

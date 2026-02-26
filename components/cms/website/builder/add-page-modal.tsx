@@ -38,6 +38,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { PageSummary } from "./types"
+import { getCatalogItem } from "./section-catalog"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -334,13 +335,16 @@ export function AddPageModal({
       // If template selected, create sections for it
       if (selectedTemplate && selectedTemplate.defaultSections.length > 0) {
         for (let i = 0; i < selectedTemplate.defaultSections.length; i++) {
+          const sectionType = selectedTemplate.defaultSections[i]
+          const catalogItem = getCatalogItem(sectionType as import("@/lib/db/types").SectionType)
+          const defaultContent = catalogItem?.defaultContent ?? {}
           await fetch(`/api/v1/pages/${slug}/sections`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              sectionType: selectedTemplate.defaultSections[i],
+              sectionType,
               sortOrder: i,
-              content: {},
+              content: defaultContent,
             }),
           })
         }

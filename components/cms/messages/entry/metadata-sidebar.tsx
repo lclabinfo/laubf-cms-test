@@ -144,39 +144,30 @@ export function MetadataSidebar({
             </p>
           </div>
 
-          {/* Post Date — when this entry is/will be published */}
-          {(status === "published" || status === "scheduled") && (
+          {/* Scheduled Post Date — only shown when scheduling */}
+          {status === "scheduled" && (
             <div className="space-y-2">
               <Label>
-                {status === "scheduled" ? "Scheduled Post Date" : "Post Date"}
-                {status === "scheduled" && <span className="text-destructive"> *</span>}
+                Scheduled Post Date
+                <span className="text-destructive"> *</span>
               </Label>
               <DatePicker
                 value={publishDate}
                 onChange={handlePublishDateChange}
                 placeholder="When should this be posted?"
               />
-              {status === "scheduled" && (
-                <>
-                  <div className="flex items-center gap-2">
-                    <Clock className="size-3.5 text-muted-foreground" />
-                    <Input
-                      type="time"
-                      value={publishTime}
-                      onChange={(e) => handlePublishTimeChange(e.target.value)}
-                      className="w-32 h-9"
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    The date and time this will be posted.
-                  </p>
-                </>
-              )}
-              {status === "published" && (
-                <p className="text-xs text-muted-foreground">
-                  When this entry was posted.
-                </p>
-              )}
+              <div className="flex items-center gap-2">
+                <Clock className="size-3.5 text-muted-foreground" />
+                <Input
+                  type="time"
+                  value={publishTime}
+                  onChange={(e) => handlePublishTimeChange(e.target.value)}
+                  className="w-32 h-9"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                The date and time this will be posted.
+              </p>
             </div>
           )}
 

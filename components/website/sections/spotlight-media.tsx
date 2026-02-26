@@ -5,6 +5,7 @@ import VideoThumbnail from "@/components/website/shared/video-thumbnail"
 import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import Link from "next/link"
+import { resolveHref } from "@/lib/website/resolve-href"
 
 interface SpotlightMediaContent {
   sectionHeading: string
@@ -34,7 +35,7 @@ export default function SpotlightMediaSection({ content, enableAnimations, color
 
   if (!sermon) return null
 
-  const sermonHref = sermon.slug ? `/messages/${sermon.slug}` : undefined
+  const sermonHref = sermon.slug ? resolveHref(`/messages/${sermon.slug}`) : undefined
 
   return (
     <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>

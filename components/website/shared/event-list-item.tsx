@@ -8,6 +8,7 @@
  * - href: string -- link to event detail
  */
 import { cn } from "@/lib/utils"
+import { resolveHref } from "@/lib/website/resolve-href"
 import TypePill from "./type-pill"
 
 interface EventListItemData {
@@ -50,7 +51,7 @@ export default function EventListItem({
 
   return (
     <a
-      href={data.href ?? "#"}
+      href={resolveHref(data.href)}
       className={cn(
         "group flex items-center gap-4 sm:gap-6 border-b border-border-light py-3 transition-colors hover:bg-white-1-5",
         className

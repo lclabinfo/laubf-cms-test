@@ -25,6 +25,7 @@ export type Message = {
   slug: string
   title: string
   passage: string
+  description?: string
   speaker: string
   speakerId?: string
   seriesId: string | null
@@ -38,7 +39,12 @@ export type Message = {
   // Detail fields (populated when editing)
   videoUrl?: string
   videoDescription?: string
+  youtubeId?: string
+  thumbnailUrl?: string
+  duration?: string
+  audioUrl?: string
   rawTranscript?: string
+  liveTranscript?: string
   transcriptSegments?: TranscriptSegment[]
   studySections?: StudySection[]
   attachments?: Attachment[]

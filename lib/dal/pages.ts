@@ -79,6 +79,31 @@ export async function getPageForAdmin(
   })
 }
 
+/**
+ * Resolve a page by slug-or-id for admin endpoints.
+ * If the value looks like a UUID, tries by ID first, then falls back to slug.
+ * Otherwise tries by slug, then falls back to ID.
+ * This supports the builder which may pass a page ID for pages with empty slugs (e.g., homepage).
+ */
+export async function getPageBySlugOrId(
+  churchId: string,
+  slugOrId: string,
+): Promise<PageWithSections | null> {
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slugOrId)
+
+  if (isUuid) {
+    // Try by ID first, then by slug
+    const byId = await getPageById(churchId, slugOrId)
+    if (byId) return byId
+    return getPageForAdmin(churchId, slugOrId)
+  }
+
+  // Try by slug first, then by ID
+  const bySlug = await getPageForAdmin(churchId, slugOrId)
+  if (bySlug) return bySlug
+  return getPageById(churchId, slugOrId)
+}
+
 // Get page by ID for admin (includes unpublished, includes sections)
 export async function getPageById(
   churchId: string,

@@ -243,7 +243,8 @@ All publishable content types share a unified status model:
 ### 1.6 Relationships & Linking
 
 - ✅ [P0] Sermons and Bible study materials are linked within the same message entry (unified content type).
-- ❌ [P0] The linked study surfaces automatically on the sermon's public page and vice versa. *(No public site rendering yet.)*
+- ✅ [P0] Message → BibleStudy auto-sync: When a message with study content (`hasStudy=true`) is created/updated, the API automatically creates/updates a linked record in the `BibleStudy` table via `syncMessageStudy()`. Study sections titled "Questions"/"Answers"/"Transcript" map to the corresponding BibleStudy fields. The `Message.relatedStudyId` FK links them. Deleting the message or removing study content soft-deletes the linked BibleStudy.
+- ✅ [P0] The public website `/bible-study` page reads from the `BibleStudy` table — which is now populated by the CMS messages editor via the sync mechanism above.
 - ❌ [P1] Linking is bi-directional: sermon detail page shows linked study, study page shows linked sermon.
 - ❌ [P2] The CMS suggests related studies or sermons based on scripture or series.
 

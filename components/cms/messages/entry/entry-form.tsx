@@ -6,6 +6,8 @@ import Link from "next/link"
 import { ArrowLeft, AlertCircle, Video, BookOpen } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -58,10 +60,16 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const [attachments, setAttachments] = useState<Attachment[]>(message?.attachments ?? [])
   const [publishedAt, setPublishedAt] = useState(message?.publishedAt ?? "")
 
+  // Description
+  const [description, setDescription] = useState(message?.description ?? "")
+
   // Video tab state
   const [videoUrl, setVideoUrl] = useState(message?.videoUrl ?? "")
   const [videoDescription, setVideoDescription] = useState(message?.videoDescription ?? "")
+  const [duration, setDuration] = useState(message?.duration ?? "")
+  const [audioUrl, setAudioUrl] = useState(message?.audioUrl ?? "")
   const [rawTranscript, setRawTranscript] = useState(message?.rawTranscript ?? "")
+  const [liveTranscript, setLiveTranscript] = useState(message?.liveTranscript ?? "")
   const [transcriptSegments, setTranscriptSegments] = useState<TranscriptSegment[]>(
     message?.transcriptSegments ?? []
   )
@@ -123,6 +131,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
       title: title.trim(),
       slug: title.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, ""),
       passage: passage.trim(),
+      description: description.trim() || undefined,
       speaker: speaker.trim(),
       speakerId,
       seriesId,
@@ -133,7 +142,10 @@ export function EntryForm({ mode, message }: EntryFormProps) {
       hasStudy,
       videoUrl: videoUrl || undefined,
       videoDescription: videoDescription || undefined,
+      duration: duration || undefined,
+      audioUrl: audioUrl || undefined,
       rawTranscript: rawTranscript || undefined,
+      liveTranscript: liveTranscript || undefined,
       transcriptSegments: transcriptSegments.length > 0 ? transcriptSegments : undefined,
       studySections: studySections.length > 0 ? studySections : undefined,
       attachments: attachments.length > 0 ? attachments : undefined,
@@ -228,6 +240,20 @@ export function EntryForm({ mode, message }: EntryFormProps) {
         )}
       </div>
 
+      {/* Description */}
+      <div className="space-y-1.5">
+        <Label htmlFor="message-description" className="text-sm text-muted-foreground">
+          Description
+        </Label>
+        <Textarea
+          id="message-description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="A brief summary of this message (shown on the detail page and in search results)..."
+          className="min-h-[72px] resize-none"
+        />
+      </div>
+
       {/* Content publishing summary */}
       {hasContent && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -273,8 +299,14 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                 onVideoUrlChange={setVideoUrl}
                 description={videoDescription}
                 onDescriptionChange={setVideoDescription}
+                duration={duration}
+                onDurationChange={setDuration}
+                audioUrl={audioUrl}
+                onAudioUrlChange={setAudioUrl}
                 rawTranscript={rawTranscript}
                 onRawTranscriptChange={setRawTranscript}
+                liveTranscript={liveTranscript}
+                onLiveTranscriptChange={setLiveTranscript}
                 segments={transcriptSegments}
                 onSegmentsChange={setTranscriptSegments}
               />

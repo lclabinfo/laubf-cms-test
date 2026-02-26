@@ -6,6 +6,7 @@
  * an arrow link. Matches the Figma design closely.
  */
 import Link from "next/link"
+import { resolveHref } from "@/lib/website/resolve-href"
 import {
   IconBookOpen,
   IconFileText,
@@ -37,7 +38,7 @@ function formatDate(dateStr: string) {
 export default function BibleStudyCard({ study }: { study: BibleStudy }) {
   return (
     <Link
-      href={`/bible-study/${study.slug}`}
+      href={resolveHref(`/bible-study/${study.slug}`)}
       className="group relative rounded-[24px] cursor-pointer transition-all hover:shadow-[0px_8px_16px_0px_rgba(0,0,0,0.06)] min-h-[232px]"
     >
       <div className="flex flex-col items-start p-[28px] rounded-[inherit] h-full min-h-[232px]">

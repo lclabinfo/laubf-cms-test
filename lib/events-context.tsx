@@ -159,7 +159,6 @@ function cmsEventToApiCreate(data: Omit<ChurchEvent, "id">) {
     registrationUrl: data.registrationUrl || null,
     isFeatured: data.isFeatured ?? false,
     address: data.address || null,
-    directionsUrl: data.directionsUrl || null,
     isRecurring: data.recurrence !== "none",
     recurrence: recurrenceToApi[data.recurrence] ?? "NONE",
     recurrenceDays: data.recurrenceDays ?? [],
@@ -167,7 +166,9 @@ function cmsEventToApiCreate(data: Omit<ChurchEvent, "id">) {
     recurrenceEndDate: data.recurrenceEndDate ? new Date(data.recurrenceEndDate + "T00:00:00").toISOString() : null,
     customRecurrence: data.customRecurrence || null,
     status: statusToApi[data.status] ?? "DRAFT",
-    // TODO: Map ministry/campus slug to ministryId/campusId via lookup
+    // Send ministry/campus slugs for server-side resolution to UUIDs
+    ministrySlug: data.ministry && data.ministry !== "church-wide" ? data.ministry : null,
+    campusSlug: data.campus && data.campus !== "all" ? data.campus : null,
   }
 }
 
@@ -219,7 +220,10 @@ export function EventsProvider({ children }: { children: ReactNode }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cmsEventToApiCreate(data)),
     })
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to create event (${res.status})`)
+        return res.json()
+      })
       .then((json) => {
         if (json.success && json.data) {
           setEvents((prev) =>
@@ -227,76 +231,115 @@ export function EventsProvider({ children }: { children: ReactNode }) {
           )
         }
       })
-      .catch(console.error)
+      .catch((err) => {
+        console.error("addEvent error:", err)
+        // Rollback: remove temp event
+        setEvents((prev) => prev.filter((e) => e.id !== tempEvent.id))
+      })
 
     return tempEvent
   }, [])
 
   const updateEvent = useCallback((id: string, data: Partial<Omit<ChurchEvent, "id">>) => {
-    // Optimistic update
-    setEvents((prev) =>
-      prev.map((e) => (e.id === id ? { ...e, ...data } : e))
-    )
-
-    const evt = events.find((e) => e.id === id)
-    if (!evt?.slug) return
-
-    // Build API payload from CMS fields
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const payload: Record<string, any> = {}
-    if (data.title !== undefined) payload.title = data.title
-    if (data.type !== undefined) payload.type = eventTypeToApi[data.type] ?? "EVENT"
-    if (data.date !== undefined) payload.dateStart = new Date(data.date + "T00:00:00").toISOString()
-    if (data.endDate !== undefined) payload.dateEnd = data.endDate ? new Date(data.endDate + "T00:00:00").toISOString() : null
-    if (data.startTime !== undefined) payload.startTime = data.startTime
-    if (data.endTime !== undefined) payload.endTime = data.endTime
-    if (data.locationType !== undefined) payload.locationType = locationTypeToApi[data.locationType] ?? "IN_PERSON"
-    if (data.location !== undefined) payload.location = data.location || null
-    if (data.meetingUrl !== undefined) payload.meetingUrl = data.meetingUrl || null
-    if (data.shortDescription !== undefined) payload.shortDescription = data.shortDescription || null
-    if (data.description !== undefined) payload.description = data.description || null
-    if (data.welcomeMessage !== undefined) payload.welcomeMessage = data.welcomeMessage || null
-    if (data.contacts !== undefined) payload.contacts = data.contacts ?? []
-    if (data.coverImage !== undefined) payload.coverImage = data.coverImage || null
-    if (data.imageAlt !== undefined) payload.imageAlt = data.imageAlt || null
-    if (data.registrationUrl !== undefined) payload.registrationUrl = data.registrationUrl || null
-    if (data.isFeatured !== undefined) payload.isFeatured = data.isFeatured
-    if (data.address !== undefined) payload.address = data.address || null
-    if (data.directionsUrl !== undefined) payload.directionsUrl = data.directionsUrl || null
-    if (data.recurrence !== undefined) {
-      payload.recurrence = recurrenceToApi[data.recurrence] ?? "NONE"
-      payload.isRecurring = data.recurrence !== "none"
-    }
-    if (data.recurrenceDays !== undefined) payload.recurrenceDays = data.recurrenceDays
-    if (data.recurrenceEndType !== undefined) payload.recurrenceEndType = recurrenceEndTypeToApi[data.recurrenceEndType] ?? "NEVER"
-    if (data.recurrenceEndDate !== undefined) payload.recurrenceEndDate = data.recurrenceEndDate ? new Date(data.recurrenceEndDate + "T00:00:00").toISOString() : null
-    if (data.customRecurrence !== undefined) payload.customRecurrence = data.customRecurrence || null
-    if (data.status !== undefined) payload.status = statusToApi[data.status] ?? "DRAFT"
-
-    fetch(`/api/v1/events/${evt.slug}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+    // Capture pre-update snapshot for rollback, then optimistic update
+    let snapshot: ChurchEvent | undefined
+    setEvents((prev) => {
+      snapshot = prev.find((e) => e.id === id)
+      return prev.map((e) => (e.id === id ? { ...e, ...data } : e))
     })
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.success && json.data) {
-          setEvents((prev) =>
-            prev.map((e) => (e.id === id ? apiEventToCms(json.data) : e))
-          )
-        }
+
+    // Read slug from state without stale closure
+    setEvents((prev) => {
+      const evt = prev.find((e) => e.id === id)
+      if (!evt?.slug) return prev
+
+      // Build API payload from CMS fields
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const payload: Record<string, any> = {}
+      if (data.title !== undefined) payload.title = data.title
+      if (data.type !== undefined) payload.type = eventTypeToApi[data.type] ?? "EVENT"
+      if (data.date !== undefined) payload.dateStart = new Date(data.date + "T00:00:00").toISOString()
+      if (data.endDate !== undefined) payload.dateEnd = data.endDate ? new Date(data.endDate + "T00:00:00").toISOString() : null
+      if (data.startTime !== undefined) payload.startTime = data.startTime
+      if (data.endTime !== undefined) payload.endTime = data.endTime
+      if (data.locationType !== undefined) payload.locationType = locationTypeToApi[data.locationType] ?? "IN_PERSON"
+      if (data.location !== undefined) payload.location = data.location || null
+      if (data.meetingUrl !== undefined) payload.meetingUrl = data.meetingUrl || null
+      if (data.shortDescription !== undefined) payload.shortDescription = data.shortDescription || null
+      if (data.description !== undefined) payload.description = data.description || null
+      if (data.welcomeMessage !== undefined) payload.welcomeMessage = data.welcomeMessage || null
+      if (data.contacts !== undefined) payload.contacts = data.contacts ?? []
+      if (data.coverImage !== undefined) payload.coverImage = data.coverImage || null
+      if (data.imageAlt !== undefined) payload.imageAlt = data.imageAlt || null
+      if (data.registrationUrl !== undefined) payload.registrationUrl = data.registrationUrl || null
+      if (data.isFeatured !== undefined) payload.isFeatured = data.isFeatured
+      if (data.address !== undefined) payload.address = data.address || null
+      if (data.recurrence !== undefined) {
+        payload.recurrence = recurrenceToApi[data.recurrence] ?? "NONE"
+        payload.isRecurring = data.recurrence !== "none"
+      }
+      if (data.recurrenceDays !== undefined) payload.recurrenceDays = data.recurrenceDays
+      if (data.recurrenceEndType !== undefined) payload.recurrenceEndType = recurrenceEndTypeToApi[data.recurrenceEndType] ?? "NEVER"
+      if (data.recurrenceEndDate !== undefined) payload.recurrenceEndDate = data.recurrenceEndDate ? new Date(data.recurrenceEndDate + "T00:00:00").toISOString() : null
+      if (data.customRecurrence !== undefined) payload.customRecurrence = data.customRecurrence || null
+      if (data.status !== undefined) payload.status = statusToApi[data.status] ?? "DRAFT"
+      // Send ministry/campus slugs for server-side resolution to UUIDs
+      if (data.ministry !== undefined) {
+        payload.ministrySlug = data.ministry && data.ministry !== "church-wide" ? data.ministry : null
+      }
+      if (data.campus !== undefined) {
+        payload.campusSlug = data.campus && data.campus !== "all" ? data.campus : null
+      }
+
+      fetch(`/api/v1/events/${evt.slug}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       })
-      .catch(console.error)
-  }, [events])
+        .then((res) => {
+          if (!res.ok) throw new Error(`Failed to update event (${res.status})`)
+          return res.json()
+        })
+        .then((json) => {
+          if (json.success && json.data) {
+            setEvents((p) =>
+              p.map((e) => (e.id === id ? apiEventToCms(json.data) : e))
+            )
+          }
+        })
+        .catch((err) => {
+          console.error("updateEvent error:", err)
+          // Rollback to snapshot
+          if (snapshot) {
+            setEvents((p) => p.map((e) => (e.id === id ? snapshot! : e)))
+          }
+        })
+
+      return prev // no state change here, just reading slug
+    })
+  }, [])
 
   const deleteEvent = useCallback((id: string) => {
-    const evt = events.find((e) => e.id === id)
-    setEvents((prev) => prev.filter((e) => e.id !== id))
+    let deleted: ChurchEvent | undefined
+    setEvents((prev) => {
+      deleted = prev.find((e) => e.id === id)
+      return prev.filter((e) => e.id !== id)
+    })
 
-    if (evt?.slug) {
-      fetch(`/api/v1/events/${evt.slug}`, { method: "DELETE" }).catch(console.error)
+    if (deleted?.slug) {
+      fetch(`/api/v1/events/${deleted.slug}`, { method: "DELETE" })
+        .then((res) => {
+          if (!res.ok) throw new Error(`Failed to delete event (${res.status})`)
+        })
+        .catch((err) => {
+          console.error("deleteEvent error:", err)
+          // Rollback: re-add deleted event
+          if (deleted) {
+            setEvents((prev) => [deleted!, ...prev])
+          }
+        })
     }
-  }, [events])
+  }, [])
 
   const value = useMemo(
     () => ({ events, loading, error, addEvent, updateEvent, deleteEvent }),

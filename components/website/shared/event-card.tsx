@@ -10,6 +10,7 @@
  */
 import { cn } from "@/lib/utils"
 import Image from "next/image"
+import { resolveHref } from "@/lib/website/resolve-href"
 import EventBadge from "./event-badge"
 import ArrowButton from "./arrow-button"
 
@@ -27,7 +28,7 @@ interface EventCardData {
 export default function EventCard({ data, size, className }: { data: EventCardData; size: "large" | "small"; className?: string }) {
   return (
     <a
-      href={data.href ?? "#"}
+      href={resolveHref(data.href)}
       className={cn(
         "group relative block overflow-hidden rounded-xl bg-black-1 h-full",
         size === "large" ? "min-h-[280px]" : "min-h-[280px] lg:h-[240px]",

@@ -155,6 +155,8 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
       heading: "Latest Videos",
       ctaLabel: "View All",
       ctaHref: "/videos",
+      dataSource: "latest-videos",
+      count: 3,
       videos: [],
     },
   },
@@ -168,6 +170,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
     isDataDriven: true,
     defaultContent: {
       sectionHeading: "Latest Message",
+      dataSource: "latest-message",
       sermon: {
         title: "Message Title",
         speaker: "Speaker Name",
@@ -293,6 +296,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
       subheading: "",
       ctaLabel: "View All Events",
       ctaHref: "/events",
+      dataSource: "featured-events",
       featuredEvents: [],
     },
   },
@@ -385,6 +389,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
     isDataDriven: true,
     defaultContent: {
       heading: "Messages",
+      dataSource: "all-messages",
     },
   },
   {
@@ -397,6 +402,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
     isDataDriven: true,
     defaultContent: {
       heading: "Events",
+      dataSource: "all-events",
     },
   },
   {
@@ -409,6 +415,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
     isDataDriven: true,
     defaultContent: {
       heading: "Bible Studies",
+      dataSource: "all-bible-studies",
     },
   },
   {
@@ -421,6 +428,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
     isDataDriven: true,
     defaultContent: {
       heading: "Videos",
+      dataSource: "all-videos",
     },
   },
   {
@@ -435,6 +443,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
       overline: "What's Coming Up",
       heading: "Upcoming Events",
       ctaButton: { label: "View All Events", href: "/events" },
+      dataSource: "upcoming-events",
     },
   },
   {
@@ -448,6 +457,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
     defaultContent: {
       heading: "Schedule",
       ctaButtons: [],
+      dataSource: "upcoming-events",
     },
   },
   {
@@ -462,6 +472,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
       heading: "Weekly Meetings",
       maxVisible: 4,
       viewAllHref: "/events",
+      dataSource: "upcoming-events",
     },
   },
   {
@@ -727,6 +738,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
     isDataDriven: true,
     defaultContent: {
       heading: "Daily Bread",
+      dataSource: "latest-daily-bread",
     },
   },
 

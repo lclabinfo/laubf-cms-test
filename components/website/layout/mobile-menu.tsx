@@ -6,6 +6,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { ChevronDown, SquareArrowOutUpRight, ArrowUpRight } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { resolveHref } from "@/lib/website/resolve-href"
 import { getLucideIcon } from "./icon-map"
 import CTAButton from "@/components/website/shared/cta-button"
 import { IconHamburger, IconClose } from "@/components/website/shared/icons"
@@ -172,7 +173,7 @@ export default function MobileMenu({
                       {/* Direct link to hub page */}
                       {item.href && (
                         <Link
-                          href={item.href}
+                          href={resolveHref(item.href)}
                           onClick={onClose}
                           className="flex items-center gap-3 px-4 py-3 rounded-lg text-body-1 font-medium text-black-1 transition-colors duration-150 hover:bg-white-1-5"
                         >
@@ -194,7 +195,7 @@ export default function MobileMenu({
                             return (
                               <Link
                                 key={child.id}
-                                href={child.href || "/"}
+                                href={resolveHref(child.href)}
                                 target={child.isExternal || child.openInNewTab ? "_blank" : undefined}
                                 rel={child.isExternal || child.openInNewTab ? "noopener noreferrer" : undefined}
                                 onClick={onClose}
@@ -222,7 +223,7 @@ export default function MobileMenu({
                       {/* Overview link */}
                       {overviewLink && (
                         <Link
-                          href={overviewLink.href}
+                          href={resolveHref(overviewLink.href)}
                           onClick={onClose}
                           className="flex items-center justify-between mx-2 mt-2 px-4 py-4 bg-white-1-5 border border-white-2-5 rounded-lg transition-colors hover:bg-white-2"
                         >
@@ -250,7 +251,7 @@ export default function MobileMenu({
           {directLinks.map((link) => (
             <Link
               key={link.id}
-              href={link.href || "/"}
+              href={resolveHref(link.href)}
               onClick={onClose}
               className="px-4 py-4 rounded-lg text-nav text-black-1 transition-colors duration-150 hover:bg-white-1-5"
             >

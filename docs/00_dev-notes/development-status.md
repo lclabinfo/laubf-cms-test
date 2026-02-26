@@ -15,7 +15,7 @@
 | DB 1.1 | Prisma Schema | COMPLETE | 32 models, 22 enums, Prisma 7.4.1 |
 | DB 1.2 | Migration + Client | COMPLETE | Init migration applied, client singleton at `lib/db/client.ts` |
 | DB 1.3 | Seed Script | COMPLETE | 28 messages, 11 events, 15 bible studies, 6 videos, 1 daily bread, 11 speakers, 3 series, 5 ministries, 12 campuses |
-| DB 2.1 | DAL Modules | COMPLETE | 15 modules in `lib/dal/` (messages, events, bible-studies, videos, daily-bread, speakers, series, ministries, campuses, site-settings, pages, menus, theme, types, index) |
+| DB 2.1 | DAL Modules | COMPLETE | 16 modules in `lib/dal/` (messages, events, bible-studies, videos, daily-bread, speakers, series, ministries, campuses, site-settings, pages, menus, theme, church, sync-message-study, types, index) |
 | DB 3.1 | API Routes | COMPLETE | 15 REST route files across 10 content types at `app/api/v1/` |
 | DB 4.1 | CMS Integration | COMPLETE | Context providers fetch from API, CMS list/create/edit/delete all wired to DB |
 | DB 5.1 | Public Website (laubf-test) | COMPLETE | = Website Phase A. Prisma + DAL in laubf-test, all 13 pages use DB |
@@ -884,18 +884,20 @@ Summary of completed phases for historical context.
 - Package.json configured: `"seed": "npx tsx prisma/seed.mts"`
 
 ### DB 2.1: DAL Modules (COMPLETE)
-- Created 15 DAL modules at `lib/dal/`: messages, events, bible-studies, videos, daily-bread, speakers, series, ministries, campuses, site-settings, pages, menus, theme, types, index
+- Created 16 DAL modules at `lib/dal/`: messages, events, bible-studies, videos, daily-bread, speakers, series, ministries, campuses, site-settings, pages, menus, theme, church, sync-message-study, types, index
 - Every function takes `churchId` as first parameter
 - All queries filter by `deletedAt: null` and default to `status: 'PUBLISHED'` for reads
 - Includes pagination support for list endpoints
 - Relations included via Prisma `include`
+- `sync-message-study.ts`: Auto-syncs Message study content → BibleStudy table. Maps studySections by title to questions/answers/transcript fields. Parses BibleBook enum from passage strings. Handles create, update, and soft-delete of linked BibleStudy records.
 
 ### DB 3.1: API Routes (COMPLETE)
 - Created 15 route files at `app/api/v1/` across 10 content types
 - Standardized JSON responses: `{ success, data, pagination }` for lists, `{ success, data }` for single, `{ success: false, error: { code, message } }` for errors
 - `lib/api/get-church-id.ts` helper resolves `CHURCH_SLUG` env var to church UUID
 - All routes support GET, POST, PATCH, DELETE as appropriate
-- Verified manually with curl
+- Messages API routes (POST, PATCH, DELETE) auto-sync to BibleStudy table via `syncMessageStudy()` / `unlinkMessageStudy()`
+- All 15 content API routes use `revalidatePath('/website', 'layout')` for cache invalidation
 
 ### DB 4.1: CMS Integration (COMPLETE)
 - Updated `lib/messages-context.tsx` and `lib/events-context.tsx` to fetch from API

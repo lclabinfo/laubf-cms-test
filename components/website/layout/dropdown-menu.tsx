@@ -5,6 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { SquareArrowOutUpRight, ArrowUpRight, type LucideIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { resolveHref } from "@/lib/website/resolve-href"
 import { getLucideIcon } from "./icon-map"
 
 /* ── Data types matching the database MenuItem model ── */
@@ -166,7 +167,7 @@ function SectionColumn({
           return (
             <Link
               key={child.id}
-              href={child.href || "/"}
+              href={resolveHref(child.href)}
               target={child.isExternal || child.openInNewTab ? "_blank" : undefined}
               rel={child.isExternal || child.openInNewTab ? "noopener noreferrer" : undefined}
               onClick={onClose}
@@ -221,7 +222,7 @@ function SectionColumn({
       {/* Footer link */}
       {section.footerLink && (
         <Link
-          href={section.footerLink.href}
+          href={resolveHref(section.footerLink.href)}
           onClick={onClose}
           className="flex items-center justify-between px-6 py-5 mt-3 bg-white-1-5 border border-white-2-5 rounded-lg transition-colors hover:bg-white-2"
         >
@@ -263,7 +264,7 @@ export default function DropdownMenu({ item, onClose }: DropdownMenuProps) {
           <>
             <div className="w-0.5 self-stretch bg-white-2 rounded-full shrink-0" />
             <Link
-              href={featuredCard.href}
+              href={resolveHref(featuredCard.href)}
               onClick={onClose}
               className="relative flex flex-col items-start justify-end w-[260px] shrink-0 px-6 py-7 rounded-xl overflow-hidden group"
             >
@@ -296,7 +297,7 @@ export default function DropdownMenu({ item, onClose }: DropdownMenuProps) {
       {/* Overview link at bottom of dropdown */}
       {overviewLink && (
         <Link
-          href={overviewLink.href}
+          href={resolveHref(overviewLink.href)}
           onClick={onClose}
           className="flex items-center justify-between px-4 py-3.5 bg-white-1-5 border border-white-2-5 rounded-xl transition-colors hover:bg-white-2 group/overview"
         >

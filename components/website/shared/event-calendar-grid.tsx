@@ -28,6 +28,7 @@ import {
   IconArrowRight,
 } from "@/components/website/shared/icons"
 import Link from "next/link"
+import { resolveHref } from "@/lib/website/resolve-href"
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const WEEKDAYS_SHORT = ["S", "M", "T", "W", "T", "F", "S"]
@@ -611,7 +612,7 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
             </p>
 
             <Link
-              href={`/events/${selectedEvent.slug}`}
+              href={resolveHref(`/events/${selectedEvent.slug}`)}
               className="flex items-center justify-center gap-2 w-full rounded-full bg-black-1 text-white-1 py-4 text-button-1 transition-colors hover:bg-black-2"
             >
               VIEW FULL DETAILS

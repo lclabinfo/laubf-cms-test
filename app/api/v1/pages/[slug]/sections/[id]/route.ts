@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
-import { getPageForAdmin, updatePageSection, deletePageSection } from '@/lib/dal/pages'
+import { getPageBySlugOrId, updatePageSection, deletePageSection } from '@/lib/dal/pages'
 
 type Params = { params: Promise<{ slug: string; id: string }> }
 
@@ -14,10 +14,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const updated = await updatePageSection(churchId, id, body)
 
     // Revalidate the public page so section content changes are reflected
-    revalidatePath(`/${slug}`)
-    const page = await getPageForAdmin(churchId, slug)
+    revalidatePath(`/website/${slug}`)
+    const page = await getPageBySlugOrId(churchId, slug)
     if (page?.isHomepage) {
-      revalidatePath('/')
+      revalidatePath('/website')
     }
 
     return NextResponse.json({ success: true, data: updated })
@@ -38,10 +38,10 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     await deletePageSection(churchId, id)
 
     // Revalidate the public page so deleted section is removed
-    revalidatePath(`/${slug}`)
-    const page = await getPageForAdmin(churchId, slug)
+    revalidatePath(`/website/${slug}`)
+    const page = await getPageBySlugOrId(churchId, slug)
     if (page?.isHomepage) {
-      revalidatePath('/')
+      revalidatePath('/website')
     }
 
     return NextResponse.json({ success: true, data: { deleted: true } })

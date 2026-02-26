@@ -84,19 +84,95 @@ These capabilities are largely invisible during day-to-day content work — they
 
 ---
 
-## 3. Analytics & Reporting
+## 3. CMS Dashboard & Analytics
 
-> Analytics should answer "Is our website working?" without requiring admins to learn analytics tools. The goal is actionable insights, not raw data.
+> The dashboard is the first screen a pastor sees after login. It must answer three questions instantly: "What needs my attention?", "What's coming up?", and "Is the website healthy?" — without requiring configuration or technical knowledge. Design principle: **momentum over perfection** — 5-6 focused widgets, not 15 overwhelming ones.
+>
+> See also: [Dashboard Research](../00_dev-notes/dashboard-research.md) for competitor analysis, UX patterns, and design rationale.
 
-### 3.1 Dashboard Overview
+### 3.1 Dashboard Layout & Principles
 
-- [P0] The CMS dashboard shows a summary of key metrics:
-  - Total site visitors (last 7 / 30 days)
-  - Most viewed pages
-  - Content freshness status
-  - Upcoming events count
-  - Recent activity log (who edited what, when)
+- [P0] Dashboard loads in under 2 seconds with no configuration required.
+- [P0] Maximum 7-8 visible widgets at once (cognitive load limit). Default shows 5-6.
+- [P0] Visual hierarchy: Quick Actions at top, then Content Health, then activity/events.
+- [P0] Green/Yellow/Red traffic-light indicators for content health (universally understood by non-technical users).
+- [P0] Empty states serve as onboarding — when a widget has no data, show guided setup prompts instead of blank space.
+- [P1] Admins can toggle widget visibility via a "Customize Dashboard" button.
+- [P2] Drag-to-rearrange widget positions. Per-user preferences saved.
+
+### 3.2 Quick Actions Widget [P0]
+
+> Inspired by: WordPress Quick Draft, Wix "More Actions", Squarespace setup checklists. The most frequent pastor actions must be one click away.
+
+- [P0] Prominent action buttons above the fold (top of dashboard):
+  - **New Message** — Opens message creation form.
+  - **New Event** — Opens event creation form.
+  - **Upload Media** — Opens media upload dialog.
+  - **Edit Pages** — Opens website page builder.
+- [P0] Actions are role-aware: Editors see content actions; Viewers see read-only dashboard.
+- [P1] "Recently Edited" section: Last 3-5 items the current user was working on, with "Resume" links.
+- [P1] Command palette (Cmd+K) for power users to search/navigate/create from anywhere in the CMS.
+- [P2] Quick Draft: Inline title + notes capture on dashboard that saves as a draft message.
+
+### 3.3 Content Health Widget [P0]
+
+> Inspired by: Cascade CMS stale content dashboard, Kontent.ai "Unchanged items" widget, WordPress freshness plugins. This is the differentiating feature — most church CMS platforms lack content health tracking entirely.
+
+- [P0] Color-coded summary cards for each content type:
+  - **Messages**: X published, Y this month. Green if posted within last 7 days, Yellow if >14 days, Red if >30 days.
+  - **Events**: X upcoming. Yellow flag for events missing key info (no location, no description, no cover image).
+  - **Media**: X total items. Yellow if any photos older than configurable threshold (default 6 months) are still on homepage/hero sections.
+  - **Pages**: X published. Yellow if any page not updated in 90+ days.
+- [P0] Each card links to the relevant content list, pre-filtered to show items needing attention.
+- [P0] Overall site health indicator: "Your site is healthy" (green) / "X items need attention" (yellow) / "X items are stale" (red).
+- [P1] **Stale Content Alerts**: Expandable list below health cards showing specific items needing action, with inline "Edit" and "Archive" buttons.
+- [P1] Configurable staleness thresholds per content type (Settings > Content Health).
+- [P1] Media freshness tracking: Photos used in hero sections, homepage, or feature cards that haven't been updated in X months get flagged.
+- [P2] Content freshness score per type (e.g., "Sermons: 92% fresh", "Events: 75%").
+- [P2] Weekly email digest of stale content (sent to admins).
+
+### 3.4 Upcoming Events Widget [P0]
+
+> Inspired by: Planning Center schedule breakdown, Tithe.ly calendar. Pastors think in terms of "what's happening this week."
+
+- [P0] Shows next 5 upcoming events with date, time, type badge (Event/Meeting/Program).
+- [P0] Yellow indicator for events missing critical info (no location, no time, no description).
+- [P0] "View All Events" link to events CMS page.
+- [P1] "This Week" vs "This Month" toggle.
+- [P1] Inline "Edit" action per event.
+- [P2] Mini calendar visualization showing event density per day.
+
+### 3.5 Recent Activity Widget [P0]
+
+> Inspired by: WordPress Activity widget, Strapi Last Edited Entries, Ghost activity feed.
+
+- [P0] Shows last 10 content actions: "[User] [action] [content type] [title] [time ago]"
+  - Actions: created, edited, published, archived, deleted.
+  - Content types: message, event, page, media, settings.
+- [P0] Each activity item links to the content that was modified.
+- [P0] Avatar/initials for the user who performed the action.
+- [P1] Filterable by content type and action type.
+- [P1] "View Full Activity Log" link to dedicated activity log page.
+- [P2] Real-time updates (no page refresh needed).
+
+### 3.6 At a Glance Widget [P0]
+
+> Inspired by: WordPress "At a Glance", Strapi "Entries Overview".
+
+- [P0] Summary counts for key content types:
+  - Total Messages (published / draft)
+  - Total Events (upcoming / past)
+  - Total Pages (published / draft)
+  - Total Media (photos / videos)
+- [P0] Each count is a link to the relevant CMS list page.
+- [P1] Trend indicator: up/down arrow comparing to last month.
+- [P2] Sparkline mini-charts showing 30-day trend per content type.
+
+### 3.7 Analytics Overview
+
+- [P0] Dashboard summary widget: total site visitors (last 7 / 30 days) from Cloudflare Web Analytics or Google Analytics integration.
 - [P0] Dashboard loads quickly and does not require configuration.
+- [P1] Most viewed pages (top 5).
 - [P1] Admins can customize which dashboard widgets are visible.
 - [P2] Comparison metrics (this week vs. last week, this month vs. last month).
 

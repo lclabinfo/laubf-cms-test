@@ -92,26 +92,128 @@ export async function getLatestMessage(
   })
 }
 
+/**
+ * Ensure slug is unique within the church by appending a numeric suffix if needed.
+ */
+export async function ensureUniqueSlug(churchId: string, baseSlug: string, excludeId?: string): Promise<string> {
+  let slug = baseSlug
+  let counter = 1
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const existing = await prisma.message.findUnique({
+      where: { churchId_slug: { churchId, slug } },
+      select: { id: true },
+    })
+    if (!existing || (excludeId && existing.id === excludeId)) {
+      return slug
+    }
+    counter++
+    slug = `${baseSlug}-${counter}`
+  }
+}
+
+/**
+ * Fields that are NOT columns on the Message model and must be stripped
+ * before passing data to Prisma create/update.
+ */
+const NON_MESSAGE_FIELDS = ['seriesId'] as const
+
+function stripNonMessageFields<T extends Record<string, unknown>>(data: T): Omit<T, 'seriesId'> {
+  const cleaned = { ...data }
+  for (const key of NON_MESSAGE_FIELDS) {
+    delete (cleaned as Record<string, unknown>)[key]
+  }
+  return cleaned
+}
+
 export async function createMessage(
   churchId: string,
-  data: Omit<Prisma.MessageUncheckedCreateInput, 'churchId'>,
+  data: Record<string, unknown>,
+  seriesId?: string | null,
 ) {
-  return prisma.message.create({
-    data: { ...data, churchId },
+  // Strip non-Message fields before passing to Prisma
+  const messageData = stripNonMessageFields(data)
+
+  // Ensure dateFor is provided (required field)
+  if (!messageData.dateFor) {
+    messageData.dateFor = new Date().toISOString()
+  }
+
+  // Ensure slug uniqueness
+  if (messageData.slug) {
+    messageData.slug = await ensureUniqueSlug(churchId, messageData.slug as string)
+  }
+
+  const message = await prisma.message.create({
+    data: { ...messageData, churchId } as Prisma.MessageUncheckedCreateInput,
     include: messageDetailInclude,
   })
+
+  // Create MessageSeries join record if seriesId is provided
+  if (seriesId) {
+    await prisma.messageSeries.create({
+      data: {
+        messageId: message.id,
+        seriesId,
+        sortOrder: 0,
+      },
+    })
+    // Re-fetch to include the series relation in the response
+    return prisma.message.findUniqueOrThrow({
+      where: { id: message.id },
+      include: messageDetailInclude,
+    })
+  }
+
+  return message
 }
 
 export async function updateMessage(
   churchId: string,
   id: string,
-  data: Prisma.MessageUncheckedUpdateInput,
+  data: Record<string, unknown>,
+  seriesId?: string | null | undefined,
 ) {
-  return prisma.message.update({
+  // Strip non-Message fields before passing to Prisma
+  const messageData = stripNonMessageFields(data)
+
+  // If slug is being updated, ensure uniqueness
+  if (messageData.slug) {
+    messageData.slug = await ensureUniqueSlug(churchId, messageData.slug as string, id)
+  }
+
+  const message = await prisma.message.update({
     where: { id, churchId },
-    data,
+    data: messageData as Prisma.MessageUncheckedUpdateInput,
     include: messageDetailInclude,
   })
+
+  // Handle seriesId updates (undefined = no change, null = remove all, string = set series)
+  if (seriesId !== undefined) {
+    // Remove existing series associations
+    await prisma.messageSeries.deleteMany({
+      where: { messageId: id },
+    })
+
+    // Add new series association if provided
+    if (seriesId) {
+      await prisma.messageSeries.create({
+        data: {
+          messageId: id,
+          seriesId,
+          sortOrder: 0,
+        },
+      })
+    }
+
+    // Re-fetch to include updated series relation
+    return prisma.message.findUniqueOrThrow({
+      where: { id: message.id },
+      include: messageDetailInclude,
+    })
+  }
+
+  return message
 }
 
 export async function deleteMessage(churchId: string, id: string) {

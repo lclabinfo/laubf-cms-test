@@ -6,6 +6,7 @@ import MessageCard from "@/components/website/shared/message-card"
 import FilterToolbar from "@/components/website/shared/filter-toolbar"
 import { IconGrid, IconListView, IconBookOpen, IconUser, IconVideo, IconFileText, IconChevronRight, IconFolder } from "@/components/website/shared/icons"
 import Link from "next/link"
+import { resolveHref } from "@/lib/website/resolve-href"
 
 interface SimpleMessage {
   id: string
@@ -342,7 +343,7 @@ function MessageListView({ messages }: { messages: SimpleMessage[] }) {
       {messages.map((message) => (
         <Link
           key={message.id}
-          href={`/messages/${message.slug}`}
+          href={resolveHref(`/messages/${message.slug}`)}
           className="group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-6 py-5 transition-colors hover:bg-white-1-5 -mx-4 px-4 rounded-[12px]"
         >
           {/* Mini thumbnail -- desktop only */}

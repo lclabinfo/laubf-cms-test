@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getMessages, createMessage, type MessageFilters } from '@/lib/dal/messages'
+import { syncMessageStudy } from '@/lib/dal/sync-message-study'
 import { ContentStatus } from '@/lib/generated/prisma/client'
 
 export async function GET(request: NextRequest) {
@@ -55,10 +56,36 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const message = await createMessage(churchId, body)
+    // Extract seriesId (not a Message column — handled via MessageSeries join table)
+    const { seriesId, ...messageData } = body
 
-    // Revalidate public website pages that display messages
-    revalidatePath('/(website)', 'layout')
+    const message = await createMessage(churchId, messageData, seriesId ?? null)
+
+    // Sync study content to BibleStudy table if this message has study material
+    if (message.hasStudy && message.studySections) {
+      try {
+        await syncMessageStudy({
+          messageId: message.id,
+          churchId,
+          title: message.title,
+          slug: message.slug,
+          passage: message.passage,
+          speakerId: message.speakerId,
+          seriesId: seriesId ?? null,
+          dateFor: message.dateFor,
+          status: message.status,
+          publishedAt: message.publishedAt,
+          studySections: message.studySections as { id: string; title: string; content: string }[],
+          existingStudyId: null,
+        })
+      } catch (syncErr) {
+        console.error('POST /api/v1/messages: bible study sync warning:', syncErr)
+        // Don't fail the message creation if sync fails
+      }
+    }
+
+    // Revalidate public website pages that display messages and bible studies
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: message }, { status: 201 })
   } catch (error) {

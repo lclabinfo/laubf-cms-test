@@ -1,8 +1,12 @@
 // Shared types
 export type { PaginationParams, PaginatedResult } from './types'
 
+// Church
+export * from './church'
+
 // Content DAL modules
 export * from './messages'
+export * from './sync-message-study'
 export * from './events'
 export * from './bible-studies'
 export * from './videos'

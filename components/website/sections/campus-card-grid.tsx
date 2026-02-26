@@ -7,6 +7,7 @@ import { themeTokens, type SectionTheme, type ThemeTokens } from "@/components/w
 import { IconChevronDown } from "@/components/website/shared/icons"
 import Image from "next/image"
 import Link from "next/link"
+import { resolveHref } from "@/lib/website/resolve-href"
 
 interface CampusCardItem {
   id: string
@@ -27,7 +28,7 @@ function CampusCard({ campus, tokens }: { campus: CampusCardItem; tokens: ThemeT
   )
 
   if (campus.href) {
-    return <Link href={campus.href} className={classes}>{cardContent}</Link>
+    return <Link href={resolveHref(campus.href)} className={classes}>{cardContent}</Link>
   }
   return <div className={classes}>{cardContent}</div>
 }

@@ -6,6 +6,7 @@ import { SectionThemeContext, type SectionTheme } from "@/components/website/sha
 import CTAButton from "@/components/website/shared/cta-button"
 import Image from "next/image"
 import Link from "next/link"
+import { resolveHref } from "@/lib/website/resolve-href"
 
 interface DirectoryItem {
   id: string
@@ -93,7 +94,7 @@ function DirectoryMobileBlock({
           {items.map((item) => (
             <Link
               key={item.id}
-              href={item.href ?? `#${item.id}`}
+              href={resolveHref(item.href ?? `#${item.id}`)}
               className="group flex items-center justify-center gap-3 w-full max-w-[320px] py-3 rounded-lg transition-colors hover:bg-white-1-5"
             >
               <span className="text-h3 font-medium text-black-3 transition-colors group-hover:text-black-1">
@@ -171,7 +172,7 @@ function DirectoryParallaxBlock({
                 <DirectoryLink
                   key={item.id}
                   name={item.name}
-                  href={item.href ?? `#${item.id}`}
+                  href={resolveHref(item.href ?? `#${item.id}`)}
                 />
               ))}
             </div>
@@ -206,7 +207,7 @@ function DirectoryParallaxBlock({
 function DirectoryLink({ name, href }: { name: string; href: string }) {
   return (
     <Link
-      href={href}
+      href={resolveHref(href)}
       className="group relative flex h-12 w-full items-center justify-end"
     >
       <span className="text-h2 font-medium leading-none text-white-3 transition-[color,translate] duration-300 ease-[cubic-bezier(0,0.55,0.45,1)] group-hover:-translate-x-[60px] group-hover:text-black-1">

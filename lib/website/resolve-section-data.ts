@@ -10,9 +10,33 @@ import type { SectionType } from '@/lib/db/types'
 type Content = Record<string, unknown>
 
 /**
+ * Default dataSource values inferred from sectionType when the content
+ * JSON doesn't explicitly include a `dataSource` field. This provides a
+ * safety net for sections created before the builder catalog included
+ * dataSource in defaultContent.
+ */
+const DEFAULT_DATA_SOURCES: Partial<Record<SectionType, string>> = {
+  SPOTLIGHT_MEDIA: 'latest-message',
+  MEDIA_GRID: 'latest-videos',
+  HIGHLIGHT_CARDS: 'featured-events',
+  ALL_MESSAGES: 'all-messages',
+  ALL_EVENTS: 'all-events',
+  ALL_BIBLE_STUDIES: 'all-bible-studies',
+  ALL_VIDEOS: 'all-videos',
+  UPCOMING_EVENTS: 'upcoming-events',
+  EVENT_CALENDAR: 'upcoming-events',
+  RECURRING_MEETINGS: 'upcoming-events',
+  DAILY_BREAD_FEATURE: 'latest-daily-bread',
+}
+
+/**
  * Resolves `dataSource` references in section content by fetching
  * the corresponding data from the DAL and merging it into the content
  * object (or returning it as a separate `resolvedData` payload).
+ *
+ * If `dataSource` is not set in the content JSON, falls back to a
+ * default value inferred from the sectionType for known data-driven
+ * section types.
  *
  * Sections that are async Server Components (ALL_MESSAGES, ALL_EVENTS)
  * fetch their own data internally and don't need resolution here.
@@ -22,7 +46,7 @@ export async function resolveSectionData(
   sectionType: SectionType,
   content: Content,
 ): Promise<{ content: Content; resolvedData?: Record<string, unknown> }> {
-  const dataSource = content.dataSource as string | undefined
+  const dataSource = (content.dataSource as string | undefined) || DEFAULT_DATA_SOURCES[sectionType]
   if (!dataSource) return { content }
 
   switch (dataSource) {

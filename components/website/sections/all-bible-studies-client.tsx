@@ -7,6 +7,7 @@ import FilterToolbar from "@/components/website/shared/filter-toolbar"
 import { IconGrid, IconListView, IconBookOpen, IconFileText, IconHelpCircle, IconVideo, IconChevronRight, IconFolder } from "@/components/website/shared/icons"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
+import { resolveHref } from "@/lib/website/resolve-href"
 
 interface BibleStudy {
   id: string
@@ -410,7 +411,7 @@ function StudyListView({ studies }: { studies: BibleStudy[] }) {
       {studies.map((study) => (
         <Link
           key={study.id}
-          href={`/bible-study/${study.slug}`}
+          href={resolveHref(`/bible-study/${study.slug}`)}
           className="group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-6 py-5 transition-colors hover:bg-white-1-5 -mx-4 px-4 rounded-[12px]"
         >
           <div className="flex-1 min-w-0">

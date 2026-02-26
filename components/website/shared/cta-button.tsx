@@ -10,6 +10,7 @@
 
 import { useResolvedTheme, type SectionTheme } from "./theme-tokens"
 import { cn } from "@/lib/utils"
+import { resolveHref } from "@/lib/website/resolve-href"
 import Link from "next/link"
 
 const sizeClasses: Record<string, string> = {
@@ -103,9 +104,10 @@ export default function CTAButton({
   }
 
   if (href) {
+    const resolved = resolveHref(href)
     return (
       <Link
-        href={href}
+        href={resolved}
         className={classes}
         onClick={onClick}
         target={target}

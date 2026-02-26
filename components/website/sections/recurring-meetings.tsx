@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { resolveHref } from "@/lib/website/resolve-href"
 import SectionContainer from "@/components/website/shared/section-container"
 import TypePill from "@/components/website/shared/type-pill"
 import {
@@ -62,7 +63,7 @@ export default function RecurringMeetingsSection({ content, colorScheme = "light
       {hasOverflow && (
         <div className="flex justify-center mt-[32px]">
           <Link
-            href={viewAllHref}
+            href={resolveHref(viewAllHref)}
             className="inline-flex items-center gap-2 text-button-1 text-black-2 transition-colors hover:text-black-1 hover:underline transition-all duration-3000 ease-in-out"
           >
             View all ({overflowCount})
@@ -85,7 +86,7 @@ function MeetingItem({ event }: { event: Event }) {
           <div className="flex gap-2 lg:gap-3 items-center justify-center">
             <TypePill type={event.type} className="shrink-0" />
             <Link
-              href={`/events/${event.slug}`}
+              href={resolveHref(`/events/${event.slug}`)}
               className="flex-1 min-w-0 text-[16px] lg:text-[18px] font-medium text-black-1 leading-snug tracking-[-0.4px] hover:underline"
             >
               {event.title}
@@ -119,7 +120,7 @@ function MeetingItem({ event }: { event: Event }) {
             </a>
           )}
           <Link
-            href={`/events/${event.slug}`}
+            href={resolveHref(`/events/${event.slug}`)}
             className="w-full lg:w-auto flex-1 lg:flex-initial inline-flex items-center justify-center gap-[8px] rounded-full bg-white-1 border border-white-2-5 px-[21px] py-[17px] text-button-2 text-black-2 whitespace-nowrap transition-colors hover:bg-white-2"
           >
             View detail

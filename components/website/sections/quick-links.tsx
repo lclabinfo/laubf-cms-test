@@ -14,6 +14,7 @@ import {
   IconChevronDown,
 } from "@/components/website/shared/icons"
 import Link from "next/link"
+import { resolveHref } from "@/lib/website/resolve-href"
 
 interface Meeting {
   slug: string
@@ -145,7 +146,7 @@ function DesktopMeetingCard({ meeting }: { meeting: Meeting }) {
           </a>
         )}
         <Link
-          href={`/events/${meeting.slug}`}
+          href={resolveHref(`/events/${meeting.slug}`)}
           className="flex items-center justify-center gap-1 text-[14px] font-medium text-black-2 transition-colors hover:text-black-1 py-2"
         >
           View event detail
@@ -201,7 +202,7 @@ function MobileQuickLinksList({ meetings }: { meetings: Meeting[] }) {
 
           {/* Right: link button */}
           <a
-            href={meeting.meetingUrl ?? `/events/${meeting.slug}`}
+            href={meeting.meetingUrl ?? resolveHref(`/events/${meeting.slug}`)}
             target={meeting.meetingUrl ? "_blank" : undefined}
             rel={meeting.meetingUrl ? "noopener noreferrer" : undefined}
             className="flex size-10 shrink-0 items-center justify-center rounded-full bg-black-1 text-white-0 transition-colors hover:bg-black-2"

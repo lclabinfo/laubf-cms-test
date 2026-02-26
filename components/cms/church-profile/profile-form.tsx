@@ -136,9 +136,10 @@ function ReadOnlyField({
 
 interface ProfileFormProps {
   initialData: ChurchProfile
+  onSave?: (data: ChurchProfile) => Promise<void>
 }
 
-export function ProfileForm({ initialData }: ProfileFormProps) {
+export function ProfileForm({ initialData, onSave }: ProfileFormProps) {
   // Saved state = last "committed" state; profile = working copy
   const [saved, setSaved] = useState<ChurchProfile>(initialData)
   const [profile, setProfile] = useState<ChurchProfile>(initialData)
@@ -334,11 +335,26 @@ export function ProfileForm({ initialData }: ProfileFormProps) {
 
   // ── Global save / discard ──
 
-  function handleSave() {
-    setSaved({ ...profile })
-    setEditingSections(new Set())
-    setSaveLabel("Saved!")
-    setTimeout(() => setSaveLabel("Save Changes"), 2000)
+  async function handleSave() {
+    if (onSave) {
+      setSaveLabel("Saving...")
+      try {
+        await onSave(profile)
+        setSaved({ ...profile })
+        setEditingSections(new Set())
+        setSaveLabel("Saved!")
+        setTimeout(() => setSaveLabel("Save Changes"), 2000)
+      } catch (err) {
+        console.error("Save failed:", err)
+        setSaveLabel("Save Failed")
+        setTimeout(() => setSaveLabel("Save Changes"), 2000)
+      }
+    } else {
+      setSaved({ ...profile })
+      setEditingSections(new Set())
+      setSaveLabel("Saved!")
+      setTimeout(() => setSaveLabel("Save Changes"), 2000)
+    }
   }
 
   function handleDiscard() {

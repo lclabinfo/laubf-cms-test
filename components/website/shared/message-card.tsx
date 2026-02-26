@@ -5,6 +5,7 @@
  * title, speaker, and passage. Hover changes background color.
  */
 import Link from "next/link"
+import { resolveHref } from "@/lib/website/resolve-href"
 import {
   IconBookOpen,
   IconUser,
@@ -39,7 +40,7 @@ function formatDate(dateStr: string) {
 export default function MessageCard({ message }: { message: Message }) {
   return (
     <Link
-      href={`/messages/${message.slug}`}
+      href={resolveHref(`/messages/${message.slug}`)}
       className="group relative rounded-[24px] p-3 cursor-pointer transition-all duration-300 bg-white-0 hover:bg-white-1-5 hover:-translate-y-0.5 hover:shadow-[0px_8px_16px_0px_rgba(0,0,0,0.06)]"
     >
       {/* YouTube Thumbnail */}

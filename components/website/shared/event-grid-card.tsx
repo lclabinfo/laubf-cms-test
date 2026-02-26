@@ -2,6 +2,7 @@
 
 import Image from "next/image"
 import Link from "next/link"
+import { resolveHref } from "@/lib/website/resolve-href"
 import { IconClock, IconMapPin } from "@/components/website/shared/icons"
 
 const MAX_VISIBLE_TAGS = 3
@@ -35,7 +36,7 @@ export default function EventGridCard({ event }: { event: EventGridCardEvent }) 
 
   return (
     <Link
-      href={`/events/${event.slug}`}
+      href={resolveHref(`/events/${event.slug}`)}
       className="group flex flex-col bg-white-0 rounded-[20px] border border-white-2-5 shadow-[0px_12px_20px_0px_rgba(0,0,0,0.05)] overflow-clip transition-shadow hover:shadow-[0px_16px_32px_0px_rgba(0,0,0,0.10)] h-full"
     >
       {/* Image */}

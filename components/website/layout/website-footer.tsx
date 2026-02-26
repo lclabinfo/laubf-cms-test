@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
+import { resolveHref } from '@/lib/website/resolve-href'
 import type { SiteSettings, Prisma } from '@/lib/generated/prisma/client'
 
 type MenuWithItems = Prisma.MenuGetPayload<{
@@ -120,7 +121,7 @@ export function WebsiteFooter({ menu, siteSettings }: WebsiteFooterProps) {
                 {col.links.map((link) => (
                   <Link
                     key={link.label}
-                    href={link.href}
+                    href={resolveHref(link.href)}
                     className="px-2 py-1.5 text-body-2 text-white-2 transition-colors hover:text-white-1"
                     {...(link.external
                       ? { target: '_blank', rel: 'noopener noreferrer' }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getMessageBySlug, updateMessage, deleteMessage } from '@/lib/dal/messages'
+import { syncMessageStudy, unlinkMessageStudy } from '@/lib/dal/sync-message-study'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -42,10 +43,57 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       )
     }
 
-    const updated = await updateMessage(churchId, existing.id, body)
+    // Extract seriesId (not a Message column — handled via MessageSeries join table)
+    // Use a sentinel to distinguish "not provided" from "explicitly null"
+    const hasSeriesId = 'seriesId' in body
+    const { seriesId, ...messageData } = body
 
-    // Revalidate public website pages that display messages
-    revalidatePath('/(website)', 'layout')
+    const updated = await updateMessage(
+      churchId,
+      existing.id,
+      messageData,
+      hasSeriesId ? (seriesId ?? null) : undefined,
+    )
+
+    // Sync study content to BibleStudy table
+    try {
+      const effectiveHasStudy = 'hasStudy' in body ? body.hasStudy : existing.hasStudy
+      const effectiveStudySections = 'studySections' in body
+        ? body.studySections
+        : (existing.studySections as { id: string; title: string; content: string }[] | null)
+
+      if (effectiveHasStudy && effectiveStudySections) {
+        // Resolve the series ID for the linked BibleStudy
+        const effectiveSeriesId = hasSeriesId
+          ? (seriesId ?? null)
+          : ((existing.messageSeries ?? []).length > 0
+            ? existing.messageSeries[0].seriesId
+            : null)
+
+        await syncMessageStudy({
+          messageId: updated.id,
+          churchId,
+          title: updated.title,
+          slug: updated.slug,
+          passage: updated.passage,
+          speakerId: updated.speakerId,
+          seriesId: effectiveSeriesId,
+          dateFor: updated.dateFor,
+          status: updated.status,
+          publishedAt: updated.publishedAt,
+          studySections: effectiveStudySections,
+          existingStudyId: updated.relatedStudyId,
+        })
+      } else if (!effectiveHasStudy && updated.relatedStudyId) {
+        // Study was removed — unlink and soft-delete the BibleStudy
+        await unlinkMessageStudy(updated.id, updated.relatedStudyId)
+      }
+    } catch (syncErr) {
+      console.error('PATCH /api/v1/messages/[slug]: bible study sync warning:', syncErr)
+    }
+
+    // Revalidate public website pages that display messages and bible studies
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -70,10 +118,19 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
       )
     }
 
+    // If message has a linked BibleStudy, soft-delete it too
+    if (existing.relatedStudyId) {
+      try {
+        await unlinkMessageStudy(existing.id, existing.relatedStudyId)
+      } catch (syncErr) {
+        console.error('DELETE /api/v1/messages/[slug]: bible study unlink warning:', syncErr)
+      }
+    }
+
     await deleteMessage(churchId, existing.id)
 
-    // Revalidate public website pages that display messages
-    revalidatePath('/(website)', 'layout')
+    // Revalidate public website pages that display messages and bible studies
+    revalidatePath('/website', 'layout')
 
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {

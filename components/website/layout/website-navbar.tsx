@@ -6,6 +6,7 @@ import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { resolveHref } from "@/lib/website/resolve-href"
 import { IconHamburger } from "@/components/website/shared/icons"
 import DropdownMenu from "./dropdown-menu"
 import MobileMenu from "./mobile-menu"
@@ -186,7 +187,7 @@ export function WebsiteNavbar({
               >
                 {item.href ? (
                   <Link
-                    href={item.href}
+                    href={resolveHref(item.href)}
                     className={cn(
                       "flex items-center gap-1.5 pl-3 pr-2 py-3 rounded-xl text-nav transition-colors duration-150",
                       isScrolled
@@ -263,7 +264,7 @@ export function WebsiteNavbar({
             {directItems.map((item) => (
               <Link
                 key={item.id}
-                href={item.href || "/"}
+                href={resolveHref(item.href)}
                 className={cn(
                   "pl-3 pr-2 py-4 rounded-xl text-nav transition-colors duration-150",
                   isScrolled
@@ -283,7 +284,7 @@ export function WebsiteNavbar({
           <div className="hidden lg:flex items-center gap-3">
             {memberLoginVisible && memberLoginHref && (
               <Link
-                href={memberLoginHref}
+                href={resolveHref(memberLoginHref)}
                 className={cn(
                   "text-nav px-2 py-4 transition-opacity hover:opacity-80",
                   isScrolled ? "text-black-1" : "text-white-1",
