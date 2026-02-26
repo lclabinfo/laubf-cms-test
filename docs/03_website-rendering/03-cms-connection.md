@@ -164,13 +164,13 @@ interface SectionComponentProps {
 - Calls DAL functions to fetch CMS data
 - Renders data + configuration → HTML
 
-### Section Wrapper Contract
-Every section is wrapped by `SectionWrapper` which handles:
-- `colorScheme`: LIGHT or DARK background
-- `paddingY`: NONE, COMPACT, DEFAULT, SPACIOUS
-- `containerWidth`: NARROW, STANDARD, FULL
+### Section Container Contract
+Every section component wraps itself in `SectionContainer` (`components/website/shared/section-container.tsx`) which handles:
+- `colorScheme`: "light" or "dark" background + `SectionThemeContext` for child components
+- `paddingY`: "none", "compact", "default", or "spacious" vertical spacing
+- `containerWidth`: "standard", "narrow", or "full" content width
 
-These settings are stored on `PageSection` (not in JSONB `content`) because they're universal to all section types.
+These settings are stored on `PageSection` (not in JSONB `content`) because they're universal to all section types. The `SectionRenderer` (registry) converts DB enum values (e.g., `DARK`) to lowercase strings (e.g., `"dark"`) before passing to section components.
 
 ---
 
@@ -223,6 +223,10 @@ The v2 builder at `app/cms/website/builder/` renders actual `SectionRenderer` co
 4. The canvas shows the same section components used on the public website
 
 This approach (Approach B from the original design) provides live preview without a separate preview mode, because the canvas IS the preview. See `docs/00_dev-notes/website-builder-plan.md` Phase 2 (Canvas) and Phase 5 (Section Editors).
+
+**Known limitation:** The builder's device preview (mobile/tablet) constrains the canvas container width but does not change the browser viewport. CSS media queries (`@media (min-width: ...)`) and Tailwind responsive prefixes (`sm:`, `md:`, `lg:`) still evaluate against the full viewport, so responsive breakpoint behavior (show/hide elements, grid column changes) is not accurately previewed. See `docs/03_website-rendering/10-builder-rendering.md` Section 5 for the full analysis and future options.
+
+**Rendering parity:** The builder canvas applies the same theme CSS variables, custom CSS, font loading, and section component props as the live website. See `docs/03_website-rendering/10-builder-rendering.md` for the complete comparison.
 
 ---
 

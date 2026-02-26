@@ -87,6 +87,9 @@ export default async function BuilderPage({ params }: BuilderPageProps) {
     websiteThemeTokens['--ws-font-heading'] = `"${themeData.headingFont}", ui-serif, Georgia, serif`
   }
 
+  // Extract custom CSS for canvas-scoped injection (mirrors ThemeProvider behavior)
+  const websiteCustomCss = themeData?.customCss || ''
+
   // Serialize page data for the client component
   const serializedPage = {
     id: page.id,
@@ -123,6 +126,7 @@ export default async function BuilderPage({ params }: BuilderPageProps) {
         allPages={serializedPages}
         churchId={churchId}
         websiteThemeTokens={websiteThemeTokens}
+        websiteCustomCss={websiteCustomCss}
         navbarData={navbarData}
       />
     </>

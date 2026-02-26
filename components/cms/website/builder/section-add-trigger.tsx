@@ -5,13 +5,19 @@ import { cn } from "@/lib/utils"
 
 interface SectionAddTriggerProps {
   onClick: () => void
+  onClickWithRect?: (rect: DOMRect) => void
   className?: string
 }
 
-export function SectionAddTrigger({ onClick, className }: SectionAddTriggerProps) {
+export function SectionAddTrigger({ onClick, onClickWithRect, className }: SectionAddTriggerProps) {
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
-    onClick()
+    if (onClickWithRect) {
+      const rect = e.currentTarget.getBoundingClientRect()
+      onClickWithRect(rect)
+    } else {
+      onClick()
+    }
   }
 
   return (

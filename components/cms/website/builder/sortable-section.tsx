@@ -15,6 +15,8 @@ interface SortableSectionProps {
   onDelete: () => void
   onAddBefore: () => void
   onAddAfter: () => void
+  onAddBeforeWithRect?: (rect: DOMRect) => void
+  onAddAfterWithRect?: (rect: DOMRect) => void
   onEdit?: () => void
   isFirst?: boolean
 }
@@ -27,6 +29,8 @@ export function SortableSection({
   onDelete,
   onAddBefore,
   onAddAfter,
+  onAddBeforeWithRect,
+  onAddAfterWithRect,
   onEdit,
   isFirst = false,
 }: SortableSectionProps) {
@@ -42,7 +46,7 @@ export function SortableSection({
   const style = {
     transform: CSS.Translate.toString(transform),
     transition,
-    zIndex: isDragging ? 50 : isSelected ? 40 : 1,
+    zIndex: isDragging ? 100 : isSelected ? 70 : 1,
     position: "relative" as const,
   }
 
@@ -59,13 +63,13 @@ export function SortableSection({
         onSelect()
       }}
     >
-      {/* Selection / hover outline — uses outline so it expands outward and never affects layout */}
+      {/* Selection / hover border — uses inset box-shadow so it paints inside the element and is never clipped by overflow-hidden parents */}
       <div
         className={cn(
-          "absolute inset-0 z-30 pointer-events-none transition-all duration-200",
+          "absolute inset-0 z-[60] pointer-events-none transition-all duration-200",
           isSelected
-            ? "outline outline-2 outline-blue-600 shadow-[0_0_0_4px_rgba(37,99,235,0.1)]"
-            : !isDragging && "outline outline-2 outline-transparent group-hover/section:outline-blue-600/30",
+            ? "shadow-[inset_0_0_0_2px_rgb(37,99,235),0_0_0_4px_rgba(37,99,235,0.1)]"
+            : !isDragging && "shadow-none group-hover/section:shadow-[inset_0_0_0_2px_rgba(37,99,235,0.3)]",
         )}
       />
 
@@ -73,7 +77,7 @@ export function SortableSection({
       {isSelected && !isDragging && (
         <div
           className={cn(
-            "absolute z-50 flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200",
+            "absolute z-[80] flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200",
             isFirst ? "bottom-4 right-4" : "top-4 right-4",
           )}
         >
@@ -124,13 +128,13 @@ export function SortableSection({
       {isSelected && !isDragging && (
         <>
           {/* Top */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-auto">
-            <SectionAddTrigger onClick={onAddBefore} />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[80] pointer-events-auto">
+            <SectionAddTrigger onClick={onAddBefore} onClickWithRect={onAddBeforeWithRect} />
           </div>
 
           {/* Bottom */}
-          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 z-50 pointer-events-auto">
-            <SectionAddTrigger onClick={onAddAfter} />
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 z-[80] pointer-events-auto">
+            <SectionAddTrigger onClick={onAddAfter} onClickWithRect={onAddAfterWithRect} />
           </div>
         </>
       )}

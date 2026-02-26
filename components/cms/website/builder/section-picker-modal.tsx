@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import {
   Dialog,
   DialogContent,
@@ -681,20 +681,40 @@ const CATEGORY_PREVIEWS: Record<string, React.ReactNode> = {
 // Component
 // ---------------------------------------------------------------------------
 
+export type PickerMode = "dialog" | "sidebar" | "popover"
+
 interface SectionPickerModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSelect: (type: SectionType, defaultContent: Record<string, unknown>) => void
+  /** Positioning mode. 'dialog' = centered modal (default), 'sidebar' = fixed near sidebar, 'popover' = near trigger */
+  mode?: PickerMode
+  /** Trigger button rect for 'popover' positioning */
+  triggerRect?: DOMRect | null
 }
 
 export function SectionPickerModal({
   open,
   onOpenChange,
   onSelect,
+  mode = "dialog",
+  triggerRect = null,
 }: SectionPickerModalProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [activeCategory, setActiveCategory] = useState<SectionCategory | null>(null)
   const [hoveredItem, setHoveredItem] = useState<SectionCatalogItem | null>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Auto-focus search input when panel opens in sidebar/popover mode
+  useEffect(() => {
+    if (open && mode !== "dialog") {
+      // Small delay to allow DOM to render
+      const timer = setTimeout(() => {
+        searchInputRef.current?.focus()
+      }, 50)
+      return () => clearTimeout(timer)
+    }
+  }, [open, mode])
 
   // Filter sections by search query and/or active category
   const filteredSections = useMemo(() => {
@@ -757,175 +777,290 @@ export function SectionPickerModal({
     [onOpenChange],
   )
 
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        showCloseButton={false}
-        className="sm:max-w-3xl p-0 gap-0 overflow-hidden h-[500px] flex flex-col"
-      >
-        {/* Hidden accessible title */}
-        <DialogTitle className="sr-only">Add Section</DialogTitle>
-        <DialogDescription className="sr-only">
-          Choose a section type to add to your page.
-        </DialogDescription>
+  // Close on Escape for non-dialog modes
+  useEffect(() => {
+    if (!open || mode === "dialog") return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        e.stopPropagation()
+        handleOpenChange(false)
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown, true)
+    return () => window.removeEventListener("keydown", handleKeyDown, true)
+  }, [open, mode, handleOpenChange])
 
-        {/* Search header */}
-        <div className="h-14 border-b px-4 flex items-center shrink-0">
-          <div className="relative w-full max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search sections..."
-              className="pl-9 h-9 text-sm bg-muted/50 border-transparent focus-visible:bg-background"
-              autoFocus
-            />
-          </div>
+  // ---------------------------------------------------------------------------
+  // Shared inner content (search + list + preview)
+  // ---------------------------------------------------------------------------
 
-          {/* Category filter pills (desktop) */}
-          <div className="hidden sm:flex items-center gap-1.5 ml-4 overflow-x-auto scrollbar-hide">
+  const pickerContent = (
+    <>
+      {/* Search header */}
+      <div className="h-14 border-b border-border px-4 flex items-center shrink-0">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            ref={searchInputRef}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search sections..."
+            className="pl-9 h-9 text-sm bg-muted/50 border-transparent focus-visible:bg-background"
+            autoFocus={mode === "dialog"}
+          />
+        </div>
+
+        {/* Category filter pills (desktop) */}
+        <div className="hidden sm:flex items-center gap-1.5 ml-4 overflow-x-auto scrollbar-hide">
+          <button
+            onClick={() => setActiveCategory(null)}
+            className={cn(
+              "px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
+              activeCategory === null
+                ? "bg-foreground text-background"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted",
+            )}
+          >
+            All
+          </button>
+          {SECTION_CATEGORIES.map((cat) => (
             <button
-              onClick={() => setActiveCategory(null)}
+              key={cat.id}
+              onClick={() =>
+                setActiveCategory(activeCategory === cat.id ? null : cat.id)
+              }
               className={cn(
                 "px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
-                activeCategory === null
+                activeCategory === cat.id
                   ? "bg-foreground text-background"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted",
               )}
             >
-              All
+              {cat.label}
             </button>
-            {SECTION_CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() =>
-                  setActiveCategory(activeCategory === cat.id ? null : cat.id)
-                }
-                className={cn(
-                  "px-2.5 py-1 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
-                  activeCategory === cat.id
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted",
-                )}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
+      </div>
 
-        {/* Body */}
-        <div className="flex-1 flex overflow-hidden">
-          {/* Left sidebar list */}
-          <ScrollArea className="w-[240px] border-r shrink-0">
-            <div className="p-2">
-              {filteredSections.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    No sections found.
-                  </p>
-                  <button
-                    onClick={() => {
-                      setSearchQuery("")
-                      setActiveCategory(null)
-                    }}
-                    className="text-xs text-primary mt-2 hover:underline"
-                  >
-                    Clear filters
-                  </button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {groupedSections.map((group) => (
-                    <div key={group.category}>
-                      <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        {group.label}
-                      </p>
-                      <div className="space-y-0.5">
-                        {group.items.map((item) => {
-                          const Icon = getIcon(item.icon)
-                          const isActive = previewItem?.type === item.type
-                          return (
-                            <button
-                              key={item.type}
-                              onMouseEnter={() => setHoveredItem(item)}
-                              onClick={() => handleSelect(item)}
+      {/* Body */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left sidebar list */}
+        <ScrollArea className="w-[240px] border-r border-border shrink-0">
+          <div className="p-2">
+            {filteredSections.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <p className="text-sm text-muted-foreground">
+                  No sections found.
+                </p>
+                <button
+                  onClick={() => {
+                    setSearchQuery("")
+                    setActiveCategory(null)
+                  }}
+                  className="text-xs text-primary mt-2 hover:underline"
+                >
+                  Clear filters
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {groupedSections.map((group) => (
+                  <div key={group.category}>
+                    <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {group.label}
+                    </p>
+                    <div className="space-y-0.5">
+                      {group.items.map((item) => {
+                        const Icon = getIcon(item.icon)
+                        const isActive = previewItem?.type === item.type
+                        return (
+                          <button
+                            key={item.type}
+                            onMouseEnter={() => setHoveredItem(item)}
+                            onClick={() => handleSelect(item)}
+                            className={cn(
+                              "w-full text-left px-3 py-2 rounded-md flex items-center gap-2.5 transition-colors group",
+                              isActive
+                                ? "bg-muted text-foreground"
+                                : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                            )}
+                          >
+                            <div
                               className={cn(
-                                "w-full text-left px-3 py-2 rounded-md flex items-center gap-2.5 transition-colors group",
+                                "p-1 rounded-md transition-colors shrink-0",
                                 isActive
-                                  ? "bg-muted text-foreground"
-                                  : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+                                  ? "bg-background shadow-sm ring-1 ring-border text-foreground"
+                                  : "bg-muted text-muted-foreground group-hover:bg-background group-hover:shadow-sm group-hover:text-foreground",
                               )}
                             >
-                              <div
-                                className={cn(
-                                  "p-1 rounded-md transition-colors shrink-0",
-                                  isActive
-                                    ? "bg-background shadow-sm ring-1 ring-border text-foreground"
-                                    : "bg-muted text-muted-foreground group-hover:bg-background group-hover:shadow-sm group-hover:text-foreground",
-                                )}
-                              >
-                                <Icon className="w-3.5 h-3.5" />
+                              <Icon className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium truncate leading-tight">
+                                {item.label}
                               </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="text-sm font-medium truncate leading-tight">
-                                  {item.label}
-                                </div>
-                                <div className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5 leading-tight font-normal">
-                                  {item.description}
-                                </div>
+                              <div className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5 leading-tight font-normal">
+                                {item.description}
                               </div>
-                            </button>
-                          )
-                        })}
-                      </div>
+                            </div>
+                          </button>
+                        )
+                      })}
                     </div>
-                  ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+
+        {/* Right preview area */}
+        {previewItem ? (
+          <div
+            className="flex-1 p-6 flex flex-col cursor-pointer bg-muted/30"
+            onClick={() => handleSelect(previewItem)}
+          >
+            <div className="flex-1 bg-background rounded-lg shadow-sm border border-slate-200 overflow-hidden relative group transition-all hover:shadow-md hover:border-primary/30">
+              {CATEGORY_PREVIEWS[previewItem.type] ?? (
+                <div className="w-full h-full flex items-center justify-center bg-muted/20">
+                  <p className="text-sm text-muted-foreground">Preview</p>
                 </div>
               )}
-            </div>
-          </ScrollArea>
 
-          {/* Right preview area */}
-          {previewItem ? (
-            <div
-              className="flex-1 p-6 flex flex-col cursor-pointer bg-muted/30"
-              onClick={() => handleSelect(previewItem)}
-            >
-              <div className="flex-1 bg-background rounded-lg shadow-sm border overflow-hidden relative group transition-all hover:shadow-md hover:border-primary/30">
-                {CATEGORY_PREVIEWS[previewItem.type] ?? (
-                  <div className="w-full h-full flex items-center justify-center bg-muted/20">
-                    <p className="text-sm text-muted-foreground">Preview</p>
-                  </div>
+              {/* Hover overlay */}
+              <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors" />
+            </div>
+
+            {/* Footer */}
+            <div className="mt-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-muted-foreground bg-background px-3 py-1 rounded-full border border-border shadow-sm">
+                  Click to add {previewItem.label}
+                </span>
+                {previewItem.isDataDriven && (
+                  <Badge variant="secondary" className="text-[10px]">
+                    Data-driven
+                  </Badge>
                 )}
-
-                {/* Hover overlay */}
-                <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 transition-colors" />
-              </div>
-
-              {/* Footer */}
-              <div className="mt-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium text-muted-foreground bg-background px-3 py-1 rounded-full border shadow-sm">
-                    Click to add {previewItem.label}
-                  </span>
-                  {previewItem.isDataDriven && (
-                    <Badge variant="secondary" className="text-[10px]">
-                      Data-driven
-                    </Badge>
-                  )}
-                </div>
               </div>
             </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center bg-muted/30">
-              <p className="text-sm text-muted-foreground">
-                No section selected
-              </p>
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center bg-muted/30">
+            <p className="text-sm text-muted-foreground">
+              No section selected
+            </p>
+          </div>
+        )}
+      </div>
+    </>
+  )
+
+  // ---------------------------------------------------------------------------
+  // Dialog mode (default) — standard centered modal
+  // ---------------------------------------------------------------------------
+
+  if (mode === "dialog") {
+    return (
+      <Dialog open={open} onOpenChange={handleOpenChange}>
+        <DialogContent
+          showCloseButton={false}
+          className="sm:max-w-3xl p-0 gap-0 overflow-hidden h-[500px] flex flex-col"
+        >
+          {/* Hidden accessible title */}
+          <DialogTitle className="sr-only">Add Section</DialogTitle>
+          <DialogDescription className="sr-only">
+            Choose a section type to add to your page.
+          </DialogDescription>
+          {pickerContent}
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sidebar / Popover mode — positioned panel with transparent backdrop
+  // ---------------------------------------------------------------------------
+
+  if (!open) return null
+
+  // Calculate panel position
+  let panelStyle: React.CSSProperties
+
+  if (mode === "sidebar") {
+    // Fixed position next to the sidebar
+    panelStyle = {
+      position: "fixed",
+      left: "70px",
+      top: "20px",
+    }
+  } else {
+    // Popover mode — position relative to triggerRect
+    const MODAL_WIDTH = 700
+    const MODAL_HEIGHT = 500
+    const OFFSET = 24
+    const PADDING = 20
+
+    if (triggerRect) {
+      // Horizontal: center the modal on the trigger
+      let left = triggerRect.left + triggerRect.width / 2 - MODAL_WIDTH / 2
+      if (left < PADDING) left = PADDING
+      if (left + MODAL_WIDTH > window.innerWidth - PADDING) {
+        left = window.innerWidth - MODAL_WIDTH - PADDING
+      }
+
+      // Vertical: prefer below trigger, fallback above, then center
+      const spaceBelow = window.innerHeight - triggerRect.bottom
+      const spaceAbove = triggerRect.top
+      let top: number
+
+      if (spaceBelow >= MODAL_HEIGHT + OFFSET) {
+        top = triggerRect.bottom + OFFSET
+      } else if (spaceAbove >= MODAL_HEIGHT + OFFSET) {
+        top = triggerRect.top - MODAL_HEIGHT - OFFSET
+      } else {
+        top = Math.max(PADDING, (window.innerHeight - MODAL_HEIGHT) / 2)
+      }
+
+      panelStyle = {
+        position: "fixed",
+        left: `${left}px`,
+        top: `${top}px`,
+      }
+    } else {
+      // Fallback: center on screen
+      panelStyle = {
+        position: "fixed",
+        left: "50%",
+        top: "50%",
+        transform: "translate(-50%, -50%)",
+      }
+    }
+  }
+
+  return (
+    <>
+      {/* Transparent backdrop overlay — click to close, no blur/darken */}
+      <div
+        className="fixed inset-0 z-[200]"
+        style={{ background: "transparent" }}
+        onClick={() => handleOpenChange(false)}
+      />
+
+      {/* Positioned panel */}
+      <div
+        className={cn(
+          "z-[210] bg-background rounded-xl shadow-2xl border border-border overflow-hidden flex flex-col",
+          "w-[700px] h-[500px] max-h-[calc(100vh-40px)]",
+          "animate-in fade-in zoom-in-95 duration-200",
+        )}
+        style={panelStyle}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Add Section"
+      >
+        {pickerContent}
+      </div>
+    </>
   )
 }

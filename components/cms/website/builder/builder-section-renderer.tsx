@@ -163,7 +163,7 @@ export function BuilderSectionRenderer({
   const sectionPaddingY = paddingY?.toLowerCase() as "none" | "compact" | "default" | "spacious"
   const sectionContainerWidth = containerWidth?.toLowerCase() as "standard" | "narrow" | "full"
 
-  return (
+  const rendered = (
     <Component
       content={content}
       churchId={churchId}
@@ -174,4 +174,14 @@ export function BuilderSectionRenderer({
       {...resolvedData}
     />
   )
+
+  // Hero banner uses -mt-[76px] on the live site to slide behind the transparent
+  // navbar. In the builder canvas this causes the top edge of the selection border
+  // (inset box-shadow) and the floating toolbar to be hidden behind the navbar.
+  // Neutralize the negative margin so sections render cleanly in the builder.
+  if (type === "HERO_BANNER") {
+    return <div className="[&>section]:!mt-0">{rendered}</div>
+  }
+
+  return rendered
 }

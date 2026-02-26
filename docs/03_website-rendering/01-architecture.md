@@ -392,8 +392,8 @@ Browser request → Next.js App Router
       → Fetches Page by slug (or homepage if no slug)
       → For each PageSection (sorted by sortOrder):
         → resolveSectionData() if content.dataSource exists
-        → SectionWrapper (padding, color scheme, visibility, animations)
-          → Registry lookup → Render section component
+        → SectionRenderer (registry lookup → section component)
+          → Each component wraps itself in SectionContainer (padding, color scheme, container width)
     → Footer (from Menu records, location=FOOTER + SiteSettings)
     → QuickLinksFAB (floating quick links)
 ```
@@ -407,7 +407,7 @@ Browser request → Next.js App Router
 | `lib/website/resolve-section-data.ts` | Resolves `dataSource` fields by calling DAL functions |
 | `lib/tenant/context.ts` | `getChurchId()` — reads `x-tenant-id` header or env var |
 | `components/website/sections/registry.tsx` | Maps SectionType enum → React component |
-| `components/website/sections/section-wrapper.tsx` | Wraps each section with padding, theme, animation |
+| `components/website/shared/section-container.tsx` | Shared wrapper used inside each section: applies colorScheme, paddingY, containerWidth, SectionThemeContext |
 | `components/website/theme/theme-provider.tsx` | Injects CSS custom properties from ThemeCustomization |
 | `components/website/font-loader.tsx` | Generates `<link>` or `@font-face` for tenant fonts |
 
@@ -420,7 +420,8 @@ There are **two categories** of sections:
 These sections render directly from the `PageSection.content` JSON column. No additional data fetching needed.
 
 ```
-PageSection.content (JSONB) → SectionWrapper → Component(content, colorScheme, ...)
+PageSection.content (JSONB) → SectionRenderer → Component(content, colorScheme, ...)
+  → Each component wraps itself in SectionContainer (padding, bg, width)
 ```
 
 **Examples**: HeroBanner, QuoteBanner, CTABanner, ActionCardGrid, DirectoryList, MediaText, TextImageHero, FormSection, FAQSection, PillarsSection, TimelineSection, etc.
@@ -500,7 +501,7 @@ interface SectionProps {
 }
 ```
 
-The root project flattens the `settings` wrapper — `content` is passed directly, and `colorScheme` / `enableAnimations` are separate props. The `SectionWrapper` handles `visible`, `paddingY`, and `containerWidth`.
+The root project flattens the `settings` wrapper — `content` is passed directly, and `colorScheme` / `enableAnimations` / `paddingY` / `containerWidth` are separate props. Each section component wraps itself in `SectionContainer` which handles padding, background color, and container width. The `visible` check is done at the page route level (filtering sections before rendering) and inside `SectionContainer` as a safety net.
 
 ### 12.5 Navbar Architecture & Edge Cases
 
@@ -594,7 +595,7 @@ Navigation
 
 #### Section Color Schemes
 
-Each `PageSection` has a `colorScheme` field (`LIGHT` or `DARK`). The `SectionWrapper` applies the corresponding theme:
+Each `PageSection` has a `colorScheme` field (`LIGHT` or `DARK`). The `SectionContainer` (used inside each section component) applies the corresponding theme:
 
 - **LIGHT**: white background, dark text
 - **DARK**: black-1 background, white text
@@ -677,3 +678,9 @@ See `docs/website-rendering/09-section-component-guide.md` for the full catalog 
 | **Layout** | 2 sections | Navbar, Footer rendered in layout |
 | **Generic** | 2 sections | CustomHtml, CustomEmbed for arbitrary content |
 | **Placeholder** | 2 sections | Navbar (layout-handled), DailyBreadFeature (unimplemented) |
+
+---
+
+## 13. Builder Rendering Pipeline
+
+The full-screen website builder at `app/cms/website/builder/` renders the same section components as the live website but in a different context (client-side, within the CMS admin). For the complete builder rendering architecture, known gaps (especially the responsive preview limitation), z-index scheme, and theme token flow, see **`docs/03_website-rendering/10-builder-rendering.md`**.

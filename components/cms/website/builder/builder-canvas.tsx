@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import {
   DndContext,
   DragOverlay,
@@ -11,6 +11,7 @@ import {
   useSensors,
   type DragStartEvent,
   type DragEndEvent,
+  type Modifier,
 } from "@dnd-kit/core"
 import {
   SortableContext,
@@ -18,15 +19,51 @@ import {
   arrayMove,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable"
-import { GripVertical } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { SortableSection } from "./sortable-section"
 import { SectionAddTrigger } from "./section-add-trigger"
 import { BuilderSectionRenderer } from "./builder-section-renderer"
 import { WebsiteNavbar } from "@/components/website/layout/website-navbar"
-import { sectionTypeLabels } from "@/components/cms/website/pages/section-picker-dialog"
 import type { NavbarData } from "./builder-shell"
 import type { BuilderSection, DeviceMode } from "./types"
+
+/**
+ * Custom modifier that centers the drag overlay on the cursor.
+ * By default, DragOverlay preserves the offset between the grab point
+ * and the overlay's top-left corner. This modifier adjusts the transform
+ * so the overlay's center-top region aligns with the cursor position.
+ */
+const centerOnCursor: Modifier = ({
+  activatorEvent,
+  activeNodeRect,
+  draggingNodeRect,
+  transform,
+}) => {
+  if (!activatorEvent || !activeNodeRect || !draggingNodeRect) {
+    return transform
+  }
+
+  const event = activatorEvent as PointerEvent
+  if (typeof event.clientX !== "number") {
+    return transform
+  }
+
+  // Calculate where the cursor was relative to the active node's top-left
+  const cursorOffsetX = event.clientX - activeNodeRect.left
+  const cursorOffsetY = event.clientY - activeNodeRect.top
+
+  // We want the cursor to appear at center-x, near the top (20% from top) of the overlay
+  const overlayWidth = draggingNodeRect.width
+  const overlayHeight = draggingNodeRect.height
+  const targetX = overlayWidth / 2
+  const targetY = Math.min(overlayHeight * 0.2, 40)
+
+  return {
+    ...transform,
+    x: transform.x + cursorOffsetX - targetX,
+    y: transform.y + cursorOffsetY - targetY,
+  }
+}
 
 interface BuilderCanvasProps {
   sections: BuilderSection[]
@@ -34,6 +71,7 @@ interface BuilderCanvasProps {
   onSelectSection: (id: string | null) => void
   onDeselectSection: () => void
   onAddSection: (afterIndex: number) => void
+  onAddSectionWithRect?: (afterIndex: number, rect: DOMRect) => void
   onDeleteSection: (sectionId: string) => void
   onEditSection: (sectionId: string) => void
   onReorderSections: (sections: BuilderSection[]) => void
@@ -41,8 +79,10 @@ interface BuilderCanvasProps {
   churchId: string
   pageSlug: string
   websiteThemeTokens?: Record<string, string>
+  websiteCustomCss?: string
   navbarData?: NavbarData
   onNavbarClick?: () => void
+  onNavbarLinkClick?: (href: string) => void
   isNavbarEditing?: boolean
 }
 
@@ -58,14 +98,17 @@ export function BuilderCanvas({
   onSelectSection,
   onDeselectSection,
   onAddSection,
+  onAddSectionWithRect,
   onDeleteSection,
   onEditSection,
   onReorderSections,
   deviceMode,
   churchId,
   websiteThemeTokens,
+  websiteCustomCss,
   navbarData,
   onNavbarClick,
+  onNavbarLinkClick,
   isNavbarEditing,
 }: BuilderCanvasProps) {
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -108,6 +151,9 @@ export function BuilderCanvas({
     ? sections.find((s) => s.id === activeId)
     : null
 
+  // Stable reference for the DragOverlay modifiers array
+  const dragOverlayModifiers = useMemo<Modifier[]>(() => [centerOnCursor], [])
+
   return (
     <div
       className="flex-1 bg-muted/30 overflow-y-auto overflow-x-hidden p-4"
@@ -123,24 +169,46 @@ export function BuilderCanvas({
           ...(websiteThemeTokens as React.CSSProperties),
         }}
       >
-        {/* Website navbar preview — click to edit, links disabled in builder */}
+        {/* Custom CSS from ThemeCustomization — mirrors ThemeProvider behavior */}
+        {websiteCustomCss && (
+          <style dangerouslySetInnerHTML={{ __html: websiteCustomCss }} />
+        )}
+
+        {/* Website navbar preview — click links to navigate, click background to edit */}
         {navbarData && (
           <div
             className={cn(
-              "relative z-[60] cursor-pointer group/navbar",
+              "relative z-[5] cursor-pointer group/navbar",
               isNavbarEditing
-                ? "outline outline-2 outline-blue-600 shadow-[0_0_0_4px_rgba(37,99,235,0.1)]"
-                : "outline outline-2 outline-transparent hover:outline-blue-600/30",
+                ? "shadow-[inset_0_0_0_2px_rgb(37,99,235),0_0_0_4px_rgba(37,99,235,0.1)]"
+                : "shadow-none hover:shadow-[inset_0_0_0_2px_rgba(37,99,235,0.3)]",
               "transition-all duration-200",
             )}
             onClick={(e) => {
-              e.preventDefault()
               e.stopPropagation()
+
+              // Check if the click target is a link (anchor tag)
+              const target = e.target as HTMLElement
+              const link = target.closest("a")
+
+              if (link) {
+                // Prevent default navigation — links point to website pages, not builder pages
+                e.preventDefault()
+                const href = link.getAttribute("href")
+                if (href && onNavbarLinkClick) {
+                  // Ignore external links
+                  if (!href.startsWith("http://") && !href.startsWith("https://") && !href.startsWith("mailto:")) {
+                    onNavbarLinkClick(href)
+                    return
+                  }
+                }
+              }
+
+              // Background click (non-link area) — open navbar editor
               onNavbarClick?.()
             }}
           >
-            {/* pointer-events-none prevents links inside from navigating away */}
-            <div className="pointer-events-none">
+            <div className="[&_header]:!relative">
               <WebsiteNavbar
                 menu={navbarData.menu as Parameters<typeof WebsiteNavbar>[0]["menu"]}
                 logoUrl={navbarData.logoUrl}
@@ -173,7 +241,10 @@ export function BuilderCanvas({
                     No sections yet. Add your first section to get started.
                   </p>
                   <div className="flex justify-center">
-                    <SectionAddTrigger onClick={() => onAddSection(-1)} />
+                    <SectionAddTrigger
+                      onClick={() => onAddSection(-1)}
+                      onClickWithRect={onAddSectionWithRect ? (rect: DOMRect) => onAddSectionWithRect(-1, rect) : undefined}
+                    />
                   </div>
                 </div>
               </div>
@@ -188,6 +259,8 @@ export function BuilderCanvas({
                 onDelete={() => onDeleteSection(section.id)}
                 onAddBefore={() => onAddSection(index - 1)}
                 onAddAfter={() => onAddSection(index)}
+                onAddBeforeWithRect={onAddSectionWithRect ? (rect: DOMRect) => onAddSectionWithRect(index - 1, rect) : undefined}
+                onAddAfterWithRect={onAddSectionWithRect ? (rect: DOMRect) => onAddSectionWithRect(index, rect) : undefined}
                 onEdit={() => onEditSection(section.id)}
                 isFirst={index === 0}
               >
@@ -216,26 +289,39 @@ export function BuilderCanvas({
               <div className="flex justify-center py-8">
                 <SectionAddTrigger
                   onClick={() => onAddSection(sections.length - 1)}
+                  onClickWithRect={onAddSectionWithRect ? (rect: DOMRect) => onAddSectionWithRect(sections.length - 1, rect) : undefined}
                 />
               </div>
             )}
           </SortableContext>
 
-          {/* Drag overlay — compact label card, positioned at cursor */}
-          <DragOverlay dropAnimation={null}>
+          {/* Drag overlay — scaled-down visual clone of the section, centered on cursor */}
+          <DragOverlay dropAnimation={null} modifiers={dragOverlayModifiers}>
             {activeDragSection && (
-              <div className="bg-background/95 backdrop-blur-sm shadow-2xl rounded-lg border px-4 py-3 flex items-center gap-3 w-[280px]">
-                <GripVertical className="size-4 text-muted-foreground shrink-0" />
-                <div className="min-w-0">
-                  <div className="text-sm font-medium truncate">
-                    {activeDragSection.label ||
-                      sectionTypeLabels[activeDragSection.sectionType] ||
-                      activeDragSection.sectionType}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {sectionTypeLabels[activeDragSection.sectionType] || activeDragSection.sectionType}
-                  </div>
-                </div>
+              <div
+                style={{
+                  width: "60vw",
+                  maxWidth: "600px",
+                  transform: "scale(0.5)",
+                  transformOrigin: "top left",
+                  opacity: 0.75,
+                  pointerEvents: "none",
+                  overflow: "hidden",
+                  maxHeight: "300px",
+                  borderRadius: "8px",
+                  boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)",
+                }}
+              >
+                <BuilderSectionRenderer
+                  type={activeDragSection.sectionType}
+                  content={activeDragSection.content}
+                  colorScheme={activeDragSection.colorScheme}
+                  paddingY={activeDragSection.paddingY}
+                  containerWidth={activeDragSection.containerWidth}
+                  enableAnimations={false}
+                  churchId={churchId}
+                  resolvedData={activeDragSection.resolvedData}
+                />
               </div>
             )}
           </DragOverlay>

@@ -115,7 +115,7 @@ function SectionEditorForm({ section, onSave, onCancel }: SectionEditorFormProps
   return (
     <>
       {/* Header */}
-      <DialogHeader className="px-6 py-4 border-b shrink-0">
+      <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
         <div className="flex items-center gap-3">
           <DialogTitle className="text-lg">Edit Section</DialogTitle>
           <Badge variant="secondary" className="font-normal">
@@ -199,7 +199,7 @@ function SectionEditorForm({ section, onSave, onCancel }: SectionEditorFormProps
       </Tabs>
 
       {/* Footer */}
-      <DialogFooter className="px-6 py-4 border-t shrink-0">
+      <DialogFooter className="px-6 py-4 border-t border-border shrink-0">
         <Button variant="outline" onClick={onCancel}>
           Cancel
         </Button>

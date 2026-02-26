@@ -373,69 +373,66 @@ The registry maps every `SectionType` enum value to a React component. All secti
 ```typescript
 // components/website/sections/registry.tsx
 import type { SectionType, ColorScheme, PaddingSize, ContainerWidth } from '@/lib/db/types'
-import { SectionWrapper } from './section-wrapper'
 
-// Import section components directly (they're RSCs, tree-shaking handles bundle)
+// Import section components directly (tree-shaking handles bundle)
 import HeroBannerSection from './hero-banner'
 import MediaTextSection from './media-text'
 import AllMessagesSection from './all-messages'
 import AllEventsSection from './all-events'
 import SpotlightMediaSection from './spotlight-media'
 import CTABannerSection from './cta-banner'
-// ... import all 38 section components
+// ... import all 40 section components
 
-const SECTION_COMPONENTS: Partial<Record<SectionType, React.ComponentType<any>>> = {
+const SECTION_COMPONENTS: Record<SectionType, React.ComponentType<any>> = {
   HERO_BANNER: HeroBannerSection,
   MEDIA_TEXT: MediaTextSection,
   ALL_MESSAGES: AllMessagesSection,
   ALL_EVENTS: AllEventsSection,
   SPOTLIGHT_MEDIA: SpotlightMediaSection,
   CTA_BANNER: CTABannerSection,
-  // ... all 38 section types
+  // ... all section types
 }
 
 interface SectionRendererProps {
   type: SectionType
-  content: Record<string, any>
+  content: Record<string, unknown>
   colorScheme: ColorScheme
   paddingY: PaddingSize
   containerWidth: ContainerWidth
   enableAnimations: boolean
   churchId: string
+  resolvedData?: Record<string, unknown>
 }
 
 export function SectionRenderer({
-  type,
-  content,
-  colorScheme,
-  paddingY,
-  containerWidth,
-  enableAnimations,
-  churchId,
+  type, content, colorScheme, paddingY, containerWidth,
+  enableAnimations, churchId, resolvedData,
 }: SectionRendererProps) {
   const Component = SECTION_COMPONENTS[type]
-  if (!Component) {
-    if (process.env.NODE_ENV === 'development') {
-      console.warn(`Unknown section type: ${type}`)
-    }
-    return null
-  }
+  if (!Component) return null
 
+  // Map DB enum values to lowercase format expected by components
+  const sectionColorScheme = colorScheme === 'DARK' ? 'dark' : 'light'
+  const sectionPaddingY = paddingY?.toLowerCase() as 'none' | 'compact' | 'default' | 'spacious'
+  const sectionContainerWidth = containerWidth?.toLowerCase() as 'standard' | 'narrow' | 'full'
+
+  // Each component wraps itself in SectionContainer which handles
+  // padding, background color, container width, and SectionThemeContext.
   return (
-    <SectionWrapper
-      colorScheme={colorScheme}
-      paddingY={paddingY}
-      containerWidth={containerWidth}
-    >
-      <Component
-        content={content}
-        churchId={churchId}
-        enableAnimations={enableAnimations}
-      />
-    </SectionWrapper>
+    <Component
+      content={content}
+      churchId={churchId}
+      enableAnimations={enableAnimations}
+      colorScheme={sectionColorScheme}
+      paddingY={sectionPaddingY}
+      containerWidth={sectionContainerWidth}
+      {...resolvedData}
+    />
   )
 }
 ```
+
+> **Note**: The original design had a `SectionWrapper` component wrapping each section in the registry. The actual implementation delegates wrapping to `SectionContainer` (`components/website/shared/section-container.tsx`) which is used internally by each section component. This gives each section more control over its own wrapping behavior (e.g., `noContainer` for full-bleed sections, custom `bgOverride`). The `section-wrapper.tsx` file still exists but is not imported anywhere.
 
 ### Why RSC Instead of Lazy Loading
 

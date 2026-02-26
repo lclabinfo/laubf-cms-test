@@ -128,7 +128,7 @@ export function SectionPickerDialog({
                     key={type}
                     onClick={() => handleSelect(type)}
                     className={cn(
-                      "rounded-lg border bg-card p-3 text-left text-sm font-medium",
+                      "rounded-lg border border-border bg-card p-3 text-left text-sm font-medium",
                       "hover:bg-accent hover:text-accent-foreground transition-colors",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     )}

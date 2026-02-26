@@ -7,7 +7,7 @@ import { BuilderTopbar } from "./builder-topbar"
 import { BuilderSidebar } from "./builder-sidebar"
 import { BuilderDrawer } from "./builder-drawer"
 import { BuilderCanvas } from "./builder-canvas"
-import { SectionPickerModal } from "./section-picker-modal"
+import { SectionPickerModal, type PickerMode } from "./section-picker-modal"
 import {
   BuilderRightDrawer,
   type SectionEditorData,
@@ -47,6 +47,15 @@ interface BuilderSnapshot {
 
 const AUTO_SAVE_DELAY_MS = 30_000
 
+/**
+ * Returns the URL path identifier for a page.
+ * Uses the slug if non-empty, otherwise falls back to the page ID.
+ * This handles homepage (slug = '') where the slug-based URL would be broken.
+ */
+function pagePathId(page: { slug: string; id: string }): string {
+  return page.slug || page.id
+}
+
 export interface NavbarData {
   menu: unknown
   logoUrl: string | null
@@ -63,10 +72,11 @@ interface BuilderShellProps {
   allPages: PageSummary[]
   churchId: string
   websiteThemeTokens?: Record<string, string>
+  websiteCustomCss?: string
   navbarData?: NavbarData
 }
 
-export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, navbarData }: BuilderShellProps) {
+export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, websiteCustomCss, navbarData }: BuilderShellProps) {
   const router = useRouter()
   const [activeTool, setActiveTool] = useState<BuilderTool>(null)
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
@@ -87,6 +97,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
   // Section picker modal
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerInsertIndex, setPickerInsertIndex] = useState(-1)
+  const [pickerMode, setPickerMode] = useState<PickerMode>("sidebar")
+  const [pickerTriggerRect, setPickerTriggerRect] = useState<DOMRect | null>(null)
 
   // Right drawer editing: track which section is being edited
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null)
@@ -158,19 +170,32 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
 
   const openSectionPicker = useCallback((afterIndex: number) => {
     setPickerInsertIndex(afterIndex)
+    setPickerMode("popover")
+    setPickerTriggerRect(null)
+    setPickerOpen(true)
+  }, [])
+
+  /** Open section picker with trigger rect for popover positioning (from canvas "+" buttons) */
+  const openSectionPickerWithRect = useCallback((afterIndex: number, rect: DOMRect) => {
+    setPickerInsertIndex(afterIndex)
+    setPickerMode("popover")
+    setPickerTriggerRect(rect)
     setPickerOpen(true)
   }, [])
 
   const handleToolClick = useCallback(
     (tool: BuilderTool) => {
-      // "add" opens the section picker modal directly instead of a drawer
+      // "add" opens the section picker in sidebar mode (next to the sidebar)
       if (tool === "add") {
-        openSectionPicker(sections.length - 1)
+        setPickerInsertIndex(sections.length - 1)
+        setPickerMode("sidebar")
+        setPickerTriggerRect(null)
+        setPickerOpen(true)
         return
       }
       setActiveTool((prev) => (prev === tool ? null : tool))
     },
-    [openSectionPicker, sections.length],
+    [sections.length],
   )
 
   // -------------------------------------------------------------------------
@@ -199,7 +224,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
     setSaveState("saving")
     try {
       // Save page metadata
-      const pageRes = await fetch(`/api/v1/pages/${pageData.slug}`, {
+      const pageRes = await fetch(`/api/v1/pages/${pagePathId(pageData)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -211,7 +236,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
 
       // Reorder sections
       const sectionIds = sections.map((s) => s.id)
-      const reorderRes = await fetch(`/api/v1/pages/${pageData.slug}/sections`, {
+      const reorderRes = await fetch(`/api/v1/pages/${pagePathId(pageData)}/sections`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sectionIds }),
@@ -220,7 +245,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
 
       // Save each section's content and display settings
       const sectionSaves = sections.map((s) =>
-        fetch(`/api/v1/pages/${pageData.slug}/sections/${s.id}`, {
+        fetch(`/api/v1/pages/${pagePathId(pageData)}/sections/${s.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -335,7 +360,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
   const handlePublishToggle = useCallback(async () => {
     const newPublished = !pageData.isPublished
     try {
-      const res = await fetch(`/api/v1/pages/${pageData.slug}`, {
+      const res = await fetch(`/api/v1/pages/${pagePathId(pageData)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -367,7 +392,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
     async (sectionType: SectionType, defaultContent: Record<string, unknown>) => {
       try {
         const sortOrder = pickerInsertIndex + 1
-        const res = await fetch(`/api/v1/pages/${pageData.slug}/sections`, {
+        const res = await fetch(`/api/v1/pages/${pagePathId(pageData)}/sections`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -412,14 +437,14 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
         toast.error("Failed to add section")
       }
     },
-    [pageData.slug, pickerInsertIndex, pushSnapshot],
+    [pageData.slug, pageData.id, pickerInsertIndex, pushSnapshot],
   )
 
   const handleDeleteSection = useCallback(
     async (sectionId: string) => {
       try {
         const res = await fetch(
-          `/api/v1/pages/${pageData.slug}/sections/${sectionId}`,
+          `/api/v1/pages/${pagePathId(pageData)}/sections/${sectionId}`,
           { method: "DELETE" },
         )
         if (!res.ok) throw new Error("Failed to delete section")
@@ -439,7 +464,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
         toast.error("Failed to delete section")
       }
     },
-    [pageData.slug, selectedSectionId, editingSectionId, pushSnapshot],
+    [pageData.slug, pageData.id, selectedSectionId, editingSectionId, pushSnapshot],
   )
 
   const handleReorderSections = useCallback((reordered: BuilderSection[]) => {
@@ -581,6 +606,45 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
     [router, pageData.id, isDirty],
   )
 
+  /**
+   * Handle clicks on navbar links: resolve the website href (e.g. "/about")
+   * to a builder page and navigate to it. If no matching page is found, fall
+   * back to opening the navbar editor.
+   */
+  const handleNavbarLinkClick = useCallback(
+    (href: string) => {
+      // Normalize: strip /website/ prefix (resolveHref prepends it for the public site),
+      // then strip leading slash, treat "/" or "" as homepage
+      let normalized = href
+      if (normalized.startsWith("/website/")) {
+        normalized = normalized.slice("/website".length) // "/website/about" → "/about"
+      } else if (normalized === "/website") {
+        normalized = "/"
+      }
+      // Also strip query params for matching (e.g., "/events?tab=event" → "/events")
+      const [pathPart] = normalized.split("?")
+      const slug = pathPart.replace(/^\//, "") || ""
+      const matchingPage = pages.find((p) => {
+        // Homepage: href is "/" → slug is "" → match on isHomepage or empty slug
+        if (slug === "" && p.isHomepage) return true
+        if (slug === "" && p.slug === "") return true
+        // Direct slug match
+        if (p.slug === slug) return true
+        // Match with leading slash (e.g. "/about" === page slug "about")
+        if (`/${p.slug}` === pathPart) return true
+        return false
+      })
+
+      if (matchingPage) {
+        handlePageSelect(matchingPage.id)
+      } else {
+        // No matching page found — open navbar editor as fallback
+        handleNavbarClick()
+      }
+    },
+    [pages, handlePageSelect, handleNavbarClick],
+  )
+
   const handleDiscardAndNavigate = useCallback(() => {
     setDiscardDialogOpen(false)
     if (pendingNavigationId) {
@@ -618,7 +682,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
         const target = pages.find((p) => p.id === data.id)
         if (!target) return
 
-        const res = await fetch(`/api/v1/pages/${target.slug}`, {
+        const res = await fetch(`/api/v1/pages/${target.slug || target.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -677,7 +741,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
       if (!target) return
 
       try {
-        const res = await fetch(`/api/v1/pages/${target.slug}`, {
+        const res = await fetch(`/api/v1/pages/${target.slug || target.id}`, {
           method: "DELETE",
         })
         if (!res.ok) throw new Error("Failed to delete page")
@@ -719,7 +783,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
 
   const drawerTitle =
     activeTool === "pages"
-      ? "Pages & Menu"
+      ? "Site Pages"
       : activeTool === "design"
         ? "Design"
         : activeTool === "media"
@@ -812,6 +876,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
             setEditingNavbar(false)
           }}
           onAddSection={openSectionPicker}
+          onAddSectionWithRect={openSectionPickerWithRect}
           onDeleteSection={handleDeleteSection}
           onEditSection={handleEditSection}
           onReorderSections={handleReorderSections}
@@ -819,8 +884,10 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
           churchId={churchId}
           pageSlug={pageData.slug}
           websiteThemeTokens={websiteThemeTokens}
+          websiteCustomCss={websiteCustomCss}
           navbarData={navbarData}
           onNavbarClick={handleNavbarClick}
+          onNavbarLinkClick={handleNavbarLinkClick}
           isNavbarEditing={editingNavbar}
         />
 
@@ -841,6 +908,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, nav
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         onSelect={handlePickerSelect}
+        mode={pickerMode}
+        triggerRect={pickerTriggerRect}
       />
 
       {/* Page Settings Modal */}
