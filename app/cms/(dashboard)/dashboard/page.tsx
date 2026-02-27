@@ -198,6 +198,51 @@ export default async function DashboardPage() {
     status: e.status,
   }))
 
+  // Build health detail strings that explain the status
+  const formatDaysAgo = (days: number) => {
+    if (days === 0) return "today"
+    if (days === 1) return "yesterday"
+    if (days < 7) return `${days} days ago`
+    if (days < 14) return "1 week ago"
+    if (days < 30) return `${Math.floor(days / 7)} weeks ago`
+    if (days < 60) return "1 month ago"
+    if (days < 365) return `${Math.floor(days / 30)} months ago`
+    return `${Math.floor(days / 365)}+ years ago`
+  }
+
+  let messageHealthDetail: string
+  if (latestMessage) {
+    const daysSince = Math.floor(
+      (now.getTime() - new Date(latestMessage.dateFor).getTime()) / (1000 * 60 * 60 * 24)
+    )
+    messageHealthDetail = `Last posted ${formatDaysAgo(daysSince)}`
+  } else {
+    messageHealthDetail = "No messages yet"
+  }
+
+  let eventHealthDetail: string
+  if (eventCountUpcoming === 0) {
+    eventHealthDetail = "No upcoming events"
+  } else {
+    eventHealthDetail = `${eventCountUpcoming} upcoming event${eventCountUpcoming === 1 ? "" : "s"}`
+  }
+
+  let pageHealthDetail: string
+  if (pagesForHealth.length === 0) {
+    pageHealthDetail = "No pages yet"
+  } else {
+    const oldestUpdate = Math.max(
+      ...pagesForHealth.map((p) =>
+        Math.floor((now.getTime() - new Date(p.updatedAt).getTime()) / (1000 * 60 * 60 * 24))
+      )
+    )
+    pageHealthDetail = `Oldest update ${formatDaysAgo(oldestUpdate)}`
+  }
+
+  const mediaHealthDetail = videoCountAll === 0
+    ? "No media yet"
+    : `${videoCountAll} video${videoCountAll === 1 ? "" : "s"}`
+
   return (
     <DashboardContent
       counts={{
@@ -223,7 +268,13 @@ export default async function DashboardPage() {
         messages: messageHealth,
         events: eventHealth,
         pages: pageHealth,
-        media: "green",
+        media: videoCountAll === 0 ? "yellow" : "green",
+      }}
+      healthDetail={{
+        messages: messageHealthDetail,
+        events: eventHealthDetail,
+        pages: pageHealthDetail,
+        media: mediaHealthDetail,
       }}
       healthCounts={{
         messages: messageCountAll,

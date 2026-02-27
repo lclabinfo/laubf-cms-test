@@ -2,7 +2,17 @@
 
 import { useEffect, useState } from "react"
 import { ProfileForm } from "@/components/cms/church-profile/profile-form"
-import { defaultProfile, type ChurchProfile } from "@/lib/church-profile-data"
+import type { ChurchProfile } from "@/lib/church-profile-data"
+
+const emptyProfile: ChurchProfile = {
+  name: "",
+  description: "",
+  address: { street: "", city: "", state: "", zip: "", notes: "" },
+  emails: [],
+  phones: [],
+  worshipServices: [],
+  socialLinks: [],
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function apiToProfile(data: any): ChurchProfile {
@@ -115,13 +125,13 @@ export default function ChurchProfilePage() {
           setProfile(apiToProfile(json.data))
         } else {
           // Fallback to defaults if no data
-          setProfile(defaultProfile)
+          setProfile(emptyProfile)
         }
       })
       .catch((err) => {
         console.error("Failed to load church profile:", err)
         setError(err.message)
-        setProfile(defaultProfile)
+        setProfile(emptyProfile)
       })
       .finally(() => setLoading(false))
   }, [])

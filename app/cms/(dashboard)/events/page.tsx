@@ -102,6 +102,13 @@ function dateKey(d: Date): string {
 export default function EventsPage() {
   const router = useRouter()
   const { events, loading } = useEvents()
+  // Sort: featured events pinned to top, then by date descending
+  const sortedEvents = useMemo(() => {
+    const featured = events.filter((e) => e.isFeatured)
+    const nonFeatured = events.filter((e) => !e.isFeatured)
+    return [...featured, ...nonFeatured]
+  }, [events])
+
   const [sorting, setSorting] = useState<SortingState>([
     { id: "date", desc: true },
   ])
@@ -137,7 +144,7 @@ export default function EventsPage() {
   )
 
   const table = useReactTable({
-    data: events,
+    data: sortedEvents,
     columns,
     state: {
       sorting,

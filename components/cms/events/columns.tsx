@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal, MapPin, Globe, Star, Pencil, Copy, Trash2 } from "lucide-react"
+import { ArrowUpDown, MoreHorizontal, MapPin, Globe, Star, Pencil, Copy, Trash2, Clock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -16,6 +16,7 @@ import {
 import type { ChurchEvent } from "@/lib/events-data"
 import { eventTypeDisplay, recurrenceDisplay, ministryDisplay, computeRecurrenceSchedule } from "@/lib/events-data"
 import { statusDisplay } from "@/lib/status"
+import { cn } from "@/lib/utils"
 
 function formatDateShort(dateStr: string) {
   const date = new Date(dateStr + "T00:00:00")
@@ -82,16 +83,25 @@ export const columns: ColumnDef<ChurchEvent>[] = [
         <ArrowUpDown />
       </Button>
     ),
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2 min-w-0">
-        {row.original.isFeatured && (
-          <Star className="size-3.5 shrink-0 text-warning fill-warning" />
-        )}
-        <div className="min-w-0">
-          <div className="font-medium truncate">{row.getValue("title")}</div>
+    cell: ({ row }) => {
+      const past = isPast(row.original.date)
+      return (
+        <div className={cn("flex items-center gap-2 min-w-0", past && "opacity-60")}>
+          {row.original.isFeatured && (
+            <Star className="size-3.5 shrink-0 text-warning fill-warning" />
+          )}
+          <div className="min-w-0">
+            <div className="font-medium truncate">{row.getValue("title")}</div>
+          </div>
+          {past && (
+            <Badge variant="outline" className="shrink-0 text-[10px] h-4 text-muted-foreground">
+              <Clock className="size-2.5 mr-0.5" />
+              Past
+            </Badge>
+          )}
         </div>
-      </div>
-    ),
+      )
+    },
     size: 260,
   },
   {

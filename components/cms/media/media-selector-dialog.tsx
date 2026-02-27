@@ -22,11 +22,14 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
-  mediaItems,
-  mediaFolders,
   formatDisplay,
   type MediaItem,
+  type MediaFolder,
 } from "@/lib/media-data"
+
+// TODO: Replace with API-backed media data when media API is implemented
+const mediaItems: MediaItem[] = []
+const mediaFolders: MediaFolder[] = []
 
 interface MediaSelectorDialogProps {
   open: boolean

@@ -21,9 +21,6 @@ import { ConnectAlbumDialog } from "@/components/cms/media/connect-album-dialog"
 import { MoveToDialog } from "@/components/cms/media/move-to-dialog"
 import { MediaPreviewDialog } from "@/components/cms/media/media-preview-dialog"
 import {
-  mediaItems as initialMediaItems,
-  mediaFolders as initialFolders,
-  googleAlbums as initialAlbums,
   imageFormats,
   videoFormats,
 } from "@/lib/media-data"
@@ -35,10 +32,10 @@ const paginationRowModel = getPaginationRowModel()
 const sortedRowModel = getSortedRowModel()
 
 export default function MediaPage() {
-  // Data state
-  const [mediaItems, setMediaItems] = useState<MediaItem[]>(initialMediaItems)
-  const [folders, setFolders] = useState<MediaFolder[]>(initialFolders)
-  const [albums, setAlbums] = useState<GoogleAlbum[]>(initialAlbums)
+  // Data state (starts empty — media API integration is pending)
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([])
+  const [folders, setFolders] = useState<MediaFolder[]>([])
+  const [albums, setAlbums] = useState<GoogleAlbum[]>([])
 
   // Navigation
   const [activeFolderId, setActiveFolderId] = useState<ActiveFilterId>("all")

@@ -61,6 +61,12 @@ type DashboardContentProps = {
     pages: HealthStatus
     media: HealthStatus
   }
+  healthDetail: {
+    messages: string
+    events: string
+    pages: string
+    media: string
+  }
   healthCounts: {
     messages: number
     events: number
@@ -139,6 +145,7 @@ const statusBadgeVariant: Record<string, "success" | "warning" | "secondary" | "
 export function DashboardContent({
   counts,
   health,
+  healthDetail,
   healthCounts,
   upcomingEvents,
   recentActivity,
@@ -157,7 +164,7 @@ export function DashboardContent({
       <QuickActions />
 
       {/* Widget 2: Content Health */}
-      <ContentHealth health={health} healthCounts={healthCounts} />
+      <ContentHealth health={health} healthDetail={healthDetail} healthCounts={healthCounts} />
 
       {/* Widget 3: At a Glance */}
       <AtAGlance counts={counts} />
@@ -234,9 +241,11 @@ function QuickActions() {
 
 function ContentHealth({
   health,
+  healthDetail,
   healthCounts,
 }: {
   health: DashboardContentProps["health"]
+  healthDetail: DashboardContentProps["healthDetail"]
   healthCounts: DashboardContentProps["healthCounts"]
 }) {
   const items = [
@@ -244,6 +253,7 @@ function ContentHealth({
       label: "Messages",
       icon: BookOpen,
       count: healthCounts.messages,
+      detail: healthDetail.messages,
       status: health.messages,
       href: "/cms/messages",
     },
@@ -251,6 +261,7 @@ function ContentHealth({
       label: "Events",
       icon: Calendar,
       count: healthCounts.events,
+      detail: healthDetail.events,
       status: health.events,
       href: "/cms/events",
     },
@@ -258,6 +269,7 @@ function ContentHealth({
       label: "Pages",
       icon: FileText,
       count: healthCounts.pages,
+      detail: healthDetail.pages,
       status: health.pages,
       href: "/cms/website/pages",
     },
@@ -265,6 +277,7 @@ function ContentHealth({
       label: "Media",
       icon: Film,
       count: healthCounts.media,
+      detail: healthDetail.media,
       status: health.media,
       href: "/cms/media",
     },
@@ -286,7 +299,7 @@ function ContentHealth({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">{item.label}</p>
                     <p className="text-xs text-muted-foreground">
-                      {item.count} {item.count === 1 ? "item" : "items"}
+                      {item.count} total &middot; {item.detail}
                     </p>
                   </div>
                   <Badge variant={badge.variant} className="shrink-0">
