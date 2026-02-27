@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getSpeakers, createSpeaker } from '@/lib/dal/speakers'
+import { validateAll, validateTitle, validateSlug, validateLongText, validateEmail, validateUrl } from '@/lib/api/validation'
 
 export async function GET() {
   try {
@@ -25,6 +26,20 @@ export async function POST(request: NextRequest) {
     if (!body.name || !body.slug) {
       return NextResponse.json(
         { success: false, error: { code: 'VALIDATION_ERROR', message: 'name and slug are required' } },
+        { status: 400 },
+      )
+    }
+
+    const validation = validateAll(
+      validateTitle(body.name, 'name'),
+      validateSlug(body.slug),
+      validateLongText(body.bio, 'bio'),
+      validateEmail(body.email, 'email'),
+      validateUrl(body.photoUrl, 'photoUrl'),
+    )
+    if (!validation.valid) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
         { status: 400 },
       )
     }

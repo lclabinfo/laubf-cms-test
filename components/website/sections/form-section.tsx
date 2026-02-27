@@ -33,6 +33,8 @@ export default function FormSection({ content, enableAnimations, colorScheme = "
   const animate = enableAnimations !== false
 
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState("")
   const [checkedInterests, setCheckedInterests] = useState<Set<string>>(new Set())
   const [otherSpecify, setOtherSpecify] = useState("")
   const [bibleTeacher, setBibleTeacher] = useState(false)
@@ -53,9 +55,43 @@ export default function FormSection({ content, enableAnimations, colorScheme = "
     })
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    setSubmitted(true)
+    setSubmitting(true)
+    setError("")
+
+    const form = e.currentTarget
+    const formData = new FormData(form)
+
+    try {
+      const res = await fetch("/api/v1/form-submissions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: formData.get("firstName"),
+          lastName: formData.get("lastName"),
+          email: formData.get("email"),
+          phone: formData.get("phone") || null,
+          interests: Array.from(checkedInterests),
+          otherInterest: otherSpecify || null,
+          campus: selectedCampus || null,
+          otherCampus: otherCampus || null,
+          comments: formData.get("comments") || null,
+          bibleTeacher,
+        }),
+      })
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Something went wrong")
+      }
+
+      setSubmitted(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to submit form. Please try again.")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const inputStyles =
@@ -224,14 +260,19 @@ export default function FormSection({ content, enableAnimations, colorScheme = "
               </span>
             </label>
 
+            {/* Error message */}
+            {error && (
+              <p className="text-sm text-red-600 text-center">{error}</p>
+            )}
+
             {/* Submit button */}
             <CTAButton
-              label={content.submitLabel}
+              label={submitting ? "Submitting..." : content.submitLabel}
               variant="primary"
               size="full"
               theme="light"
               type="submit"
-              className="mt-2"
+              className={cn("mt-2", submitting && "opacity-70 pointer-events-none")}
             />
           </form>
         </div>

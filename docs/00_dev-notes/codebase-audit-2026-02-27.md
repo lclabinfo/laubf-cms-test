@@ -463,23 +463,23 @@ DAL functions exist for some of these operations but no API routes expose them.
 
 ### P2 — Nice to Fix (Polish/optimization)
 
-19. Fix event tags persistence (ContentTag join table)
-20. Add confirmation dialogs for all destructive actions
-21. Build more section-specific editors (currently 16/42)
-22. Fix Quick Links FAB to respect internal vs external links
-23. Add content schema validation to section API endpoints
-24. Fix dashboard media health card for new churches
+19. ✅ Fix event tags persistence (ContentTag join table)
+20. ✅ Add confirmation dialogs for all destructive actions
+21. ⏭️ Build more section-specific editors (currently 16/42) — DEFERRED (scope: 26 new editors, tracked separately)
+22. ✅ Fix Quick Links FAB to respect internal vs external links
+23. ✅ Add content schema validation to section API endpoints
+24. ✅ Fix dashboard media health card for new churches
 25. ~~Remove or build the 4 dead sidebar links~~ ✅ DONE — removed App & Giving groups, moved People under Contents with reduced opacity
 26. ✅ Sanitize `daily-bread-feature.tsx` dangerouslySetInnerHTML
-27. Sanitize custom CSS in ThemeProvider
-28. Add accessibility improvements (aria-labels, prefers-reduced-motion)
-29. Implement page duplicate functionality
-30. Fix modal editor Display tab (empty in modal, works in drawer)
-31. Add HTTP cache headers to public-facing API routes
-32. Make cache revalidation more targeted (per-route instead of full layout)
-33. Strengthen input validation (length limits, format checks, enum validation)
-34. Add RBAC to API routes (before multi-tenant launch)
-35. Fix `form-section.tsx` to actually submit form data
+27. ✅ Sanitize custom CSS in ThemeProvider
+28. ✅ Add accessibility improvements (aria-labels, prefers-reduced-motion)
+29. ✅ Implement page duplicate functionality
+30. ✅ Fix modal editor Display tab (empty in modal, works in drawer)
+31. ✅ Add HTTP cache headers to public-facing API routes
+32. ✅ Make cache revalidation more targeted (per-route instead of full layout)
+33. ✅ Strengthen input validation (length limits, format checks, enum validation)
+34. ✅ Add RBAC to API routes (before multi-tenant launch)
+35. ✅ Fix `form-section.tsx` to actually submit form data
 
 ---
 

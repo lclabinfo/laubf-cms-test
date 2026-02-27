@@ -39,6 +39,7 @@ export interface PageTreeProps {
   onPageSettings: (page: PageSummary) => void
   onAddPage: () => void
   onDeletePage: (pageId: string) => void
+  onDuplicatePage: (pageId: string) => void
   headerMenuItems?: NavTreeMenuItem[]
 }
 
@@ -266,6 +267,7 @@ interface NavTreeItemProps {
   onPageSelect: (pageId: string) => void
   onPageSettings: (page: PageSummary) => void
   onDeletePage: (pageId: string) => void
+  onDuplicatePage: (pageId: string) => void
   pages: PageSummary[]
 }
 
@@ -278,6 +280,7 @@ function NavTreeItem({
   onPageSelect,
   onPageSettings,
   onDeletePage,
+  onDuplicatePage,
   pages,
 }: NavTreeItemProps) {
   const isPage = node.kind === "page" && node.pageId !== null
@@ -440,7 +443,7 @@ function NavTreeItem({
                 <DropdownMenuItem onClick={() => onPageSettings(pageSummary)}>
                   <Settings className="size-3.5 mr-2" /> Settings
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => {/* TODO: duplicate */}}>
+                <DropdownMenuItem onClick={() => onDuplicatePage(node.pageId!)}>
                   <Copy className="size-3.5 mr-2" /> Duplicate
                 </DropdownMenuItem>
                 {!node.isHomepage && (
@@ -490,6 +493,7 @@ function NavTreeItem({
                   onPageSelect={onPageSelect}
                   onPageSettings={onPageSettings}
                   onDeletePage={onDeletePage}
+                  onDuplicatePage={onDuplicatePage}
                   pages={pages}
                 />
               ))}
@@ -512,6 +516,7 @@ export function PageTree({
   onPageSettings,
   onAddPage,
   onDeletePage,
+  onDuplicatePage,
   headerMenuItems,
 }: PageTreeProps) {
   // Build tree: use menu-driven tree if available, fallback to flat page tree
@@ -605,6 +610,7 @@ export function PageTree({
                   onPageSelect={onPageSelect}
                   onPageSettings={onPageSettings}
                   onDeletePage={onDeletePage}
+                  onDuplicatePage={onDuplicatePage}
                   pages={pages}
                 />
               ))}
@@ -630,6 +636,7 @@ export function PageTree({
                       onPageSelect={onPageSelect}
                       onPageSettings={onPageSettings}
                       onDeletePage={onDeletePage}
+                      onDuplicatePage={onDuplicatePage}
                       pages={pages}
                     />
                   ))}

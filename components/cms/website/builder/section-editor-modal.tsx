@@ -159,8 +159,8 @@ function SectionEditorForm({ section, onSave, onCancel }: SectionEditorFormProps
         </div>
 
         {/* Content tab */}
-        <TabsContent value="content" className="flex-1 min-h-0 mt-0 overflow-hidden">
-          <ScrollArea className="h-full">
+        <TabsContent value="content" className="flex-1 min-h-0 mt-0 overflow-hidden flex flex-col">
+          <ScrollArea className="flex-1">
             <div className="px-6 py-4">
               <SectionContentEditor
                 sectionType={section.sectionType}
@@ -172,8 +172,8 @@ function SectionEditorForm({ section, onSave, onCancel }: SectionEditorFormProps
         </TabsContent>
 
         {/* Display tab */}
-        <TabsContent value="display" className="flex-1 min-h-0 mt-0 overflow-hidden">
-          <ScrollArea className="h-full">
+        <TabsContent value="display" className="flex-1 min-h-0 mt-0 overflow-hidden flex flex-col">
+          <ScrollArea className="flex-1">
             <div className="px-6 py-4">
               <DisplaySettings
                 data={displaySettings}
@@ -185,8 +185,8 @@ function SectionEditorForm({ section, onSave, onCancel }: SectionEditorFormProps
 
         {/* Raw JSON tab (only for sections with structured editors) */}
         {isStructured && (
-          <TabsContent value="json" className="flex-1 min-h-0 mt-0 overflow-hidden">
-            <ScrollArea className="h-full">
+          <TabsContent value="json" className="flex-1 min-h-0 mt-0 overflow-hidden flex flex-col">
+            <ScrollArea className="flex-1">
               <div className="px-6 py-4">
                 <JsonEditor
                   content={content}

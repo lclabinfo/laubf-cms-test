@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button"
 
 // ---------- Types ----------
 
-type HealthStatus = "green" | "yellow" | "red"
+type HealthStatus = "green" | "yellow" | "red" | "neutral"
 
 type DashboardCounts = {
   messages: { total: number; published: number; draft: number }
@@ -81,11 +81,12 @@ type DashboardContentProps = {
 
 const healthBadge: Record<
   HealthStatus,
-  { label: string; variant: "success" | "warning" | "destructive" }
+  { label: string; variant: "success" | "warning" | "destructive" | "secondary" }
 > = {
   green: { label: "Healthy", variant: "success" },
   yellow: { label: "Needs attention", variant: "warning" },
   red: { label: "Stale", variant: "destructive" },
+  neutral: { label: "Get started", variant: "secondary" },
 }
 
 function formatTime(time: string | null): string {

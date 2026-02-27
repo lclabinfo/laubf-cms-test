@@ -100,6 +100,10 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const [pendingDeleteSectionId, setPendingDeleteSectionId] = useState<string | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
+  // Page delete confirmation dialog
+  const [pendingDeletePageId, setPendingDeletePageId] = useState<string | null>(null)
+  const [deletePageDialogOpen, setDeletePageDialogOpen] = useState(false)
+
   // Section picker modal
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerInsertIndex, setPickerInsertIndex] = useState(-1)
@@ -776,8 +780,23 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     [pages, pageData.id],
   )
 
+  /** Opens the confirmation dialog before deleting a page. */
   const handleDeletePage = useCallback(
-    async (pageId: string) => {
+    (pageId: string) => {
+      setPendingDeletePageId(pageId)
+      setDeletePageDialogOpen(true)
+    },
+    [],
+  )
+
+  /** Actually performs the page delete after user confirms. */
+  const confirmDeletePage = useCallback(
+    async () => {
+      const pageId = pendingDeletePageId
+      if (!pageId) return
+      setDeletePageDialogOpen(false)
+      setPendingDeletePageId(null)
+
       const target = pages.find((p) => p.id === pageId)
       if (!target) return
 
@@ -806,7 +825,90 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         toast.error("Failed to delete page")
       }
     },
-    [pages, pageData.id, router],
+    [pendingDeletePageId, pages, pageData.id, router],
+  )
+
+  const cancelDeletePage = useCallback(() => {
+    setDeletePageDialogOpen(false)
+    setPendingDeletePageId(null)
+  }, [])
+
+  const handleDuplicatePage = useCallback(
+    async (pageId: string) => {
+      const source = pages.find((p) => p.id === pageId)
+      if (!source) return
+
+      try {
+        // 1. Fetch the source page with sections
+        const pageRes = await fetch(`/api/v1/pages/${source.slug || source.id}`)
+        if (!pageRes.ok) throw new Error("Failed to fetch source page")
+        const { data: fullPage } = await pageRes.json()
+
+        // 2. Create new page with "(Copy)" title and "-copy" slug
+        const newTitle = `${fullPage.title} (Copy)`
+        const newSlug = fullPage.slug ? `${fullPage.slug}-copy` : `page-copy-${Date.now()}`
+
+        const createRes = await fetch("/api/v1/pages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: newTitle,
+            slug: newSlug,
+            pageType: fullPage.pageType,
+            layout: fullPage.layout,
+            isPublished: false,
+            isHomepage: false,
+            sortOrder: fullPage.sortOrder + 1,
+            parentId: fullPage.parentId,
+            metaTitle: fullPage.metaTitle,
+            metaDescription: fullPage.metaDescription,
+          }),
+        })
+        if (!createRes.ok) throw new Error("Failed to create duplicate page")
+        const { data: newPage } = await createRes.json()
+
+        // 3. Copy all sections from source to new page
+        const sourceSections = fullPage.sections ?? []
+        for (let i = 0; i < sourceSections.length; i++) {
+          const s = sourceSections[i]
+          await fetch(`/api/v1/pages/${newSlug}/sections`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              sectionType: s.sectionType,
+              sortOrder: s.sortOrder ?? i,
+              content: s.content,
+              visible: s.visible,
+              colorScheme: s.colorScheme,
+              paddingY: s.paddingY,
+              containerWidth: s.containerWidth,
+              enableAnimations: s.enableAnimations,
+              label: s.label,
+              dataSource: s.dataSource,
+            }),
+          })
+        }
+
+        // 4. Update pages list and navigate to the new page
+        const newPageSummary: PageSummary = {
+          id: newPage.id,
+          slug: newPage.slug,
+          title: newPage.title,
+          pageType: newPage.pageType,
+          isHomepage: newPage.isHomepage,
+          isPublished: newPage.isPublished,
+          sortOrder: newPage.sortOrder,
+          parentId: newPage.parentId,
+        }
+        setPages((prev) => [...prev, newPageSummary])
+        router.push(`/cms/website/builder/${newPage.id}`)
+        toast.success("Page duplicated")
+      } catch (err) {
+        console.error("Duplicate page error:", err)
+        toast.error("Failed to duplicate page")
+      }
+    },
+    [pages, router],
   )
 
   const handlePageCreated = useCallback(
@@ -846,6 +948,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
             onPageSettings={handlePageSettings}
             onAddPage={() => setAddPageOpen(true)}
             onDeletePage={handleDeletePage}
+            onDuplicatePage={handleDuplicatePage}
             headerMenuItems={headerMenuItems}
           />
         )
@@ -1013,6 +1116,30 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
               onClick={confirmDeleteSection}
             >
               Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Page Delete Confirmation Dialog */}
+      <AlertDialog open={deletePageDialogOpen} onOpenChange={setDeletePageDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete page?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete &quot;{pages.find((p) => p.id === pendingDeletePageId)?.title}&quot; and all its
+              sections. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDeletePage}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={confirmDeletePage}
+            >
+              Delete Page
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

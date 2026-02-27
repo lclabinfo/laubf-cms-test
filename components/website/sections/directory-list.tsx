@@ -109,6 +109,7 @@ function DirectoryMobileBlock({
                 height="24"
                 viewBox="0 0 48 48"
                 fill="none"
+                aria-hidden="true"
                 className="text-black-3 opacity-0 transition-opacity group-hover:opacity-100 shrink-0"
               >
                 <path
@@ -227,6 +228,7 @@ function DirectoryLink({ name, href }: { name: string; href: string }) {
           height="48"
           viewBox="0 0 48 48"
           fill="none"
+          aria-hidden="true"
           className="text-black-1"
         >
           <path

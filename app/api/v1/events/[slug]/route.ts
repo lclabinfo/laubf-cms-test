@@ -4,6 +4,7 @@ import { getChurchId } from '@/lib/api/get-church-id'
 import { getEventBySlug, updateEvent, deleteEvent } from '@/lib/dal/events'
 import { getMinistryBySlug } from '@/lib/dal/ministries'
 import { getCampusBySlug } from '@/lib/dal/campuses'
+import { requireApiAuth } from '@/lib/api/require-auth'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -20,7 +21,9 @@ export async function GET(_request: NextRequest, { params }: Params) {
       )
     }
 
-    return NextResponse.json({ success: true, data: event })
+    const response = NextResponse.json({ success: true, data: event })
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    return response
   } catch (error) {
     console.error('GET /api/v1/events/[slug] error:', error)
     return NextResponse.json(
@@ -32,6 +35,9 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
+    const authResult = await requireApiAuth('EDITOR')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const { slug } = await params
     const body = await request.json()
@@ -111,10 +117,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       }
     }
 
-    const updated = await updateEvent(churchId, existing.id, data)
+    // Extract tags for sync (stored via ContentTag join table, not on Event model)
+    const tagNames: string[] | undefined = Array.isArray(body.tags) ? body.tags : undefined
+
+    const updated = await updateEvent(churchId, existing.id, data, tagNames)
 
     // Revalidate public website pages that display events
-    revalidatePath('/website', 'layout')
+    revalidatePath('/website')
+    revalidatePath('/website/events')
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -128,6 +138,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
+    const authResult = await requireApiAuth('ADMIN')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const { slug } = await params
 
@@ -142,7 +155,8 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     await deleteEvent(churchId, existing.id)
 
     // Revalidate public website pages that display events
-    revalidatePath('/website', 'layout')
+    revalidatePath('/website')
+    revalidatePath('/website/events')
 
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {

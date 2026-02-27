@@ -81,6 +81,11 @@ export default function PhotoGallerySection({ content, enableAnimations, colorSc
           .animate-carousel:hover {
             animation-play-state: paused;
           }
+          @media (prefers-reduced-motion: reduce) {
+            .animate-carousel {
+              animation: none;
+            }
+          }
         `}} />
       </section>
     </SectionThemeContext.Provider>

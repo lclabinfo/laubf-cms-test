@@ -70,8 +70,6 @@ type NavGroup = {
 
 // Items that are stubs / not yet implemented get reduced opacity
 const STUB_HREFS = new Set([
-  "/cms/people/members",
-  "/cms/people/groups",
   "/cms/people/directory",
 ])
 

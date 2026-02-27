@@ -18,7 +18,9 @@ export async function GET(_request: NextRequest, { params }: Params) {
       )
     }
 
-    return NextResponse.json({ success: true, data: study })
+    const response = NextResponse.json({ success: true, data: study })
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    return response
   } catch (error) {
     console.error('GET /api/v1/bible-studies/[slug] error:', error)
     return NextResponse.json(
@@ -45,7 +47,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const updated = await updateBibleStudy(churchId, existing.id, body)
 
     // Revalidate public website pages that display bible studies
-    revalidatePath('/website', 'layout')
+    revalidatePath('/website')
+    revalidatePath('/website/bible-studies')
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -73,7 +76,8 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     await deleteBibleStudy(churchId, existing.id)
 
     // Revalidate public website pages that display bible studies
-    revalidatePath('/website', 'layout')
+    revalidatePath('/website')
+    revalidatePath('/website/bible-studies')
 
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {

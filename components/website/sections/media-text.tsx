@@ -47,6 +47,18 @@ const MOBILE_SCROLL_DURATION = 30
 
 /* ---------- Desktop: Circular rotating wheel ---------- */
 
+function usePrefersReducedMotion() {
+  const [prefersReduced, setPrefersReduced] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
+    setPrefersReduced(mq.matches)
+    const handler = (e: MediaQueryListEvent) => setPrefersReduced(e.matches)
+    mq.addEventListener("change", handler)
+    return () => mq.removeEventListener("change", handler)
+  }, [])
+  return prefersReduced
+}
+
 function RotatingWheel({
   images,
   speed,
@@ -56,6 +68,7 @@ function RotatingWheel({
 }) {
   const [isPaused, setIsPaused] = useState(false)
   const controls = useAnimationControls()
+  const prefersReduced = usePrefersReducedMotion()
 
   const shouldRotate = images.length >= 3
 
@@ -75,7 +88,10 @@ function RotatingWheel({
   const angleStep = 360 / totalImages
 
   useEffect(() => {
-    if (!shouldRotate) return
+    if (!shouldRotate || prefersReduced) {
+      controls.stop()
+      return
+    }
     controls.start({
       rotate: -360,
       transition: {
@@ -84,10 +100,10 @@ function RotatingWheel({
         repeat: Infinity,
       },
     })
-  }, [isPaused, shouldRotate, controls, speed])
+  }, [isPaused, shouldRotate, controls, speed, prefersReduced])
 
   useEffect(() => {
-    if (shouldRotate) {
+    if (shouldRotate && !prefersReduced) {
       controls.start({
         rotate: -360,
         transition: {
@@ -159,6 +175,7 @@ function MobileCarousel({
   images: SectionImage[]
   themeColor: string
 }) {
+  const prefersReduced = usePrefersReducedMotion()
   const duplicated = [...images, ...images, ...images]
 
   return (
@@ -178,10 +195,10 @@ function MobileCarousel({
 
       <motion.div
         className="flex gap-4 absolute"
-        animate={{
+        animate={prefersReduced ? undefined : {
           x: [0, -1 * images.length * (MOBILE_ITEM_W + MOBILE_GAP)],
         }}
-        transition={{
+        transition={prefersReduced ? undefined : {
           duration: MOBILE_SCROLL_DURATION,
           ease: "linear",
           repeat: Infinity,

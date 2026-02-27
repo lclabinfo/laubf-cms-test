@@ -4,6 +4,8 @@ import { getChurchId } from '@/lib/api/get-church-id'
 import { getMessages, createMessage, type MessageFilters } from '@/lib/dal/messages'
 import { syncMessageStudy } from '@/lib/dal/sync-message-study'
 import { ContentStatus } from '@/lib/generated/prisma/client'
+import { validateAll, validateTitle, validateSlug, validateLongText, validateUrl, validateEnum, CONTENT_STATUS_VALUES } from '@/lib/api/validation'
+import { requireApiAuth } from '@/lib/api/require-auth'
 
 export async function GET(request: NextRequest) {
   try {
@@ -25,7 +27,7 @@ export async function GET(request: NextRequest) {
 
     const result = await getMessages(churchId, filters)
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: result.data,
       pagination: {
@@ -35,6 +37,8 @@ export async function GET(request: NextRequest) {
         totalPages: result.totalPages,
       },
     })
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    return response
   } catch (error) {
     console.error('GET /api/v1/messages error:', error)
     return NextResponse.json(
@@ -46,12 +50,24 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireApiAuth('EDITOR')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const body = await request.json()
 
-    if (!body.title || !body.slug) {
+    const validation = validateAll(
+      validateTitle(body.title),
+      validateSlug(body.slug),
+      validateLongText(body.description, 'description'),
+      validateLongText(body.body, 'body'),
+      validateUrl(body.videoUrl, 'videoUrl'),
+      validateUrl(body.audioUrl, 'audioUrl'),
+      validateEnum(body.status, CONTENT_STATUS_VALUES, 'status'),
+    )
+    if (!validation.valid) {
       return NextResponse.json(
-        { success: false, error: { code: 'VALIDATION_ERROR', message: 'title and slug are required' } },
+        { success: false, error: validation.error },
         { status: 400 },
       )
     }
@@ -85,7 +101,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Revalidate public website pages that display messages and bible studies
-    revalidatePath('/website', 'layout')
+    revalidatePath('/website')
+    revalidatePath('/website/messages')
+    revalidatePath('/website/bible-studies')
 
     return NextResponse.json({ success: true, data: message }, { status: 201 })
   } catch (error) {

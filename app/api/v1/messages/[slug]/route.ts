@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getMessageBySlug, updateMessage, deleteMessage } from '@/lib/dal/messages'
 import { syncMessageStudy, unlinkMessageStudy } from '@/lib/dal/sync-message-study'
+import { requireApiAuth } from '@/lib/api/require-auth'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -19,7 +20,9 @@ export async function GET(_request: NextRequest, { params }: Params) {
       )
     }
 
-    return NextResponse.json({ success: true, data: message })
+    const response = NextResponse.json({ success: true, data: message })
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    return response
   } catch (error) {
     console.error('GET /api/v1/messages/[slug] error:', error)
     return NextResponse.json(
@@ -31,6 +34,9 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
+    const authResult = await requireApiAuth('EDITOR')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const { slug } = await params
     const body = await request.json()
@@ -93,7 +99,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
 
     // Revalidate public website pages that display messages and bible studies
-    revalidatePath('/website', 'layout')
+    revalidatePath('/website')
+    revalidatePath('/website/messages')
+    revalidatePath('/website/bible-studies')
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -107,6 +115,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
+    const authResult = await requireApiAuth('ADMIN')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const { slug } = await params
 
@@ -130,7 +141,9 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     await deleteMessage(churchId, existing.id)
 
     // Revalidate public website pages that display messages and bible studies
-    revalidatePath('/website', 'layout')
+    revalidatePath('/website')
+    revalidatePath('/website/messages')
+    revalidatePath('/website/bible-studies')
 
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {

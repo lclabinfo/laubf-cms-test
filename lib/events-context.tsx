@@ -128,7 +128,7 @@ function apiEventToCms(apiEvt: any): ChurchEvent {
     contacts: apiEvt.contacts ?? undefined,
     coverImage: apiEvt.coverImage ?? undefined,
     imageAlt: apiEvt.imageAlt ?? undefined,
-    tags: [], // TODO: Fetch tags from ContentTag join table
+    tags: (apiEvt.tags ?? []).map((ct: { tag: { name: string } }) => `#${ct.tag.name}`),
     registrationUrl: apiEvt.registrationUrl ?? undefined,
     links: (apiEvt.eventLinks ?? []).map((l: { label: string; href: string; external?: boolean }) => ({
       label: l.label,
@@ -169,6 +169,8 @@ function cmsEventToApiCreate(data: Omit<ChurchEvent, "id">) {
     // Send ministry/campus slugs for server-side resolution to UUIDs
     ministrySlug: data.ministry && data.ministry !== "church-wide" ? data.ministry : null,
     campusSlug: data.campus && data.campus !== "all" ? data.campus : null,
+    // Tags: send as string array, API will sync via ContentTag join table
+    tags: data.tags ?? [],
   }
 }
 
@@ -290,6 +292,8 @@ export function EventsProvider({ children }: { children: ReactNode }) {
       if (data.campus !== undefined) {
         payload.campusSlug = data.campus && data.campus !== "all" ? data.campus : null
       }
+      // Tags: send as string array, API will sync via ContentTag join table
+      if (data.tags !== undefined) payload.tags = data.tags ?? []
 
       fetch(`/api/v1/events/${evt.slug}`, {
         method: "PATCH",

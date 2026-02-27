@@ -1,5 +1,38 @@
 import { getThemeWithCustomization } from '@/lib/dal/theme'
 
+/**
+ * Sanitize custom CSS to prevent XSS vectors.
+ * Strips script injection, JS expressions, external resource loading, and
+ * IE-specific behavior properties.
+ */
+function sanitizeCss(css: string): string {
+  let sanitized = css
+
+  // Remove anything that looks like <script> or </script> tags
+  sanitized = sanitized.replace(/<\/?script[^>]*>/gi, '')
+
+  // Remove expression() — IE CSS expression XSS
+  sanitized = sanitized.replace(/expression\s*\(/gi, '')
+
+  // Remove url(javascript:...) vectors
+  sanitized = sanitized.replace(/url\s*\(\s*(['"]?\s*javascript\s*:)/gi, 'url(about:invalid')
+
+  // Remove @import rules (could load external stylesheets)
+  sanitized = sanitized.replace(/@import\b[^;]*;?/gi, '')
+
+  // Remove behavior: property (IE-specific, loads .htc files)
+  sanitized = sanitized.replace(/behavior\s*:/gi, '')
+
+  // Remove -moz-binding (Firefox XBL binding, legacy XSS vector)
+  sanitized = sanitized.replace(/-moz-binding\s*:/gi, '')
+
+  if (sanitized !== css) {
+    console.warn('[ThemeProvider] Stripped potentially unsafe content from custom CSS')
+  }
+
+  return sanitized
+}
+
 interface ThemeProviderProps {
   churchId: string
   children: React.ReactNode
@@ -31,7 +64,8 @@ export async function ThemeProvider({ churchId, children }: ThemeProviderProps) 
     tokens['--ws-font-heading'] = `"${customization.headingFont}", ui-serif, Georgia, serif`
   }
 
-  const customCss = customization?.customCss || ''
+  const rawCustomCss = customization?.customCss || ''
+  const customCss = rawCustomCss ? sanitizeCss(rawCustomCss) : ''
 
   return (
     <div data-website="" style={tokens as React.CSSProperties}>

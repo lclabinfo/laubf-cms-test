@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { MessageSquare, Pin, PinOff, Lock, Pencil, Trash2 } from "lucide-react"
+import { MessageSquare, Pin, PinOff, Lock, Pencil, Trash2, TriangleAlert } from "lucide-react"
 import { toast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import type { PersonDetail } from "./types"
 
 const noteTypeVariant: Record<string, "default" | "info" | "warning" | "success" | "destructive" | "secondary"> = {
@@ -58,6 +69,7 @@ export function ProfileNotes({ person, churchId, onUpdate }: Props) {
   const [submitting, setSubmitting] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editContent, setEditContent] = useState("")
+  const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null)
 
   const notes = person.personNotes
   const filteredNotes = filter === "ALL"
@@ -107,10 +119,15 @@ export function ProfileNotes({ person, churchId, onUpdate }: Props) {
     }
   }
 
-  const handleDelete = async (noteId: string) => {
-    if (!confirm("Delete this note?")) return
+  const handleDeleteClick = (noteId: string) => {
+    setDeleteNoteId(noteId)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteNoteId) return
+    setDeleteNoteId(null)
     try {
-      const res = await fetch(`/api/v1/people/${person.id}/notes/${noteId}`, {
+      const res = await fetch(`/api/v1/people/${person.id}/notes/${deleteNoteId}`, {
         method: "DELETE",
       })
       if (!res.ok) throw new Error("Failed to delete")
@@ -261,7 +278,7 @@ export function ProfileNotes({ person, churchId, onUpdate }: Props) {
                       variant="ghost"
                       size="icon"
                       className="size-7 text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(note.id)}
+                      onClick={() => handleDeleteClick(note.id)}
                     >
                       <Trash2 className="size-3.5" />
                       <span className="sr-only">Delete</span>
@@ -302,6 +319,27 @@ export function ProfileNotes({ person, churchId, onUpdate }: Props) {
           </p>
         )}
       </CardContent>
+
+      {/* Delete note confirmation */}
+      <AlertDialog open={!!deleteNoteId} onOpenChange={(open) => !open && setDeleteNoteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10">
+              <TriangleAlert className="text-destructive" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Delete note?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This note will be permanently deleted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmDelete}>
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   )
 }

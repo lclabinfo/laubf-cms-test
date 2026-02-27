@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getPageBySlugOrId, updatePageSection, deletePageSection } from '@/lib/dal/pages'
+import { validateSectionContent, validateSectionUpdateFields } from '@/lib/api/validation'
 
 type Params = { params: Promise<{ slug: string; id: string }> }
 
@@ -10,6 +11,24 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const churchId = await getChurchId()
     const { slug, id } = await params
     const body = await request.json()
+
+    // Validate allowed fields (prevent mass-assignment)
+    const fieldsResult = validateSectionUpdateFields(body)
+    if (!fieldsResult.valid) {
+      return NextResponse.json(
+        { success: false, error: fieldsResult.error },
+        { status: 400 },
+      )
+    }
+
+    // Validate content structure if present
+    const contentResult = validateSectionContent(body.content)
+    if (!contentResult.valid) {
+      return NextResponse.json(
+        { success: false, error: contentResult.error },
+        { status: 400 },
+      )
+    }
 
     const updated = await updatePageSection(churchId, id, body)
 

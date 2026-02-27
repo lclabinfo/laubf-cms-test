@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useRef, useEffect } from "react"
+import Link from "next/link"
 import {
   ArrowUp,
   Link as LinkIcon,
@@ -9,6 +10,10 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getLucideIcon, ICON_MAP } from "./icon-map"
+
+function isExternalHref(href: string): boolean {
+  return /^https?:\/\//.test(href)
+}
 
 /* ── Types ── */
 
@@ -131,14 +136,10 @@ export default function QuickLinksFAB({
 
           {links.map((link) => {
             const Icon = getLucideIcon(link.icon) ?? FALLBACK_ICON
-            return (
-              <a
-                key={link.label}
-                href={link.href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 px-3 py-3 rounded-xl transition-colors duration-150 hover:bg-white-1-5 group"
-              >
+            const external = isExternalHref(link.href)
+            const linkClasses = "flex items-center gap-3 px-3 py-3 rounded-xl transition-colors duration-150 hover:bg-white-1-5 group"
+            const linkContent = (
+              <>
                 <div className="flex items-center justify-center size-9 rounded-lg bg-white-1-5 border border-white-2 transition-colors duration-150 group-hover:bg-white-2 shrink-0">
                   <Icon
                     className="size-[18px] text-black-2"
@@ -155,11 +156,34 @@ export default function QuickLinksFAB({
                     </span>
                   )}
                 </div>
-                <SquareArrowOutUpRight
-                  className="size-[18px] text-black-3 shrink-0 ml-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-                  strokeWidth={1.5}
-                />
+                {external && (
+                  <SquareArrowOutUpRight
+                    className="size-[18px] text-black-3 shrink-0 ml-3 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                    strokeWidth={1.5}
+                  />
+                )}
+              </>
+            )
+
+            return external ? (
+              <a
+                key={link.label}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={linkClasses}
+              >
+                {linkContent}
               </a>
+            ) : (
+              <Link
+                key={link.label}
+                href={link.href}
+                className={linkClasses}
+                onClick={() => setIsOpen(false)}
+              >
+                {linkContent}
+              </Link>
             )
           })}
         </div>

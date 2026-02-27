@@ -118,7 +118,8 @@ export default async function DashboardPage() {
   const now = new Date()
 
   // Message health: based on latest published message date
-  let messageHealth: "green" | "yellow" | "red" = "green"
+  // For new churches with no messages, show neutral "Get started" instead of alarming red
+  let messageHealth: "green" | "yellow" | "red" | "neutral" = "green"
   if (latestMessage) {
     const daysSinceLastMessage = Math.floor(
       (now.getTime() - new Date(latestMessage.dateFor).getTime()) /
@@ -127,17 +128,24 @@ export default async function DashboardPage() {
     if (daysSinceLastMessage > 30) messageHealth = "red"
     else if (daysSinceLastMessage > 14) messageHealth = "yellow"
   } else {
-    messageHealth = "red"
+    messageHealth = messageCountAll === 0 ? "neutral" : "red"
   }
 
   // Event health: based on upcoming event count
-  let eventHealth: "green" | "yellow" | "red" = "green"
-  if (eventCountUpcoming === 0) eventHealth = "red"
-  else if (eventCountUpcoming < 3) eventHealth = "yellow"
+  // For new churches with no events at all, show neutral instead of red
+  let eventHealth: "green" | "yellow" | "red" | "neutral" = "green"
+  if (eventCountUpcoming === 0) {
+    const totalEvents = eventCountUpcoming + eventCountPast
+    eventHealth = totalEvents === 0 ? "neutral" : "red"
+  } else if (eventCountUpcoming < 3) {
+    eventHealth = "yellow"
+  }
 
   // Page health: based on page freshness
-  let pageHealth: "green" | "yellow" | "red" = "green"
-  if (pagesForHealth.length > 0) {
+  let pageHealth: "green" | "yellow" | "red" | "neutral" = "green"
+  if (pagesForHealth.length === 0) {
+    pageHealth = "neutral"
+  } else {
     const daysSinceUpdates = pagesForHealth.map((p) =>
       Math.floor(
         (now.getTime() - new Date(p.updatedAt).getTime()) /
@@ -268,7 +276,7 @@ export default async function DashboardPage() {
         messages: messageHealth,
         events: eventHealth,
         pages: pageHealth,
-        media: videoCountAll === 0 ? "yellow" : "green",
+        media: videoCountAll === 0 ? "neutral" : "green",
       }}
       healthDetail={{
         messages: messageHealthDetail,

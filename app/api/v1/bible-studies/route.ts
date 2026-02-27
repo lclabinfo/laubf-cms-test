@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getBibleStudies, createBibleStudy, type BibleStudyFilters } from '@/lib/dal/bible-studies'
 import { ContentStatus, type BibleBook } from '@/lib/generated/prisma/client'
+import { validateAll, validateTitle, validateSlug, validateEnum, CONTENT_STATUS_VALUES } from '@/lib/api/validation'
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     const result = await getBibleStudies(churchId, filters)
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: result.data,
       pagination: {
@@ -30,6 +31,8 @@ export async function GET(request: NextRequest) {
         totalPages: result.totalPages,
       },
     })
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    return response
   } catch (error) {
     console.error('GET /api/v1/bible-studies error:', error)
     return NextResponse.json(
@@ -51,10 +54,23 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const validation = validateAll(
+      validateTitle(body.title),
+      validateSlug(body.slug),
+      validateEnum(body.status, CONTENT_STATUS_VALUES, 'status'),
+    )
+    if (!validation.valid) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 },
+      )
+    }
+
     const study = await createBibleStudy(churchId, body)
 
     // Revalidate public website pages that display bible studies
-    revalidatePath('/website', 'layout')
+    revalidatePath('/website')
+    revalidatePath('/website/bible-studies')
 
     return NextResponse.json({ success: true, data: study }, { status: 201 })
   } catch (error) {

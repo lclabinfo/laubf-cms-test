@@ -5,6 +5,8 @@ import { getEvents, createEvent, type EventFilters } from '@/lib/dal/events'
 import { getMinistryBySlug } from '@/lib/dal/ministries'
 import { getCampusBySlug } from '@/lib/dal/campuses'
 import { ContentStatus, type EventType } from '@/lib/generated/prisma/client'
+import { validateAll, validateTitle, validateSlug, validateLongText, validateUrl, validateEnum, CONTENT_STATUS_VALUES, EVENT_TYPE_VALUES } from '@/lib/api/validation'
+import { requireApiAuth } from '@/lib/api/require-auth'
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,7 +32,7 @@ export async function GET(request: NextRequest) {
 
     const result = await getEvents(churchId, filters)
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: result.data,
       pagination: {
@@ -40,6 +42,8 @@ export async function GET(request: NextRequest) {
         totalPages: result.totalPages,
       },
     })
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    return response
   } catch (error) {
     console.error('GET /api/v1/events error:', error)
     return NextResponse.json(
@@ -51,12 +55,33 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireApiAuth('EDITOR')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const body = await request.json()
 
     if (!body.title || !body.slug || !body.dateStart) {
       return NextResponse.json(
         { success: false, error: { code: 'VALIDATION_ERROR', message: 'title, slug, and dateStart are required' } },
+        { status: 400 },
+      )
+    }
+
+    const validation = validateAll(
+      validateTitle(body.title),
+      validateSlug(body.slug),
+      validateLongText(body.description, 'description'),
+      validateLongText(body.shortDescription, 'shortDescription'),
+      validateUrl(body.meetingUrl, 'meetingUrl'),
+      validateUrl(body.registrationUrl, 'registrationUrl'),
+      validateUrl(body.coverImage, 'coverImage'),
+      validateEnum(body.status, CONTENT_STATUS_VALUES, 'status'),
+      validateEnum(body.type, EVENT_TYPE_VALUES, 'type'),
+    )
+    if (!validation.valid) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
         { status: 400 },
       )
     }
@@ -128,10 +153,14 @@ export async function POST(request: NextRequest) {
       data.publishedAt = new Date()
     }
 
-    const event = await createEvent(churchId, data as Parameters<typeof createEvent>[1])
+    // Extract tags before creating (tags are stored via ContentTag join table, not on Event model)
+    const tagNames: string[] | undefined = Array.isArray(body.tags) ? body.tags : undefined
+
+    const event = await createEvent(churchId, data as Parameters<typeof createEvent>[1], tagNames)
 
     // Revalidate public website pages that display events
-    revalidatePath('/website', 'layout')
+    revalidatePath('/website')
+    revalidatePath('/website/events')
 
     return NextResponse.json({ success: true, data: event }, { status: 201 })
   } catch (error) {
