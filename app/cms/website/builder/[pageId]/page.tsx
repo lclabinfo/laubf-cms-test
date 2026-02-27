@@ -8,6 +8,7 @@ import { getSiteSettings } from "@/lib/dal/site-settings"
 import { FontLoader } from "@/components/website/font-loader"
 import { BuilderShell } from "@/components/cms/website/builder/builder-shell"
 import type { SectionType } from "@/lib/db/types"
+import type { NavTreeMenuItem } from "@/components/cms/website/builder/types"
 
 interface BuilderPageProps {
   params: Promise<{ pageId: string }>
@@ -118,6 +119,31 @@ export default async function BuilderPage({ params }: BuilderPageProps) {
     parentId: p.parentId,
   }))
 
+  // Serialize header menu items for the nav-driven page tree
+  type RawMenuItem = {
+    id: string
+    label: string
+    href: string | null
+    isExternal: boolean
+    groupLabel: string | null
+    sortOrder: number
+    children?: RawMenuItem[]
+  }
+  function serializeMenuItems(items: RawMenuItem[]): NavTreeMenuItem[] {
+    return items.map((item) => ({
+      id: item.id,
+      label: item.label,
+      href: item.href,
+      isExternal: item.isExternal,
+      groupLabel: item.groupLabel,
+      sortOrder: item.sortOrder,
+      children: serializeMenuItems(item.children ?? []),
+    }))
+  }
+  const headerMenuItems: NavTreeMenuItem[] = headerMenu?.items
+    ? serializeMenuItems(headerMenu.items as RawMenuItem[])
+    : []
+
   return (
     <>
       <FontLoader churchId={churchId} />
@@ -128,6 +154,7 @@ export default async function BuilderPage({ params }: BuilderPageProps) {
         websiteThemeTokens={websiteThemeTokens}
         websiteCustomCss={websiteCustomCss}
         navbarData={navbarData}
+        headerMenuItems={headerMenuItems}
       />
     </>
   )

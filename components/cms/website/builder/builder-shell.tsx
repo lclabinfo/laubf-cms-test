@@ -36,6 +36,7 @@ import type {
   BuilderPage,
   BuilderSection,
   PageSummary,
+  NavTreeMenuItem,
 } from "./types"
 import type { SectionType } from "@/lib/db/types"
 
@@ -74,9 +75,10 @@ interface BuilderShellProps {
   websiteThemeTokens?: Record<string, string>
   websiteCustomCss?: string
   navbarData?: NavbarData
+  headerMenuItems?: NavTreeMenuItem[]
 }
 
-export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, websiteCustomCss, navbarData }: BuilderShellProps) {
+export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, websiteCustomCss, navbarData, headerMenuItems }: BuilderShellProps) {
   const router = useRouter()
   const [activeTool, setActiveTool] = useState<BuilderTool>(null)
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
@@ -805,6 +807,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
             onPageSettings={handlePageSettings}
             onAddPage={() => setAddPageOpen(true)}
             onDeletePage={handleDeletePage}
+            headerMenuItems={headerMenuItems}
           />
         )
       case "design":

@@ -45,3 +45,35 @@ export interface PageSummary {
   sortOrder: number
   parentId: string | null
 }
+
+// ---------------------------------------------------------------------------
+// Nav-driven page tree types
+// ---------------------------------------------------------------------------
+
+/** Serialized menu item passed from the server component. */
+export interface NavTreeMenuItem {
+  id: string
+  label: string
+  href: string | null
+  isExternal: boolean
+  groupLabel: string | null
+  sortOrder: number
+  children: NavTreeMenuItem[]
+}
+
+export type NavTreeNodeKind = "page" | "folder" | "link"
+
+/** A node in the navigation-driven page tree. */
+export interface NavTreeNode {
+  id: string
+  label: string
+  kind: NavTreeNodeKind
+  pageId: string | null
+  pageType: PageType | null
+  isHomepage: boolean
+  isPublished: boolean
+  href: string | null
+  isExternal: boolean
+  groupLabel: string | null
+  children: NavTreeNode[]
+}
