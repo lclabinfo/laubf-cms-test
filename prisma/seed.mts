@@ -3948,6 +3948,497 @@ async function main() {
   console.log('  Created giving page')
 
   // ============================================================
+  // People & Member Management
+  // ============================================================
+  console.log('\nSeeding people & member management...')
+
+  // --- People ---
+  const peopleData = [
+    { slug: 'james-park', firstName: 'James', lastName: 'Park', preferredName: 'Jim', gender: 'MALE', maritalStatus: 'MARRIED', dateOfBirth: '1975-03-15', email: 'james.park@email.com', phone: '213-555-0101', mobilePhone: '213-555-0102', city: 'Los Angeles', state: 'CA', zipCode: '90012', country: 'US', membershipStatus: 'MEMBER', membershipDate: '2005-06-01', baptismDate: '2004-12-25', salvationDate: '2003-08-15', source: 'Church Plant' },
+    { slug: 'sarah-park', firstName: 'Sarah', lastName: 'Park', gender: 'FEMALE', maritalStatus: 'MARRIED', dateOfBirth: '1978-07-22', email: 'sarah.park@email.com', phone: '213-555-0103', mobilePhone: '213-555-0104', city: 'Los Angeles', state: 'CA', zipCode: '90012', country: 'US', membershipStatus: 'MEMBER', membershipDate: '2006-01-15', baptismDate: '2005-06-12', salvationDate: '2004-03-20', source: 'Church Plant' },
+    { slug: 'daniel-park', firstName: 'Daniel', lastName: 'Park', gender: 'MALE', dateOfBirth: '2005-11-03', city: 'Los Angeles', state: 'CA', zipCode: '90012', country: 'US', membershipStatus: 'REGULAR_ATTENDEE', source: 'Born into church family' },
+    { slug: 'grace-park', firstName: 'Grace', lastName: 'Park', gender: 'FEMALE', dateOfBirth: '2008-04-18', city: 'Los Angeles', state: 'CA', zipCode: '90012', country: 'US', membershipStatus: 'REGULAR_ATTENDEE', source: 'Born into church family' },
+    { slug: 'michael-kim', firstName: 'Michael', lastName: 'Kim', preferredName: 'Mike', gender: 'MALE', maritalStatus: 'MARRIED', dateOfBirth: '1980-01-10', email: 'michael.kim@email.com', phone: '213-555-0201', mobilePhone: '213-555-0202', city: 'Pasadena', state: 'CA', zipCode: '91101', country: 'US', membershipStatus: 'MEMBER', membershipDate: '2010-09-01', baptismDate: '2009-04-12', salvationDate: '2008-11-30', source: 'Invited by friend' },
+    { slug: 'jennifer-kim', firstName: 'Jennifer', lastName: 'Kim', preferredName: 'Jen', gender: 'FEMALE', maritalStatus: 'MARRIED', dateOfBirth: '1982-05-28', email: 'jennifer.kim@email.com', phone: '213-555-0203', city: 'Pasadena', state: 'CA', zipCode: '91101', country: 'US', membershipStatus: 'MEMBER', membershipDate: '2011-03-15', baptismDate: '2010-12-25', salvationDate: '2010-06-01', source: 'Married into church' },
+    { slug: 'ethan-kim', firstName: 'Ethan', lastName: 'Kim', gender: 'MALE', dateOfBirth: '2012-09-14', city: 'Pasadena', state: 'CA', zipCode: '91101', country: 'US', membershipStatus: 'REGULAR_ATTENDEE', source: 'Born into church family' },
+    { slug: 'david-lee', firstName: 'David', lastName: 'Lee', gender: 'MALE', maritalStatus: 'MARRIED', dateOfBirth: '1970-12-05', email: 'david.lee@email.com', phone: '626-555-0301', mobilePhone: '626-555-0302', city: 'Glendale', state: 'CA', zipCode: '91201', country: 'US', membershipStatus: 'MEMBER', membershipDate: '2000-01-01', baptismDate: '1998-12-25', salvationDate: '1997-06-15', source: 'Founding member' },
+    { slug: 'hannah-lee', firstName: 'Hannah', lastName: 'Lee', gender: 'FEMALE', maritalStatus: 'MARRIED', dateOfBirth: '1972-08-19', email: 'hannah.lee@email.com', phone: '626-555-0303', city: 'Glendale', state: 'CA', zipCode: '91201', country: 'US', membershipStatus: 'MEMBER', membershipDate: '2001-06-01', baptismDate: '2000-12-25', salvationDate: '1999-09-01', source: 'Founding member' },
+    { slug: 'joshua-lee', firstName: 'Joshua', lastName: 'Lee', gender: 'MALE', maritalStatus: 'SINGLE', dateOfBirth: '1998-02-14', email: 'joshua.lee@email.com', mobilePhone: '626-555-0304', city: 'Glendale', state: 'CA', zipCode: '91201', country: 'US', membershipStatus: 'MEMBER', membershipDate: '2018-06-01', baptismDate: '2017-04-16', salvationDate: '2016-08-20', source: 'Grew up in church' },
+    { slug: 'rachel-lee', firstName: 'Rachel', lastName: 'Lee', gender: 'FEMALE', maritalStatus: 'SINGLE', dateOfBirth: '2001-06-30', email: 'rachel.lee@email.com', mobilePhone: '626-555-0305', city: 'Glendale', state: 'CA', zipCode: '91201', country: 'US', membershipStatus: 'REGULAR_ATTENDEE', source: 'Grew up in church' },
+    { slug: 'kevin-cho', firstName: 'Kevin', lastName: 'Cho', gender: 'MALE', maritalStatus: 'SINGLE', dateOfBirth: '1995-04-25', email: 'kevin.cho@email.com', mobilePhone: '310-555-0401', city: 'Santa Monica', state: 'CA', zipCode: '90401', country: 'US', membershipStatus: 'MEMBER', membershipDate: '2020-01-15', baptismDate: '2019-12-25', salvationDate: '2019-03-10', source: 'Campus outreach' },
+    { slug: 'amy-chen', firstName: 'Amy', lastName: 'Chen', gender: 'FEMALE', maritalStatus: 'SINGLE', dateOfBirth: '1997-10-12', email: 'amy.chen@email.com', mobilePhone: '310-555-0501', city: 'West Los Angeles', state: 'CA', zipCode: '90025', country: 'US', membershipStatus: 'REGULAR_ATTENDEE', source: 'Campus outreach' },
+    { slug: 'peter-wong', firstName: 'Peter', lastName: 'Wong', gender: 'MALE', maritalStatus: 'SINGLE', dateOfBirth: '2000-01-20', email: 'peter.wong@email.com', mobilePhone: '213-555-0601', city: 'Downtown LA', state: 'CA', zipCode: '90015', country: 'US', membershipStatus: 'VISITOR', source: 'Online search' },
+    { slug: 'jessica-yun', firstName: 'Jessica', lastName: 'Yun', gender: 'FEMALE', maritalStatus: 'SINGLE', dateOfBirth: '1999-08-08', email: 'jessica.yun@email.com', mobilePhone: '213-555-0701', city: 'Koreatown', state: 'CA', zipCode: '90005', country: 'US', membershipStatus: 'VISITOR', source: 'Friend invitation' },
+    { slug: 'william-choi', firstName: 'William', lastName: 'Choi', gender: 'MALE', maritalStatus: 'DIVORCED', dateOfBirth: '1985-11-15', email: 'william.choi@email.com', phone: '818-555-0801', city: 'Burbank', state: 'CA', zipCode: '91502', country: 'US', membershipStatus: 'INACTIVE', membershipDate: '2015-03-01', baptismDate: '2014-12-25', salvationDate: '2014-06-01', source: 'Community event', notes: 'Moved to another city, may return.' },
+    { slug: 'sophia-han', firstName: 'Sophia', lastName: 'Han', gender: 'FEMALE', maritalStatus: 'WIDOWED', dateOfBirth: '1955-03-08', email: 'sophia.han@email.com', phone: '213-555-0901', city: 'Los Angeles', state: 'CA', zipCode: '90012', country: 'US', membershipStatus: 'MEMBER', membershipDate: '1999-01-01', baptismDate: '1998-04-12', salvationDate: '1997-01-01', source: 'Founding member' },
+    { slug: 'andrew-jung', firstName: 'Andrew', lastName: 'Jung', gender: 'MALE', maritalStatus: 'SINGLE', dateOfBirth: '2002-07-04', email: 'andrew.jung@email.com', mobilePhone: '213-555-1001', city: 'Los Angeles', state: 'CA', zipCode: '90007', country: 'US', membershipStatus: 'REGULAR_ATTENDEE', source: 'USC campus ministry' },
+    { slug: 'emily-song', firstName: 'Emily', lastName: 'Song', gender: 'FEMALE', maritalStatus: 'SINGLE', dateOfBirth: '2003-12-01', email: 'emily.song@email.com', mobilePhone: '213-555-1101', city: 'Los Angeles', state: 'CA', zipCode: '90007', country: 'US', membershipStatus: 'VISITOR', source: 'USC campus ministry' },
+    { slug: 'mark-kwon', firstName: 'Mark', lastName: 'Kwon', gender: 'MALE', maritalStatus: 'MARRIED', dateOfBirth: '1968-09-20', email: 'mark.kwon@email.com', phone: '626-555-1201', city: 'Alhambra', state: 'CA', zipCode: '91801', country: 'US', membershipStatus: 'MEMBER', membershipDate: '2008-06-01', baptismDate: '2007-12-25', salvationDate: '2007-03-15', source: 'Referred by David Lee' },
+  ]
+
+  const personRecords: Record<string, string> = {}
+  for (const p of peopleData) {
+    const person = await prisma.person.upsert({
+      where: { churchId_slug: { churchId, slug: p.slug } },
+      update: {},
+      create: {
+        churchId,
+        slug: p.slug,
+        firstName: p.firstName,
+        lastName: p.lastName,
+        preferredName: p.preferredName ?? null,
+        gender: p.gender as 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY' | undefined,
+        maritalStatus: p.maritalStatus as 'SINGLE' | 'MARRIED' | 'DIVORCED' | 'WIDOWED' | 'SEPARATED' | 'OTHER' | undefined,
+        dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth) : null,
+        email: p.email ?? null,
+        phone: p.phone ?? null,
+        mobilePhone: p.mobilePhone ?? null,
+        city: p.city ?? null,
+        state: p.state ?? null,
+        zipCode: p.zipCode ?? null,
+        country: p.country ?? null,
+        membershipStatus: p.membershipStatus as 'VISITOR' | 'REGULAR_ATTENDEE' | 'MEMBER' | 'INACTIVE' | 'ARCHIVED',
+        membershipDate: p.membershipDate ? new Date(p.membershipDate) : null,
+        baptismDate: p.baptismDate ? new Date(p.baptismDate) : null,
+        salvationDate: p.salvationDate ? new Date(p.salvationDate) : null,
+        source: p.source ?? null,
+        notes: p.notes ?? null,
+      },
+    })
+    personRecords[p.slug] = person.id
+  }
+  console.log(`  Created ${Object.keys(personRecords).length} people`)
+
+  // --- Households ---
+  const parkHousehold = await prisma.household.create({
+    data: {
+      churchId,
+      name: 'Park Family',
+      address: { street: '123 Temple St', city: 'Los Angeles', state: 'CA', zipCode: '90012' },
+      primaryContactId: personRecords['james-park'],
+    },
+  })
+
+  for (const [slug, role] of [['james-park', 'HEAD'], ['sarah-park', 'SPOUSE'], ['daniel-park', 'CHILD'], ['grace-park', 'CHILD']] as const) {
+    await prisma.householdMember.create({
+      data: { householdId: parkHousehold.id, personId: personRecords[slug], role },
+    })
+  }
+
+  const kimHousehold = await prisma.household.create({
+    data: {
+      churchId,
+      name: 'Kim Family',
+      address: { street: '456 Colorado Blvd', city: 'Pasadena', state: 'CA', zipCode: '91101' },
+      primaryContactId: personRecords['michael-kim'],
+    },
+  })
+
+  for (const [slug, role] of [['michael-kim', 'HEAD'], ['jennifer-kim', 'SPOUSE'], ['ethan-kim', 'CHILD']] as const) {
+    await prisma.householdMember.create({
+      data: { householdId: kimHousehold.id, personId: personRecords[slug], role },
+    })
+  }
+
+  const leeHousehold = await prisma.household.create({
+    data: {
+      churchId,
+      name: 'Lee Family',
+      address: { street: '789 Brand Blvd', city: 'Glendale', state: 'CA', zipCode: '91201' },
+      primaryContactId: personRecords['david-lee'],
+    },
+  })
+
+  for (const [slug, role] of [['david-lee', 'HEAD'], ['hannah-lee', 'SPOUSE'], ['joshua-lee', 'CHILD'], ['rachel-lee', 'CHILD']] as const) {
+    await prisma.householdMember.create({
+      data: { householdId: leeHousehold.id, personId: personRecords[slug], role },
+    })
+  }
+  console.log('  Created 3 households with family members')
+
+  // --- Person Groups ---
+  const sundayBibleStudy = await prisma.personGroup.create({
+    data: {
+      churchId,
+      name: 'Sunday Bible Study',
+      slug: 'sunday-bible-study',
+      description: 'Weekly Sunday Bible Study for all members.',
+      groupType: 'SMALL_GROUP',
+      meetingSchedule: 'Sundays 10:00 AM',
+      meetingLocation: 'Main Hall',
+      isOpen: true,
+      status: 'ACTIVE',
+    },
+  })
+
+  const youngAdults = await prisma.personGroup.create({
+    data: {
+      churchId,
+      name: 'Young Adults Fellowship',
+      slug: 'young-adults-fellowship',
+      description: 'Fellowship group for college-age and young professionals.',
+      groupType: 'SMALL_GROUP',
+      meetingSchedule: 'Fridays 7:00 PM',
+      meetingLocation: 'Fellowship Hall',
+      isOpen: true,
+      capacity: 30,
+      status: 'ACTIVE',
+    },
+  })
+
+  const worshipTeam = await prisma.personGroup.create({
+    data: {
+      churchId,
+      name: 'Worship Team',
+      slug: 'worship-team',
+      description: 'Music and worship ministry team.',
+      groupType: 'SERVING_TEAM',
+      meetingSchedule: 'Saturdays 3:00 PM (rehearsal)',
+      meetingLocation: 'Sanctuary',
+      isOpen: false,
+      status: 'ACTIVE',
+    },
+  })
+
+  const welcomeTeam = await prisma.personGroup.create({
+    data: {
+      churchId,
+      name: 'Welcome Team',
+      slug: 'welcome-team',
+      description: 'Greeting and hospitality team for Sunday services.',
+      groupType: 'SERVING_TEAM',
+      meetingSchedule: 'Sundays 9:30 AM',
+      meetingLocation: 'Church Lobby',
+      isOpen: true,
+      status: 'ACTIVE',
+    },
+  })
+
+  // Add members to groups
+  const sundayBibleStudyMembers: [string, 'LEADER' | 'CO_LEADER' | 'MEMBER'][] = [
+    ['james-park', 'LEADER'], ['sarah-park', 'MEMBER'], ['michael-kim', 'CO_LEADER'],
+    ['jennifer-kim', 'MEMBER'], ['david-lee', 'MEMBER'], ['hannah-lee', 'MEMBER'],
+    ['kevin-cho', 'MEMBER'], ['sophia-han', 'MEMBER'], ['mark-kwon', 'MEMBER'],
+  ]
+  for (const [slug, role] of sundayBibleStudyMembers) {
+    await prisma.personGroupMember.create({
+      data: { groupId: sundayBibleStudy.id, personId: personRecords[slug], role },
+    })
+  }
+
+  const youngAdultsMembers: [string, 'LEADER' | 'CO_LEADER' | 'MEMBER'][] = [
+    ['kevin-cho', 'LEADER'], ['amy-chen', 'CO_LEADER'], ['joshua-lee', 'MEMBER'],
+    ['rachel-lee', 'MEMBER'], ['andrew-jung', 'MEMBER'], ['emily-song', 'MEMBER'],
+    ['peter-wong', 'MEMBER'], ['jessica-yun', 'MEMBER'],
+  ]
+  for (const [slug, role] of youngAdultsMembers) {
+    await prisma.personGroupMember.create({
+      data: { groupId: youngAdults.id, personId: personRecords[slug], role },
+    })
+  }
+
+  const worshipTeamMembers: [string, 'LEADER' | 'CO_LEADER' | 'MEMBER'][] = [
+    ['michael-kim', 'LEADER'], ['rachel-lee', 'MEMBER'], ['kevin-cho', 'MEMBER'], ['amy-chen', 'MEMBER'],
+  ]
+  for (const [slug, role] of worshipTeamMembers) {
+    await prisma.personGroupMember.create({
+      data: { groupId: worshipTeam.id, personId: personRecords[slug], role },
+    })
+  }
+
+  const welcomeTeamMembers: [string, 'LEADER' | 'CO_LEADER' | 'MEMBER'][] = [
+    ['sarah-park', 'LEADER'], ['jennifer-kim', 'MEMBER'], ['sophia-han', 'MEMBER'], ['hannah-lee', 'MEMBER'],
+  ]
+  for (const [slug, role] of welcomeTeamMembers) {
+    await prisma.personGroupMember.create({
+      data: { groupId: welcomeTeam.id, personId: personRecords[slug], role },
+    })
+  }
+  console.log('  Created 4 groups with members assigned')
+
+  // --- Custom Field Definitions ---
+  const emergencyContactField = await prisma.customFieldDefinition.create({
+    data: {
+      churchId,
+      name: 'Emergency Contact',
+      slug: 'emergency-contact',
+      fieldType: 'TEXT',
+      section: 'Emergency',
+      isRequired: false,
+      isVisible: true,
+      sortOrder: 1,
+    },
+  })
+
+  const emergencyPhoneField = await prisma.customFieldDefinition.create({
+    data: {
+      churchId,
+      name: 'Emergency Phone',
+      slug: 'emergency-phone',
+      fieldType: 'TEXT',
+      section: 'Emergency',
+      isRequired: false,
+      isVisible: true,
+      sortOrder: 2,
+    },
+  })
+
+  const allergiesField = await prisma.customFieldDefinition.create({
+    data: {
+      churchId,
+      name: 'Allergies / Medical Notes',
+      slug: 'allergies-medical-notes',
+      fieldType: 'TEXT',
+      section: 'Medical',
+      isRequired: false,
+      isVisible: false,
+      sortOrder: 3,
+    },
+  })
+
+  const tshirtSizeField = await prisma.customFieldDefinition.create({
+    data: {
+      churchId,
+      name: 'T-Shirt Size',
+      slug: 'tshirt-size',
+      fieldType: 'DROPDOWN',
+      options: ['XS', 'S', 'M', 'L', 'XL', '2XL'],
+      section: 'General',
+      isRequired: false,
+      isVisible: true,
+      sortOrder: 4,
+    },
+  })
+
+  await prisma.customFieldDefinition.create({
+    data: {
+      churchId,
+      name: 'Spiritual Gifts',
+      slug: 'spiritual-gifts',
+      fieldType: 'MULTI_SELECT',
+      options: ['Teaching', 'Leadership', 'Hospitality', 'Mercy', 'Evangelism', 'Worship', 'Administration', 'Encouragement', 'Giving', 'Service'],
+      section: 'Spiritual',
+      isRequired: false,
+      isVisible: true,
+      sortOrder: 5,
+    },
+  })
+  console.log('  Created 5 custom field definitions')
+
+  // Set some custom field values
+  await prisma.customFieldValue.create({ data: { personId: personRecords['james-park'], fieldDefinitionId: emergencyContactField.id, value: 'Sarah Park' } })
+  await prisma.customFieldValue.create({ data: { personId: personRecords['james-park'], fieldDefinitionId: emergencyPhoneField.id, value: '213-555-0103' } })
+  await prisma.customFieldValue.create({ data: { personId: personRecords['james-park'], fieldDefinitionId: tshirtSizeField.id, value: 'L' } })
+  await prisma.customFieldValue.create({ data: { personId: personRecords['michael-kim'], fieldDefinitionId: emergencyContactField.id, value: 'Jennifer Kim' } })
+  await prisma.customFieldValue.create({ data: { personId: personRecords['michael-kim'], fieldDefinitionId: emergencyPhoneField.id, value: '213-555-0203' } })
+  await prisma.customFieldValue.create({ data: { personId: personRecords['kevin-cho'], fieldDefinitionId: allergiesField.id, value: 'Peanut allergy' } })
+  await prisma.customFieldValue.create({ data: { personId: personRecords['kevin-cho'], fieldDefinitionId: tshirtSizeField.id, value: 'M' } })
+  console.log('  Created custom field values')
+
+  // --- Person Tags ---
+  const tagAssignments: [string, string[]][] = [
+    ['james-park', ['shepherd', 'bible-teacher', 'leader']],
+    ['sarah-park', ['fellowship-coordinator', 'leader']],
+    ['michael-kim', ['worship-leader', 'musician', 'leader']],
+    ['jennifer-kim', ['hospitality']],
+    ['david-lee', ['elder', 'shepherd', 'leader']],
+    ['hannah-lee', ['prayer-warrior', 'hospitality']],
+    ['kevin-cho', ['campus-minister', 'leader']],
+    ['amy-chen', ['campus-worker']],
+    ['sophia-han', ['intercessor', 'elder']],
+    ['mark-kwon', ['deacon', 'leader']],
+    ['joshua-lee', ['youth-leader']],
+    ['andrew-jung', ['new-believer']],
+    ['peter-wong', ['newcomer']],
+    ['jessica-yun', ['newcomer']],
+    ['emily-song', ['newcomer']],
+  ]
+
+  for (const [slug, tags] of tagAssignments) {
+    for (const tagName of tags) {
+      await prisma.personTag.create({
+        data: { personId: personRecords[slug], tagName },
+      })
+    }
+  }
+  console.log('  Created person tags')
+
+  // --- Communication Preferences ---
+  const commPrefs: [string, 'EMAIL' | 'SMS' | 'PHONE' | 'MAIL', string, boolean][] = [
+    ['james-park', 'EMAIL', 'general', true],
+    ['james-park', 'EMAIL', 'events', true],
+    ['james-park', 'SMS', 'general', true],
+    ['sarah-park', 'EMAIL', 'general', true],
+    ['sarah-park', 'EMAIL', 'events', true],
+    ['michael-kim', 'EMAIL', 'general', true],
+    ['michael-kim', 'SMS', 'general', false],
+    ['kevin-cho', 'EMAIL', 'general', true],
+    ['kevin-cho', 'EMAIL', 'events', true],
+    ['kevin-cho', 'SMS', 'general', true],
+    ['amy-chen', 'EMAIL', 'general', true],
+    ['amy-chen', 'SMS', 'general', true],
+    ['david-lee', 'EMAIL', 'general', true],
+    ['david-lee', 'PHONE', 'general', true],
+    ['sophia-han', 'PHONE', 'general', true],
+    ['sophia-han', 'MAIL', 'general', true],
+  ]
+
+  for (const [slug, channel, category, isOptedIn] of commPrefs) {
+    await prisma.communicationPreference.create({
+      data: { personId: personRecords[slug], channel, category, isOptedIn },
+    })
+  }
+  console.log('  Created communication preferences')
+
+  // --- Person Role Definitions (system + custom) ---
+  const speakerRole = await prisma.personRoleDefinition.create({
+    data: { churchId, name: 'Speaker', slug: 'speaker', description: 'Sermon and Bible study speakers', isSystem: true, color: '#6366f1', icon: 'mic', sortOrder: 1 },
+  })
+  const pastorRole = await prisma.personRoleDefinition.create({
+    data: { churchId, name: 'Pastor', slug: 'pastor', description: 'Church pastors and shepherds', isSystem: true, color: '#8b5cf6', icon: 'shield', sortOrder: 2 },
+  })
+  const elderRole = await prisma.personRoleDefinition.create({
+    data: { churchId, name: 'Elder', slug: 'elder', description: 'Church elders involved in governance', isSystem: true, color: '#a855f7', icon: 'crown', sortOrder: 3 },
+  })
+  const deaconRole = await prisma.personRoleDefinition.create({
+    data: { churchId, name: 'Deacon', slug: 'deacon', description: 'Church deacons serving the congregation', isSystem: true, color: '#ec4899', icon: 'heart-handshake', sortOrder: 4 },
+  })
+  const worshipLeaderRole = await prisma.personRoleDefinition.create({
+    data: { churchId, name: 'Worship Leader', slug: 'worship-leader', description: 'Music and worship ministry leaders', isSystem: true, color: '#f59e0b', icon: 'music', sortOrder: 5 },
+  })
+  const bibleStudyLeaderRole = await prisma.personRoleDefinition.create({
+    data: { churchId, name: 'Bible Study Leader', slug: 'bible-study-leader', description: 'Leaders who facilitate Bible study groups', isSystem: false, color: '#10b981', icon: 'book-open', sortOrder: 6 },
+  })
+  console.log('  Created 6 role definitions (5 system + 1 custom)')
+
+  // --- Create Person records for existing Speakers and assign Speaker role ---
+  // Map speaker names to their existing Person records or create new ones
+  const speakerPersonData: { name: string; slug: string; title?: string; bio?: string }[] = [
+    { name: 'P. William', slug: 'p-william', title: 'Senior Pastor', bio: 'Pastor William has served as the senior shepherd of LA UBF since its founding. He leads the Sunday worship service and weekly Bible study.' },
+    { name: 'P. Kevin Albright', slug: 'p-kevin-albright', title: 'Campus Pastor', bio: 'Pastor Kevin Albright serves as a campus missionary and Bible teacher, reaching college students across the LA area.' },
+    { name: 'P. Abraham Kim', slug: 'p-abraham-kim', title: 'Associate Pastor', bio: 'Pastor Abraham Kim is an associate pastor who frequently speaks at conferences and special events.' },
+    { name: 'Msn. Daniel Park', slug: 'msn-daniel-park', title: 'Missionary' },
+    { name: 'Msn. Sarah Kim', slug: 'msn-sarah-kim', title: 'Missionary' },
+    { name: 'Msn. Joshua Lee', slug: 'msn-joshua-lee', title: 'Missionary' },
+    { name: 'Msn. Grace Yoon', slug: 'msn-grace-yoon', title: 'Missionary' },
+    { name: 'Msn. Joseph Ahn', slug: 'msn-joseph-ahn', title: 'Missionary' },
+    { name: 'Msn. Hannah Cho', slug: 'msn-hannah-cho', title: 'Missionary' },
+    { name: 'Msn. David Lim', slug: 'msn-david-lim', title: 'Missionary' },
+    { name: 'Msn. Ruth Kim', slug: 'msn-ruth-kim', title: 'Missionary' },
+  ]
+
+  for (const sp of speakerPersonData) {
+    // Parse first/last name from display name
+    const parts = sp.name.replace(/^(P\.|Msn\.)\s*/, '').trim().split(' ')
+    const firstName = parts[0]
+    const lastName = parts.slice(1).join(' ') || parts[0]
+
+    // Check if this person already exists (e.g., Joshua Lee might match the existing joshua-lee person record)
+    const existingPerson = await prisma.person.findUnique({
+      where: { churchId_slug: { churchId, slug: sp.slug } },
+    })
+
+    let speakerPersonId: string
+    if (existingPerson) {
+      // Update with title/bio
+      await prisma.person.update({
+        where: { id: existingPerson.id },
+        data: { title: sp.title, bio: sp.bio },
+      })
+      speakerPersonId = existingPerson.id
+    } else {
+      const newPerson = await prisma.person.create({
+        data: {
+          churchId,
+          slug: sp.slug,
+          firstName,
+          lastName,
+          title: sp.title,
+          bio: sp.bio,
+          membershipStatus: 'MEMBER',
+          source: 'Speaker seed data',
+        },
+      })
+      speakerPersonId = newPerson.id
+      personRecords[sp.slug] = newPerson.id
+    }
+
+    // Assign Speaker role
+    await prisma.personRoleAssignment.create({
+      data: { personId: speakerPersonId, roleId: speakerRole.id, title: sp.title },
+    })
+  }
+  console.log('  Created speaker Person records and assigned Speaker role')
+
+  // --- Assign Pastor role ---
+  // P. William is a pastor — find or use the person record
+  const pWilliam = personRecords['p-william']
+  if (pWilliam) {
+    await prisma.personRoleAssignment.create({
+      data: { personId: pWilliam, roleId: pastorRole.id, title: 'Senior Pastor' },
+    })
+  }
+  const pKevin = personRecords['p-kevin-albright']
+  if (pKevin) {
+    await prisma.personRoleAssignment.create({
+      data: { personId: pKevin, roleId: pastorRole.id, title: 'Campus Pastor' },
+    })
+  }
+  console.log('  Assigned Pastor role to 2 people')
+
+  // --- Assign Elder role ---
+  if (personRecords['david-lee']) {
+    await prisma.personRoleAssignment.create({
+      data: { personId: personRecords['david-lee'], roleId: elderRole.id },
+    })
+  }
+  if (personRecords['mark-kwon']) {
+    await prisma.personRoleAssignment.create({
+      data: { personId: personRecords['mark-kwon'], roleId: elderRole.id },
+    })
+  }
+  if (personRecords['sophia-han']) {
+    await prisma.personRoleAssignment.create({
+      data: { personId: personRecords['sophia-han'], roleId: elderRole.id },
+    })
+  }
+  console.log('  Assigned Elder role to 3 people')
+
+  // --- Assign Deacon role ---
+  if (personRecords['mark-kwon']) {
+    await prisma.personRoleAssignment.create({
+      data: { personId: personRecords['mark-kwon'], roleId: deaconRole.id },
+    })
+  }
+  console.log('  Assigned Deacon role to 1 person')
+
+  // --- Assign Worship Leader role ---
+  if (personRecords['michael-kim']) {
+    await prisma.personRoleAssignment.create({
+      data: { personId: personRecords['michael-kim'], roleId: worshipLeaderRole.id, title: 'Lead Worship' },
+    })
+  }
+  console.log('  Assigned Worship Leader role to 1 person')
+
+  // --- Assign Bible Study Leader role ---
+  if (personRecords['james-park']) {
+    await prisma.personRoleAssignment.create({
+      data: { personId: personRecords['james-park'], roleId: bibleStudyLeaderRole.id },
+    })
+  }
+  if (personRecords['kevin-cho']) {
+    await prisma.personRoleAssignment.create({
+      data: { personId: personRecords['kevin-cho'], roleId: bibleStudyLeaderRole.id },
+    })
+  }
+  if (personRecords['michael-kim']) {
+    await prisma.personRoleAssignment.create({
+      data: { personId: personRecords['michael-kim'], roleId: bibleStudyLeaderRole.id },
+    })
+  }
+  console.log('  Assigned Bible Study Leader role to 3 people')
+
+  // ============================================================
   // Test User (for development login)
   // ============================================================
   const bcrypt = await import('bcryptjs')
@@ -3977,6 +4468,87 @@ async function main() {
     },
   })
   console.log(`  Created test user: ${testEmail}`)
+
+  // --- Person Notes (requires test user as author) ---
+  if (personRecords['james-park']) {
+    await prisma.personNote.createMany({
+      data: [
+        {
+          churchId,
+          personId: personRecords['james-park'],
+          authorId: testUser.id,
+          noteType: 'GENERAL',
+          content: 'James has been a faithful member for over 20 years. He leads the Sunday Bible Study and shepherds several younger members.',
+          isPinned: true,
+          isPrivate: false,
+        },
+        {
+          churchId,
+          personId: personRecords['james-park'],
+          authorId: testUser.id,
+          noteType: 'PASTORAL',
+          content: 'Met with James for pastoral counseling. He is seeking guidance on how to better mentor the young adults in the fellowship.',
+          isPinned: false,
+          isPrivate: true,
+        },
+        {
+          churchId,
+          personId: personRecords['kevin-cho'],
+          authorId: testUser.id,
+          noteType: 'FOLLOW_UP',
+          content: 'Kevin expressed interest in leading a campus Bible study at UCLA. Follow up to discuss training and support.',
+          isPinned: true,
+          isPrivate: false,
+        },
+        {
+          churchId,
+          personId: personRecords['peter-wong'],
+          authorId: testUser.id,
+          noteType: 'FOLLOW_UP',
+          content: 'Peter visited for the first time last Sunday. He is a student at USC. Sent welcome email and invited to young adults fellowship.',
+          isPinned: false,
+          isPrivate: false,
+        },
+        {
+          churchId,
+          personId: personRecords['jessica-yun'],
+          authorId: testUser.id,
+          noteType: 'GENERAL',
+          content: 'Jessica was invited by Amy Chen. She seems interested in learning more about the Bible. Connected her with the young adults group.',
+          isPinned: false,
+          isPrivate: false,
+        },
+        {
+          churchId,
+          personId: personRecords['william-choi'],
+          authorId: testUser.id,
+          noteType: 'PASTORAL',
+          content: 'William moved to San Francisco for work. He is looking for a church community there. Provided him with some church recommendations.',
+          isPinned: false,
+          isPrivate: true,
+        },
+        {
+          churchId,
+          personId: personRecords['sophia-han'],
+          authorId: testUser.id,
+          noteType: 'PRAYER',
+          content: 'Sister Sophia requested prayer for her health. She has been dealing with knee pain and difficulty walking to church.',
+          isPinned: true,
+          isPrivate: false,
+        },
+        {
+          churchId,
+          personId: personRecords['andrew-jung'],
+          authorId: testUser.id,
+          noteType: 'FOLLOW_UP',
+          content: 'Andrew completed the new believers class. He is eager to be baptized. Schedule baptism preparation meetings.',
+          isPinned: false,
+          isPrivate: false,
+        },
+      ],
+    })
+    console.log('  Created person notes')
+  }
 
   console.log('\nSeed complete!')
 }

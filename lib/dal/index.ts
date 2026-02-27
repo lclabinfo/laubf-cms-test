@@ -23,3 +23,12 @@ export * from './site-settings'
 export * from './pages'
 export * from './menus'
 export * from './theme'
+
+// People & Member Management DAL modules
+export * from './people'
+export * from './households'
+export * from './person-groups'
+export * from './custom-fields'
+export * from './person-notes'
+export * from './communication-preferences'
+export * from './person-roles'

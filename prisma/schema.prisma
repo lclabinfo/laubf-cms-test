@@ -80,6 +80,14 @@ model Church {
   apiKeys            ApiKey[]
   auditLogs          AuditLog[]
 
+  // People & Member Management
+  people                 Person[]
+  households             Household[]
+  personGroups           PersonGroup[]
+  customFieldDefinitions CustomFieldDefinition[]
+  personNotes            PersonNote[]
+  personRoleDefinitions  PersonRoleDefinition[]
+
   @@index([slug])
   @@index([status])
 }
@@ -117,6 +125,7 @@ model User {
   memberships     ChurchMember[]
   sessions        Session[]
   accounts        Account[]
+  personNotes     PersonNote[]
 
   @@index([email])
 }
@@ -1311,4 +1320,381 @@ model ThemeCustomization {
 
   @@index([churchId])
   @@index([themeId])
+}
+
+// ============================================================
+// 5. People & Member Management
+// ============================================================
+
+model Person {
+  id               String           @id @default(uuid()) @db.Uuid
+  churchId         String           @db.Uuid
+  slug             String
+
+  // Name
+  firstName        String
+  lastName         String
+  preferredName    String?
+
+  // Demographics
+  gender           Gender?
+  maritalStatus    MaritalStatus?
+  dateOfBirth      DateTime?        @db.Date
+
+  // Contact info
+  email            String?
+  phone            String?
+  mobilePhone      String?
+  homePhone        String?
+
+  // Address
+  address          Json?            @db.JsonB
+  city             String?
+  state            String?
+  zipCode          String?
+  country          String?
+
+  // Profile
+  photoUrl         String?
+  bio              String?          @db.Text
+  title            String?
+
+  // Membership
+  membershipStatus MembershipStatus @default(VISITOR)
+  membershipDate   DateTime?        @db.Date
+  baptismDate      DateTime?        @db.Date
+  salvationDate    DateTime?        @db.Date
+
+  // Additional info
+  notes            String?          @db.Text
+  source           String?
+
+  // Optional link to User for self-service portal
+  userId           String?          @db.Uuid
+
+  // Metadata
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  deletedAt        DateTime?
+
+  // Relations
+  church                  Church                  @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  householdMemberships    HouseholdMember[]
+  primaryHouseholds       Household[]             @relation("HouseholdPrimaryContact")
+  groupMemberships        PersonGroupMember[]
+  customFieldValues       CustomFieldValue[]
+  personNotes             PersonNote[]
+  communicationPreferences CommunicationPreference[]
+  personTags              PersonTag[]
+  roleAssignments         PersonRoleAssignment[]
+
+  @@unique([churchId, slug])
+  @@index([churchId])
+  @@index([churchId, membershipStatus])
+  @@index([churchId, lastName, firstName])
+  @@index([churchId, email])
+  @@index([churchId, deletedAt])
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum MaritalStatus {
+  SINGLE
+  MARRIED
+  DIVORCED
+  WIDOWED
+  SEPARATED
+  OTHER
+}
+
+enum MembershipStatus {
+  VISITOR
+  REGULAR_ATTENDEE
+  MEMBER
+  INACTIVE
+  ARCHIVED
+}
+
+model Household {
+  id               String   @id @default(uuid()) @db.Uuid
+  churchId         String   @db.Uuid
+  name             String
+  address          Json?    @db.JsonB
+  primaryContactId String?  @db.Uuid
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  church           Church           @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  primaryContact   Person?          @relation("HouseholdPrimaryContact", fields: [primaryContactId], references: [id], onDelete: SetNull)
+  members          HouseholdMember[]
+
+  @@index([churchId])
+  @@index([churchId, name])
+}
+
+model HouseholdMember {
+  id          String        @id @default(uuid()) @db.Uuid
+  householdId String        @db.Uuid
+  personId    String        @db.Uuid
+  role        HouseholdRole @default(OTHER_ADULT)
+
+  createdAt   DateTime      @default(now())
+
+  household   Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  person      Person        @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([householdId, personId])
+  @@index([householdId])
+  @@index([personId])
+}
+
+enum HouseholdRole {
+  HEAD
+  SPOUSE
+  CHILD
+  OTHER_ADULT
+  DEPENDENT
+}
+
+model PersonGroup {
+  id              String      @id @default(uuid()) @db.Uuid
+  churchId        String      @db.Uuid
+  name            String
+  slug            String
+  description     String?     @db.Text
+  groupType       GroupType   @default(SMALL_GROUP)
+
+  // Hierarchy
+  parentGroupId   String?     @db.Uuid
+  parent          PersonGroup?  @relation("PersonGroupTree", fields: [parentGroupId], references: [id])
+  children        PersonGroup[] @relation("PersonGroupTree")
+
+  // Meeting info
+  meetingSchedule String?
+  meetingLocation String?
+
+  // Settings
+  isOpen          Boolean     @default(true)
+  capacity        Int?
+  photoUrl        String?
+  status          GroupStatus @default(ACTIVE)
+
+  // Metadata
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deletedAt       DateTime?
+
+  // Relations
+  church          Church              @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  members         PersonGroupMember[]
+
+  @@unique([churchId, slug])
+  @@index([churchId])
+  @@index([churchId, groupType])
+  @@index([churchId, status])
+  @@index([churchId, parentGroupId])
+}
+
+enum GroupType {
+  SMALL_GROUP
+  SERVING_TEAM
+  MINISTRY
+  CLASS
+  ADMINISTRATIVE
+  CUSTOM
+}
+
+enum GroupStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+model PersonGroupMember {
+  id        String          @id @default(uuid()) @db.Uuid
+  groupId   String          @db.Uuid
+  personId  String          @db.Uuid
+  role      GroupMemberRole  @default(MEMBER)
+  joinedAt  DateTime        @default(now())
+  leftAt    DateTime?
+
+  createdAt DateTime        @default(now())
+
+  group     PersonGroup     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  person    Person          @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, personId])
+  @@index([groupId])
+  @@index([personId])
+}
+
+enum GroupMemberRole {
+  LEADER
+  CO_LEADER
+  MEMBER
+}
+
+model CustomFieldDefinition {
+  id          String          @id @default(uuid()) @db.Uuid
+  churchId    String          @db.Uuid
+  name        String
+  slug        String
+  fieldType   CustomFieldType
+  options     Json?           @db.JsonB
+  section     String?
+  isRequired  Boolean         @default(false)
+  isVisible   Boolean         @default(true)
+  sortOrder   Int             @default(0)
+  permissions Json?           @db.JsonB
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  church      Church              @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  values      CustomFieldValue[]
+
+  @@unique([churchId, slug])
+  @@index([churchId])
+  @@index([churchId, section])
+}
+
+enum CustomFieldType {
+  TEXT
+  DATE
+  DROPDOWN
+  MULTI_SELECT
+  CHECKBOX
+  NUMBER
+  URL
+  FILE
+}
+
+model CustomFieldValue {
+  id                String              @id @default(uuid()) @db.Uuid
+  personId          String              @db.Uuid
+  fieldDefinitionId String              @db.Uuid
+
+  value             String
+
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  person            Person              @relation(fields: [personId], references: [id], onDelete: Cascade)
+  fieldDefinition   CustomFieldDefinition @relation(fields: [fieldDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([personId, fieldDefinitionId])
+  @@index([personId])
+  @@index([fieldDefinitionId])
+}
+
+model PersonNote {
+  id        String   @id @default(uuid()) @db.Uuid
+  churchId  String   @db.Uuid
+  personId  String   @db.Uuid
+  authorId  String   @db.Uuid
+  noteType  NoteType @default(GENERAL)
+  content   String   @db.Text
+  isPinned  Boolean  @default(false)
+  isPrivate Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  church    Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([churchId])
+  @@index([personId, createdAt(sort: Desc)])
+  @@index([personId, noteType])
+  @@index([authorId])
+}
+
+enum NoteType {
+  GENERAL
+  PASTORAL
+  COUNSELING
+  FOLLOW_UP
+  PRAYER
+}
+
+model CommunicationPreference {
+  id        String              @id @default(uuid()) @db.Uuid
+  personId  String              @db.Uuid
+  channel   CommunicationChannel
+  category  String
+  isOptedIn Boolean             @default(true)
+
+  updatedAt DateTime            @updatedAt
+
+  person    Person              @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([personId, channel, category])
+  @@index([personId])
+}
+
+enum CommunicationChannel {
+  EMAIL
+  SMS
+  PHONE
+  MAIL
+}
+
+model PersonTag {
+  id        String   @id @default(uuid()) @db.Uuid
+  personId  String   @db.Uuid
+  tagName   String
+
+  createdAt DateTime @default(now())
+
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([personId, tagName])
+  @@index([personId])
+  @@index([tagName])
+}
+
+model PersonRoleDefinition {
+  id          String   @id @default(uuid()) @db.Uuid
+  churchId    String   @db.Uuid
+  name        String
+  slug        String
+  description String?
+  isSystem    Boolean  @default(false)
+  color       String?
+  icon        String?
+  sortOrder   Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  church      Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  assignments PersonRoleAssignment[]
+
+  @@unique([churchId, slug])
+  @@index([churchId])
+}
+
+model PersonRoleAssignment {
+  id        String    @id @default(uuid()) @db.Uuid
+  personId  String    @db.Uuid
+  roleId    String    @db.Uuid
+  title     String?
+  startDate DateTime?
+  endDate   DateTime?
+
+  createdAt DateTime  @default(now())
+
+  person    Person                @relation(fields: [personId], references: [id], onDelete: Cascade)
+  role      PersonRoleDefinition  @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([personId, roleId])
+  @@index([personId])
+  @@index([roleId])
 }

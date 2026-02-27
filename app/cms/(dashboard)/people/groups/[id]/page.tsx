@@ -1,19 +1,21 @@
 "use client"
 
 import { Suspense } from "react"
+import { useParams } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { GroupsProvider } from "@/lib/groups-context"
-import { GroupsView } from "@/components/cms/people/groups-view"
+import { GroupDetail } from "@/components/cms/people/group-detail"
 
-function GroupsContent() {
+function GroupDetailContent() {
+  const params = useParams<{ id: string }>()
   return (
     <GroupsProvider>
-      <GroupsView />
+      <GroupDetail groupId={params.id} />
     </GroupsProvider>
   )
 }
 
-export default function PeopleGroupsPage() {
+export default function GroupDetailPage() {
   return (
     <Suspense
       fallback={
@@ -22,7 +24,7 @@ export default function PeopleGroupsPage() {
         </div>
       }
     >
-      <GroupsContent />
+      <GroupDetailContent />
     </Suspense>
   )
 }
