@@ -54,13 +54,17 @@ export default function PhotoGallerySection({ content, enableAnimations, colorSc
                 key={i}
                 className="relative w-[300px] lg:w-[360px] aspect-[4/3] rounded-2xl overflow-hidden shrink-0"
               >
-                <Image
-                  src={img.src}
-                  alt={img.alt}
-                  fill
-                  className="object-cover"
-                  style={{ objectPosition: img.objectPosition }}
-                />
+                {img.src ? (
+                  <Image
+                    src={img.src}
+                    alt={img.alt}
+                    fill
+                    className="object-cover"
+                    style={{ objectPosition: img.objectPosition }}
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-white-2" />
+                )}
               </div>
             ))}
           </div>

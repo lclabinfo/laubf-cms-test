@@ -48,7 +48,11 @@ export default function TextImageHeroSection({ content, enableAnimations, colorS
       </div>
 
       <div className={cn("relative w-full aspect-[16/7] rounded-2xl overflow-hidden", animate && "animate-hero-fade-up-delayed")}>
-        <Image src={content.image.src} alt={content.image.alt} fill className="object-cover" priority style={{ objectPosition: content.image.objectPosition }} />
+        {content.image?.src ? (
+          <Image src={content.image.src} alt={content.image.alt} fill className="object-cover" priority style={{ objectPosition: content.image.objectPosition }} />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-white-2 to-white-1-5" />
+        )}
       </div>
     </SectionContainer>
   )

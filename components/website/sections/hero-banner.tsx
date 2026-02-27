@@ -29,21 +29,25 @@ export default function HeroBannerSection({ content, enableAnimations }: Props) 
     <SectionThemeContext.Provider value="dark">
       <section id="hero-section" className="relative flex min-h-screen items-end overflow-hidden bg-black-1 -mt-[76px]">
         {/* Background media */}
-        {content.backgroundImage.src.endsWith(".mp4") || content.backgroundImage.src.endsWith(".webm") ? (
-          <HeroVideo
-            desktopSrc={content.backgroundImage.src}
-            mobileSrc={COMPRESSED_VIDEO}
-            animate={animate}
-          />
+        {content.backgroundImage?.src ? (
+          content.backgroundImage.src.endsWith(".mp4") || content.backgroundImage.src.endsWith(".webm") ? (
+            <HeroVideo
+              desktopSrc={content.backgroundImage.src}
+              mobileSrc={COMPRESSED_VIDEO}
+              animate={animate}
+            />
+          ) : (
+            <Image
+              src={content.backgroundImage.src}
+              alt={content.backgroundImage.alt}
+              fill
+              priority
+              className={cn("object-cover", animate && "animate-hero-fade-in-slow")}
+              style={{ objectPosition: content.backgroundImage.objectPosition }}
+            />
+          )
         ) : (
-          <Image
-            src={content.backgroundImage.src}
-            alt={content.backgroundImage.alt}
-            fill
-            priority
-            className={cn("object-cover", animate && "animate-hero-fade-in-slow")}
-            style={{ objectPosition: content.backgroundImage.objectPosition }}
-          />
+          <div className={cn("absolute inset-0 bg-gradient-to-br from-black-2 to-black-1", animate && "animate-hero-fade-in-slow")} />
         )}
 
         {/* Bottom gradient overlay */}

@@ -130,13 +130,17 @@ function RotatingWheel({
               }}
             >
               <div className="h-[192px] relative rounded-lg w-[338px] overflow-hidden">
-                <Image
-                  src={img.src}
-                  alt={img.alt}
-                  fill
-                  className="object-cover"
-                  style={{ objectPosition: img.objectPosition }}
-                />
+                {img.src ? (
+                  <Image
+                    src={img.src}
+                    alt={img.alt}
+                    fill
+                    className="object-cover"
+                    style={{ objectPosition: img.objectPosition }}
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-white-2" />
+                )}
               </div>
             </div>
           )
@@ -188,14 +192,18 @@ function MobileCarousel({
             key={index}
             className="h-[240px] w-[280px] rounded-lg overflow-hidden flex-shrink-0"
           >
-            <Image
-              src={img.src}
-              alt={img.alt}
-              width={MOBILE_ITEM_W}
-              height={MOBILE_ITEM_H}
-              className="w-full h-full object-cover"
-              style={{ objectPosition: img.objectPosition }}
-            />
+            {img.src ? (
+              <Image
+                src={img.src}
+                alt={img.alt}
+                width={MOBILE_ITEM_W}
+                height={MOBILE_ITEM_H}
+                className="w-full h-full object-cover"
+                style={{ objectPosition: img.objectPosition }}
+              />
+            ) : (
+              <div className="w-full h-full bg-white-2" />
+            )}
           </div>
         ))}
       </motion.div>

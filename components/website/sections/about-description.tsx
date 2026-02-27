@@ -30,15 +30,17 @@ export default function AboutDescriptionSection({ content, enableAnimations, col
       {/* Centered header with logo */}
       <AnimateOnScroll animation="fade-up" enabled={animate} className="flex flex-col items-center text-center max-w-[840px] mx-auto">
         {/* Logo */}
-        <div className="mb-5">
-          <Image
-            src={content.logoSrc}
-            alt=""
-            width={120}
-            height={100}
-            className="object-contain"
-          />
-        </div>
+        {content.logoSrc && (
+          <div className="mb-5">
+            <Image
+              src={content.logoSrc}
+              alt=""
+              width={120}
+              height={100}
+              className="object-contain"
+            />
+          </div>
+        )}
 
         {/* Heading */}
         <h2 className={`text-h2 ${t.textPrimary} mb-8`}>{content.heading}</h2>

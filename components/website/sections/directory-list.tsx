@@ -79,13 +79,17 @@ function DirectoryMobileBlock({
       <div className="flex flex-col items-center gap-5">
         <div className="flex flex-col items-center gap-4">
           <div className="relative h-[140px] w-[240px] overflow-hidden rounded-xl">
-            <Image
-              src={image.src}
-              alt={image.alt}
-              fill
-              className="object-cover"
-              style={{ objectPosition: image.objectPosition }}
-            />
+            {image?.src ? (
+              <Image
+                src={image.src}
+                alt={image.alt}
+                fill
+                className="object-cover"
+                style={{ objectPosition: image.objectPosition }}
+              />
+            ) : (
+              <div className="absolute inset-0 bg-white-2" />
+            )}
           </div>
           <h2 className="text-h2 text-black-1 text-center">{heading}</h2>
         </div>
@@ -188,13 +192,17 @@ function DirectoryParallaxBlock({
                 {heading}
               </h2>
               <div className="relative h-[240px] w-[400px] overflow-hidden rounded-xl">
-                <Image
-                  src={image.src}
-                  alt={image.alt}
-                  fill
-                  className="object-cover"
-                  style={{ objectPosition: image.objectPosition }}
-                />
+                {image?.src ? (
+                  <Image
+                    src={image.src}
+                    alt={image.alt}
+                    fill
+                    className="object-cover"
+                    style={{ objectPosition: image.objectPosition }}
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-white-2" />
+                )}
               </div>
             </motion.div>
           </div>
