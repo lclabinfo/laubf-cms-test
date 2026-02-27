@@ -17,7 +17,6 @@ import {
   PenToolIcon,
   UsersIcon,
   UserPlusIcon,
-  ContactIcon,
   ChevronsUpDownIcon,
   LogOutIcon,
   SettingsIcon,
@@ -53,6 +52,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { cn } from "@/lib/utils"
 import { signOut } from "next-auth/react"
 import type { CmsSessionData } from "@/components/cms/cms-shell"
 
@@ -69,8 +69,7 @@ type NavGroup = {
 }
 
 // Items that are stubs / not yet implemented get reduced opacity
-const STUB_HREFS = new Set([
-  "/cms/people/directory",
+const STUB_HREFS = new Set<string>([
 ])
 
 const navGroups: NavGroup[] = [
@@ -111,11 +110,6 @@ const navGroups: NavGroup[] = [
         title: "Groups",
         href: "/cms/people/groups",
         icon: UserPlusIcon,
-      },
-      {
-        title: "Directory",
-        href: "/cms/people/directory",
-        icon: ContactIcon,
       },
     ],
   },
@@ -221,7 +215,9 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {navGroups.map((group) => (
+        {navGroups.map((group) => {
+          const isGroupActive = activeGroup?.label === group.label
+          return (
           <Collapsible
             key={group.label}
             open={openGroup === group.label}
@@ -232,7 +228,10 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
           >
             <SidebarGroup>
               <SidebarGroupLabel asChild>
-                <CollapsibleTrigger className="w-full">
+                <CollapsibleTrigger className={cn(
+                  "w-full rounded-md transition-colors",
+                  isGroupActive && openGroup !== group.label && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+                )}>
                   {group.label}
                   <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                 </CollapsibleTrigger>
@@ -268,7 +267,8 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
               </CollapsibleContent>
             </SidebarGroup>
           </Collapsible>
-        ))}
+          )
+        })}
       </SidebarContent>
 
       <SidebarFooter>

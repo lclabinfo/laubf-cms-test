@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -33,12 +34,15 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   table: TanstackTable<TData>
   onRowClick?: (row: TData) => void
+  /** When set, the row whose `original.id` matches gets a highlight style. */
+  activeRowId?: string | null
 }
 
 export function DataTable<TData, TValue>({
   columns,
   table,
   onRowClick,
+  activeRowId,
 }: DataTableProps<TData, TValue>) {
   return (
     <div className="space-y-4">
@@ -72,11 +76,16 @@ export function DataTable<TData, TValue>({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.map((row) => {
+                const isActive = activeRowId != null && (row.original as Record<string, unknown>).id === activeRowId
+                return (
                 <TableRow
                   key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                  className={onRowClick ? "cursor-pointer" : undefined}
+                  data-state={row.getIsSelected() ? "selected" : isActive ? "active" : undefined}
+                  className={cn(
+                    onRowClick && "cursor-pointer",
+                    isActive && "bg-accent"
+                  )}
                   onClick={(e) => {
                     if (!onRowClick) return
                     // Don't navigate when clicking interactive elements
@@ -94,7 +103,8 @@ export function DataTable<TData, TValue>({
                     </TableCell>
                   ))}
                 </TableRow>
-              ))
+                )
+              })
             ) : (
               <TableRow>
                 <TableCell

@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState, useCallback, useMemo } from "react"
+import { Suspense, useState, useCallback, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Loader2, Users } from "lucide-react"
@@ -20,9 +20,28 @@ import { createColumns } from "@/components/cms/people/members-columns"
 import { MembersToolbar } from "@/components/cms/people/members-toolbar"
 import { AddMemberDialog } from "@/components/cms/people/add-member-dialog"
 import { CSVImportDialog } from "@/components/cms/people/csv-import-dialog"
+import { MemberPreviewPanel } from "@/components/cms/people/member-preview-panel"
 import { MembersProvider, useMembers } from "@/lib/members-context"
 import type { MemberPerson, AddMemberPayload } from "@/lib/members-context"
 import type { MembershipStatus } from "@/lib/generated/prisma/client"
+import { cn } from "@/lib/utils"
+
+/** Minimum viewport width (px) to enable the split-panel preview. Below this, row clicks navigate directly. */
+const SPLIT_PANEL_MIN_WIDTH = 1280
+
+function useIsWideScreen() {
+  const [isWide, setIsWide] = useState(false)
+
+  useEffect(() => {
+    const mql = window.matchMedia(`(min-width: ${SPLIT_PANEL_MIN_WIDTH}px)`)
+    setIsWide(mql.matches)
+    const handler = (e: MediaQueryListEvent) => setIsWide(e.matches)
+    mql.addEventListener("change", handler)
+    return () => mql.removeEventListener("change", handler)
+  }, [])
+
+  return isWide
+}
 
 function globalFilterFn(
   row: { original: MemberPerson },
@@ -48,14 +67,28 @@ const sortedRowModel = getSortedRowModel()
 
 function MembersPageContent() {
   const router = useRouter()
+  const isWideScreen = useIsWideScreen()
   const { members, loading, deleteMember, addMember, updateMemberStatus, refresh } = useMembers()
 
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
+
+  // Resolve the selected member from the current members list
+  const selectedMember = useMemo(
+    () => (selectedMemberId ? members.find((m) => m.id === selectedMemberId) ?? null : null),
+    [selectedMemberId, members]
+  )
+
+  // Close preview panel when screen shrinks below threshold
+  useEffect(() => {
+    if (!isWideScreen) setSelectedMemberId(null)
+  }, [isWideScreen])
 
   const handleDelete = useCallback((id: string) => {
     const member = members.find((m) => m.id === id)
     deleteMember(id)
+    if (selectedMemberId === id) setSelectedMemberId(null)
     toast.success("Member archived", {
       description: member ? `${member.firstName} ${member.lastName} has been archived.` : undefined,
       action: {
@@ -63,7 +96,7 @@ function MembersPageContent() {
         onClick: () => refresh(),
       },
     })
-  }, [members, deleteMember, refresh])
+  }, [members, deleteMember, refresh, selectedMemberId])
 
   const handleAddMember = useCallback(async (data: AddMemberPayload) => {
     const member = await addMember(data)
@@ -112,13 +145,28 @@ function MembersPageContent() {
     [resetPageIndex]
   )
 
+  // When preview panel is open, hide some columns to save space
+  const effectiveColumnVisibility = useMemo(() => {
+    if (selectedMember && isWideScreen) {
+      return {
+        ...columnVisibility,
+        phone: false,
+        households: false,
+        groups: false,
+        roles: false,
+        createdAt: false,
+      }
+    }
+    return columnVisibility
+  }, [columnVisibility, selectedMember, isWideScreen])
+
   const table = useReactTable({
     data: members,
     columns,
     state: {
       sorting,
       columnFilters,
-      columnVisibility,
+      columnVisibility: effectiveColumnVisibility,
       rowSelection,
       globalFilter,
       pagination,
@@ -136,6 +184,18 @@ function MembersPageContent() {
     getPaginationRowModel: paginationRowModel,
     getSortedRowModel: sortedRowModel,
   })
+
+  const handleRowClick = useCallback(
+    (row: MemberPerson) => {
+      if (isWideScreen) {
+        // Toggle: click same row again to deselect
+        setSelectedMemberId((prev) => (prev === row.id ? null : row.id))
+      } else {
+        router.push(`/cms/people/members/${row.id}`)
+      }
+    },
+    [isWideScreen, router]
+  )
 
   const handleBulkUpdateStatus = useCallback((status: MembershipStatus) => {
     const selectedRows = table.getFilteredSelectedRowModel().rows
@@ -162,67 +222,91 @@ function MembersPageContent() {
     toast.success(`${ids.length} ${ids.length === 1 ? "member" : "members"} archived`)
   }, [table, updateMemberStatus])
 
+  const showPreview = isWideScreen && selectedMember !== null
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight">Members</h1>
-            {!loading && (
-              <Badge variant="secondary" className="text-xs">
-                {members.length}
-              </Badge>
-            )}
+    <div className="flex gap-0 h-full">
+      {/* Left: table panel */}
+      <div
+        className={cn(
+          "min-w-0 transition-all duration-200 ease-in-out",
+          showPreview ? "flex-1" : "w-full"
+        )}
+      >
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-semibold tracking-tight">Members</h1>
+                {!loading && (
+                  <Badge variant="secondary" className="text-xs">
+                    {members.length}
+                  </Badge>
+                )}
+              </div>
+              <p className="text-muted-foreground text-sm">
+                View and manage church member profiles.
+              </p>
+            </div>
           </div>
-          <p className="text-muted-foreground text-sm">
-            View and manage church member profiles.
-          </p>
+
+          <MembersToolbar
+            table={table}
+            globalFilter={globalFilter}
+            setGlobalFilter={handleGlobalFilterChange}
+            onAddMember={() => setAddDialogOpen(true)}
+            onImportCSV={() => setImportDialogOpen(true)}
+            onBulkUpdateStatus={handleBulkUpdateStatus}
+            onBulkArchive={handleBulkArchive}
+          />
+
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="size-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : members.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <Users className="size-12 text-muted-foreground/30 mb-4" />
+              <h3 className="text-sm font-medium">No members yet</h3>
+              <p className="text-muted-foreground text-sm mt-1 max-w-sm">
+                Add your first member to get started, or import members from a CSV file.
+              </p>
+              <div className="flex items-center gap-2 mt-4">
+                <button
+                  onClick={() => setImportDialogOpen(true)}
+                  className="text-sm text-primary underline-offset-4 hover:underline"
+                >
+                  Import CSV
+                </button>
+                <span className="text-muted-foreground text-sm">or</span>
+                <button
+                  onClick={() => setAddDialogOpen(true)}
+                  className="text-sm text-primary underline-offset-4 hover:underline"
+                >
+                  Add Member
+                </button>
+              </div>
+            </div>
+          ) : (
+            <DataTable
+              columns={columns}
+              table={table}
+              onRowClick={handleRowClick}
+              activeRowId={showPreview ? selectedMemberId : undefined}
+            />
+          )}
         </div>
       </div>
 
-      <MembersToolbar
-        table={table}
-        globalFilter={globalFilter}
-        setGlobalFilter={handleGlobalFilterChange}
-        onAddMember={() => setAddDialogOpen(true)}
-        onImportCSV={() => setImportDialogOpen(true)}
-        onBulkUpdateStatus={handleBulkUpdateStatus}
-        onBulkArchive={handleBulkArchive}
-      />
-
-      {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+      {/* Right: preview panel */}
+      {showPreview && selectedMember && (
+        <div className="w-[380px] shrink-0 h-[calc(100vh-4rem)] sticky top-16 animate-in slide-in-from-right-4 duration-200">
+          <MemberPreviewPanel
+            member={selectedMember}
+            onClose={() => setSelectedMemberId(null)}
+            onArchive={handleDelete}
+          />
         </div>
-      ) : members.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Users className="size-12 text-muted-foreground/30 mb-4" />
-          <h3 className="text-sm font-medium">No members yet</h3>
-          <p className="text-muted-foreground text-sm mt-1 max-w-sm">
-            Add your first member to get started, or import members from a CSV file.
-          </p>
-          <div className="flex items-center gap-2 mt-4">
-            <button
-              onClick={() => setImportDialogOpen(true)}
-              className="text-sm text-primary underline-offset-4 hover:underline"
-            >
-              Import CSV
-            </button>
-            <span className="text-muted-foreground text-sm">or</span>
-            <button
-              onClick={() => setAddDialogOpen(true)}
-              className="text-sm text-primary underline-offset-4 hover:underline"
-            >
-              Add Member
-            </button>
-          </div>
-        </div>
-      ) : (
-        <DataTable
-          columns={columns}
-          table={table}
-          onRowClick={(row) => router.push(`/cms/people/members/${row.id}`)}
-        />
       )}
 
       <AddMemberDialog
