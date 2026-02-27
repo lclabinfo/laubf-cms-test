@@ -44,11 +44,21 @@ export function DataTable<TData, TValue>({
     <div className="space-y-4">
       <div className="rounded-lg border">
         <Table>
+          <colgroup>
+            {table.getHeaderGroups()[0]?.headers.map((header) => {
+              const totalSize = table.getHeaderGroups()[0].headers.reduce(
+                (sum, h) => sum + h.getSize(),
+                0
+              )
+              const pct = (header.getSize() / totalSize) * 100
+              return <col key={header.id} style={{ width: `${pct}%` }} />
+            })}
+          </colgroup>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id} style={{ width: header.getSize() }}>
+                  <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
                       : flexRender(

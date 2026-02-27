@@ -3,9 +3,10 @@
 import { useState } from "react"
 import Link from "next/link"
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal, MapPin, Globe, Star, Pencil, Copy, Trash2, Clock, TriangleAlert } from "lucide-react"
+import { MoreHorizontal, MapPin, Globe, Star, Pencil, Copy, Trash2, Clock, TriangleAlert } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { SortableHeader } from "@/components/ui/sortable-header"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   DropdownMenu,
@@ -151,15 +152,7 @@ export function createColumns(options?: { onDelete?: (id: string) => void }): Co
   {
     accessorKey: "title",
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-2 h-8"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Event
-        <ArrowUpDown />
-      </Button>
+      <SortableHeader column={column}>Event</SortableHeader>
     ),
     cell: ({ row }) => {
       const past = isPast(row.original.date)
@@ -194,20 +187,12 @@ export function createColumns(options?: { onDelete?: (id: string) => void }): Co
       return value.includes(row.getValue(id))
     },
     enableSorting: false,
-    size: 100,
+    size: 80,
   },
   {
     accessorKey: "date",
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-2 h-8"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Date & Time
-        <ArrowUpDown />
-      </Button>
+      <SortableHeader column={column}>Date &amp; Time</SortableHeader>
     ),
     cell: ({ row }) => {
       const event = row.original
@@ -255,7 +240,7 @@ export function createColumns(options?: { onDelete?: (id: string) => void }): Co
         </div>
       )
     },
-    size: 200,
+    size: 160,
   },
   {
     accessorKey: "recurrence",
@@ -269,7 +254,7 @@ export function createColumns(options?: { onDelete?: (id: string) => void }): Co
       return value.includes(row.getValue(id))
     },
     enableSorting: false,
-    size: 100,
+    size: 80,
   },
   {
     accessorKey: "location",
@@ -285,7 +270,7 @@ export function createColumns(options?: { onDelete?: (id: string) => void }): Co
       </div>
     ),
     enableSorting: false,
-    size: 160,
+    size: 130,
   },
   {
     accessorKey: "ministry",
@@ -299,7 +284,7 @@ export function createColumns(options?: { onDelete?: (id: string) => void }): Co
       return value.includes(row.getValue(id))
     },
     enableSorting: false,
-    size: 120,
+    size: 90,
   },
   {
     accessorKey: "status",
@@ -316,7 +301,7 @@ export function createColumns(options?: { onDelete?: (id: string) => void }): Co
     filterFn: (row, id, value: string[]) => {
       return value.includes(row.getValue(id))
     },
-    size: 110,
+    size: 90,
   },
   {
     id: "actions",

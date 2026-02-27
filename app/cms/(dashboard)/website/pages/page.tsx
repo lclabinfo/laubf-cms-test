@@ -11,9 +11,9 @@ import {
   MoreHorizontal,
   Pencil,
   Trash2,
-  ArrowUpDown,
   FileText,
 } from "lucide-react"
+import { SortableHeader } from "@/components/ui/sortable-header"
 import {
   useReactTable,
   getCoreRowModel,
@@ -142,15 +142,7 @@ export default function WebsitePagesPage() {
       {
         accessorKey: "title",
         header: ({ column }) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="-ml-2 h-8"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            Title
-            <ArrowUpDown />
-          </Button>
+          <SortableHeader column={column}>Title</SortableHeader>
         ),
         cell: ({ row }) => (
           <div className="min-w-0">
@@ -204,15 +196,7 @@ export default function WebsitePagesPage() {
       {
         accessorKey: "updatedAt",
         header: ({ column }) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="-ml-2 h-8"
-            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-          >
-            Last Modified
-            <ArrowUpDown />
-          </Button>
+          <SortableHeader column={column}>Last Modified</SortableHeader>
         ),
         cell: ({ row }) => (
           <span className="text-sm text-muted-foreground">

@@ -13,7 +13,6 @@ import {
   Settings,
   Loader2,
   MoreHorizontal,
-  ArrowUpDown,
   Search,
   UserMinus,
   Shield,
@@ -34,6 +33,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DataTable } from "@/components/ui/data-table"
+import { SortableHeader } from "@/components/ui/sortable-header"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -204,15 +204,7 @@ function createMemberColumns(groupId: string, groupName: string): ColumnDef<Grou
       id: "name",
       accessorFn: (row) => `${row.person.lastName} ${row.person.firstName}`,
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-2 h-8"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Name
-          <ArrowUpDown />
-        </Button>
+        <SortableHeader column={column}>Name</SortableHeader>
       ),
       cell: ({ row }) => {
         const m = row.original
@@ -274,15 +266,7 @@ function createMemberColumns(groupId: string, groupName: string): ColumnDef<Grou
     {
       accessorKey: "joinedAt",
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-2 h-8"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Joined
-          <ArrowUpDown />
-        </Button>
+        <SortableHeader column={column}>Joined</SortableHeader>
       ),
       cell: ({ row }) => <span className="text-sm">{formatDate(row.original.joinedAt)}</span>,
       size: 120,

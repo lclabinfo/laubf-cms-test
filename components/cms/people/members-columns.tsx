@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { type Column, type ColumnDef } from "@tanstack/react-table"
-import { ArrowUp, ArrowDown, ArrowUpDown, MoreHorizontal, Pencil, UserPlus, Trash2, TriangleAlert } from "lucide-react"
+import { type ColumnDef } from "@tanstack/react-table"
+import { MoreHorizontal, Pencil, UserPlus, Trash2, TriangleAlert } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { SortableHeader } from "@/components/ui/sortable-header"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -43,13 +44,6 @@ function formatDate(isoStr: string) {
 
 function getInitials(firstName: string, lastName: string) {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
-}
-
-function SortIcon<T>({ column }: { column: Column<T> }) {
-  const sorted = column.getIsSorted()
-  if (sorted === "asc") return <ArrowUp />
-  if (sorted === "desc") return <ArrowDown />
-  return <ArrowUpDown />
 }
 
 function MemberActionsCell({
@@ -155,15 +149,7 @@ export function createColumns(options?: CreateColumnsOptions): ColumnDef<MemberP
     {
       accessorKey: "lastName",
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-2 h-8"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Name
-          <SortIcon column={column} />
-        </Button>
+        <SortableHeader column={column}>Name</SortableHeader>
       ),
       cell: ({ row }) => {
         const person = row.original
@@ -197,15 +183,7 @@ export function createColumns(options?: CreateColumnsOptions): ColumnDef<MemberP
     {
       accessorKey: "email",
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-2 h-8"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Email
-          <SortIcon column={column} />
-        </Button>
+        <SortableHeader column={column}>Email</SortableHeader>
       ),
       cell: ({ row }) => (
         <span className="text-sm truncate block max-w-[200px]">
@@ -302,15 +280,7 @@ export function createColumns(options?: CreateColumnsOptions): ColumnDef<MemberP
     {
       accessorKey: "createdAt",
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-2 h-8"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Date Added
-          <SortIcon column={column} />
-        </Button>
+        <SortableHeader column={column}>Date Added</SortableHeader>
       ),
       cell: ({ row }) => (
         <span className="text-sm">{formatDate(row.original.createdAt)}</span>

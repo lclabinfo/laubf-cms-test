@@ -18,8 +18,8 @@ import {
   Archive,
   Trash2,
   TriangleAlert,
-  ArrowUpDown,
 } from "lucide-react"
+import { SortableHeader } from "@/components/ui/sortable-header"
 import {
   useReactTable,
   getCoreRowModel,
@@ -199,15 +199,7 @@ function createColumns(): ColumnDef<GroupData>[] {
     {
       accessorKey: "name",
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-2 h-8"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Name
-          <ArrowUpDown />
-        </Button>
+        <SortableHeader column={column}>Name</SortableHeader>
       ),
       cell: ({ row }) => {
         const group = row.original
@@ -296,15 +288,7 @@ function createColumns(): ColumnDef<GroupData>[] {
     {
       accessorKey: "createdAt",
       header: ({ column }) => (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="-ml-2 h-8"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
-          Created
-          <ArrowUpDown />
-        </Button>
+        <SortableHeader column={column}>Created</SortableHeader>
       ),
       cell: ({ row }) => <span className="text-sm">{formatDate(row.original.createdAt)}</span>,
       size: 120,

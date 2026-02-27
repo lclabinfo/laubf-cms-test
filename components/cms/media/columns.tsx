@@ -1,8 +1,9 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal, Play, Pencil, FolderInput, Trash2 } from "lucide-react"
+import { MoreHorizontal, Play, Pencil, FolderInput, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { SortableHeader } from "@/components/ui/sortable-header"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   DropdownMenu,
@@ -52,15 +53,7 @@ export const columns: ColumnDef<MediaItem>[] = [
   {
     accessorKey: "name",
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-2 h-8"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Name
-        <ArrowUpDown />
-      </Button>
+      <SortableHeader column={column}>Name</SortableHeader>
     ),
     cell: ({ row }) => {
       const item = row.original
@@ -117,15 +110,7 @@ export const columns: ColumnDef<MediaItem>[] = [
   {
     accessorKey: "dateAdded",
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-2 h-8"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Date Added
-        <ArrowUpDown />
-      </Button>
+      <SortableHeader column={column}>Date Added</SortableHeader>
     ),
     cell: ({ row }) => (
       <span className="text-sm">{formatDate(row.original.dateAdded)}</span>

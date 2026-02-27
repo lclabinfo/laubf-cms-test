@@ -2,8 +2,8 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { type Column, type ColumnDef } from "@tanstack/react-table"
-import { ArrowUp, ArrowDown, ArrowUpDown, MoreHorizontal, Video, BookOpen, Pencil, Trash2, Clock, TriangleAlert } from "lucide-react"
+import { type ColumnDef } from "@tanstack/react-table"
+import { MoreHorizontal, Video, BookOpen, Pencil, Trash2, Clock, TriangleAlert } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -30,6 +30,7 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { SortableHeader } from "@/components/ui/sortable-header"
 import type { Message, Series } from "@/lib/messages-data"
 import { statusDisplay } from "@/lib/status"
 
@@ -47,13 +48,6 @@ function formatDateTime(isoStr: string) {
     hour: "numeric",
     minute: "2-digit",
   })
-}
-
-function SortIcon<T>({ column }: { column: Column<T> }) {
-  const sorted = column.getIsSorted()
-  if (sorted === "asc") return <ArrowUp />
-  if (sorted === "desc") return <ArrowDown />
-  return <ArrowUpDown />
 }
 
 function MessageActionsCell({ row, onDelete }: { row: { original: Message }; onDelete?: (id: string) => void }) {
@@ -153,15 +147,7 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
   {
     accessorKey: "title",
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-2 h-8"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Title
-        <SortIcon column={column} />
-      </Button>
+      <SortableHeader column={column}>Title</SortableHeader>
     ),
     cell: ({ row }) => (
       <div className="min-w-0">
@@ -169,26 +155,18 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
         <div className="text-muted-foreground text-xs truncate">{row.original.passage}</div>
       </div>
     ),
-    size: 280,
+    size: 220,
   },
   {
     accessorKey: "speaker",
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-2 h-8"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Speaker
-        <SortIcon column={column} />
-      </Button>
+      <SortableHeader column={column}>Speaker</SortableHeader>
     ),
     cell: ({ row }) => <span>{row.getValue("speaker")}</span>,
     filterFn: (row, id, value: string[]) => {
       return value.includes(row.getValue(id))
     },
-    size: 140,
+    size: 110,
   },
   {
     accessorKey: "seriesId",
@@ -209,38 +187,22 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
       return value.includes(seriesId)
     },
     enableSorting: false,
-    size: 160,
+    size: 120,
   },
   {
     accessorKey: "date",
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-2 h-8"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Message Date
-        <SortIcon column={column} />
-      </Button>
+      <SortableHeader column={column}>Message Date</SortableHeader>
     ),
     cell: ({ row }) => (
       <span className="text-sm">{formatDate(row.getValue("date"))}</span>
     ),
-    size: 140,
+    size: 110,
   },
   {
     accessorKey: "publishedAt",
     header: ({ column }) => (
-      <Button
-        variant="ghost"
-        size="sm"
-        className="-ml-2 h-8"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Posted
-        <SortIcon column={column} />
-      </Button>
+      <SortableHeader column={column}>Posted</SortableHeader>
     ),
     cell: ({ row }) => {
       const publishedAt = row.original.publishedAt
@@ -258,7 +220,7 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
       }
       return <span className="text-sm">{formatDateTime(publishedAt)}</span>
     },
-    size: 180,
+    size: 140,
   },
   {
     accessorKey: "status",
