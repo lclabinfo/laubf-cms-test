@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useCallback, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import {
   useReactTable,
@@ -45,8 +46,17 @@ function MessagesPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const defaultTab = searchParams.get("tab") === "series" ? "series" : "all"
-  const { messages, series, loading } = useMessages()
-  const columns = useMemo(() => createColumns(series), [series])
+  const { messages, series, loading, deleteMessage } = useMessages()
+
+  const handleDelete = useCallback((id: string) => {
+    const message = messages.find((m) => m.id === id)
+    deleteMessage(id)
+    toast.success("Message deleted", {
+      description: message ? `"${message.title}" has been deleted.` : undefined,
+    })
+  }, [messages, deleteMessage])
+
+  const columns = useMemo(() => createColumns({ series, onDelete: handleDelete }), [series, handleDelete])
   const [sorting, setSorting] = useState<SortingState>([
     { id: "date", desc: true },
   ])

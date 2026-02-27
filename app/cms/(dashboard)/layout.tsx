@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
+import { Toaster } from "sonner"
 import { CmsShell } from "@/components/cms/cms-shell"
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -28,6 +29,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       }}
     >
       {children}
+      <Toaster position="bottom-right" richColors />
     </CmsShell>
   )
 }

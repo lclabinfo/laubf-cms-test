@@ -38,3 +38,10 @@ export async function updateCampus(
     data,
   })
 }
+
+export async function deleteCampus(churchId: string, id: string) {
+  return prisma.campus.update({
+    where: { id, churchId },
+    data: { deletedAt: new Date() },
+  })
+}

@@ -27,9 +27,15 @@ interface Props {
   content: FooterContent
   enableAnimations: boolean
   colorScheme?: SectionTheme
+  logoUrl?: string | null
+  logoAlt?: string | null
+  siteName?: string | null
 }
 
-export default function FooterSection({ content }: Props) {
+export default function FooterSection({ content, logoUrl, logoAlt, siteName }: Props) {
+  const resolvedLogoUrl = logoUrl || "/logo/laubf-logo.svg"
+  const resolvedLogoAlt = logoAlt || siteName || "Logo"
+
   return (
     <SectionThemeContext.Provider value="dark">
       <footer className="bg-black-1 px-4 py-20 lg:px-30">
@@ -39,8 +45,8 @@ export default function FooterSection({ content }: Props) {
             <div className="flex flex-col gap-8">
               <div className="flex flex-col gap-3">
                 <Image
-                  src="/logo/laubf-logo.svg"
-                  alt="LA UBF"
+                  src={resolvedLogoUrl}
+                  alt={resolvedLogoAlt}
                   width={80}
                   height={66}
                   unoptimized

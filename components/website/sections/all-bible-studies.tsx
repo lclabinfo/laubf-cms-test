@@ -37,24 +37,33 @@ function toDateString(date: Date | string | null): string {
 }
 
 export default async function AllBibleStudiesSection({ content, churchId, studies: preloadedStudies }: Props) {
-  // If studies are already resolved (via resolve-section-data or direct prop), use them.
-  // Otherwise fetch from DB directly (for when used as a standalone server component).
-  let studies = preloadedStudies
-  if (!studies && churchId) {
-    const result = await getBibleStudies(churchId, { pageSize: 200 })
-    studies = result.data.map((s) => ({
-      id: s.id,
-      slug: s.slug,
-      title: s.title,
-      passage: s.passage || '',
-      series: s.series?.name || '',
-      dateFor: toDateString(s.dateFor),
-      hasQuestions: s.hasQuestions,
-      hasAnswers: s.hasAnswers,
-      hasTranscript: s.hasTranscript,
-      book: s.book ? bibleBookLabel(s.book) : undefined,
-    }))
-  }
+  try {
+    // If studies are already resolved (via resolve-section-data or direct prop), use them.
+    // Otherwise fetch from DB directly (for when used as a standalone server component).
+    let studies = preloadedStudies
+    if (!studies && churchId) {
+      const result = await getBibleStudies(churchId, { pageSize: 200 })
+      studies = result.data.map((s) => ({
+        id: s.id,
+        slug: s.slug,
+        title: s.title,
+        passage: s.passage || '',
+        series: s.series?.name || '',
+        dateFor: toDateString(s.dateFor),
+        hasQuestions: s.hasQuestions,
+        hasAnswers: s.hasAnswers,
+        hasTranscript: s.hasTranscript,
+        book: s.book ? bibleBookLabel(s.book) : undefined,
+      }))
+    }
 
-  return <AllBibleStudiesClient studies={studies ?? []} heading={content.heading} />
+    return <AllBibleStudiesClient studies={studies ?? []} heading={content.heading} />
+  } catch (error) {
+    console.error('[AllBibleStudiesSection] Failed to load Bible studies:', error)
+    return (
+      <div className="py-16 text-center">
+        <p className="text-muted-foreground">Bible studies are temporarily unavailable.</p>
+      </div>
+    )
+  }
 }

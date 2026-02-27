@@ -40,3 +40,10 @@ export async function updateMinistry(
     data,
   })
 }
+
+export async function deleteMinistry(churchId: string, id: string) {
+  return prisma.ministry.update({
+    where: { id, churchId },
+    data: { deletedAt: new Date() },
+  })
+}

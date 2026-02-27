@@ -48,3 +48,10 @@ export async function updateDailyBread(
     data,
   })
 }
+
+export async function deleteDailyBread(churchId: string, id: string) {
+  return prisma.dailyBread.update({
+    where: { id, churchId },
+    data: { deletedAt: new Date() },
+  })
+}

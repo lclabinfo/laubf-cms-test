@@ -1,8 +1,9 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { type Column, type ColumnDef } from "@tanstack/react-table"
-import { ArrowUp, ArrowDown, ArrowUpDown, MoreHorizontal, Video, BookOpen, Pencil, Trash2, Clock } from "lucide-react"
+import { ArrowUp, ArrowDown, ArrowUpDown, MoreHorizontal, Video, BookOpen, Pencil, Trash2, Clock, TriangleAlert } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -18,6 +19,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import type { Message, Series } from "@/lib/messages-data"
 import { statusDisplay } from "@/lib/status"
 
@@ -44,7 +56,76 @@ function SortIcon<T>({ column }: { column: Column<T> }) {
   return <ArrowUpDown />
 }
 
-export function createColumns(series: Series[]): ColumnDef<Message>[] {
+function MessageActionsCell({ row, onDelete }: { row: { original: Message }; onDelete?: (id: string) => void }) {
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-sm">
+            <MoreHorizontal className="size-4" />
+            <span className="sr-only">Open menu</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/cms/messages/${row.original.id}`}>
+              <Pencil />
+              Edit
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={(e) => {
+              e.preventDefault()
+              setDeleteOpen(true)
+            }}
+          >
+            <Trash2 />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10">
+              <TriangleAlert className="text-destructive" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Delete message?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &ldquo;{row.original.title}&rdquo; will be permanently deleted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => onDelete?.(row.original.id)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
+
+interface CreateColumnsOptions {
+  series: Series[]
+  onDelete?: (id: string) => void
+}
+
+export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions): ColumnDef<Message>[] {
+  const options = Array.isArray(seriesOrOptions)
+    ? { series: seriesOrOptions }
+    : seriesOrOptions
+  const { series, onDelete } = options
+
   return [
   {
     id: "select",
@@ -224,29 +305,7 @@ export function createColumns(series: Series[]): ColumnDef<Message>[] {
   },
   {
     id: "actions",
-    cell: ({ row }) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm">
-            <MoreHorizontal className="size-4" />
-            <span className="sr-only">Open menu</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem asChild>
-            <Link href={`/cms/messages/${row.original.id}`}>
-              <Pencil />
-              Edit
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive">
-            <Trash2 />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ),
+    cell: ({ row }) => <MessageActionsCell row={row} onDelete={onDelete} />,
     enableSorting: false,
     enableHiding: false,
     size: 50,

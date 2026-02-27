@@ -96,6 +96,10 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const [pendingNavigationId, setPendingNavigationId] = useState<string | null>(null)
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false)
 
+  // Section delete confirmation dialog
+  const [pendingDeleteSectionId, setPendingDeleteSectionId] = useState<string | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+
   // Section picker modal
   const [pickerOpen, setPickerOpen] = useState(false)
   const [pickerInsertIndex, setPickerInsertIndex] = useState(-1)
@@ -234,7 +238,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           isPublished: pageData.isPublished,
         }),
       })
-      if (!pageRes.ok) throw new Error("Failed to save page")
+      if (!pageRes.ok) throw new Error("Failed to save page metadata")
 
       // Reorder sections
       const sectionIds = sections.map((s) => s.id)
@@ -262,9 +266,22 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         }),
       )
       const results = await Promise.all(sectionSaves)
-      const failedSections = results.filter((r) => !r.ok)
-      if (failedSections.length > 0) {
-        throw new Error(`Failed to save ${failedSections.length} section(s)`)
+
+      // Check each section result individually
+      const failedNames: string[] = []
+      results.forEach((res, i) => {
+        if (!res.ok) {
+          const s = sections[i]
+          failedNames.push(s.label || s.sectionType)
+        }
+      })
+
+      if (failedNames.length > 0) {
+        setSaveState("idle")
+        toast.error(
+          `Failed to save ${failedNames.length} section(s): ${failedNames.join(", ")}`,
+        )
+        return
       }
 
       setIsDirty(false)
@@ -277,7 +294,9 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     } catch (err) {
       console.error("Save error:", err)
       setSaveState("idle")
-      toast.error("Failed to save page")
+      toast.error(
+        err instanceof Error ? err.message : "Failed to save page",
+      )
     } finally {
       setIsSaving(false)
     }
@@ -442,8 +461,23 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     [pageData.slug, pageData.id, pickerInsertIndex, pushSnapshot],
   )
 
+  /** Opens the confirmation dialog before deleting a section. */
   const handleDeleteSection = useCallback(
-    async (sectionId: string) => {
+    (sectionId: string) => {
+      setPendingDeleteSectionId(sectionId)
+      setDeleteDialogOpen(true)
+    },
+    [],
+  )
+
+  /** Actually performs the section delete after user confirms. */
+  const confirmDeleteSection = useCallback(
+    async () => {
+      const sectionId = pendingDeleteSectionId
+      setDeleteDialogOpen(false)
+      setPendingDeleteSectionId(null)
+      if (!sectionId) return
+
       try {
         const res = await fetch(
           `/api/v1/pages/${pagePathId(pageData)}/sections/${sectionId}`,
@@ -466,8 +500,13 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         toast.error("Failed to delete section")
       }
     },
-    [pageData.slug, pageData.id, selectedSectionId, editingSectionId, pushSnapshot],
+    [pageData.slug, pageData.id, selectedSectionId, editingSectionId, pushSnapshot, pendingDeleteSectionId],
   )
+
+  const cancelDeleteSection = useCallback(() => {
+    setDeleteDialogOpen(false)
+    setPendingDeleteSectionId(null)
+  }, [])
 
   const handleReorderSections = useCallback((reordered: BuilderSection[]) => {
     pushSnapshot()
@@ -950,6 +989,30 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
               onClick={handleDiscardAndNavigate}
             >
               Discard changes
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Section Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this section?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The section and its content will be
+              permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelDeleteSection}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={confirmDeleteSection}
+            >
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

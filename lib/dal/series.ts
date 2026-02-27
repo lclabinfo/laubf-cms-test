@@ -10,6 +10,15 @@ export async function getAllSeries(churchId: string): Promise<SeriesRecord[]> {
   })
 }
 
+export async function getSeriesById(
+  churchId: string,
+  id: string,
+): Promise<SeriesRecord | null> {
+  return prisma.series.findFirst({
+    where: { id, churchId, deletedAt: null },
+  })
+}
+
 export async function getSeriesBySlug(
   churchId: string,
   slug: string,
@@ -43,5 +52,32 @@ export async function deleteSeries(churchId: string, id: string) {
   return prisma.series.update({
     where: { id, churchId },
     data: { deletedAt: new Date() },
+  })
+}
+
+/**
+ * Replace all MessageSeries join records for a series with the given message IDs.
+ * This is a full replacement — any messages not in the list are removed from the series.
+ */
+export async function setSeriesMessages(
+  seriesId: string,
+  messageIds: string[],
+) {
+  await prisma.$transaction(async (tx) => {
+    // Remove all existing associations for this series
+    await tx.messageSeries.deleteMany({
+      where: { seriesId },
+    })
+
+    // Create new associations
+    if (messageIds.length > 0) {
+      await tx.messageSeries.createMany({
+        data: messageIds.map((messageId, index) => ({
+          messageId,
+          seriesId,
+          sortOrder: index,
+        })),
+      })
+    }
   })
 }

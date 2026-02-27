@@ -1,8 +1,9 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, MoreHorizontal, MapPin, Globe, Star, Pencil, Copy, Trash2, Clock } from "lucide-react"
+import { ArrowUpDown, MoreHorizontal, MapPin, Globe, Star, Pencil, Copy, Trash2, Clock, TriangleAlert } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -13,6 +14,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import type { ChurchEvent } from "@/lib/events-data"
 import { eventTypeDisplay, recurrenceDisplay, ministryDisplay, computeRecurrenceSchedule } from "@/lib/events-data"
 import { statusDisplay } from "@/lib/status"
@@ -46,7 +58,73 @@ function sameYear(a: string, b: string) {
   return new Date(a + "T00:00:00").getFullYear() === new Date(b + "T00:00:00").getFullYear()
 }
 
-export const columns: ColumnDef<ChurchEvent>[] = [
+function EventActionsCell({ row, onDelete }: { row: { original: ChurchEvent }; onDelete?: (id: string) => void }) {
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-sm">
+            <MoreHorizontal className="size-4" />
+            <span className="sr-only">Open menu</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem asChild>
+            <Link href={`/cms/events/${row.original.id}`}>
+              <Pencil />
+              Edit
+            </Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem>
+            <Copy />
+            Duplicate
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            variant="destructive"
+            onSelect={(e) => {
+              e.preventDefault()
+              setDeleteOpen(true)
+            }}
+          >
+            <Trash2 />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10">
+              <TriangleAlert className="text-destructive" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Delete event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &ldquo;{row.original.title}&rdquo; will be permanently deleted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => onDelete?.(row.original.id)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
+
+export function createColumns(options?: { onDelete?: (id: string) => void }): ColumnDef<ChurchEvent>[] {
+  const onDelete = options?.onDelete
+
+  return [
   {
     id: "select",
     header: ({ table }) => (
@@ -242,35 +320,13 @@ export const columns: ColumnDef<ChurchEvent>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm">
-            <MoreHorizontal className="size-4" />
-            <span className="sr-only">Open menu</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem asChild>
-            <Link href={`/cms/events/${row.original.id}`}>
-              <Pencil />
-              Edit
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Copy />
-            Duplicate
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive">
-            <Trash2 />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    ),
+    cell: ({ row }) => <EventActionsCell row={row} onDelete={onDelete} />,
     enableSorting: false,
     enableHiding: false,
     size: 50,
   },
-]
+  ]
+}
+
+// Default export for backward compatibility
+export const columns = createColumns()

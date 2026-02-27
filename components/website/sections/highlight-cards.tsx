@@ -4,6 +4,7 @@ import SectionContainer from "@/components/website/shared/section-container"
 import SectionHeader from "@/components/website/shared/section-header"
 import EventCard from "@/components/website/shared/event-card"
 import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
+import { resolveHref } from "@/lib/website/resolve-href"
 import type { SectionTheme } from "@/components/website/shared/theme-tokens"
 
 interface EventCardData {
@@ -48,7 +49,7 @@ export default function HighlightCardsSection({ content, enableAnimations, color
     imageUrl: e.imageUrl,
     badge: e.badge,
     imageObjectPosition: e.objectPosition,
-    href: `/website/events/${e.slug}`,
+    href: resolveHref(`/events/${e.slug}`),
   }))
 
   return (

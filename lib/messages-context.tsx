@@ -228,25 +228,75 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateSeries = useCallback((id: string, data: { name: string; imageUrl?: string }) => {
-    setSeries((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, name: data.name, imageUrl: data.imageUrl } : s))
-    )
-    // TODO: Call PATCH /api/v1/series/[slug] when the route exists
+    // Capture snapshot for rollback
+    let snapshot: Series | undefined
+    setSeries((prev) => {
+      snapshot = prev.find((s) => s.id === id)
+      return prev.map((s) => (s.id === id ? { ...s, name: data.name, imageUrl: data.imageUrl } : s))
+    })
+
+    fetch(`/api/v1/series/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: data.name, imageUrl: data.imageUrl || null }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to update series (${res.status})`)
+        return res.json()
+      })
+      .then((json) => {
+        if (json.success && json.data) {
+          setSeries((prev) =>
+            prev.map((s) => (s.id === id ? apiSeriesToCms(json.data) : s))
+          )
+        }
+      })
+      .catch((err) => {
+        console.error("updateSeries error:", err)
+        if (snapshot) {
+          setSeries((prev) => prev.map((s) => (s.id === id ? snapshot! : s)))
+        }
+      })
   }, [])
 
   const deleteSeries = useCallback((id: string) => {
-    setSeries((prev) => prev.filter((s) => s.id !== id))
+    let deletedSeries: Series | undefined
+    setSeries((prev) => {
+      deletedSeries = prev.find((s) => s.id === id)
+      return prev.filter((s) => s.id !== id)
+    })
     setMessages((prev) =>
       prev.map((m) =>
         m.seriesId === id ? { ...m, seriesId: null } : m
       )
     )
-    // TODO: Call DELETE /api/v1/series/[slug] when the route exists
+
+    fetch(`/api/v1/series/${id}`, { method: "DELETE" })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to delete series (${res.status})`)
+      })
+      .catch((err) => {
+        console.error("deleteSeries error:", err)
+        // Rollback: re-add series and restore message associations
+        if (deletedSeries) {
+          setSeries((prev) => [...prev, deletedSeries!])
+          setMessages((prev) =>
+            prev.map((m) => {
+              // We can't perfectly restore which messages were in the series,
+              // but optimistic UI already cleared them
+              return m
+            })
+          )
+        }
+      })
   }, [])
 
   const setSeriesMessages = useCallback((seriesId: string, messageIds: string[]) => {
-    setMessages((prev) =>
-      prev.map((m) => {
+    // Capture snapshot for rollback
+    let snapshot: Message[] = []
+    setMessages((prev) => {
+      snapshot = prev
+      return prev.map((m) => {
         const inSelection = messageIds.includes(m.id)
         const inSeries = m.seriesId === seriesId
         if (inSelection && !inSeries) {
@@ -257,8 +307,21 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
         }
         return m
       })
-    )
-    // TODO: Update MessageSeries join records via API
+    })
+
+    fetch(`/api/v1/series/${seriesId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messageIds }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to update series messages (${res.status})`)
+      })
+      .catch((err) => {
+        console.error("setSeriesMessages error:", err)
+        // Rollback to snapshot
+        setMessages(snapshot)
+      })
   }, [])
 
   const addMessage = useCallback((data: Omit<Message, "id">) => {

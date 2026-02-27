@@ -9,7 +9,7 @@
  */
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef, useCallback, useMemo } from "react"
 import {
   ChevronDown,
   ChevronUp,
@@ -25,6 +25,7 @@ import {
   X,
   BookMarked,
 } from "lucide-react"
+import DOMPurify from "isomorphic-dompurify"
 import { cn } from "@/lib/utils"
 import SectionContainer from "@/components/website/shared/section-container"
 import { themeTokens, type SectionTheme, type ThemeTokens } from "@/components/website/shared/theme-tokens"
@@ -290,6 +291,16 @@ export default function DailyBreadFeatureSection({
 
   const entry = content.dailyBread
 
+  /* Sanitize HTML content from the database */
+  const sanitizedBibleText = useMemo(
+    () => DOMPurify.sanitize(entry?.bibleText || "<p>Scripture text not available.</p>"),
+    [entry?.bibleText]
+  )
+  const sanitizedBody = useMemo(
+    () => DOMPurify.sanitize(entry?.body || ""),
+    [entry?.body]
+  )
+
   /* Token-derived inline style values for elements that need dynamic bg */
   const surfaceBgStyle = colorScheme === "dark"
     ? { backgroundColor: "var(--color-black-1-5)" }
@@ -345,7 +356,7 @@ export default function DailyBreadFeatureSection({
                       <div
                         className="study-bible-text"
                         dangerouslySetInnerHTML={{
-                          __html: entry.bibleText || "<p>Scripture text not available.</p>",
+                          __html: sanitizedBibleText,
                         }}
                       />
                     </div>
@@ -516,7 +527,7 @@ export default function DailyBreadFeatureSection({
                         <div
                           className="study-bible-text"
                           dangerouslySetInnerHTML={{
-                            __html: entry.bibleText || "<p>Scripture text not available.</p>",
+                            __html: sanitizedBibleText,
                           }}
                         />
                       </div>
@@ -526,7 +537,7 @@ export default function DailyBreadFeatureSection({
                   {/* ── Body Content ── */}
                   <div
                     className="study-content"
-                    dangerouslySetInnerHTML={{ __html: entry.body }}
+                    dangerouslySetInnerHTML={{ __html: sanitizedBody }}
                   />
 
                   {/* ── Footer ── */}

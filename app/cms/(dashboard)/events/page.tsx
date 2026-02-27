@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { toast } from "sonner"
 import { Loader2, Star, MapPin, Globe, CalendarDays, ImageIcon } from "lucide-react"
 import {
   useReactTable,
@@ -19,7 +20,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { DataTable } from "@/components/ui/data-table"
 import { Calendar } from "@/components/ui/calendar"
-import { columns } from "@/components/cms/events/columns"
+import { createColumns } from "@/components/cms/events/columns"
 import { Toolbar } from "@/components/cms/events/toolbar"
 import { useEvents } from "@/lib/events-context"
 import { eventTypeDisplay, computeRecurrenceSchedule, ministryDisplay } from "@/lib/events-data"
@@ -101,7 +102,17 @@ function dateKey(d: Date): string {
 
 export default function EventsPage() {
   const router = useRouter()
-  const { events, loading } = useEvents()
+  const { events, loading, deleteEvent } = useEvents()
+
+  const handleDelete = useCallback((id: string) => {
+    const event = events.find((e) => e.id === id)
+    deleteEvent(id)
+    toast.success("Event deleted", {
+      description: event ? `"${event.title}" has been deleted.` : undefined,
+    })
+  }, [events, deleteEvent])
+
+  const columns = useMemo(() => createColumns({ onDelete: handleDelete }), [handleDelete])
   // Sort: featured events pinned to top, then by date descending
   const sortedEvents = useMemo(() => {
     const featured = events.filter((e) => e.isFeatured)

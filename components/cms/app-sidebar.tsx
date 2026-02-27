@@ -18,16 +18,9 @@ import {
   UsersIcon,
   UserPlusIcon,
   ContactIcon,
-  HandCoinsIcon,
-  CreditCardIcon,
-  BarChart3Icon,
   ChevronsUpDownIcon,
   LogOutIcon,
   SettingsIcon,
-  BellIcon,
-  MegaphoneIcon,
-  PuzzleIcon,
-  SmartphoneIcon,
   type LucideIcon,
 } from "lucide-react"
 
@@ -75,6 +68,13 @@ type NavGroup = {
   items: NavItem[]
 }
 
+// Items that are stubs / not yet implemented get reduced opacity
+const STUB_HREFS = new Set([
+  "/cms/people/members",
+  "/cms/people/groups",
+  "/cms/people/directory",
+])
+
 const navGroups: NavGroup[] = [
   {
     label: "Contents",
@@ -98,6 +98,26 @@ const navGroups: NavGroup[] = [
         title: "Media",
         href: "/cms/media",
         icon: ImageIcon,
+      },
+    ],
+  },
+  {
+    label: "People",
+    items: [
+      {
+        title: "Members",
+        href: "/cms/people/members",
+        icon: UsersIcon,
+      },
+      {
+        title: "Groups",
+        href: "/cms/people/groups",
+        icon: UserPlusIcon,
+      },
+      {
+        title: "Directory",
+        href: "/cms/people/directory",
+        icon: ContactIcon,
       },
     ],
   },
@@ -133,71 +153,6 @@ const navGroups: NavGroup[] = [
         title: "Settings",
         href: "/cms/website/settings",
         icon: SettingsIcon,
-      },
-    ],
-  },
-  {
-    label: "App",
-    items: [
-      {
-        title: "Notifications",
-        href: "/cms/app/notifications",
-        icon: BellIcon,
-      },
-      {
-        title: "Announcements",
-        href: "/cms/app/announcements",
-        icon: MegaphoneIcon,
-      },
-      {
-        title: "Mobile App",
-        href: "/cms/app/mobile",
-        icon: SmartphoneIcon,
-      },
-      {
-        title: "Integrations",
-        href: "/cms/app/integrations",
-        icon: PuzzleIcon,
-      },
-    ],
-  },
-  {
-    label: "Giving",
-    items: [
-      {
-        title: "Donations",
-        href: "/cms/giving/donations",
-        icon: HandCoinsIcon,
-      },
-      {
-        title: "Payments",
-        href: "/cms/giving/payments",
-        icon: CreditCardIcon,
-      },
-      {
-        title: "Reports",
-        href: "/cms/giving/reports",
-        icon: BarChart3Icon,
-      },
-    ],
-  },
-  {
-    label: "People",
-    items: [
-      {
-        title: "Members",
-        href: "/cms/people/members",
-        icon: UsersIcon,
-      },
-      {
-        title: "Groups",
-        href: "/cms/people/groups",
-        icon: UserPlusIcon,
-      },
-      {
-        title: "Directory",
-        href: "/cms/people/directory",
-        icon: ContactIcon,
       },
     ],
   },
@@ -300,6 +255,7 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
                             asChild
                             isActive={pathname === item.href}
                             tooltip={item.title}
+                            className={STUB_HREFS.has(item.href) ? "opacity-40 pointer-events-none" : undefined}
                           >
                             <Link href={item.href}>
                               <item.icon />

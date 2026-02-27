@@ -158,7 +158,7 @@ export default async function DashboardPage() {
       type: "message" as const,
       status: m.status,
       updatedAt: m.updatedAt.toISOString(),
-      href: `/cms/messages/${m.slug}`,
+      href: `/cms/messages/${m.id}`,
     })),
     ...recentEvents.map((e) => ({
       id: e.id,
@@ -166,7 +166,7 @@ export default async function DashboardPage() {
       type: "event" as const,
       status: e.status,
       updatedAt: e.updatedAt.toISOString(),
-      href: `/cms/events/${e.slug}`,
+      href: `/cms/events/${e.id}`,
     })),
     ...recentPages.map((p) => ({
       id: p.id,
