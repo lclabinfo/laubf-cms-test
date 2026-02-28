@@ -33,11 +33,16 @@ export function SpeakerSelect({ value, onChange }: SpeakerSelectProps) {
   const [search, setSearch] = useState("")
 
   useEffect(() => {
-    fetch("/api/v1/speakers")
+    fetch("/api/v1/people/by-role/speaker")
       .then((res) => res.json())
       .then((json) => {
         if (json.success && json.data) {
-          setSpeakers(json.data.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })))
+          setSpeakers(
+            json.data.map((p: { id: string; name: string }) => ({
+              id: p.id,
+              name: p.name,
+            }))
+          )
         }
       })
       .catch(console.error)
