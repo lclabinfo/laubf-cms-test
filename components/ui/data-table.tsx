@@ -1,7 +1,9 @@
 "use client"
 
+import React from "react"
 import {
   type ColumnDef,
+  type Row,
   type Table as TanstackTable,
   flexRender,
 } from "@tanstack/react-table"
@@ -36,6 +38,8 @@ interface DataTableProps<TData, TValue> {
   onRowClick?: (row: TData) => void
   /** When set, the row whose `original.id` matches gets a highlight style. */
   activeRowId?: string | null
+  /** Render a sub-component below the row when it is expanded. */
+  renderSubComponent?: (props: { row: Row<TData> }) => React.ReactNode
 }
 
 export function DataTable<TData, TValue>({
@@ -43,6 +47,7 @@ export function DataTable<TData, TValue>({
   table,
   onRowClick,
   activeRowId,
+  renderSubComponent,
 }: DataTableProps<TData, TValue>) {
   return (
     <div className="space-y-4">
@@ -79,8 +84,8 @@ export function DataTable<TData, TValue>({
               table.getRowModel().rows.map((row) => {
                 const isActive = activeRowId != null && (row.original as Record<string, unknown>).id === activeRowId
                 return (
+                <React.Fragment key={row.id}>
                 <TableRow
-                  key={row.id}
                   data-state={row.getIsSelected() ? "selected" : isActive ? "active" : undefined}
                   className={cn(
                     onRowClick && "cursor-pointer",
@@ -103,6 +108,14 @@ export function DataTable<TData, TValue>({
                     </TableCell>
                   ))}
                 </TableRow>
+                {renderSubComponent && row.getIsExpanded() && (
+                  <TableRow className="hover:bg-transparent">
+                    <TableCell colSpan={row.getVisibleCells().length} className="p-0">
+                      {renderSubComponent({ row })}
+                    </TableCell>
+                  </TableRow>
+                )}
+                </React.Fragment>
                 )
               })
             ) : (

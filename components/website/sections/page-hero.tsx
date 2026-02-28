@@ -138,7 +138,7 @@ export default function PageHeroSection({ content, enableAnimations, colorScheme
             </h1>
 
             <div className={cn("relative z-10 flex flex-col sm:flex-row items-center gap-3 w-[70%] sm:w-auto", animate && "animate-hero-fade-up-delayed-2")}>
-              {content.primaryButton.visible && (
+              {content.primaryButton?.visible && (
                 <CTAButton
                   label={content.primaryButton.label}
                   href={content.primaryButton.href}
@@ -146,7 +146,7 @@ export default function PageHeroSection({ content, enableAnimations, colorScheme
                   className="w-full sm:w-auto"
                 />
               )}
-              {content.secondaryButton.visible && (
+              {content.secondaryButton?.visible && (
                 <>
                   <div className="w-full min-[480px]:hidden">
                     <CTAButton label="FAQ" href={content.secondaryButton.href} variant="secondary" className="w-full" />

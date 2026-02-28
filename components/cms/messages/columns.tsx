@@ -3,15 +3,11 @@
 import { useState } from "react"
 import Link from "next/link"
 import { type ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, Video, BookOpen, Pencil, Trash2, Clock, TriangleAlert } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, Clock, TriangleAlert, ChevronRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -121,6 +117,28 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
   const { series, onDelete } = options
 
   return [
+  {
+    id: "expand",
+    header: () => null,
+    cell: ({ row }) => {
+      if (!row.getCanExpand()) return null
+      return (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={(e) => {
+            e.stopPropagation()
+            row.toggleExpanded()
+          }}
+        >
+          <ChevronRight className={cn("size-4 transition-transform", row.getIsExpanded() && "rotate-90")} />
+        </Button>
+      )
+    },
+    enableSorting: false,
+    enableHiding: false,
+    size: 32,
+  },
   {
     id: "select",
     header: ({ table }) => (
@@ -240,30 +258,30 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
     size: 110,
   },
   {
-    id: "resources",
-    header: "Resources",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-3">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Video
-              className={`size-4 ${row.original.hasVideo ? "text-info" : "text-muted-foreground/25"}`}
-            />
-          </TooltipTrigger>
-          <TooltipContent>{row.original.hasVideo ? "Has video" : "No video"}</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <BookOpen
-              className={`size-4 ${row.original.hasStudy ? "text-violet-500" : "text-muted-foreground/25"}`}
-            />
-          </TooltipTrigger>
-          <TooltipContent>{row.original.hasStudy ? "Has study guide" : "No study guide"}</TooltipContent>
-        </Tooltip>
-      </div>
-    ),
+    id: "video",
+    header: "Video",
+    cell: ({ row }) => {
+      const hasVideo = row.original.hasVideo
+      const isPublished = row.original.status === "published"
+      if (hasVideo && isPublished) return <Badge variant="success">Live</Badge>
+      if (hasVideo) return <Badge variant="secondary">Draft</Badge>
+      return <Badge variant="outline">Empty</Badge>
+    },
     enableSorting: false,
-    size: 100,
+    size: 70,
+  },
+  {
+    id: "study",
+    header: "Study",
+    cell: ({ row }) => {
+      const hasStudy = row.original.hasStudy
+      const isPublished = row.original.status === "published"
+      if (hasStudy && isPublished) return <Badge variant="success">Live</Badge>
+      if (hasStudy) return <Badge variant="secondary">Draft</Badge>
+      return <Badge variant="outline">Empty</Badge>
+    },
+    enableSorting: false,
+    size: 70,
   },
   {
     id: "actions",

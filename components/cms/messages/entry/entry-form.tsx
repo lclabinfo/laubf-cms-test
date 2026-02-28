@@ -1,15 +1,35 @@
 "use client"
 
-import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useRef } from "react"
+import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, AlertCircle, Video, BookOpen } from "lucide-react"
+import {
+  ArrowLeft,
+  AlertCircle,
+  Video,
+  BookOpen,
+  Settings,
+  Upload,
+  X,
+  FileText,
+  Clock,
+  Info,
+  ArrowRight,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { DatePicker } from "@/components/ui/date-picker"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,7 +43,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { VideoTab } from "./video-tab"
 import { StudyTab } from "./study-tab"
-import { MetadataSidebar } from "./metadata-sidebar"
+import { SpeakerSelect } from "./speaker-select"
+import { SeriesSelect } from "./series-select"
+import { BiblePassageInput } from "./bible-passage-input"
+import { PublishDialog } from "./publish-dialog"
 import { useMessages } from "@/lib/messages-context"
 import { statusDisplay } from "@/lib/status"
 import { isTiptapContentEmpty } from "@/lib/tiptap"
@@ -45,8 +68,12 @@ interface ValidationIssue {
   message: string
 }
 
+const statusOptions: MessageStatus[] = ["draft", "published", "scheduled", "archived"]
+
 export function EntryForm({ mode, message }: EntryFormProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const pathname = usePathname()
   const { series, addMessage, updateMessage } = useMessages()
 
   // Shared metadata
@@ -84,6 +111,16 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const [validationOpen, setValidationOpen] = useState(false)
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([])
 
+  // Publish dialog state
+  const [publishOpen, setPublishOpen] = useState(false)
+
+  // Attachment file input
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Tab state with URL sync
+  const initialTab = searchParams.get("tab") || "details"
+  const [activeTab, setActiveTab] = useState(initialTab)
+
   const statusConfig = statusDisplay[status]
 
   // Content detection
@@ -91,13 +128,32 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const hasStudy = studySections.length > 0 && studySections.some((s) => !isTiptapContentEmpty(s.content))
   const hasContent = hasVideo || hasStudy
 
-  // Determine which tab to show by default
-  const defaultTab = useMemo(() => {
-    if (mode === "edit" && message) {
-      if (message.hasStudy && !message.hasVideo) return "study"
+  // Parse publishedAt into date and time parts
+  const publishDate = publishedAt ? publishedAt.split("T")[0] : ""
+  const publishTime = publishedAt && publishedAt.includes("T")
+    ? publishedAt.split("T")[1].slice(0, 5)
+    : "09:00"
+
+  function handlePublishDateChange(newDate: string) {
+    setPublishedAt(`${newDate}T${publishTime}:00`)
+  }
+
+  function handlePublishTimeChange(newTime: string) {
+    const d = publishDate || new Date().toISOString().slice(0, 10)
+    setPublishedAt(`${d}T${newTime}:00`)
+  }
+
+  function handleTabChange(tab: string) {
+    setActiveTab(tab)
+    const params = new URLSearchParams(searchParams.toString())
+    if (tab === "details") {
+      params.delete("tab")
+    } else {
+      params.set("tab", tab)
     }
-    return "video"
-  }, [mode, message])
+    const qs = params.toString()
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false })
+  }
 
   function getPublishValidationIssues(): ValidationIssue[] {
     const issues: ValidationIssue[] = []
@@ -167,23 +223,14 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     router.push("/cms/messages")
   }
 
-  function handleSave() {
-    // Draft/archived: minimal validation — just need a title
-    if (status === "draft" || status === "archived") {
-      if (!title.trim()) return
-      saveMessage()
-      return
-    }
-
-    // Published/scheduled: full validation
+  function handlePublishClick() {
     const issues = getPublishValidationIssues()
     if (issues.length > 0) {
       setValidationIssues(issues)
       setValidationOpen(true)
       return
     }
-
-    saveMessage()
+    setPublishOpen(true)
   }
 
   function handleSaveAsDraft() {
@@ -196,13 +243,34 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     router.push("/cms/messages")
   }
 
+  function handleUploadAttachment() {
+    fileInputRef.current?.click()
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files
+    if (!files) return
+    const newAttachments: Attachment[] = Array.from(files).map((file) => ({
+      id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      name: file.name,
+      size: formatFileSize(file.size),
+      type: file.type,
+    }))
+    setAttachments([...attachments, ...newAttachments])
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
+  function handleRemoveAttachment(id: string) {
+    setAttachments(attachments.filter((a) => a.id !== id))
+  }
+
   // Minimal validation for the button disabled state: need a title for any save
   const canSave = title.trim().length >= 2
 
   return (
-    <div className="flex flex-col gap-6 flex-1 min-h-0">
+    <div className="flex flex-col gap-0 flex-1 min-h-0">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 pb-4">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/cms/messages">
             <ArrowLeft />
@@ -210,8 +278,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
         </Button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight">
-              {mode === "create" ? "New Message" : "Edit Message"}
+            <h1 className="text-xl font-semibold tracking-tight truncate">
+              {mode === "create" ? "New Message" : (title || "Untitled")}
             </h1>
             <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
           </div>
@@ -220,134 +288,343 @@ export function EntryForm({ mode, message }: EntryFormProps) {
           <Button variant="outline" onClick={handleCancel}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!canSave}>
-            {status === "published" || status === "scheduled"
-              ? status === "published" ? "Publish" : "Schedule"
-              : "Save Changes"}
+          <Button variant="outline" onClick={handleSaveAsDraft}>
+            Save Draft
+          </Button>
+          <Button
+            onClick={handlePublishClick}
+            disabled={!canSave}
+            className="bg-green-600 hover:bg-green-700 text-white"
+          >
+            Publish...
           </Button>
         </div>
       </div>
 
-      {/* Title */}
-      <div>
-        <Input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Message title *"
-          className="text-lg font-medium h-12"
-          aria-label="Message title"
-        />
-        {title.trim().length > 0 && title.trim().length < 2 && (
-          <p className="text-xs text-destructive mt-1">Title must be at least 2 characters</p>
-        )}
-      </div>
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 min-h-0 flex flex-col">
+        <TabsList variant="line">
+          <TabsTrigger value="details" className="gap-1.5">
+            <Settings className="size-3.5" />
+            Details
+          </TabsTrigger>
+          <TabsTrigger value="video" className="gap-1.5">
+            Video
+            {hasVideo && <span className="size-1.5 rounded-full bg-primary" />}
+          </TabsTrigger>
+          <TabsTrigger value="study" className="gap-1.5">
+            Bible Study
+            {hasStudy && <span className="size-1.5 rounded-full bg-primary" />}
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Description */}
-      <div className="space-y-1.5">
-        <Label htmlFor="message-description" className="text-sm text-muted-foreground">
-          Description
-        </Label>
-        <Textarea
-          id="message-description"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="A brief summary of this message (shown on the detail page and in search results)..."
-          className="min-h-[72px] resize-none"
-        />
-      </div>
+        {/* Details Tab */}
+        <TabsContent value="details" className="flex-1 overflow-y-auto pt-4">
+          <div className="max-w-3xl mx-auto space-y-6">
+            {/* Info banner for create mode */}
+            {mode === "create" && (
+              <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200">
+                <Info className="size-4 mt-0.5 shrink-0" />
+                <p>
+                  Creating a new message. Fill in the details below, then switch to the Video or Bible Study tab to add content.
+                </p>
+              </div>
+            )}
 
-      {/* Content publishing summary */}
-      {hasContent && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>Will be published with:</span>
-          {hasVideo && (
-            <Badge variant="secondary" className="gap-1">
-              <Video className="size-3" />
-              Video
-            </Badge>
-          )}
-          {hasStudy && (
-            <Badge variant="secondary" className="gap-1">
-              <BookOpen className="size-3" />
-              Bible Study
-            </Badge>
-          )}
-        </div>
-      )}
-
-      {/* Two-column layout: content + sidebar */}
-      <div className="flex flex-1 gap-6 min-h-0">
-        {/* Main content area */}
-        <div className="flex-1 min-w-0 overflow-y-auto p-0.5 -m-0.5">
-          <Tabs defaultValue={defaultTab} key={defaultTab}>
-            <TabsList variant="line">
-              <TabsTrigger value="video" className="gap-1.5">
-                Video
-                {hasVideo && (
-                  <span className="size-1.5 rounded-full bg-primary" />
+            {/* Main fields card */}
+            <div className="rounded-xl border p-6 space-y-5">
+              {/* Title */}
+              <div>
+                <Input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Message title *"
+                  className="text-lg font-medium h-12"
+                  aria-label="Message title"
+                  autoFocus={mode === "create"}
+                />
+                {title.trim().length > 0 && title.trim().length < 2 && (
+                  <p className="text-xs text-destructive mt-1">Title must be at least 2 characters</p>
                 )}
-              </TabsTrigger>
-              <TabsTrigger value="study" className="gap-1.5">
-                Bible Study
-                {hasStudy && (
-                  <span className="size-1.5 rounded-full bg-primary" />
+              </div>
+
+              {/* Description */}
+              <div className="space-y-1.5">
+                <Label htmlFor="message-description" className="text-sm text-muted-foreground">
+                  Description
+                </Label>
+                <Textarea
+                  id="message-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="A brief summary of this message (shown on the detail page and in search results)..."
+                  className="min-h-[72px] resize-none"
+                />
+              </div>
+
+              {/* Speaker + Message Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Speaker <span className="text-destructive">*</span></Label>
+                  <SpeakerSelect
+                    value={speaker}
+                    onChange={(name, id) => {
+                      setSpeaker(name)
+                      setSpeakerId(id)
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Message Date <span className="text-destructive">*</span></Label>
+                  <DatePicker
+                    value={date}
+                    onChange={setDate}
+                    placeholder="When was this message delivered?"
+                  />
+                </div>
+              </div>
+
+              {/* Status + Bible Version */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <Select value={status} onValueChange={(v) => setStatus(v as MessageStatus)}>
+                    <SelectTrigger id="status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {statusOptions.map((s) => {
+                        const config = statusDisplay[s]
+                        return (
+                          <SelectItem key={s} value={s}>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={config.variant} className="text-[10px] px-1.5 py-0">
+                                {config.label}
+                              </Badge>
+                            </div>
+                          </SelectItem>
+                        )
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bible-version">Bible Version</Label>
+                  <Select value={bibleVersion} onValueChange={setBibleVersion}>
+                    <SelectTrigger id="bible-version">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ESV">ESV</SelectItem>
+                      <SelectItem value="NIV">NIV</SelectItem>
+                      <SelectItem value="KJV">KJV</SelectItem>
+                      <SelectItem value="NASB">NASB</SelectItem>
+                      <SelectItem value="WEB">WEB</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Scheduled Post Date + Time (conditional) */}
+              {status === "scheduled" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>
+                      Scheduled Post Date
+                      <span className="text-destructive"> *</span>
+                    </Label>
+                    <DatePicker
+                      value={publishDate}
+                      onChange={handlePublishDateChange}
+                      placeholder="When should this be posted?"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Scheduled Post Time</Label>
+                    <div className="flex items-center gap-2">
+                      <Clock className="size-3.5 text-muted-foreground" />
+                      <Input
+                        type="time"
+                        value={publishTime}
+                        onChange={(e) => handlePublishTimeChange(e.target.value)}
+                        className="w-32 h-9"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Series + Scripture Passage */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Series</Label>
+                  <SeriesSelect
+                    series={series}
+                    selectedId={seriesId}
+                    onChange={setSeriesId}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Scripture Passage</Label>
+                  <BiblePassageInput
+                    value={passage}
+                    onChange={(passageStr) => setPassage(passageStr)}
+                  />
+                </div>
+              </div>
+
+              {/* Attachments */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Attachments</Label>
+                  <Button variant="ghost" size="sm" onClick={handleUploadAttachment}>
+                    <Upload className="size-3.5" />
+                    Upload
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </div>
+                {attachments.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-2">
+                    No attachments yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {attachments.map((att) => (
+                      <div
+                        key={att.id}
+                        className="flex items-center gap-2 rounded-md border px-3 py-2"
+                      >
+                        <FileText className="size-4 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{att.name}</p>
+                          <p className="text-xs text-muted-foreground">{att.size}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleRemoveAttachment(att.id)}
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 )}
-              </TabsTrigger>
-            </TabsList>
+              </div>
+            </div>
 
-            <TabsContent value="video" className="pt-4">
-              <VideoTab
-                videoUrl={videoUrl}
-                onVideoUrlChange={setVideoUrl}
-                description={videoDescription}
-                onDescriptionChange={setVideoDescription}
-                duration={duration}
-                onDurationChange={setDuration}
-                audioUrl={audioUrl}
-                onAudioUrlChange={setAudioUrl}
-                rawTranscript={rawTranscript}
-                onRawTranscriptChange={setRawTranscript}
-                liveTranscript={liveTranscript}
-                onLiveTranscriptChange={setLiveTranscript}
-                segments={transcriptSegments}
-                onSegmentsChange={setTranscriptSegments}
-              />
-            </TabsContent>
+            {/* Content Overview */}
+            <div>
+              <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-3">
+                Content Overview
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Video card */}
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("video")}
+                  className="rounded-xl border p-4 text-left transition-colors hover:bg-muted/50"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-9 items-center justify-center rounded-lg bg-blue-500/10 shrink-0">
+                      <Video className="size-4 text-blue-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">Video</span>
+                        <Badge variant={hasVideo ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                          {hasVideo ? "Added" : "Empty"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground">
+                        Go to Video tab
+                        <ArrowRight className="size-3" />
+                      </div>
+                    </div>
+                  </div>
+                </button>
 
-            <TabsContent value="study" className="pt-4">
-              <StudyTab
-                sections={studySections}
-                onSectionsChange={setStudySections}
-              />
-            </TabsContent>
-          </Tabs>
-        </div>
+                {/* Bible Study card */}
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("study")}
+                  className="rounded-xl border p-4 text-left transition-colors hover:bg-muted/50"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-9 items-center justify-center rounded-lg bg-purple-500/10 shrink-0">
+                      <BookOpen className="size-4 text-purple-600" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">Bible Study</span>
+                        <Badge variant={hasStudy ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                          {hasStudy ? "Added" : "Empty"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground">
+                        Go to Bible Study tab
+                        <ArrowRight className="size-3" />
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </TabsContent>
 
-        {/* Metadata sidebar */}
-        <MetadataSidebar
-          status={status}
-          onStatusChange={setStatus}
-          date={date}
-          onDateChange={setDate}
-          speaker={speaker}
-          speakerId={speakerId}
-          onSpeakerChange={(name, id) => {
-            setSpeaker(name)
-            setSpeakerId(id)
-          }}
-          seriesId={seriesId}
-          onSeriesIdChange={setSeriesId}
-          passage={passage}
-          onPassageChange={setPassage}
-          bibleVersion={bibleVersion}
-          onBibleVersionChange={setBibleVersion}
-          attachments={attachments}
-          onAttachmentsChange={setAttachments}
-          allSeries={series}
-          publishedAt={publishedAt}
-          onPublishedAtChange={setPublishedAt}
-        />
-      </div>
+        {/* Video Tab */}
+        <TabsContent value="video" className="flex-1 overflow-y-auto pt-4">
+          <div className="max-w-3xl mx-auto">
+            <VideoTab
+              videoUrl={videoUrl}
+              onVideoUrlChange={setVideoUrl}
+              description={videoDescription}
+              onDescriptionChange={setVideoDescription}
+              duration={duration}
+              onDurationChange={setDuration}
+              audioUrl={audioUrl}
+              onAudioUrlChange={setAudioUrl}
+              rawTranscript={rawTranscript}
+              onRawTranscriptChange={setRawTranscript}
+              liveTranscript={liveTranscript}
+              onLiveTranscriptChange={setLiveTranscript}
+              segments={transcriptSegments}
+              onSegmentsChange={setTranscriptSegments}
+            />
+          </div>
+        </TabsContent>
+
+        {/* Bible Study Tab */}
+        <TabsContent value="study" className="flex-1 overflow-y-auto pt-4">
+          <div className="max-w-3xl mx-auto">
+            <StudyTab
+              sections={studySections}
+              onSectionsChange={setStudySections}
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Publish Dialog */}
+      <PublishDialog
+        open={publishOpen}
+        onOpenChange={setPublishOpen}
+        title={title}
+        hasVideo={hasVideo}
+        hasStudy={hasStudy}
+        videoSummary={videoUrl ? `YouTube · ${duration || "\u2014"}` : "No video content"}
+        studySummary={studySections.length > 0 ? `${studySections.length} section${studySections.length !== 1 ? "s" : ""}` : "No study material"}
+        onPublish={() => {
+          saveMessage("published")
+        }}
+      />
 
       {/* Validation dialog */}
       <AlertDialog open={validationOpen} onOpenChange={setValidationOpen}>
@@ -388,4 +665,10 @@ export function EntryForm({ mode, message }: EntryFormProps) {
       </AlertDialog>
     </div>
   )
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
