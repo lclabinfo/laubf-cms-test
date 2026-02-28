@@ -24,7 +24,7 @@ These are not separate entities. They live together as one entry because the stu
 | **Scheduled Post Date** | Only when status = Scheduled (date + time) |
 | **Speaker** | Searchable select from DB, or free-text custom name |
 | **Series** | Optional. Groups messages into a named collection |
-| **Scripture Passage** | e.g. "John 3:16-21" |
+| **Scripture Passage** | Smart input with book autocomplete, chapter:verse parsing, and validation (see [Bible Passage Input](#bible-passage-input) below) |
 | **Description** | Brief summary for listings and SEO |
 | **Attachments** | Uploaded files (PDF, DOCX, images) |
 
@@ -125,6 +125,51 @@ These let admins scan which messages are complete vs. need content added.
 4. **Study sections are sub-tabs** — each section is its own tab with a rich text editor. Admins name them freely.
 5. **Optimistic saves** — UI updates immediately, API syncs in background. Errors trigger rollback + toast.
 6. **Weekly workflow** — posting a new sermon is the highest-frequency admin task. The flow should optimize for: paste video URL → add study material → set metadata → publish.
+
+---
+
+## Bible Passage Input
+
+The passage field uses `BiblePassageInput`, a custom autocomplete component for structured Bible reference entry.
+
+### UX Flow
+1. **Book autocomplete** — type a book name (or abbreviation like "Rom") → dropdown shows matching books (max 5)
+2. **Chapter:Verse entry** — select book, continue typing chapter and verse range (e.g., "12:1-9")
+3. **Validation indicator** — green dot appears when a valid reference is detected
+4. **Confirm** — press Enter to lock in the selection, displayed as styled text with X to clear
+5. **Keyboard navigation** — arrow keys navigate suggestions, Enter selects, Escape closes
+
+### Output Format
+```ts
+interface BibleReference {
+  book: string;        // "Genesis", "1 Corinthians", etc.
+  chapter: number;     // Chapter number
+  verseStart: number;  // Starting verse (defaults to 1 if only chapter given)
+  verseEnd?: number;   // Ending verse (for ranges like "1-9")
+}
+```
+
+Passage is stored as a formatted string: `"Genesis 12:1-9"`, `"John 3:16"`, `"1 Corinthians 13:1-8"`.
+
+### Bible Text API Integration
+When a message with study content is published, the sync pipeline automatically fetches scripture text:
+
+1. `syncMessageStudy()` calls `fetchBibleText(passage)` from `lib/bible-api.ts`
+2. Fetches from `https://bible-api.com/{passage}?translation=web` (World English Bible, public domain)
+3. Formats response as HTML with `<sup>` verse numbers
+4. Stores in `BibleStudy.bibleText` field
+5. Public website renders via `dangerouslySetInnerHTML` in the Bible tab
+
+**BibleGateway links** are constructed from the passage string for "Read on BibleGateway" buttons, using ESV as the default version.
+
+### Key Files
+| File | Purpose |
+|---|---|
+| `lib/bible-data.ts` | 66 books, 50+ abbreviations, reference parser |
+| `lib/bible-api.ts` | `fetchBibleText()`, `getBibleGatewayUrl()` |
+| `components/cms/messages/entry/bible-passage-input.tsx` | Autocomplete input component |
+| `app/api/v1/bible/route.ts` | Client-side bible text preview endpoint |
+| `lib/dal/sync-message-study.ts` | Sync pipeline (calls fetchBibleText) |
 
 ---
 

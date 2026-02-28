@@ -5,6 +5,7 @@ import { Upload, X, FileText, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { BiblePassageInput } from "./bible-passage-input"
 import { Badge } from "@/components/ui/badge"
 import {
   Select,
@@ -192,12 +193,10 @@ export function MetadataSidebar({
 
           {/* Passage */}
           <div className="space-y-2">
-            <Label htmlFor="passage">Passage</Label>
-            <Input
-              id="passage"
+            <Label>Passage</Label>
+            <BiblePassageInput
               value={passage}
-              onChange={(e) => onPassageChange(e.target.value)}
-              placeholder="e.g. John 3:16"
+              onChange={(passageStr) => onPassageChange(passageStr)}
             />
           </div>
         </div>
