@@ -32,6 +32,8 @@ interface MetadataSidebarProps {
   onSeriesIdChange: (id: string | null) => void
   passage: string
   onPassageChange: (passage: string) => void
+  bibleVersion: string
+  onBibleVersionChange: (version: string) => void
   attachments: Attachment[]
   onAttachmentsChange: (attachments: Attachment[]) => void
   allSeries: Series[]
@@ -52,6 +54,8 @@ export function MetadataSidebar({
   onSeriesIdChange,
   passage,
   onPassageChange,
+  bibleVersion,
+  onBibleVersionChange,
   attachments,
   onAttachmentsChange,
   allSeries,
@@ -198,6 +202,26 @@ export function MetadataSidebar({
               value={passage}
               onChange={(passageStr) => onPassageChange(passageStr)}
             />
+          </div>
+
+          {/* Bible Version */}
+          <div className="space-y-2">
+            <Label htmlFor="bible-version">Bible Version</Label>
+            <Select value={bibleVersion} onValueChange={onBibleVersionChange}>
+              <SelectTrigger id="bible-version">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ESV">ESV</SelectItem>
+                <SelectItem value="NIV">NIV</SelectItem>
+                <SelectItem value="KJV">KJV</SelectItem>
+                <SelectItem value="NASB">NASB</SelectItem>
+                <SelectItem value="WEB">WEB</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Version for scripture text display
+            </p>
           </div>
         </div>
       </div>

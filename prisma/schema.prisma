@@ -415,6 +415,7 @@ model Message {
   slug             String
   title            String
   passage          String?
+  bibleVersion     String?       @default("ESV")
   speakerId        String?       @db.Uuid
   dateFor          DateTime      @db.Date
   description      String?       @db.Text

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { fetchBibleText } from '@/lib/bible-api'
+import { fetchBibleText, getBibleApiTranslation } from '@/lib/bible-api'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +13,9 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const result = await fetchBibleText(passage)
+    const version = searchParams.get('version') || 'ESV'
+    const translation = getBibleApiTranslation(version)
+    const result = await fetchBibleText(passage, translation)
 
     if (!result) {
       return NextResponse.json(

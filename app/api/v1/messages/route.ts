@@ -92,6 +92,7 @@ export async function POST(request: NextRequest) {
           status: message.status,
           publishedAt: message.publishedAt,
           studySections: message.studySections as { id: string; title: string; content: string }[],
+          bibleVersion: message.bibleVersion,
           existingStudyId: null,
         })
       } catch (syncErr) {

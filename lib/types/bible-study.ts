@@ -38,6 +38,8 @@ export interface BibleStudyDetail {
   transcript?: string
   /** Scripture text - rich text HTML */
   bibleText?: string
+  /** Bible version used for scripture text (e.g. "ESV", "NIV") */
+  bibleVersion?: string
 
   /** File attachments */
   attachments: BibleStudyAttachment[]

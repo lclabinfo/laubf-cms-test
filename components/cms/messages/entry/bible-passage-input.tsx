@@ -138,10 +138,10 @@ export function BiblePassageInput({
       {/* Input container */}
       <div
         className={cn(
-          "relative flex items-center h-9 w-full rounded-md border bg-transparent shadow-xs transition-colors",
+          "relative flex items-center h-9 w-full rounded-md border shadow-xs transition-colors",
           hasConfirmedPassage
-            ? "border-primary/40 bg-primary/5"
-            : "border-input focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]"
+            ? "border-border bg-background"
+            : "border-input bg-transparent focus-within:border-ring focus-within:ring-[1px] focus-within:ring-ring/50"
         )}
       >
         {/* Search icon */}
@@ -152,12 +152,12 @@ export function BiblePassageInput({
         <div className="flex-grow relative px-2 h-full flex items-center">
           {hasConfirmedPassage ? (
             <div className="flex items-center w-full justify-between">
-              <span className="font-medium text-foreground truncate">
+              <span className="text-muted-foreground truncate">
                 {value}
               </span>
               <button
                 onClick={handleClear}
-                className="ml-2 p-0.5 text-muted-foreground hover:text-destructive rounded transition-colors focus:outline-none"
+                className="ml-2 p-0.5 text-muted-foreground/60 hover:text-muted-foreground rounded transition-colors focus:outline-none"
                 type="button"
               >
                 <X className="size-3.5" />

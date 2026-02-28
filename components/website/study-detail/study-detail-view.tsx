@@ -128,7 +128,7 @@ function SimpleDropdown({
 export default function StudyDetailView({ study }: { study: BibleStudyDetail }) {
   const [fontSize, setFontSize] = useState(100)
   const [isDesktop, setIsDesktop] = useState(true)
-  const [bibleVersion, setBibleVersion] = useState<"NIV" | "ESV">("ESV")
+  const [bibleVersion, setBibleVersion] = useState<string>(study.bibleVersion || "ESV")
 
   // Tab state
   const [leftTab, setLeftTab] = useState<ResourceType>("scripture")

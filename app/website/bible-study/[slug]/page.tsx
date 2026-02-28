@@ -48,6 +48,7 @@ function transformStudy(study: NonNullable<Awaited<ReturnType<typeof getBibleStu
     answers: study.answers ?? undefined,
     transcript: study.transcript ?? undefined,
     bibleText: study.bibleText ?? undefined,
+    bibleVersion: study.relatedMessage?.bibleVersion ?? undefined,
     attachments: study.attachments.map((a) => ({
       name: a.name,
       url: a.url,

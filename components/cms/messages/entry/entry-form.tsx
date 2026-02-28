@@ -57,6 +57,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const [speakerId, setSpeakerId] = useState<string | undefined>(message?.speakerId)
   const [seriesId, setSeriesId] = useState<string | null>(message?.seriesId ?? null)
   const [passage, setPassage] = useState(message?.passage ?? "")
+  const [bibleVersion, setBibleVersion] = useState(message?.bibleVersion ?? "ESV")
   const [attachments, setAttachments] = useState<Attachment[]>(message?.attachments ?? [])
   const [publishedAt, setPublishedAt] = useState(message?.publishedAt ?? "")
 
@@ -131,6 +132,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
       title: title.trim(),
       slug: title.trim().toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, ""),
       passage: passage.trim(),
+      bibleVersion,
       description: description.trim() || undefined,
       speaker: speaker.trim(),
       speakerId,
@@ -337,6 +339,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
           onSeriesIdChange={setSeriesId}
           passage={passage}
           onPassageChange={setPassage}
+          bibleVersion={bibleVersion}
+          onBibleVersionChange={setBibleVersion}
           attachments={attachments}
           onAttachmentsChange={setAttachments}
           allSeries={series}

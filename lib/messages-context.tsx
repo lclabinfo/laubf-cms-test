@@ -46,6 +46,7 @@ function apiMessageToCms(apiMsg: any): Message {
     slug: apiMsg.slug ?? "",
     title: apiMsg.title,
     passage: apiMsg.passage ?? "",
+    bibleVersion: apiMsg.bibleVersion ?? "ESV",
     description: apiMsg.description ?? undefined,
     speaker: apiMsg.speaker?.name ?? "",
     speakerId: apiMsg.speaker?.id ?? undefined,
@@ -89,6 +90,7 @@ function cmsMessageToApiCreate(data: Omit<Message, "id">) {
     title: data.title,
     slug: data.title.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, ""),
     passage: data.passage || null,
+    bibleVersion: data.bibleVersion || "ESV",
     description: data.description || null,
     dateFor: data.date ? new Date(data.date + "T00:00:00").toISOString() : new Date().toISOString(),
     status: statusToApi[data.status] ?? "DRAFT",
@@ -116,6 +118,7 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
   const payload: Record<string, any> = {}
   if (data.title !== undefined) payload.title = data.title
   if (data.passage !== undefined) payload.passage = data.passage || null
+  if (data.bibleVersion !== undefined) payload.bibleVersion = data.bibleVersion || "ESV"
   if (data.description !== undefined) payload.description = data.description || null
   if (data.date !== undefined) payload.dateFor = new Date(data.date + "T00:00:00").toISOString()
   if (data.status !== undefined) payload.status = statusToApi[data.status] ?? "DRAFT"

@@ -3,13 +3,14 @@ import { ContentStatus, Prisma, type BibleBook } from '@/lib/generated/prisma/cl
 import { paginationArgs, paginatedResult, type PaginationParams, type PaginatedResult } from './types'
 
 type BibleStudyWithRelations = Prisma.BibleStudyGetPayload<{
-  include: { speaker: true; series: true; attachments: true }
+  include: { speaker: true; series: true; attachments: true; relatedMessage: { select: { bibleVersion: true } } }
 }>
 
 const bibleStudyInclude = {
   speaker: true,
   series: true,
   attachments: { orderBy: { sortOrder: 'asc' as const } },
+  relatedMessage: { select: { bibleVersion: true } },
 } satisfies Prisma.BibleStudyInclude
 
 export type BibleStudyFilters = {

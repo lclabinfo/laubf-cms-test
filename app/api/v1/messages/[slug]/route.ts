@@ -88,6 +88,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           status: updated.status,
           publishedAt: updated.publishedAt,
           studySections: effectiveStudySections,
+          bibleVersion: updated.bibleVersion,
           existingStudyId: updated.relatedStudyId,
         })
       } else if (!effectiveHasStudy && updated.relatedStudyId) {
