@@ -44,7 +44,7 @@ function isSubpage(pathname: string) {
   // Known static sub-routes that are NOT subpages:
   const staticSubRoutes = new Set([
     "donations", "payments", "reports",   // /cms/giving/*
-    "directory", "members", "groups",     // /cms/people/*
+    "directory", "members", "groups", "roles", // /cms/people/*
     "pages", "theme", "navigation", "domains", // /cms/website/*
     "series",                             // /cms/messages/series (list page)
   ])
