@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { ContentStatus, type BibleBook } from '@/lib/generated/prisma/client'
+import { tiptapJsonToHtml } from '@/lib/tiptap'
 
 /**
  * Maps passage strings like "John 3:16", "1 Corinthians 13:1-8", "Genesis 12"
@@ -129,21 +130,36 @@ export async function syncMessageStudy(params: SyncParams): Promise<string> {
     existingStudyId,
   } = params
 
-  // Extract questions, answers, transcript from study sections by title
+  // Extract questions, answers, transcript from study sections by title.
+  // Content arrives as TipTap JSON from the CMS editor — convert to HTML
+  // for the public website which renders via dangerouslySetInnerHTML.
   let questions: string | null = null
   let answers: string | null = null
   let transcript: string | null = null
+  const unmatchedSections: { title: string; html: string }[] = []
 
   if (studySections && Array.isArray(studySections)) {
     for (const section of studySections) {
+      if (!section.content) continue
+      const html = tiptapJsonToHtml(section.content)
       const titleLower = section.title.toLowerCase()
       if (titleLower.includes('question')) {
-        questions = section.content || null
+        questions = html
       } else if (titleLower.includes('answer')) {
-        answers = section.content || null
+        answers = html
       } else if (titleLower.includes('transcript')) {
-        transcript = section.content || null
+        transcript = html
+      } else {
+        unmatchedSections.push({ title: section.title, html })
       }
+    }
+
+    // Append custom sections to questions field (BibleStudy only has 3 text fields)
+    if (unmatchedSections.length > 0) {
+      const extra = unmatchedSections
+        .map((s) => `<h3>${s.title}</h3>\n${s.html}`)
+        .join('\n')
+      questions = questions ? `${questions}\n${extra}` : extra
     }
   }
 
