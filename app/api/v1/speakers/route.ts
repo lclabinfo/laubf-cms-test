@@ -1,3 +1,5 @@
+// DEPRECATED: Use GET /api/v1/people/by-role/speaker instead.
+// These routes are retained for backward compatibility with existing integrations and website rendering.
 import { NextRequest, NextResponse } from 'next/server'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getSpeakers, createSpeaker } from '@/lib/dal/speakers'

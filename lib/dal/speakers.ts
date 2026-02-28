@@ -1,3 +1,5 @@
+// DEPRECATED: Use getPeopleByRole(churchId, 'speaker') from '@/lib/dal/person-roles' instead.
+// This module is retained for backward compatibility with existing integrations and website rendering.
 import { prisma } from '@/lib/db'
 import { Prisma, type Speaker } from '@/lib/generated/prisma/client'
 
