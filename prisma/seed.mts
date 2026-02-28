@@ -4297,19 +4297,10 @@ async function main() {
   const pastorRole = await prisma.personRoleDefinition.create({
     data: { churchId, name: 'Pastor', slug: 'pastor', description: 'Church pastors and shepherds', isSystem: true, color: '#8b5cf6', icon: 'shield', sortOrder: 2 },
   })
-  const elderRole = await prisma.personRoleDefinition.create({
-    data: { churchId, name: 'Elder', slug: 'elder', description: 'Church elders involved in governance', isSystem: true, color: '#a855f7', icon: 'crown', sortOrder: 3 },
-  })
-  const deaconRole = await prisma.personRoleDefinition.create({
-    data: { churchId, name: 'Deacon', slug: 'deacon', description: 'Church deacons serving the congregation', isSystem: true, color: '#ec4899', icon: 'heart-handshake', sortOrder: 4 },
-  })
-  const worshipLeaderRole = await prisma.personRoleDefinition.create({
-    data: { churchId, name: 'Worship Leader', slug: 'worship-leader', description: 'Music and worship ministry leaders', isSystem: true, color: '#f59e0b', icon: 'music', sortOrder: 5 },
-  })
   const bibleStudyLeaderRole = await prisma.personRoleDefinition.create({
-    data: { churchId, name: 'Bible Study Leader', slug: 'bible-study-leader', description: 'Leaders who facilitate Bible study groups', isSystem: false, color: '#10b981', icon: 'book-open', sortOrder: 6 },
+    data: { churchId, name: 'Bible Study Leader', slug: 'bible-study-leader', description: 'Leaders who facilitate Bible study groups', isSystem: false, color: '#10b981', icon: 'book-open', sortOrder: 3 },
   })
-  console.log('  Created 6 role definitions (5 system + 1 custom)')
+  console.log('  Created 3 role definitions (2 system + 1 custom)')
 
   // --- Create Person records for existing Speakers and assign Speaker role ---
   // Map speaker names to their existing Person records or create new ones
@@ -4385,40 +4376,6 @@ async function main() {
     })
   }
   console.log('  Assigned Pastor role to 2 people')
-
-  // --- Assign Elder role ---
-  if (personRecords['david-lee']) {
-    await prisma.personRoleAssignment.create({
-      data: { personId: personRecords['david-lee'], roleId: elderRole.id },
-    })
-  }
-  if (personRecords['mark-kwon']) {
-    await prisma.personRoleAssignment.create({
-      data: { personId: personRecords['mark-kwon'], roleId: elderRole.id },
-    })
-  }
-  if (personRecords['sophia-han']) {
-    await prisma.personRoleAssignment.create({
-      data: { personId: personRecords['sophia-han'], roleId: elderRole.id },
-    })
-  }
-  console.log('  Assigned Elder role to 3 people')
-
-  // --- Assign Deacon role ---
-  if (personRecords['mark-kwon']) {
-    await prisma.personRoleAssignment.create({
-      data: { personId: personRecords['mark-kwon'], roleId: deaconRole.id },
-    })
-  }
-  console.log('  Assigned Deacon role to 1 person')
-
-  // --- Assign Worship Leader role ---
-  if (personRecords['michael-kim']) {
-    await prisma.personRoleAssignment.create({
-      data: { personId: personRecords['michael-kim'], roleId: worshipLeaderRole.id, title: 'Lead Worship' },
-    })
-  }
-  console.log('  Assigned Worship Leader role to 1 person')
 
   // --- Assign Bible Study Leader role ---
   if (personRecords['james-park']) {
