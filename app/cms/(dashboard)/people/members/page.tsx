@@ -145,28 +145,13 @@ function MembersPageContent() {
     [resetPageIndex]
   )
 
-  // When preview panel is open, hide some columns to save space
-  const effectiveColumnVisibility = useMemo(() => {
-    if (selectedMember && isWideScreen) {
-      return {
-        ...columnVisibility,
-        phone: false,
-        households: false,
-        groups: false,
-        roles: false,
-        createdAt: false,
-      }
-    }
-    return columnVisibility
-  }, [columnVisibility, selectedMember, isWideScreen])
-
   const table = useReactTable({
     data: members,
     columns,
     state: {
       sorting,
       columnFilters,
-      columnVisibility: effectiveColumnVisibility,
+      columnVisibility,
       rowSelection,
       globalFilter,
       pagination,
@@ -225,88 +210,98 @@ function MembersPageContent() {
   const showPreview = isWideScreen && selectedMember !== null
 
   return (
-    <div className="flex gap-0 h-full">
-      {/* Left: table panel */}
-      <div
-        className={cn(
-          "min-w-0 transition-all duration-200 ease-in-out",
-          showPreview ? "flex-1" : "w-full"
-        )}
-      >
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-semibold tracking-tight">Members</h1>
-                {!loading && (
-                  <Badge variant="secondary" className="text-xs">
-                    {members.length}
-                  </Badge>
-                )}
-              </div>
-              <p className="text-muted-foreground text-sm">
-                View and manage church member profiles.
-              </p>
+    <>
+      {/* Main content — table */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-semibold tracking-tight">Members</h1>
+              {!loading && (
+                <Badge variant="secondary" className="text-xs">
+                  {members.length}
+                </Badge>
+              )}
+            </div>
+            <p className="text-muted-foreground text-sm">
+              View and manage church member profiles.
+            </p>
+          </div>
+        </div>
+
+        <MembersToolbar
+          table={table}
+          globalFilter={globalFilter}
+          setGlobalFilter={handleGlobalFilterChange}
+          onAddMember={() => setAddDialogOpen(true)}
+          onImportCSV={() => setImportDialogOpen(true)}
+          onBulkUpdateStatus={handleBulkUpdateStatus}
+          onBulkArchive={handleBulkArchive}
+        />
+
+        {loading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="size-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : members.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <Users className="size-12 text-muted-foreground/30 mb-4" />
+            <h3 className="text-sm font-medium">No members yet</h3>
+            <p className="text-muted-foreground text-sm mt-1 max-w-sm">
+              Add your first member to get started, or import members from a CSV file.
+            </p>
+            <div className="flex items-center gap-2 mt-4">
+              <button
+                onClick={() => setImportDialogOpen(true)}
+                className="text-sm text-primary underline-offset-4 hover:underline"
+              >
+                Import CSV
+              </button>
+              <span className="text-muted-foreground text-sm">or</span>
+              <button
+                onClick={() => setAddDialogOpen(true)}
+                className="text-sm text-primary underline-offset-4 hover:underline"
+              >
+                Add Member
+              </button>
             </div>
           </div>
-
-          <MembersToolbar
+        ) : (
+          <DataTable
+            columns={columns}
             table={table}
-            globalFilter={globalFilter}
-            setGlobalFilter={handleGlobalFilterChange}
-            onAddMember={() => setAddDialogOpen(true)}
-            onImportCSV={() => setImportDialogOpen(true)}
-            onBulkUpdateStatus={handleBulkUpdateStatus}
-            onBulkArchive={handleBulkArchive}
+            onRowClick={handleRowClick}
+            activeRowId={showPreview ? selectedMemberId : undefined}
           />
+        )}
+      </div>
 
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <Loader2 className="size-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : members.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <Users className="size-12 text-muted-foreground/30 mb-4" />
-              <h3 className="text-sm font-medium">No members yet</h3>
-              <p className="text-muted-foreground text-sm mt-1 max-w-sm">
-                Add your first member to get started, or import members from a CSV file.
-              </p>
-              <div className="flex items-center gap-2 mt-4">
-                <button
-                  onClick={() => setImportDialogOpen(true)}
-                  className="text-sm text-primary underline-offset-4 hover:underline"
-                >
-                  Import CSV
-                </button>
-                <span className="text-muted-foreground text-sm">or</span>
-                <button
-                  onClick={() => setAddDialogOpen(true)}
-                  className="text-sm text-primary underline-offset-4 hover:underline"
-                >
-                  Add Member
-                </button>
-              </div>
-            </div>
-          ) : (
-            <DataTable
-              columns={columns}
-              table={table}
-              onRowClick={handleRowClick}
-              activeRowId={showPreview ? selectedMemberId : undefined}
+      {/* Right: preview panel — fixed to viewport right edge */}
+      {isWideScreen && (
+        <div
+          className={cn(
+            "fixed top-0 right-0 h-screen z-30 bg-background shadow-lg",
+            "transition-transform duration-300 ease-in-out",
+            "w-[400px]",
+            showPreview ? "translate-x-0" : "translate-x-full"
+          )}
+        >
+          {selectedMember && (
+            <MemberPreviewPanel
+              member={selectedMember}
+              onClose={() => setSelectedMemberId(null)}
+              onArchive={handleDelete}
             />
           )}
         </div>
-      </div>
+      )}
 
-      {/* Right: preview panel */}
-      {showPreview && selectedMember && (
-        <div className="w-[380px] shrink-0 h-[calc(100vh-4rem)] sticky top-16 animate-in slide-in-from-right-4 duration-200">
-          <MemberPreviewPanel
-            member={selectedMember}
-            onClose={() => setSelectedMemberId(null)}
-            onArchive={handleDelete}
-          />
-        </div>
+      {/* Backdrop overlay when panel is open */}
+      {showPreview && (
+        <div
+          className="fixed inset-0 z-20 bg-black/20 transition-opacity duration-300"
+          onClick={() => setSelectedMemberId(null)}
+        />
       )}
 
       <AddMemberDialog
@@ -320,7 +315,7 @@ function MembersPageContent() {
         onOpenChange={setImportDialogOpen}
         onImportComplete={handleImportComplete}
       />
-    </div>
+    </>
   )
 }
 
