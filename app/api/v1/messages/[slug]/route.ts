@@ -106,8 +106,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
     console.error('PATCH /api/v1/messages/[slug] error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update message'
     return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update message' } },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: errorMessage } },
       { status: 500 },
     )
   }
