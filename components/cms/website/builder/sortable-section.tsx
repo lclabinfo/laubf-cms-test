@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useRef, useState } from "react"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import { cn } from "@/lib/utils"
@@ -21,6 +22,58 @@ interface SortableSectionProps {
   isFirst?: boolean
 }
 
+/**
+ * Determine where to place the floating toolbar so it's always visible:
+ * - "top"    → section top is in the viewport, toolbar sits at top-right
+ * - "bottom" → section top is scrolled above viewport, toolbar sits at bottom-right
+ * - "sticky" → both top and bottom are off-screen (very tall section), toolbar
+ *              is position:sticky within the viewport
+ */
+function useToolbarPlacement(
+  sectionRef: React.RefObject<HTMLDivElement | null>,
+  isActive: boolean,
+) {
+  const [placement, setPlacement] = useState<"top" | "bottom" | "sticky">("top")
+
+  useEffect(() => {
+    const el = sectionRef.current
+    if (!el || !isActive) return
+
+    // Find the scrollable ancestor (the builder canvas)
+    const scrollParent = el.closest("[class*='overflow-y']") as HTMLElement | null
+    if (!scrollParent) return
+
+    function compute() {
+      if (!el) return
+      const sectionRect = el.getBoundingClientRect()
+      const containerRect = scrollParent!.getBoundingClientRect()
+
+      const topVisible = sectionRect.top >= containerRect.top - 20
+      const bottomVisible = sectionRect.bottom <= containerRect.bottom + 20
+
+      if (topVisible) {
+        setPlacement("top")
+      } else if (bottomVisible) {
+        setPlacement("bottom")
+      } else {
+        // Section is taller than viewport and we're in the middle
+        setPlacement("sticky")
+      }
+    }
+
+    compute()
+    scrollParent.addEventListener("scroll", compute, { passive: true })
+    window.addEventListener("resize", compute, { passive: true })
+
+    return () => {
+      scrollParent.removeEventListener("scroll", compute)
+      window.removeEventListener("resize", compute)
+    }
+  }, [sectionRef, isActive])
+
+  return placement
+}
+
 export function SortableSection({
   id,
   children,
@@ -34,6 +87,8 @@ export function SortableSection({
   onEdit,
   isFirst = false,
 }: SortableSectionProps) {
+  const sectionRef = useRef<HTMLDivElement>(null)
+
   const {
     attributes,
     listeners,
@@ -42,6 +97,14 @@ export function SortableSection({
     transition,
     isDragging,
   } = useSortable({ id })
+
+  const placement = useToolbarPlacement(sectionRef, isSelected && !isDragging)
+
+  // Merge refs: dnd-kit's setNodeRef + our sectionRef
+  const mergedRef = (node: HTMLDivElement | null) => {
+    setNodeRef(node)
+    sectionRef.current = node
+  }
 
   const style = {
     transform: CSS.Translate.toString(transform),
@@ -52,7 +115,7 @@ export function SortableSection({
 
   return (
     <div
-      ref={setNodeRef}
+      ref={mergedRef}
       style={style}
       className={cn(
         "relative group/section",
@@ -63,7 +126,7 @@ export function SortableSection({
         onSelect()
       }}
     >
-      {/* Selection / hover border — uses inset box-shadow so it paints inside the element and is never clipped by overflow-hidden parents */}
+      {/* Selection / hover border */}
       <div
         className={cn(
           "absolute inset-0 z-[60] pointer-events-none transition-all duration-200",
@@ -73,12 +136,16 @@ export function SortableSection({
         )}
       />
 
-      {/* Floating Toolbar - Visible when selected */}
+      {/* Floating Toolbar - repositions based on scroll */}
       {isSelected && !isDragging && (
         <div
           className={cn(
-            "absolute z-[80] flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200",
-            isFirst ? "bottom-4 right-4" : "top-4 right-4",
+            "z-[80] flex items-center gap-2 animate-in fade-in zoom-in-95 duration-200",
+            placement === "sticky"
+              ? "sticky top-4 float-right mr-4 mt-4"
+              : "absolute right-4",
+            placement === "top" && "top-4",
+            placement === "bottom" && "bottom-4",
           )}
         >
           <div className="bg-[#1e1e1e] text-white rounded-lg shadow-xl p-1 flex items-center gap-1 border border-white/10">
