@@ -251,7 +251,7 @@
 
   /* ---- CMS-only base styles (scoped to [data-cms]) ---- */
   [data-cms] * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
   [data-cms] {
     @apply bg-background text-foreground;
@@ -266,17 +266,13 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Focus-visible ring for keyboard navigation (WCAG AA) */
-  :focus-visible {
+  /* Focus-visible ring for keyboard navigation (WCAG AA).
+     Form controls (input, select, textarea, combobox) use component-level
+     Tailwind ring utilities (focus-visible:ring-ring/50 focus-visible:ring-3)
+     so they are excluded here to avoid a double-ring effect. */
+  :focus-visible:not(input):not(select):not(textarea):not([cmdk-input]):not([data-slot="select-trigger"]):not([data-slot="combobox-chip-input"]) {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
-  }
-  input:focus-visible,
-  select:focus-visible,
-  textarea:focus-visible,
-  [cmdk-input]:focus {
-    outline: none;
-    box-shadow: 0 0 0 2px var(--ring);
   }
 }
 

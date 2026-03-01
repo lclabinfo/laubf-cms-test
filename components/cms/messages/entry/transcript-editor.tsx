@@ -11,18 +11,23 @@ import {
   Loader2,
   FileText,
   AlertCircle,
+  Play,
 } from "lucide-react"
+import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
 import type { TranscriptSegment } from "@/lib/messages-data"
 
 interface TranscriptEditorProps {
@@ -30,10 +35,10 @@ interface TranscriptEditorProps {
   onRawTranscriptChange: (value: string) => void
   segments: TranscriptSegment[]
   onSegmentsChange: (segments: TranscriptSegment[]) => void
-  hasVideoUrl: boolean
+  videoUrl?: string
 }
 
-type TranscriptMode = "raw" | "synced"
+type TranscriptMode = "synced" | "raw"
 type ProcessingState = "idle" | "processing" | "done"
 
 export function TranscriptEditor({
@@ -41,82 +46,143 @@ export function TranscriptEditor({
   onRawTranscriptChange,
   segments,
   onSegmentsChange,
-  hasVideoUrl,
+  videoUrl,
 }: TranscriptEditorProps) {
-  const [mode, setMode] = useState<TranscriptMode>(segments.length > 0 ? "synced" : "raw")
+  const hasVideoUrl = Boolean(videoUrl)
+  const [mode, setMode] = useState<TranscriptMode>(segments.length > 0 ? "synced" : "synced")
   const [processing, setProcessing] = useState<ProcessingState>("idle")
 
-  // Mock: simulate AI alignment from raw text -> synced segments
-  function handleAiAlignment() {
+  async function handleAiAlignment() {
     if (!rawTranscript.trim()) return
     setProcessing("processing")
 
-    // Simulate async processing
-    setTimeout(() => {
-      const sentences = rawTranscript
-        .split(/(?<=[.!?])\s+/)
-        .filter((s) => s.trim().length > 0)
-
-      const newSegments: TranscriptSegment[] = sentences.map((text, i) => {
-        const startSeconds = i * 15
-        const endSeconds = startSeconds + 14
-        return {
-          id: `ts-${Date.now()}-${i}`,
-          startTime: formatTimestamp(startSeconds),
-          endTime: formatTimestamp(endSeconds),
-          text: text.trim(),
-        }
+    try {
+      const response = await fetch("/api/v1/ai/align-transcript", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawText: rawTranscript, duration: "00:45:00" }),
       })
 
-      onSegmentsChange(newSegments)
+      const data = await response.json()
+
+      if (!response.ok) {
+        toast.error(response.status === 503 ? "AI service not configured" : "Failed to align transcript", {
+          description: data.message,
+        })
+        setProcessing("idle")
+        return
+      }
+
+      onSegmentsChange(data.data)
       setMode("synced")
       setProcessing("done")
-
-      // Reset processing state after a moment
       setTimeout(() => setProcessing("idle"), 2000)
-    }, 2000)
+    } catch {
+      toast.error("Failed to align transcript", {
+        description: "Could not connect to the server. Please try again.",
+      })
+      setProcessing("idle")
+    }
   }
 
-  // Mock: simulate YouTube caption import
-  function handleYouTubeImport() {
-    if (!hasVideoUrl) return
+  async function handleYouTubeImport() {
+    if (!videoUrl) return
+
+    const ytId = videoUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]+)/)?.[1]
+    if (!ytId) {
+      toast.error("Invalid YouTube URL", { description: "Could not extract video ID from the URL." })
+      return
+    }
+
     setProcessing("processing")
 
-    setTimeout(() => {
-      // Simulate imported captions
-      const mockCaptions: TranscriptSegment[] = [
-        { id: `yt-${Date.now()}-0`, startTime: "00:00:00", endTime: "00:00:10", text: "[Imported caption segment 1 — replace with actual YouTube API data]" },
-        { id: `yt-${Date.now()}-1`, startTime: "00:00:10", endTime: "00:00:22", text: "[Imported caption segment 2 — replace with actual YouTube API data]" },
-        { id: `yt-${Date.now()}-2`, startTime: "00:00:22", endTime: "00:00:35", text: "[Imported caption segment 3 — replace with actual YouTube API data]" },
-      ]
+    try {
+      const response = await fetch(`/api/v1/youtube/captions?videoId=${encodeURIComponent(ytId)}`)
+      const data = await response.json()
 
-      onSegmentsChange(mockCaptions)
-      // Also populate raw transcript from imported text
-      onRawTranscriptChange(mockCaptions.map((s) => s.text).join(" "))
+      if (!response.ok) {
+        toast.error(response.status === 503 ? "YouTube API not configured" : "Failed to import captions", {
+          description: data.message,
+        })
+        setProcessing("idle")
+        return
+      }
+
+      const captionSegments: TranscriptSegment[] = data.data
+      onSegmentsChange(captionSegments)
+      onRawTranscriptChange(captionSegments.map((s) => s.text).join(" "))
       setMode("synced")
       setProcessing("done")
       setTimeout(() => setProcessing("idle"), 2000)
-    }, 2500)
+    } catch {
+      toast.error("Failed to import captions", {
+        description: "Could not connect to the server. Please try again.",
+      })
+      setProcessing("idle")
+    }
   }
 
-  // Mock: simulate AI transcript generation from audio
-  function handleAiGenerate() {
-    if (!hasVideoUrl) return
+  async function handleYouTubeAiCleanup() {
+    if (!videoUrl) return
+
+    const ytId = videoUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]+)/)?.[1]
+    if (!ytId) {
+      toast.error("Invalid YouTube URL", { description: "Could not extract video ID from the URL." })
+      return
+    }
+
     setProcessing("processing")
 
-    setTimeout(() => {
-      const mockGenerated: TranscriptSegment[] = [
-        { id: `ai-${Date.now()}-0`, startTime: "00:00:03", endTime: "00:00:18", text: "[AI-generated segment 1 — requires speech-to-text API integration]" },
-        { id: `ai-${Date.now()}-1`, startTime: "00:00:18", endTime: "00:00:33", text: "[AI-generated segment 2 — requires speech-to-text API integration]" },
-        { id: `ai-${Date.now()}-2`, startTime: "00:00:33", endTime: "00:00:48", text: "[AI-generated segment 3 — requires speech-to-text API integration]" },
-      ]
+    try {
+      // Step 1: Fetch YouTube captions
+      const captionRes = await fetch(`/api/v1/youtube/captions?videoId=${encodeURIComponent(ytId)}`)
+      const captionData = await captionRes.json()
 
-      onSegmentsChange(mockGenerated)
-      onRawTranscriptChange(mockGenerated.map((s) => s.text).join(" "))
+      if (!captionRes.ok) {
+        toast.error(captionRes.status === 503 ? "YouTube API not configured" : "Failed to import captions", {
+          description: captionData.message,
+        })
+        setProcessing("idle")
+        return
+      }
+
+      // Step 2: Send to AI for cleanup
+      const cleanupRes = await fetch("/api/v1/ai/cleanup-captions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ segments: captionData.data }),
+      })
+
+      const cleanupData = await cleanupRes.json()
+
+      if (!cleanupRes.ok) {
+        // If AI cleanup fails, fall back to raw YouTube captions
+        if (cleanupRes.status === 503) {
+          toast.warning("AI cleanup not configured — imported raw YouTube captions", {
+            description: "Configure Azure OpenAI to enable AI-powered cleanup.",
+          })
+          const rawSegments: TranscriptSegment[] = captionData.data
+          onSegmentsChange(rawSegments)
+          onRawTranscriptChange(rawSegments.map((s) => s.text).join(" "))
+        } else {
+          toast.error("AI cleanup failed", { description: cleanupData.message })
+        }
+        setProcessing("idle")
+        return
+      }
+
+      const cleanedSegments: TranscriptSegment[] = cleanupData.data
+      onSegmentsChange(cleanedSegments)
+      onRawTranscriptChange(cleanedSegments.map((s) => s.text).join(" "))
       setMode("synced")
       setProcessing("done")
       setTimeout(() => setProcessing("idle"), 2000)
-    }, 3000)
+    } catch {
+      toast.error("Failed to import and clean captions", {
+        description: "Could not connect to the server. Please try again.",
+      })
+      setProcessing("idle")
+    }
   }
 
   function handleUploadCaption() {
@@ -166,7 +232,7 @@ export function TranscriptEditor({
 
   function handleAddSegment() {
     const lastSegment = segments[segments.length - 1]
-    const startSeconds = lastSegment ? parseTimestamp(lastSegment.endTime) + 1 : 0
+    const startSeconds = lastSegment ? parseTimestamp(lastSegment.startTime) + 15 : 0
     const newSegment: TranscriptSegment = {
       id: `ts-${Date.now()}`,
       startTime: formatTimestamp(startSeconds),
@@ -205,6 +271,14 @@ export function TranscriptEditor({
     URL.revokeObjectURL(url)
   }
 
+  /** Format start time as compact MM:SS for display */
+  function formatCompactTime(ts: string): string {
+    const total = parseTimestamp(ts)
+    const m = Math.floor(total / 60)
+    const s = total % 60
+    return `${m}:${String(s).padStart(2, "0")}`
+  }
+
   const hasContent = rawTranscript.trim() || segments.length > 0
 
   return (
@@ -212,8 +286,8 @@ export function TranscriptEditor({
       {/* Tab toggle + actions */}
       <div className="flex flex-wrap items-center gap-2">
         <TabsList variant="line">
-          <TabsTrigger value="raw">Raw Transcript</TabsTrigger>
-          <TabsTrigger value="synced">Synced Transcript</TabsTrigger>
+          <TabsTrigger value="synced">Live Captions</TabsTrigger>
+          <TabsTrigger value="raw">Full Text</TabsTrigger>
         </TabsList>
 
         <div className="flex-1" />
@@ -230,43 +304,69 @@ export function TranscriptEditor({
               {processing === "processing" ? "Processing..." : "Import / Generate"}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {mode === "raw" ? (
-              <>
-                <DropdownMenuItem onClick={handleUploadRawText}>
-                  <Upload />
-                  Upload Text File
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleAiAlignment}
-                  disabled={!rawTranscript.trim()}
-                >
-                  <Sparkles />
-                  AI Auto-Align to Timestamps
-                </DropdownMenuItem>
-              </>
-            ) : (
-              <>
-                <DropdownMenuItem onClick={handleUploadCaption}>
-                  <FileText />
-                  Upload Caption File (.SRT/.VTT)
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleYouTubeImport} disabled={!hasVideoUrl}>
-                  <Youtube />
-                  Import from YouTube
-                  {!hasVideoUrl && (
-                    <span className="text-muted-foreground text-[10px] ml-1">(add URL first)</span>
-                  )}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleAiGenerate} disabled={!hasVideoUrl}>
-                  <Sparkles />
-                  Generate AI Transcript
-                  {!hasVideoUrl && (
-                    <span className="text-muted-foreground text-[10px] ml-1">(add URL first)</span>
-                  )}
-                </DropdownMenuItem>
-              </>
-            )}
+          <DropdownMenuContent align="end" className="w-72">
+            <DropdownMenuLabel>Manual Import</DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuItem onClick={handleUploadRawText}>
+                <Upload />
+                <div className="flex flex-col">
+                  <span>Upload Text File</span>
+                  <span className="text-muted-foreground text-[11px] font-normal">.txt, .doc, .md — imported as full text</span>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleUploadCaption}>
+                <FileText />
+                <div className="flex flex-col">
+                  <span>Upload Caption File (.SRT/.VTT)</span>
+                  <span className="text-muted-foreground text-[11px] font-normal">Timestamped captions parsed into segments</span>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+
+            <DropdownMenuSeparator />
+
+            <DropdownMenuLabel>AI-Powered</DropdownMenuLabel>
+            <DropdownMenuGroup>
+              <DropdownMenuItem
+                onClick={handleAiAlignment}
+                disabled={!rawTranscript.trim()}
+              >
+                <Sparkles />
+                <div className="flex flex-col">
+                  <span>AI Auto-Align to Timestamps</span>
+                  <span className="text-muted-foreground text-[11px] font-normal">
+                    {!rawTranscript.trim()
+                      ? "Requires full text — paste text in Full Text tab first"
+                      : "Distributes your text into timestamped segments"}
+                  </span>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleYouTubeImport} disabled={!hasVideoUrl}>
+                <Youtube />
+                <div className="flex flex-col">
+                  <span>Import YouTube Captions</span>
+                  <span className="text-muted-foreground text-[11px] font-normal">
+                    {!hasVideoUrl
+                      ? "Requires a YouTube video URL"
+                      : "Fetches auto-generated or manual captions"}
+                  </span>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleYouTubeAiCleanup} disabled={!hasVideoUrl}>
+                <Youtube />
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-1.5">
+                    <span>Import YouTube + AI Cleanup</span>
+                    <Badge variant="secondary" className="text-[9px] px-1 py-0 h-3.5">Best</Badge>
+                  </div>
+                  <span className="text-muted-foreground text-[11px] font-normal">
+                    {!hasVideoUrl
+                      ? "Requires YouTube URL + AI configuration"
+                      : "YouTube captions cleaned by AI for readability"}
+                  </span>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -308,28 +408,9 @@ export function TranscriptEditor({
         </div>
       )}
 
-      {/* Content */}
-      <TabsContent value="raw" className="mt-0">
-        <div className="space-y-2">
-          <Textarea
-            value={rawTranscript}
-            onChange={(e) => onRawTranscriptChange(e.target.value)}
-            placeholder="Paste or type the full transcript text here..."
-            className="min-h-[200px] font-mono text-sm"
-          />
-          {rawTranscript.trim() && segments.length === 0 && (
-            <div className="flex items-start gap-2 rounded-lg border border-warning/20 bg-warning/5 px-3 py-2 text-sm text-warning-foreground dark:border-warning/30 dark:bg-warning/10 dark:text-warning">
-              <AlertCircle className="size-4 mt-0.5 shrink-0" />
-              <span>
-                Raw transcript entered. Use <strong>AI Auto-Align</strong> to generate timestamp segments, or switch to <strong>Synced Transcript</strong> to manually add segments.
-              </span>
-            </div>
-          )}
-        </div>
-      </TabsContent>
-
+      {/* Synced / Live Captions tab (primary) */}
       <TabsContent value="synced" className="mt-0">
-        <div className="space-y-3">
+        <div className="space-y-1.5">
           {segments.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-10 text-center">
               <FileText className="size-10 text-muted-foreground/50 mb-3" />
@@ -344,54 +425,90 @@ export function TranscriptEditor({
             </div>
           ) : (
             <>
-              <div className="space-y-2">
-                {segments.map((segment, index) => (
-                  <div
-                    key={segment.id}
-                    className="group flex items-start gap-2 rounded-lg border bg-card p-3"
+              {segments.map((segment) => (
+                <div
+                  key={segment.id}
+                  className="group flex items-center gap-2 rounded-md border bg-card px-2 py-1.5 hover:bg-accent/30 transition-colors"
+                >
+                  {/* Play icon */}
+                  <button
+                    type="button"
+                    className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
+                    title="Play from this point"
                   >
-                    <Badge variant="outline" className="mt-0.5 text-[10px] font-mono shrink-0">
-                      #{index + 1}
-                    </Badge>
-                    <div className="flex-1 space-y-2 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={segment.startTime}
-                          onChange={(e) => handleSegmentChange(segment.id, "startTime", e.target.value)}
-                          className="w-[100px] font-mono text-xs h-7"
-                          placeholder="00:00:00"
-                        />
-                        <span className="text-muted-foreground text-xs">to</span>
-                        <Input
-                          value={segment.endTime}
-                          onChange={(e) => handleSegmentChange(segment.id, "endTime", e.target.value)}
-                          className="w-[100px] font-mono text-xs h-7"
-                          placeholder="00:00:00"
-                        />
-                      </div>
-                      <Textarea
-                        value={segment.text}
-                        onChange={(e) => handleSegmentChange(segment.id, "text", e.target.value)}
-                        className="min-h-[60px] text-sm"
-                        placeholder="Segment text..."
-                      />
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity mt-0.5"
-                      onClick={() => handleDeleteSegment(segment.id)}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              <Button variant="outline" size="sm" onClick={handleAddSegment}>
+                    <Play className="size-3.5" />
+                  </button>
+
+                  {/* Compact timestamp badge (start time only) */}
+                  <Badge
+                    variant="secondary"
+                    className="shrink-0 font-mono text-[11px] px-1.5 py-0 h-5 min-w-[3.5rem] justify-center cursor-text"
+                  >
+                    <Input
+                      value={formatCompactTime(segment.startTime)}
+                      onChange={(e) => {
+                        // Convert compact MM:SS back to HH:MM:SS for storage
+                        const val = e.target.value
+                        const parts = val.split(":").map(Number)
+                        let totalSec = 0
+                        if (parts.length === 2) totalSec = (parts[0] || 0) * 60 + (parts[1] || 0)
+                        else if (parts.length === 1) totalSec = parts[0] || 0
+                        handleSegmentChange(segment.id, "startTime", formatTimestamp(totalSec))
+                      }}
+                      className="border-0 bg-transparent p-0 h-auto text-[11px] font-mono text-center w-full focus-visible:ring-0 focus-visible:ring-offset-0"
+                    />
+                  </Badge>
+
+                  {/* Full-width text input */}
+                  <Input
+                    value={segment.text}
+                    onChange={(e) => handleSegmentChange(segment.id, "text", e.target.value)}
+                    className="flex-1 h-7 text-sm border-transparent bg-transparent hover:bg-background focus:bg-background focus:border-input transition-colors"
+                    placeholder="Segment text..."
+                  />
+
+                  {/* Delete button */}
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                    onClick={() => handleDeleteSegment(segment.id)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              ))}
+
+              {/* Full-width add segment button */}
+              <button
+                type="button"
+                onClick={handleAddSegment}
+                className="w-full flex items-center justify-center gap-2 rounded-md border-2 border-dashed border-muted-foreground/25 hover:border-primary/40 py-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
                 <Plus className="size-3.5" />
-                Add Segment
-              </Button>
+                Add Timestamp Segment
+              </button>
             </>
+          )}
+        </div>
+      </TabsContent>
+
+      {/* Raw / Full Text tab (secondary) */}
+      <TabsContent value="raw" className="mt-0">
+        <div className="space-y-2">
+          <RichTextEditor
+            content={rawTranscript}
+            onContentChange={onRawTranscriptChange}
+            placeholder="Paste or type the full transcript text here..."
+            minHeight="200px"
+          />
+          {rawTranscript.trim() && segments.length === 0 && (
+            <div className="flex items-start gap-2 rounded-lg border border-warning/20 bg-warning/5 px-3 py-2 text-sm text-warning-foreground dark:border-warning/30 dark:bg-warning/10 dark:text-warning">
+              <AlertCircle className="size-4 mt-0.5 shrink-0" />
+              <span>
+                Full text entered. Use <strong>AI Auto-Align</strong> from the Import / Generate menu to create timestamp segments.
+              </span>
+            </div>
           )}
         </div>
       </TabsContent>

@@ -1,25 +1,19 @@
 "use client"
 
 import { Suspense, useState, useCallback, useMemo } from "react"
-import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import {
   useReactTable,
   getCoreRowModel,
-  getExpandedRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   type ColumnFiltersState,
-  type Row,
   type SortingState,
   type VisibilityState,
 } from "@tanstack/react-table"
-import { Badge } from "@/components/ui/badge"
-import { cn } from "@/lib/utils"
-import type { Message } from "@/lib/messages-data"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DataTable } from "@/components/ui/data-table"
 import { createColumns } from "@/components/cms/messages/columns"
@@ -44,64 +38,9 @@ function globalFilterFn(
 // Hoist row model factories outside the component so they are stable references
 // and don't trigger state updates during React's render phase.
 const coreRowModel = getCoreRowModel()
-const expandedRowModel = getExpandedRowModel()
 const filteredRowModel = getFilteredRowModel()
 const paginationRowModel = getPaginationRowModel()
 const sortedRowModel = getSortedRowModel()
-
-function MessageExpandedRow({ message }: { message: Message }) {
-  const isPublished = message.status === "published"
-
-  function videoBadge() {
-    if (message.hasVideo && isPublished) return <Badge variant="success">Live</Badge>
-    if (message.hasVideo) return <Badge variant="secondary">Draft</Badge>
-    return <Badge variant="outline">Empty</Badge>
-  }
-
-  function studyBadge() {
-    if (message.hasStudy && isPublished) return <Badge variant="success">Live</Badge>
-    if (message.hasStudy) return <Badge variant="secondary">Draft</Badge>
-    return <Badge variant="outline">Empty</Badge>
-  }
-
-  return (
-    <div className="px-4 pb-4 pt-1 pl-12">
-      <div className="grid grid-cols-2 gap-3">
-        <Link href={`/cms/messages/${message.id}?tab=video`}>
-          <div className="border rounded-lg p-3 hover:bg-muted/50 hover:border-foreground/20 transition-all cursor-pointer">
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <span className={cn("size-2 rounded-full", message.hasVideo ? "bg-blue-600" : "bg-muted-foreground/30")} />
-                Video
-              </div>
-              {videoBadge()}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {message.hasVideo ? `YouTube · ${message.duration || "\u2014"}` : "No video content"}
-            </p>
-            <p className="text-xs text-blue-600 font-medium mt-1.5">Edit video &rarr;</p>
-          </div>
-        </Link>
-
-        <Link href={`/cms/messages/${message.id}?tab=study`}>
-          <div className="border rounded-lg p-3 hover:bg-muted/50 hover:border-foreground/20 transition-all cursor-pointer">
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="flex items-center gap-2 text-sm font-semibold">
-                <span className={cn("size-2 rounded-full", message.hasStudy ? "bg-purple-600" : "bg-muted-foreground/30")} />
-                Bible Study
-              </div>
-              {studyBadge()}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {message.hasStudy ? `${message.studySections?.length || 0} section(s)` : "No study material"}
-            </p>
-            <p className="text-xs text-purple-600 font-medium mt-1.5">Edit study &rarr;</p>
-          </div>
-        </Link>
-      </div>
-    </div>
-  )
-}
 
 function MessagesPageContent() {
   const router = useRouter()
@@ -173,9 +112,7 @@ function MessagesPageContent() {
     onPaginationChange: setPagination,
     globalFilterFn,
     autoResetPageIndex: false,
-    getRowCanExpand: () => true,
     getCoreRowModel: coreRowModel,
-    getExpandedRowModel: expandedRowModel,
     getFilteredRowModel: filteredRowModel,
     getPaginationRowModel: paginationRowModel,
     getSortedRowModel: sortedRowModel,
@@ -213,9 +150,6 @@ function MessagesPageContent() {
               columns={columns}
               table={table}
               onRowClick={(row) => router.push(`/cms/messages/${row.id}`)}
-              renderSubComponent={({ row }: { row: Row<Message> }) => (
-                <MessageExpandedRow message={row.original} />
-              )}
             />
           )}
         </TabsContent>

@@ -19,16 +19,32 @@ interface BibleApiResponse {
 
 /**
  * Maps common Bible version names to bible-api.com translation codes.
- * Falls back to 'kjv' for unknown versions.
+ * bible-api.com only supports a few translations (kjv, asv, web, bbe, darby, ylt).
+ * Falls back to 'kjv' for unsupported versions.
  */
 export function getBibleApiTranslation(version: string): string {
   const map: Record<string, string> = {
-    'ESV': 'kjv',   // ESV not available, closest is KJV
-    'NIV': 'kjv',   // NIV not available, closest is KJV
     'KJV': 'kjv',
     'ASV': 'asv',
     'WEB': 'web',
-    'NASB': 'asv',  // NASB not available, closest is ASV
+    'YLT': 'ylt',
+    // Versions not directly available on bible-api.com — map to closest available
+    'ESV': 'kjv',
+    'NIV': 'kjv',
+    'NKJV': 'kjv',
+    'NLT': 'kjv',
+    'NASB': 'asv',
+    'CSB': 'kjv',
+    'AMP': 'kjv',
+    'MSG': 'kjv',
+    'CEV': 'kjv',
+    'GNT': 'kjv',
+    'RSV': 'asv',
+    'NRSV': 'asv',
+    'NET': 'kjv',
+    'HCSB': 'kjv',
+    'ISV': 'kjv',
+    'ERV': 'kjv',
   }
   return map[version.toUpperCase()] || 'kjv'
 }

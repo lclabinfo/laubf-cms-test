@@ -3,7 +3,7 @@ import { CmsThemeProvider } from "@/components/cms/theme-provider"
 export default function CmsRootLayout({ children }: { children: React.ReactNode }) {
   return (
     <CmsThemeProvider>
-      <div data-cms="" className="min-h-screen bg-background text-foreground">
+      <div data-cms="" className="min-h-screen overflow-x-hidden bg-background text-foreground">
         {children}
       </div>
     </CmsThemeProvider>

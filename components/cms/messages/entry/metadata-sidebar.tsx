@@ -18,6 +18,7 @@ import { DatePicker } from "@/components/ui/date-picker"
 import { SeriesSelect } from "./series-select"
 import { SpeakerSelect } from "./speaker-select"
 import type { Series, MessageStatus, Attachment } from "@/lib/messages-data"
+import { BIBLE_VERSIONS } from "@/lib/bible-versions"
 import { statusDisplay } from "@/lib/status"
 
 interface MetadataSidebarProps {
@@ -212,11 +213,11 @@ export function MetadataSidebar({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ESV">ESV</SelectItem>
-                <SelectItem value="NIV">NIV</SelectItem>
-                <SelectItem value="KJV">KJV</SelectItem>
-                <SelectItem value="NASB">NASB</SelectItem>
-                <SelectItem value="WEB">WEB</SelectItem>
+                {BIBLE_VERSIONS.map((v) => (
+                  <SelectItem key={v.code} value={v.code}>
+                    {v.abbreviation} - {v.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">

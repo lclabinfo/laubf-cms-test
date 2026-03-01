@@ -15,6 +15,9 @@ import {
   Clock,
   Info,
   ArrowRight,
+  Paperclip,
+  ChevronDown,
+  Link2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,6 +33,11 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { DatePicker } from "@/components/ui/date-picker"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,6 +55,7 @@ import { SpeakerSelect } from "./speaker-select"
 import { SeriesSelect } from "./series-select"
 import { BiblePassageInput } from "./bible-passage-input"
 import { PublishDialog } from "./publish-dialog"
+import { BIBLE_VERSIONS, DEFAULT_BIBLE_VERSION } from "@/lib/bible-versions"
 import { useMessages } from "@/lib/messages-context"
 import { statusDisplay } from "@/lib/status"
 import { isTiptapContentEmpty } from "@/lib/tiptap"
@@ -84,7 +93,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const [speakerId, setSpeakerId] = useState<string | undefined>(message?.speakerId)
   const [seriesId, setSeriesId] = useState<string | null>(message?.seriesId ?? null)
   const [passage, setPassage] = useState(message?.passage ?? "")
-  const [bibleVersion, setBibleVersion] = useState(message?.bibleVersion ?? "ESV")
+  const [bibleVersion, setBibleVersion] = useState(message?.bibleVersion ?? DEFAULT_BIBLE_VERSION.code)
   const [attachments, setAttachments] = useState<Attachment[]>(message?.attachments ?? [])
   const [publishedAt, setPublishedAt] = useState(message?.publishedAt ?? "")
 
@@ -269,54 +278,60 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
   return (
     <div className="flex flex-col gap-0 flex-1 min-h-0">
-      {/* Header */}
-      <div className="flex items-center gap-3 pb-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/cms/messages">
-            <ArrowLeft />
-          </Link>
-        </Button>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight truncate">
-              {mode === "create" ? "New Message" : (title || "Untitled")}
-            </h1>
-            <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+      {/* Tabs — wraps both the sticky header and tab content */}
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 min-h-0 flex flex-col">
+        {/* Sticky top bar: header row + tab row */}
+        <div className="sticky top-0 z-20 bg-background pb-0">
+          {/* Header */}
+          <div className="flex items-center gap-3 pb-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/cms/messages">
+                <ArrowLeft />
+              </Link>
+            </Button>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-semibold tracking-tight truncate">
+                  {mode === "create" ? "New Message" : (title || "Untitled")}
+                </h1>
+                <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={handleCancel}>
+                Cancel
+              </Button>
+              <Button variant="outline" onClick={handleSaveAsDraft}>
+                Save Draft
+              </Button>
+              <Button
+                onClick={handlePublishClick}
+                disabled={!canSave}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                Publish...
+              </Button>
+            </div>
+          </div>
+
+          {/* Tab row with bottom border */}
+          <div className="border-b border-border">
+            <TabsList variant="line">
+              <TabsTrigger value="details" className="gap-1.5">
+                <Settings className="size-3.5" />
+                Details
+              </TabsTrigger>
+              <TabsTrigger value="video" className="gap-1.5">
+                Video
+                {hasVideo && <span className="size-1.5 rounded-full bg-primary" />}
+              </TabsTrigger>
+              <TabsTrigger value="study" className="gap-1.5">
+                Bible Study
+                {hasStudy && <span className="size-1.5 rounded-full bg-primary" />}
+              </TabsTrigger>
+            </TabsList>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleCancel}>
-            Cancel
-          </Button>
-          <Button variant="outline" onClick={handleSaveAsDraft}>
-            Save Draft
-          </Button>
-          <Button
-            onClick={handlePublishClick}
-            disabled={!canSave}
-            className="bg-green-600 hover:bg-green-700 text-white"
-          >
-            Publish...
-          </Button>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 min-h-0 flex flex-col">
-        <TabsList variant="line">
-          <TabsTrigger value="details" className="gap-1.5">
-            <Settings className="size-3.5" />
-            Details
-          </TabsTrigger>
-          <TabsTrigger value="video" className="gap-1.5">
-            Video
-            {hasVideo && <span className="size-1.5 rounded-full bg-primary" />}
-          </TabsTrigger>
-          <TabsTrigger value="study" className="gap-1.5">
-            Bible Study
-            {hasStudy && <span className="size-1.5 rounded-full bg-primary" />}
-          </TabsTrigger>
-        </TabsList>
 
         {/* Details Tab */}
         <TabsContent value="details" className="flex-1 overflow-y-auto pt-4">
@@ -415,11 +430,11 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="ESV">ESV</SelectItem>
-                      <SelectItem value="NIV">NIV</SelectItem>
-                      <SelectItem value="KJV">KJV</SelectItem>
-                      <SelectItem value="NASB">NASB</SelectItem>
-                      <SelectItem value="WEB">WEB</SelectItem>
+                      {BIBLE_VERSIONS.map((v) => (
+                        <SelectItem key={v.code} value={v.code}>
+                          {v.abbreviation} - {v.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -473,50 +488,6 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                 </div>
               </div>
 
-              {/* Attachments */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Attachments</Label>
-                  <Button variant="ghost" size="sm" onClick={handleUploadAttachment}>
-                    <Upload className="size-3.5" />
-                    Upload
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                </div>
-                {attachments.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-2">
-                    No attachments yet.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    {attachments.map((att) => (
-                      <div
-                        key={att.id}
-                        className="flex items-center gap-2 rounded-md border px-3 py-2"
-                      >
-                        <FileText className="size-4 text-muted-foreground shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{att.name}</p>
-                          <p className="text-xs text-muted-foreground">{att.size}</p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => handleRemoveAttachment(att.id)}
-                        >
-                          <X className="size-3.5" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
 
             {/* Content Overview */}
@@ -611,6 +582,73 @@ export function EntryForm({ mode, message }: EntryFormProps) {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Shared Attachments Panel */}
+      <div className="max-w-3xl mx-auto w-full mt-4">
+        <Collapsible defaultOpen={attachments.length > 0}>
+          <div className="rounded-xl border border-dashed">
+            <CollapsibleTrigger className="flex items-center w-full px-4 py-3 gap-3 hover:bg-muted/50 rounded-t-xl transition-colors group">
+              <Paperclip className="size-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Attachments</span>
+              {attachments.length > 0 && (
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  {attachments.length}
+                </Badge>
+              )}
+              <div className="flex items-center gap-1.5 ml-auto">
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Link2 className="size-3" />
+                  Shared across all tabs
+                </span>
+                <ChevronDown className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="px-4 pb-4 space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  These files will appear on the message page, video player, and bible study materials.
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={handleUploadAttachment}>
+                    <Upload className="size-3.5" />
+                    Upload Files
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                </div>
+                {attachments.length > 0 && (
+                  <div className="space-y-2">
+                    {attachments.map((att) => (
+                      <div
+                        key={att.id}
+                        className="flex items-center gap-2 rounded-md border px-3 py-2"
+                      >
+                        <FileText className="size-4 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{att.name}</p>
+                          <p className="text-xs text-muted-foreground">{att.size}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => handleRemoveAttachment(att.id)}
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
+      </div>
 
       {/* Publish Dialog */}
       <PublishDialog

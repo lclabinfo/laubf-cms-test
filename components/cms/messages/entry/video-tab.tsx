@@ -205,7 +205,7 @@ export function VideoTab({
           onRawTranscriptChange={onRawTranscriptChange}
           segments={segments}
           onSegmentsChange={onSegmentsChange}
-          hasVideoUrl={!!videoUrl}
+          videoUrl={videoUrl}
         />
       </div>
 

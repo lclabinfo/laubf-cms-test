@@ -3,11 +3,10 @@
 import { useState } from "react"
 import Link from "next/link"
 import { type ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, Pencil, Trash2, Clock, TriangleAlert, ChevronRight } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, Clock, TriangleAlert, SquarePen, Plus } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -117,28 +116,6 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
   const { series, onDelete } = options
 
   return [
-  {
-    id: "expand",
-    header: () => null,
-    cell: ({ row }) => {
-      if (!row.getCanExpand()) return null
-      return (
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={(e) => {
-            e.stopPropagation()
-            row.toggleExpanded()
-          }}
-        >
-          <ChevronRight className={cn("size-4 transition-transform", row.getIsExpanded() && "rotate-90")} />
-        </Button>
-      )
-    },
-    enableSorting: false,
-    enableHiding: false,
-    size: 32,
-  },
   {
     id: "select",
     header: ({ table }) => (
@@ -263,12 +240,30 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
     cell: ({ row }) => {
       const hasVideo = row.original.hasVideo
       const isPublished = row.original.status === "published"
-      if (hasVideo && isPublished) return <Badge variant="success">Live</Badge>
-      if (hasVideo) return <Badge variant="secondary">Draft</Badge>
-      return <Badge variant="outline">Empty</Badge>
+      const badge = hasVideo && isPublished
+        ? <Badge variant="success">Live</Badge>
+        : hasVideo
+        ? <Badge variant="secondary">Draft</Badge>
+        : <Badge variant="outline">Empty</Badge>
+      return (
+        <div className="flex items-center gap-1.5">
+          {badge}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="size-7"
+            asChild
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Link href={`/cms/messages/${row.original.id}?tab=video`} aria-label={hasVideo ? "Edit video" : "Add video"}>
+              {hasVideo ? <SquarePen className="size-3.5" /> : <Plus className="size-3.5" />}
+            </Link>
+          </Button>
+        </div>
+      )
     },
     enableSorting: false,
-    size: 70,
+    size: 110,
   },
   {
     id: "study",
@@ -276,12 +271,30 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
     cell: ({ row }) => {
       const hasStudy = row.original.hasStudy
       const isPublished = row.original.status === "published"
-      if (hasStudy && isPublished) return <Badge variant="success">Live</Badge>
-      if (hasStudy) return <Badge variant="secondary">Draft</Badge>
-      return <Badge variant="outline">Empty</Badge>
+      const badge = hasStudy && isPublished
+        ? <Badge variant="success">Live</Badge>
+        : hasStudy
+        ? <Badge variant="secondary">Draft</Badge>
+        : <Badge variant="outline">Empty</Badge>
+      return (
+        <div className="flex items-center gap-1.5">
+          {badge}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="size-7"
+            asChild
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Link href={`/cms/messages/${row.original.id}?tab=study`} aria-label={hasStudy ? "Edit study" : "Add study"}>
+              {hasStudy ? <SquarePen className="size-3.5" /> : <Plus className="size-3.5" />}
+            </Link>
+          </Button>
+        </div>
+      )
     },
     enableSorting: false,
-    size: 70,
+    size: 110,
   },
   {
     id: "actions",

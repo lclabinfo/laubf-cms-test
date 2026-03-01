@@ -20,8 +20,11 @@ import {
   Image as ImageIcon,
   GripVertical,
   Columns,
+  ToggleRight,
+  ToggleLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { BIBLE_VERSIONS } from "@/lib/bible-versions"
 import type { BibleStudyDetail } from "@/lib/types/bible-study"
 
 /* ── Types ── */
@@ -129,6 +132,10 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
   const [fontSize, setFontSize] = useState(100)
   const [isDesktop, setIsDesktop] = useState(true)
   const [bibleVersion, setBibleVersion] = useState<string>(study.bibleVersion || "ESV")
+
+  // Transcript sub-tab state
+  const [transcriptMode, setTranscriptMode] = useState<"caption" | "text">("caption")
+  const [autoScroll, setAutoScroll] = useState(false)
 
   // Tab state
   const [leftTab, setLeftTab] = useState<ResourceType>("scripture")
@@ -310,18 +317,20 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                     </button>
                   }
                 >
-                  <button
-                    onClick={() => setBibleVersion("NIV")}
-                    className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-white-1-5 transition-colors"
-                  >
-                    NIV
-                  </button>
-                  <button
-                    onClick={() => setBibleVersion("ESV")}
-                    className="w-full text-left px-3 py-2 text-sm font-medium hover:bg-white-1-5 transition-colors"
-                  >
-                    ESV
-                  </button>
+                  <div className="max-h-64 overflow-y-auto">
+                    {BIBLE_VERSIONS.map((v) => (
+                      <button
+                        key={v.code}
+                        onClick={() => setBibleVersion(v.code)}
+                        className={cn(
+                          "w-full text-left px-3 py-2 text-sm hover:bg-white-1-5 transition-colors",
+                          bibleVersion === v.code ? "font-semibold text-brand-1" : "font-medium"
+                        )}
+                      >
+                        {v.abbreviation} - {v.name}
+                      </button>
+                    ))}
+                  </div>
                 </SimpleDropdown>
                 <a
                   href={getBibleGatewayUrl(study.passage)}
@@ -476,25 +485,120 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
           </div>
         )
 
-      case "transcript":
+      case "transcript": {
+        // Parse transcript HTML into segments for the Live Caption view
+        const transcriptSegments = parseTranscriptToSegments(study.transcript || "")
+
         return (
           <div className="p-6 sm:p-8 max-w-3xl mx-auto">
-            <div className="mb-6 flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-xl sm:text-2xl font-medium text-black-1 uppercase leading-tight mb-2 tracking-tight">
-                  Message Transcript
+            {/* Header: TRANSCRIPT label + AUTO-SCROLL toggle */}
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2.5">
+                <FileText className="w-5 h-5 text-brand-1" />
+                <h2 className="text-sm font-semibold text-black-1 uppercase tracking-widest">
+                  Transcript
                 </h2>
                 {study.messenger && (
-                  <p className="text-sm text-black-3">
-                    Message by {study.messenger}
-                  </p>
+                  <>
+                    <span className="w-1 h-1 rounded-full bg-white-2-5" />
+                    <span className="text-xs text-black-3">
+                      {study.messenger}
+                    </span>
+                  </>
                 )}
               </div>
-              {study.attachments?.find(
-                (a) =>
-                  a.type === "docx" &&
-                  a.name.toLowerCase().includes("transcript")
-              ) && (
+              <button
+                onClick={() => setAutoScroll(!autoScroll)}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium uppercase tracking-wider transition-all",
+                  autoScroll
+                    ? "bg-brand-1/10 text-brand-1"
+                    : "bg-white-1-5 text-black-3 hover:text-black-2"
+                )}
+              >
+                {autoScroll ? (
+                  <ToggleRight className="w-4 h-4" />
+                ) : (
+                  <ToggleLeft className="w-4 h-4" />
+                )}
+                Auto-Scroll
+              </button>
+            </div>
+
+            {/* Sub-tabs: LIVE CAPTION / MESSAGE TEXT pill toggle */}
+            <div className="mb-1">
+              <div className="inline-flex bg-white-1-5 rounded-full p-0.5 border border-white-2">
+                <button
+                  onClick={() => setTranscriptMode("caption")}
+                  className={cn(
+                    "px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all",
+                    transcriptMode === "caption"
+                      ? "bg-white-0 text-black-1 shadow-sm"
+                      : "text-black-3 hover:text-black-2"
+                  )}
+                >
+                  Live Caption
+                </button>
+                <button
+                  onClick={() => setTranscriptMode("text")}
+                  className={cn(
+                    "px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all",
+                    transcriptMode === "text"
+                      ? "bg-white-0 text-black-1 shadow-sm"
+                      : "text-black-3 hover:text-black-2"
+                  )}
+                >
+                  Message Text
+                </button>
+              </div>
+            </div>
+
+            {/* Accent line */}
+            <div className="h-0.5 rounded-full bg-gradient-to-r from-brand-1 via-brand-1/60 to-transparent mb-6" />
+
+            {/* Content */}
+            {study.transcript ? (
+              transcriptMode === "caption" && transcriptSegments.length > 0 ? (
+                /* Live Caption view: timestamped segments */
+                <div className="space-y-4" style={{ fontSize: `${fontSize}%` }}>
+                  {transcriptSegments.map((seg, i) => (
+                    <div
+                      key={i}
+                      className="flex items-start gap-4 sm:gap-6 group"
+                      style={{ opacity: Math.max(0.45, 1 - i * 0.04) }}
+                    >
+                      <span className="text-xs sm:text-sm font-mono text-black-3/60 pt-0.5 shrink-0 w-10 sm:w-12 text-right tabular-nums">
+                        {seg.time}
+                      </span>
+                      <p className="text-base sm:text-lg leading-relaxed text-black-1 flex-1">
+                        {seg.text}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                /* Message Text view: flowing prose */
+                <div
+                  style={{ fontSize: `${fontSize}%` }}
+                  className="study-content transition-all duration-200"
+                  dangerouslySetInnerHTML={{ __html: study.transcript }}
+                />
+              )
+            ) : (
+              <div className="p-12 text-center bg-white-1-5 rounded-xl border border-dashed border-white-2">
+                <p className="text-black-3">
+                  Transcript not available for this message.
+                </p>
+              </div>
+            )}
+
+            {/* Download link */}
+            {study.attachments?.find(
+              (a) =>
+                a.type === "docx" &&
+                a.name.toLowerCase().includes("transcript")
+            ) && (
+              <div className="mt-8 pt-6 border-t border-white-2">
                 <a
                   href={
                     study.attachments.find(
@@ -505,29 +609,16 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                   }
                   target="_blank"
                   rel="noreferrer"
-                  className="flex-shrink-0 flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white-2 text-xs font-medium uppercase tracking-wide text-black-3 hover:text-brand-1 hover:bg-white-1-5 transition-all"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white-2 text-xs font-medium uppercase tracking-wide text-black-3 hover:text-brand-1 hover:bg-white-1-5 transition-all"
                 >
-                  <FileText className="w-3.5 h-3.5" />
-                  Download DOCX
+                  <Download className="w-3.5 h-3.5" />
+                  Download Transcript
                 </a>
-              )}
-            </div>
-
-            {study.transcript ? (
-              <div
-                style={{ fontSize: `${fontSize}%` }}
-                className="study-content transition-all duration-200"
-                dangerouslySetInnerHTML={{ __html: study.transcript }}
-              />
-            ) : (
-              <div className="p-12 text-center bg-white-1-5 rounded-xl border border-dashed border-white-2">
-                <p className="text-black-3">
-                  Transcript not available for this message.
-                </p>
               </div>
             )}
           </div>
         )
+      }
 
       case "leaderGuide":
         return (
@@ -810,4 +901,55 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
       </div>
     </div>
   )
+}
+
+/* ── Transcript Helpers ── */
+
+/**
+ * Parse transcript HTML content into timestamped segments for the Live Caption view.
+ * Splits by paragraphs and generates simulated timestamps spaced 15 seconds apart.
+ * If the transcript is very short or a single block, returns it as one segment.
+ */
+function parseTranscriptToSegments(html: string): { time: string; text: string }[] {
+  if (!html.trim()) return []
+
+  // Strip HTML tags and split into paragraphs
+  const temp = html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/div>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+
+  const paragraphs = temp
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0)
+
+  if (paragraphs.length === 0) return []
+
+  // If only one paragraph, split by sentences for better display
+  let segments: string[]
+  if (paragraphs.length === 1) {
+    segments = paragraphs[0]
+      .split(/(?<=[.!?])\s+/)
+      .filter((s) => s.trim().length > 0)
+  } else {
+    segments = paragraphs
+  }
+
+  return segments.map((text, i) => {
+    const totalSeconds = i * 15
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = totalSeconds % 60
+    return {
+      time: `${minutes}:${String(seconds).padStart(2, "0")}`,
+      text,
+    }
+  })
 }
