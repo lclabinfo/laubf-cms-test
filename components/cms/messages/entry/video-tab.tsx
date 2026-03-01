@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ExternalLink, Check, Loader2 } from "lucide-react"
+import { ExternalLink, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -57,30 +57,43 @@ export function VideoTab({
   onSegmentsChange,
 }: VideoTabProps) {
   const [urlInput, setUrlInput] = useState(videoUrl)
-  const [checking, setChecking] = useState(false)
   const [checked, setChecked] = useState(!!videoUrl)
+  const [urlError, setUrlError] = useState("")
 
   const platform = detectPlatform(urlInput)
   const youtubeId = platform === "YouTube" ? extractYouTubeId(urlInput) : null
   const hasValidPreview = checked && (youtubeId || platform === "Vimeo")
 
   function handleCheckUrl() {
-    if (!urlInput.trim()) return
-    setChecking(true)
-    // Simulate URL validation
-    setTimeout(() => {
-      onVideoUrlChange(urlInput.trim())
-      setChecking(false)
-      setChecked(true)
-    }, 800)
+    const trimmed = urlInput.trim()
+    if (!trimmed) return
+    setUrlError("")
+
+    // Validate URL format
+    try {
+      new URL(trimmed)
+    } catch {
+      setUrlError("Please enter a valid URL")
+      return
+    }
+
+    const detectedPlatform = detectPlatform(trimmed)
+    if (!detectedPlatform) {
+      setUrlError("Only YouTube and Vimeo URLs are supported")
+      return
+    }
+
+    if (detectedPlatform === "YouTube" && !extractYouTubeId(trimmed)) {
+      setUrlError("Could not extract video ID from this YouTube URL")
+      return
+    }
+
+    onVideoUrlChange(trimmed)
+    setChecked(true)
   }
 
-  function handleImportMetadata() {
-    // Mock: simulate fetching metadata from YouTube
-    if (!youtubeId) return
-    // In a real implementation, this would call the YouTube Data API
-    // to fetch the video title, description, and captions
-  }
+  // TODO: Implement metadata import from YouTube Data API when API key is configured
+  // Would fetch video title, description, duration, and captions
 
   return (
     <div className="space-y-6">
@@ -94,13 +107,14 @@ export function VideoTab({
               onChange={(e) => {
                 setUrlInput(e.target.value)
                 setChecked(false)
+                setUrlError("")
               }}
               placeholder="Paste YouTube or Vimeo link"
             />
             {platform && (
               <span className={`absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
                 platform === "YouTube"
-                  ? "bg-destructive/10 text-destructive dark:bg-destructive/20"
+                  ? "bg-muted text-foreground"
                   : "bg-info/10 text-info dark:bg-info/20"
               }`}>
                 {platform}
@@ -110,16 +124,15 @@ export function VideoTab({
           <Button
             variant="outline"
             onClick={handleCheckUrl}
-            disabled={!urlInput.trim() || checking}
+            disabled={!urlInput.trim()}
           >
-            {checking ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : checked ? (
-              <Check className="size-4" />
-            ) : null}
-            {checking ? "Checking..." : checked ? "Verified" : "Check URL"}
+            {checked && <Check className="size-4" />}
+            {checked ? "Verified" : "Check URL"}
           </Button>
         </div>
+        {urlError && (
+          <p className="text-xs text-destructive">{urlError}</p>
+        )}
       </div>
 
       {/* Video Preview */}
@@ -128,9 +141,6 @@ export function VideoTab({
           <div className="flex items-center justify-between">
             <Label>Video Preview</Label>
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="sm" onClick={handleImportMetadata}>
-                Import Metadata
-              </Button>
               <Button variant="ghost" size="sm" asChild>
                 <a href={videoUrl} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="size-3.5" />

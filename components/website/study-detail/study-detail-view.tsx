@@ -20,8 +20,6 @@ import {
   Image as ImageIcon,
   GripVertical,
   Columns,
-  ToggleRight,
-  ToggleLeft,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { BIBLE_VERSIONS } from "@/lib/bible-versions"
@@ -135,7 +133,6 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
 
   // Transcript sub-tab state
   const [transcriptMode, setTranscriptMode] = useState<"caption" | "text">("caption")
-  const [autoScroll, setAutoScroll] = useState(false)
 
   // Tab state
   const [leftTab, setLeftTab] = useState<ResourceType>("scripture")
@@ -507,22 +504,6 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                   </>
                 )}
               </div>
-              <button
-                onClick={() => setAutoScroll(!autoScroll)}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium uppercase tracking-wider transition-all",
-                  autoScroll
-                    ? "bg-brand-1/10 text-brand-1"
-                    : "bg-white-1-5 text-black-3 hover:text-black-2"
-                )}
-              >
-                {autoScroll ? (
-                  <ToggleRight className="w-4 h-4" />
-                ) : (
-                  <ToggleLeft className="w-4 h-4" />
-                )}
-                Auto-Scroll
-              </button>
             </div>
 
             {/* Sub-tabs: LIVE CAPTION / MESSAGE TEXT pill toggle */}
@@ -565,7 +546,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                     <div
                       key={i}
                       className="flex items-start gap-4 sm:gap-6 group"
-                      style={{ opacity: Math.max(0.45, 1 - i * 0.04) }}
+                      style={{ opacity: Math.max(0.65, 1 - i * 0.025) }}
                     >
                       <span className="text-xs sm:text-sm font-mono text-black-3/60 pt-0.5 shrink-0 w-10 sm:w-12 text-right tabular-nums">
                         {seg.time}
@@ -577,7 +558,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                   ))}
                 </div>
               ) : (
-                /* Message Text view: flowing prose */
+                /* Message Text view (or fallback when caption parsing yields no segments): flowing prose */
                 <div
                   style={{ fontSize: `${fontSize}%` }}
                   className="study-content transition-all duration-200"
@@ -586,8 +567,12 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
               )
             ) : (
               <div className="p-12 text-center bg-white-1-5 rounded-xl border border-dashed border-white-2">
-                <p className="text-black-3">
-                  Transcript not available for this message.
+                <FileText className="w-8 h-8 text-black-3/40 mx-auto mb-3" />
+                <p className="text-black-3 font-medium">
+                  No transcript available yet.
+                </p>
+                <p className="text-sm text-black-3/60 mt-1">
+                  Check back later for the full transcript.
                 </p>
               </div>
             )}
@@ -948,7 +933,7 @@ function parseTranscriptToSegments(html: string): { time: string; text: string }
     const minutes = Math.floor(totalSeconds / 60)
     const seconds = totalSeconds % 60
     return {
-      time: `${minutes}:${String(seconds).padStart(2, "0")}`,
+      time: `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
       text,
     }
   })

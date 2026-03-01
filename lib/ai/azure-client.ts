@@ -131,11 +131,16 @@ function parseTranscriptResponse(content: string): TranscriptSegment[] {
     throw new Error('Failed to parse transcript response: no JSON array found')
   }
 
-  const parsed = JSON.parse(jsonMatch[0]) as Array<{
+  let parsed: Array<{
     startTime: string
     endTime: string
     text: string
   }>
+  try {
+    parsed = JSON.parse(jsonMatch[0])
+  } catch {
+    throw new Error('AI returned invalid JSON response. Please try again.')
+  }
 
   return parsed.map((segment, i) => ({
     id: `ai-${Date.now()}-${i}`,

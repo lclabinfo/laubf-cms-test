@@ -11,7 +11,6 @@ import {
   Loader2,
   FileText,
   AlertCircle,
-  Play,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -41,6 +40,11 @@ interface TranscriptEditorProps {
 type TranscriptMode = "synced" | "raw"
 type ProcessingState = "idle" | "processing" | "done"
 
+function extractYouTubeId(url: string): string | null {
+  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]+)/)
+  return match?.[1] ?? null
+}
+
 export function TranscriptEditor({
   rawTranscript,
   onRawTranscriptChange,
@@ -49,7 +53,7 @@ export function TranscriptEditor({
   videoUrl,
 }: TranscriptEditorProps) {
   const hasVideoUrl = Boolean(videoUrl)
-  const [mode, setMode] = useState<TranscriptMode>(segments.length > 0 ? "synced" : "synced")
+  const [mode, setMode] = useState<TranscriptMode>(segments.length > 0 ? "synced" : "raw")
   const [processing, setProcessing] = useState<ProcessingState>("idle")
 
   async function handleAiAlignment() {
@@ -88,7 +92,7 @@ export function TranscriptEditor({
   async function handleYouTubeImport() {
     if (!videoUrl) return
 
-    const ytId = videoUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]+)/)?.[1]
+    const ytId = extractYouTubeId(videoUrl)
     if (!ytId) {
       toast.error("Invalid YouTube URL", { description: "Could not extract video ID from the URL." })
       return
@@ -125,7 +129,7 @@ export function TranscriptEditor({
   async function handleYouTubeAiCleanup() {
     if (!videoUrl) return
 
-    const ytId = videoUrl.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]+)/)?.[1]
+    const ytId = extractYouTubeId(videoUrl)
     if (!ytId) {
       toast.error("Invalid YouTube URL", { description: "Could not extract video ID from the URL." })
       return
@@ -286,8 +290,8 @@ export function TranscriptEditor({
       {/* Tab toggle + actions */}
       <div className="flex flex-wrap items-center gap-2">
         <TabsList variant="line">
-          <TabsTrigger value="synced">Live Captions</TabsTrigger>
-          <TabsTrigger value="raw">Full Text</TabsTrigger>
+          <TabsTrigger value="synced">Timestamped Segments</TabsTrigger>
+          <TabsTrigger value="raw">Full Transcript</TabsTrigger>
         </TabsList>
 
         <div className="flex-1" />
@@ -347,7 +351,7 @@ export function TranscriptEditor({
                   <span>Import YouTube Captions</span>
                   <span className="text-muted-foreground text-[11px] font-normal">
                     {!hasVideoUrl
-                      ? "Requires a YouTube video URL"
+                      ? "Requires a YouTube video URL — set it in the Video URL field above"
                       : "Fetches auto-generated or manual captions"}
                   </span>
                 </div>
@@ -361,7 +365,7 @@ export function TranscriptEditor({
                   </div>
                   <span className="text-muted-foreground text-[11px] font-normal">
                     {!hasVideoUrl
-                      ? "Requires YouTube URL + AI configuration"
+                      ? "Requires a YouTube video URL — set it in the Video URL field above"
                       : "YouTube captions cleaned by AI for readability"}
                   </span>
                 </div>
@@ -428,42 +432,28 @@ export function TranscriptEditor({
               {segments.map((segment) => (
                 <div
                   key={segment.id}
-                  className="group flex items-center gap-2 rounded-md border bg-card px-2 py-1.5 hover:bg-accent/30 transition-colors"
+                  className="group flex items-center gap-2 rounded-md border bg-card px-2 py-2.5 mb-1 hover:bg-accent/30 transition-colors"
                 >
-                  {/* Play icon */}
-                  <button
-                    type="button"
-                    className="shrink-0 text-muted-foreground hover:text-primary transition-colors"
-                    title="Play from this point"
-                  >
-                    <Play className="size-3.5" />
-                  </button>
-
-                  {/* Compact timestamp badge (start time only) */}
-                  <Badge
-                    variant="secondary"
-                    className="shrink-0 font-mono text-[11px] px-1.5 py-0 h-5 min-w-[3.5rem] justify-center cursor-text"
-                  >
-                    <Input
-                      value={formatCompactTime(segment.startTime)}
-                      onChange={(e) => {
-                        // Convert compact MM:SS back to HH:MM:SS for storage
-                        const val = e.target.value
-                        const parts = val.split(":").map(Number)
-                        let totalSec = 0
-                        if (parts.length === 2) totalSec = (parts[0] || 0) * 60 + (parts[1] || 0)
-                        else if (parts.length === 1) totalSec = parts[0] || 0
-                        handleSegmentChange(segment.id, "startTime", formatTimestamp(totalSec))
-                      }}
-                      className="border-0 bg-transparent p-0 h-auto text-[11px] font-mono text-center w-full focus-visible:ring-0 focus-visible:ring-offset-0"
-                    />
-                  </Badge>
+                  {/* Compact timestamp input */}
+                  <Input
+                    value={formatCompactTime(segment.startTime)}
+                    onChange={(e) => {
+                      // Convert compact MM:SS back to HH:MM:SS for storage
+                      const val = e.target.value
+                      const parts = val.split(":").map(Number)
+                      let totalSec = 0
+                      if (parts.length === 2) totalSec = (parts[0] || 0) * 60 + (parts[1] || 0)
+                      else if (parts.length === 1) totalSec = parts[0] || 0
+                      handleSegmentChange(segment.id, "startTime", formatTimestamp(totalSec))
+                    }}
+                    className="shrink-0 font-mono text-xs text-center w-16 h-7 rounded-md bg-muted border-transparent focus:border-input focus:bg-background"
+                  />
 
                   {/* Full-width text input */}
                   <Input
                     value={segment.text}
                     onChange={(e) => handleSegmentChange(segment.id, "text", e.target.value)}
-                    className="flex-1 h-7 text-sm border-transparent bg-transparent hover:bg-background focus:bg-background focus:border-input transition-colors"
+                    className="flex-1 h-7 text-sm border-input/30 bg-transparent hover:bg-background focus:bg-background focus:border-input transition-colors"
                     placeholder="Segment text..."
                   />
 

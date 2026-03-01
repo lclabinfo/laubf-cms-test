@@ -48,11 +48,7 @@ export async function fetchYouTubeCaptions(
 
   // 2. Download the caption track in SRT format
   const downloadUrl = `https://www.googleapis.com/youtube/v3/captions/${track.id}?tfmt=srt&key=${apiKey}`
-  const downloadResponse = await fetch(downloadUrl, {
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-    },
-  })
+  const downloadResponse = await fetch(downloadUrl)
 
   if (!downloadResponse.ok) {
     // Caption download often requires OAuth; fall back to a message

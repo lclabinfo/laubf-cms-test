@@ -219,9 +219,15 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     }
   }
 
-  function saveMessage(overrideStatus?: MessageStatus) {
+  function saveMessage(overrideStatus?: MessageStatus, publishOptions?: { publishVideo: boolean; publishStudy: boolean }) {
     const data = buildMessageData()
     if (overrideStatus) data.status = overrideStatus
+
+    // When publishing, use the dialog's toggle selections for hasVideo/hasStudy
+    if (publishOptions) {
+      data.hasVideo = publishOptions.publishVideo
+      data.hasStudy = publishOptions.publishStudy
+    }
 
     if (mode === "create") {
       addMessage(data)
@@ -659,8 +665,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
         hasStudy={hasStudy}
         videoSummary={videoUrl ? `YouTube · ${duration || "\u2014"}` : "No video content"}
         studySummary={studySections.length > 0 ? `${studySections.length} section${studySections.length !== 1 ? "s" : ""}` : "No study material"}
-        onPublish={() => {
-          saveMessage("published")
+        onPublish={({ publishVideo, publishStudy }) => {
+          saveMessage("published", { publishVideo, publishStudy })
         }}
       />
 

@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { isYouTubeConfigured, AINotConfiguredError } from '@/lib/ai/config'
 import { fetchYouTubeCaptions } from '@/lib/ai/youtube-client'
+import { requireApiAuth } from '@/lib/api/require-auth'
 
 export async function GET(request: NextRequest) {
   try {
+    const authResult = await requireApiAuth('EDITOR')
+    if (!authResult.authorized) return authResult.response
+
     if (!isYouTubeConfigured()) {
       return NextResponse.json(
-        {
-          error: 'AI service not configured',
-          message:
-            'YouTube Data API is not configured. Please add YOUTUBE_API_KEY to your environment variables.',
-        },
+        { success: false, error: { code: 'SERVICE_UNAVAILABLE', message: 'YouTube Data API is not configured. Please add YOUTUBE_API_KEY to your environment variables.' } },
         { status: 503 }
       )
     }
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
 
     if (!videoId) {
       return NextResponse.json(
-        { error: 'Invalid request', message: 'videoId query parameter is required' },
+        { success: false, error: { code: 'VALIDATION_ERROR', message: 'videoId query parameter is required' } },
         { status: 400 }
       )
     }
@@ -30,17 +30,13 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     if (error instanceof AINotConfiguredError) {
       return NextResponse.json(
-        { error: 'AI service not configured', message: error.message },
+        { success: false, error: { code: 'SERVICE_UNAVAILABLE', message: error.message } },
         { status: 503 }
       )
     }
     console.error('GET /api/v1/youtube/captions error:', error)
     return NextResponse.json(
-      {
-        error: 'Internal error',
-        message:
-          error instanceof Error ? error.message : 'Failed to fetch captions',
-      },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : 'Failed to fetch captions' } },
       { status: 500 }
     )
   }
