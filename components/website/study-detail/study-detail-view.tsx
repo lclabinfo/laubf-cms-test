@@ -130,6 +130,8 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
   const [fontSize, setFontSize] = useState(100)
   const [isDesktop, setIsDesktop] = useState(true)
   const [bibleVersion, setBibleVersion] = useState<string>(study.bibleVersion || "ESV")
+  const [fetchedBibleText, setFetchedBibleText] = useState<string | null>(null)
+  const [bibleTextLoading, setBibleTextLoading] = useState(false)
 
   // Transcript sub-tab state
   const [transcriptMode, setTranscriptMode] = useState<"caption" | "text">("caption")
@@ -202,6 +204,38 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
     }
   }, [])
 
+  /* ── Bible version switching ── */
+
+  const initialVersion = useRef(study.bibleVersion || "ESV")
+
+  const handleVersionChange = useCallback(async (version: string) => {
+    setBibleVersion(version)
+
+    // If switching back to the original version, use pre-stored text
+    if (version === initialVersion.current) {
+      setFetchedBibleText(null)
+      return
+    }
+
+    if (!study.passage) return
+
+    setBibleTextLoading(true)
+    try {
+      const res = await fetch(
+        `/api/v1/bible?passage=${encodeURIComponent(study.passage)}&version=${encodeURIComponent(version)}`
+      )
+      const json = await res.json()
+      if (json.success && json.data?.html) {
+        setFetchedBibleText(json.data.html)
+      }
+      // If API fails, keep showing whatever text we already have
+    } catch {
+      // Silently fall back to existing text
+    } finally {
+      setBibleTextLoading(false)
+    }
+  }, [study.passage])
+
   /* ── Helpers ── */
 
   const getBibleGatewayUrl = (passage: string) => {
@@ -212,11 +246,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
   const increaseFont = () => setFontSize((p) => Math.min(p + 10, 150))
   const decreaseFont = () => setFontSize((p) => Math.max(p - 10, 80))
 
-  const displayBibleText = study.bibleText
-    ? study.bibleText
-        .replace(/\(ESV\)/g, `(${bibleVersion})`)
-        .replace(/\(NIV\)/g, `(${bibleVersion})`)
-    : ""
+  const displayBibleText = fetchedBibleText || study.bibleText || ""
 
   /* ── Format date ── */
 
@@ -318,7 +348,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                     {BIBLE_VERSIONS.map((v) => (
                       <button
                         key={v.code}
-                        onClick={() => setBibleVersion(v.code)}
+                        onClick={() => handleVersionChange(v.code)}
                         className={cn(
                           "w-full text-left px-3 py-2 text-sm hover:bg-white-1-5 transition-colors",
                           bibleVersion === v.code ? "font-semibold text-brand-1" : "font-medium"
@@ -340,11 +370,24 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                 </a>
               </div>
             </div>
-            <div
-              style={{ fontSize: `${fontSize}%` }}
-              className="study-bible-text transition-all duration-200"
-              dangerouslySetInnerHTML={{ __html: displayBibleText }}
-            />
+            {bibleTextLoading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="flex items-center gap-3 text-sm text-black-3">
+                  <div className="size-4 border-2 border-black-3/30 border-t-black-3 rounded-full animate-spin" />
+                  Loading {bibleVersion} text...
+                </div>
+              </div>
+            ) : displayBibleText ? (
+              <div
+                style={{ fontSize: `${fontSize}%` }}
+                className="study-bible-text transition-all duration-200"
+                dangerouslySetInnerHTML={{ __html: displayBibleText }}
+              />
+            ) : (
+              <div className="py-16 text-center text-black-3 text-sm">
+                Bible text not available for this passage.
+              </div>
+            )}
             <div className="mt-8 pt-8 border-t border-white-2 text-center">
               <a
                 href={getBibleGatewayUrl(study.passage)}
