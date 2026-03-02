@@ -39,10 +39,12 @@ const TABS_CONFIG = [
 /* ── TabBar ── */
 
 function TabBar({
+  tabs,
   active,
   onChange,
   onClose,
 }: {
+  tabs: typeof TABS_CONFIG
   active: ResourceType | null
   onChange: (t: ResourceType) => void
   onClose?: () => void
@@ -50,7 +52,7 @@ function TabBar({
   return (
     <div className="flex items-center justify-between border-b border-white-2 bg-white-1 px-1 sm:px-2 h-12 sticky top-0 z-10 backdrop-blur-sm select-none">
       <div className="flex-1 flex items-center gap-1 h-full w-full overflow-x-auto scrollbar-hide">
-        {TABS_CONFIG.map((tab) => (
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => onChange(tab.id)}
@@ -136,8 +138,11 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
   const [fetchedBibleText, setFetchedBibleText] = useState<string | null>(null)
   const [bibleTextLoading, setBibleTextLoading] = useState(false)
 
-  // Transcript sub-tab state
-  const [transcriptMode, setTranscriptMode] = useState<"caption" | "text">("caption")
+  // Filter tabs based on available content — hide transcript tab if no transcript
+  const visibleTabs = TABS_CONFIG.filter((tab) => {
+    if (tab.id === "transcript") return !!study.transcript
+    return true
+  })
 
   // Tab state
   const [leftTab, setLeftTab] = useState<ResourceType>("scripture")
@@ -539,13 +544,10 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
           </div>
         )
 
-      case "transcript": {
-        // Parse transcript HTML into segments for the Live Caption view
-        const transcriptSegments = parseTranscriptToSegments(study.transcript || "")
-
+      case "transcript":
         return (
           <div className="p-6 sm:p-8 max-w-3xl mx-auto">
-            {/* Header: TRANSCRIPT label + AUTO-SCROLL toggle */}
+            {/* Header */}
             <div className="flex items-center justify-between mb-5">
               <div className="flex items-center gap-2.5">
                 <FileText className="w-5 h-5 text-brand-1" />
@@ -563,76 +565,15 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
               </div>
             </div>
 
-            {/* Sub-tabs: LIVE CAPTION / MESSAGE TEXT pill toggle */}
-            <div className="mb-1">
-              <div className="inline-flex bg-white-1-5 rounded-full p-0.5 border border-white-2">
-                <button
-                  onClick={() => setTranscriptMode("caption")}
-                  className={cn(
-                    "px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all",
-                    transcriptMode === "caption"
-                      ? "bg-white-0 text-black-1 shadow-sm"
-                      : "text-black-3 hover:text-black-2"
-                  )}
-                >
-                  Live Caption
-                </button>
-                <button
-                  onClick={() => setTranscriptMode("text")}
-                  className={cn(
-                    "px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-wider transition-all",
-                    transcriptMode === "text"
-                      ? "bg-white-0 text-black-1 shadow-sm"
-                      : "text-black-3 hover:text-black-2"
-                  )}
-                >
-                  Message Text
-                </button>
-              </div>
-            </div>
-
             {/* Accent line */}
             <div className="h-0.5 rounded-full bg-gradient-to-r from-brand-1 via-brand-1/60 to-transparent mb-6" />
 
-            {/* Content */}
-            {study.transcript ? (
-              transcriptMode === "caption" && transcriptSegments.length > 0 ? (
-                /* Live Caption view: timestamped segments */
-                <div className="space-y-4" style={{ fontSize: `${fontSize}%` }}>
-                  {transcriptSegments.map((seg, i) => (
-                    <div
-                      key={i}
-                      className="flex items-start gap-4 sm:gap-6 group"
-                      style={{ opacity: Math.max(0.65, 1 - i * 0.025) }}
-                    >
-                      <span className="text-xs sm:text-sm font-mono text-black-3/60 pt-0.5 shrink-0 w-10 sm:w-12 text-right tabular-nums">
-                        {seg.time}
-                      </span>
-                      <p className="text-base sm:text-lg leading-relaxed text-black-1 flex-1">
-                        {seg.text}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                /* Message Text view (or fallback when caption parsing yields no segments): flowing prose */
-                <div
-                  style={{ fontSize: `${fontSize}%` }}
-                  className="study-content transition-all duration-200"
-                  dangerouslySetInnerHTML={{ __html: study.transcript }}
-                />
-              )
-            ) : (
-              <div className="p-12 text-center bg-white-1-5 rounded-xl border border-dashed border-white-2">
-                <FileText className="w-8 h-8 text-black-3/40 mx-auto mb-3" />
-                <p className="text-black-3 font-medium">
-                  No transcript available yet.
-                </p>
-                <p className="text-sm text-black-3/60 mt-1">
-                  Check back later for the full transcript.
-                </p>
-              </div>
-            )}
+            {/* Transcript content */}
+            <div
+              style={{ fontSize: `${fontSize}%` }}
+              className="study-content transition-all duration-200"
+              dangerouslySetInnerHTML={{ __html: study.transcript! }}
+            />
 
             {/* Download link */}
             {study.attachments?.find(
@@ -660,7 +601,6 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
             )}
           </div>
         )
-      }
 
       case "leaderGuide":
         return (
@@ -835,6 +775,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
         {!isDesktop ? (
           <div className="flex flex-col w-full h-full bg-white-0 z-20">
             <TabBar
+              tabs={visibleTabs}
               active={leftTab}
               onChange={(id) => {
                 setLeftTab(id)
@@ -846,7 +787,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
               onScroll={handleMobileScroll}
               className="flex-1 overflow-y-auto scrollbar-hide scroll-smooth"
             >
-              {TABS_CONFIG.map((tab) => (
+              {visibleTabs.map((tab) => (
                 <div
                   key={tab.id}
                   id={`mobile-${tab.id}`}
@@ -871,7 +812,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
               )}
               onClick={() => setActivePane("left")}
             >
-              <TabBar active={leftTab} onChange={setLeftTab} />
+              <TabBar tabs={visibleTabs} active={leftTab} onChange={setLeftTab} />
               <div
                 className={cn(
                   "flex-1 overflow-y-auto scrollbar-hide",
@@ -905,6 +846,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                   onClick={() => setActivePane("right")}
                 >
                   <TabBar
+                    tabs={visibleTabs}
                     active={rightTab}
                     onChange={setRightTab}
                     onClose={() => setRightTab(null)}
@@ -947,51 +889,3 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
 
 /* ── Transcript Helpers ── */
 
-/**
- * Parse transcript HTML content into timestamped segments for the Live Caption view.
- * Splits by paragraphs and generates simulated timestamps spaced 15 seconds apart.
- * If the transcript is very short or a single block, returns it as one segment.
- */
-function parseTranscriptToSegments(html: string): { time: string; text: string }[] {
-  if (!html.trim()) return []
-
-  // Strip HTML tags and split into paragraphs
-  const temp = html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n\n")
-    .replace(/<\/div>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-
-  const paragraphs = temp
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0)
-
-  if (paragraphs.length === 0) return []
-
-  // If only one paragraph, split by sentences for better display
-  let segments: string[]
-  if (paragraphs.length === 1) {
-    segments = paragraphs[0]
-      .split(/(?<=[.!?])\s+/)
-      .filter((s) => s.trim().length > 0)
-  } else {
-    segments = paragraphs
-  }
-
-  return segments.map((text, i) => {
-    const totalSeconds = i * 15
-    const minutes = Math.floor(totalSeconds / 60)
-    const seconds = totalSeconds % 60
-    return {
-      time: `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
-      text,
-    }
-  })
-}
