@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
 
     // Revalidate public website pages that display bible studies
     revalidatePath('/website')
-    revalidatePath('/website/bible-studies')
+    revalidatePath('/website/bible-study')
 
     return NextResponse.json({ success: true, data: study }, { status: 201 })
   } catch (error) {

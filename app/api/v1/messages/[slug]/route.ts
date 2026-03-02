@@ -102,7 +102,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     // Revalidate public website pages that display messages and bible studies
     revalidatePath('/website')
     revalidatePath('/website/messages')
-    revalidatePath('/website/bible-studies')
+    revalidatePath('/website/bible-study')
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -145,7 +145,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     // Revalidate public website pages that display messages and bible studies
     revalidatePath('/website')
     revalidatePath('/website/messages')
-    revalidatePath('/website/bible-studies')
+    revalidatePath('/website/bible-study')
 
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {

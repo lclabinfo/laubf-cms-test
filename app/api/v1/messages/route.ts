@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
     // Revalidate public website pages that display messages and bible studies
     revalidatePath('/website')
     revalidatePath('/website/messages')
-    revalidatePath('/website/bible-studies')
+    revalidatePath('/website/bible-study')
 
     return NextResponse.json({ success: true, data: message }, { status: 201 })
   } catch (error) {
