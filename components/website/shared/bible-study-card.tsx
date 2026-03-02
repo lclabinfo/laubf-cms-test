@@ -46,11 +46,15 @@ export default function BibleStudyCard({ study }: { study: BibleStudy }) {
         <div className="flex flex-col gap-[12px] items-start w-full mb-[20px]">
           {/* Series and Date Row */}
           <div className="flex items-center justify-between w-full">
-            <div className="bg-white-2 flex flex-col items-start px-[8px] py-[6px] rounded-[8px] shrink-0">
-              <p className="font-medium leading-none text-black-3 text-[12px] text-center tracking-[0.24px]">
-                {study.series}
-              </p>
-            </div>
+            {study.series ? (
+              <div className="bg-white-2 flex flex-col items-start px-[8px] py-[6px] rounded-[8px] shrink-0">
+                <p className="font-medium leading-none text-black-3 text-[12px] text-center tracking-[0.24px]">
+                  {study.series}
+                </p>
+              </div>
+            ) : (
+              <div />
+            )}
             <p className="font-medium leading-none text-black-3 text-[14px] tracking-[-0.42px] whitespace-nowrap">
               {formatDate(study.dateFor)}
             </p>
