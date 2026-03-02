@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { fetchBibleText, getBibleApiTranslation } from '@/lib/bible-api'
+import { fetchBibleText, getBibleApiTranslation, NATIVE_TRANSLATIONS } from '@/lib/bible-api'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,7 +13,15 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const version = searchParams.get('version') || 'ESV'
+    const version = (searchParams.get('version') || 'KJV').toUpperCase()
+
+    if (!NATIVE_TRANSLATIONS.has(version)) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNSUPPORTED_VERSION', message: `${version} is not available for inline display. Supported: KJV, ASV, WEB, YLT.` } },
+        { status: 422 },
+      )
+    }
+
     const translation = getBibleApiTranslation(version)
     const result = await fetchBibleText(passage, translation)
 
@@ -24,7 +32,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({ success: true, data: result })
+    return NextResponse.json({ success: true, data: { ...result, version } })
   } catch (error) {
     console.error('GET /api/v1/bible error:', error)
     return NextResponse.json(

@@ -9,12 +9,14 @@ export interface BibleVersion {
   abbreviation: string
   language: string
   isDefault?: boolean
+  /** True if bible-api.com can serve this translation natively (not a fallback). */
+  apiAvailable?: boolean
 }
 
 export const BIBLE_VERSIONS: BibleVersion[] = [
   { code: "ESV", name: "English Standard Version", abbreviation: "ESV", language: "English", isDefault: true },
   { code: "NIV", name: "New International Version", abbreviation: "NIV", language: "English" },
-  { code: "KJV", name: "King James Version", abbreviation: "KJV", language: "English" },
+  { code: "KJV", name: "King James Version", abbreviation: "KJV", language: "English", apiAvailable: true },
   { code: "NKJV", name: "New King James Version", abbreviation: "NKJV", language: "English" },
   { code: "NLT", name: "New Living Translation", abbreviation: "NLT", language: "English" },
   { code: "NASB", name: "New American Standard Bible", abbreviation: "NASB", language: "English" },
@@ -26,13 +28,16 @@ export const BIBLE_VERSIONS: BibleVersion[] = [
   { code: "RSV", name: "Revised Standard Version", abbreviation: "RSV", language: "English" },
   { code: "NRSV", name: "New Revised Standard Version", abbreviation: "NRSV", language: "English" },
   { code: "NET", name: "New English Translation", abbreviation: "NET", language: "English" },
-  { code: "WEB", name: "World English Bible", abbreviation: "WEB", language: "English" },
-  { code: "ASV", name: "American Standard Version", abbreviation: "ASV", language: "English" },
-  { code: "YLT", name: "Young's Literal Translation", abbreviation: "YLT", language: "English" },
+  { code: "WEB", name: "World English Bible", abbreviation: "WEB", language: "English", apiAvailable: true },
+  { code: "ASV", name: "American Standard Version", abbreviation: "ASV", language: "English", apiAvailable: true },
+  { code: "YLT", name: "Young's Literal Translation", abbreviation: "YLT", language: "English", apiAvailable: true },
   { code: "HCSB", name: "Holman Christian Standard Bible", abbreviation: "HCSB", language: "English" },
   { code: "ISV", name: "International Standard Version", abbreviation: "ISV", language: "English" },
   { code: "ERV", name: "Easy-to-Read Version", abbreviation: "ERV", language: "English" },
 ]
+
+/** Versions that bible-api.com can actually serve (for the public site version switcher). */
+export const API_AVAILABLE_VERSIONS = BIBLE_VERSIONS.filter(v => v.apiAvailable)
 
 export const DEFAULT_BIBLE_VERSION = BIBLE_VERSIONS.find(v => v.isDefault) || BIBLE_VERSIONS[0]
 

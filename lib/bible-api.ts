@@ -18,35 +18,25 @@ interface BibleApiResponse {
 }
 
 /**
- * Maps common Bible version names to bible-api.com translation codes.
- * bible-api.com only supports a few translations (kjv, asv, web, bbe, darby, ylt).
- * Falls back to 'kjv' for unsupported versions.
+ * Translations that bible-api.com actually supports natively.
+ */
+const NATIVE_MAP: Record<string, string> = {
+  'KJV': 'kjv',
+  'ASV': 'asv',
+  'WEB': 'web',
+  'YLT': 'ylt',
+}
+
+/** Set of version codes that bible-api.com supports natively. */
+export const NATIVE_TRANSLATIONS = new Set(Object.keys(NATIVE_MAP))
+
+/**
+ * Maps a Bible version code to the bible-api.com translation slug.
+ * Returns the native slug for supported versions, falls back to 'kjv'
+ * for unsupported versions (used during sync to ensure some text is stored).
  */
 export function getBibleApiTranslation(version: string): string {
-  const map: Record<string, string> = {
-    'KJV': 'kjv',
-    'ASV': 'asv',
-    'WEB': 'web',
-    'YLT': 'ylt',
-    // Versions not directly available on bible-api.com — map to closest available
-    'ESV': 'kjv',
-    'NIV': 'kjv',
-    'NKJV': 'kjv',
-    'NLT': 'kjv',
-    'NASB': 'asv',
-    'CSB': 'kjv',
-    'AMP': 'kjv',
-    'MSG': 'kjv',
-    'CEV': 'kjv',
-    'GNT': 'kjv',
-    'RSV': 'asv',
-    'NRSV': 'asv',
-    'NET': 'kjv',
-    'HCSB': 'kjv',
-    'ISV': 'kjv',
-    'ERV': 'kjv',
-  }
-  return map[version.toUpperCase()] || 'kjv'
+  return NATIVE_MAP[version.toUpperCase()] || 'kjv'
 }
 
 /**

@@ -22,7 +22,7 @@ import {
   Columns,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { BIBLE_VERSIONS } from "@/lib/bible-versions"
+import { API_AVAILABLE_VERSIONS } from "@/lib/bible-versions"
 import type { BibleStudyDetail } from "@/lib/types/bible-study"
 
 /* ── Types ── */
@@ -129,7 +129,10 @@ function SimpleDropdown({
 export default function StudyDetailView({ study }: { study: BibleStudyDetail }) {
   const [fontSize, setFontSize] = useState(100)
   const [isDesktop, setIsDesktop] = useState(true)
-  const [bibleVersion, setBibleVersion] = useState<string>(study.bibleVersion || "ESV")
+  const [bibleVersion, setBibleVersion] = useState<string>(() => {
+    const stored = study.bibleVersion || "KJV"
+    return API_AVAILABLE_VERSIONS.some(v => v.code === stored) ? stored : "KJV"
+  })
   const [fetchedBibleText, setFetchedBibleText] = useState<string | null>(null)
   const [bibleTextLoading, setBibleTextLoading] = useState(false)
 
@@ -206,7 +209,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
 
   /* ── Bible version switching ── */
 
-  const initialVersion = useRef(study.bibleVersion || "ESV")
+  const initialVersion = useRef(bibleVersion)
 
   const handleVersionChange = useCallback(async (version: string) => {
     setBibleVersion(version)
@@ -345,7 +348,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                   }
                 >
                   <div className="max-h-64 overflow-y-auto">
-                    {BIBLE_VERSIONS.map((v) => (
+                    {API_AVAILABLE_VERSIONS.map((v) => (
                       <button
                         key={v.code}
                         onClick={() => handleVersionChange(v.code)}
@@ -357,6 +360,17 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                         {v.abbreviation} - {v.name}
                       </button>
                     ))}
+                    <div className="border-t border-white-2 mt-1 pt-1">
+                      <a
+                        href={getBibleGatewayUrl(study.passage)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full text-left px-3 py-2 text-xs text-black-3 hover:text-brand-1 hover:bg-white-1-5 transition-colors flex items-center gap-1.5"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        More versions on BibleGateway
+                      </a>
+                    </div>
                   </div>
                 </SimpleDropdown>
                 <a
