@@ -64,13 +64,13 @@ export function PublishDialog({
             className={cn(
               "flex items-center justify-between rounded-lg border p-3.5 transition-colors",
               publishVideo
-                ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950"
+                ? "border-green-200 bg-green-50 dark:border-green-700/50 dark:bg-green-900/30"
                 : "border-border bg-muted/40"
             )}
           >
             <div className="flex items-center gap-3">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-blue-500/10">
-                <Video className="size-4 text-blue-600" />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-blue-500/10 dark:bg-blue-500/20">
+                <Video className="size-4 text-blue-600 dark:text-blue-400" />
               </div>
               <div>
                 <div className="text-sm font-semibold">Video</div>
@@ -91,13 +91,13 @@ export function PublishDialog({
             className={cn(
               "flex items-center justify-between rounded-lg border p-3.5 transition-colors",
               publishStudy
-                ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950"
+                ? "border-green-200 bg-green-50 dark:border-green-700/50 dark:bg-green-900/30"
                 : "border-border bg-muted/40"
             )}
           >
             <div className="flex items-center gap-3">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-purple-500/10">
-                <BookOpen className="size-4 text-purple-600" />
+              <div className="flex size-8 items-center justify-center rounded-lg bg-purple-500/10 dark:bg-purple-500/20">
+                <BookOpen className="size-4 text-purple-600 dark:text-purple-400" />
               </div>
               <div>
                 <div className="text-sm font-semibold">Bible Study</div>

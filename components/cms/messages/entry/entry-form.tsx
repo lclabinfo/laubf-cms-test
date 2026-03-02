@@ -509,8 +509,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                   className="rounded-xl border p-4 text-left transition-colors hover:bg-muted/50"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="flex size-9 items-center justify-center rounded-lg bg-blue-500/10 shrink-0">
-                      <Video className="size-4 text-blue-600" />
+                    <div className="flex size-9 items-center justify-center rounded-lg bg-blue-500/10 dark:bg-blue-500/20 shrink-0">
+                      <Video className="size-4 text-blue-600 dark:text-blue-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -534,8 +534,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                   className="rounded-xl border p-4 text-left transition-colors hover:bg-muted/50"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="flex size-9 items-center justify-center rounded-lg bg-purple-500/10 shrink-0">
-                      <BookOpen className="size-4 text-purple-600" />
+                    <div className="flex size-9 items-center justify-center rounded-lg bg-purple-500/10 dark:bg-purple-500/20 shrink-0">
+                      <BookOpen className="size-4 text-purple-600 dark:text-purple-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
