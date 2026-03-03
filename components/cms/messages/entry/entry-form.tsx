@@ -126,8 +126,9 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const [videoPublished, setVideoPublished] = useState(message?.videoPublished ?? false)
   const [studyPublished, setStudyPublished] = useState(message?.studyPublished ?? false)
 
-  // Confirmation / validation dialog state
+  // Confirmation dialog state
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false)
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
   const [validationOpen, setValidationOpen] = useState(false)
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([])
 
@@ -281,7 +282,11 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   }
 
   function handleCancel() {
-    router.push("/cms/messages")
+    if (isDirty) {
+      setCancelConfirmOpen(true)
+    } else {
+      router.push("/cms/messages")
+    }
   }
 
   function handleUploadAttachment() {
@@ -406,7 +411,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                 </Button>
               )}
               <Button onClick={handleSave} disabled={!canSave || !isDirty}>
-                Save
+                Save Changes
               </Button>
             </div>
           </div>
@@ -854,6 +859,30 @@ export function EntryForm({ mode, message }: EntryFormProps) {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmSave}>
               Save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Unsaved changes confirmation */}
+      <AlertDialog open={cancelConfirmOpen} onOpenChange={setCancelConfirmOpen}>
+        <AlertDialogContent className="sm:max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10">
+              <AlertCircle className="text-destructive" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Unsaved changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              You have unsaved changes. Are you sure you want to leave? Your changes will be lost.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Editing</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => router.push("/cms/messages")}
+            >
+              Discard Changes
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
