@@ -440,6 +440,63 @@
   margin: 1em 0;
 }
 
+/* Tables */
+.tiptap-wrapper .tiptap table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5em 0;
+  overflow: hidden;
+  table-layout: fixed;
+}
+
+.tiptap-wrapper .tiptap th,
+.tiptap-wrapper .tiptap td {
+  border: 1px solid var(--border);
+  padding: 0.4em 0.6em;
+  vertical-align: top;
+  position: relative;
+  min-width: 80px;
+}
+
+.tiptap-wrapper .tiptap th {
+  background: var(--muted);
+  font-weight: 600;
+}
+
+.tiptap-wrapper .tiptap th > p,
+.tiptap-wrapper .tiptap td > p {
+  margin: 0;
+}
+
+.tiptap-wrapper .tiptap .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--primary);
+  opacity: 0.08;
+  pointer-events: none;
+}
+
+.tiptap-wrapper .tiptap .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: -2px;
+  width: 4px;
+  background-color: var(--primary);
+  cursor: col-resize;
+  z-index: 10;
+}
+
+.tiptap-wrapper .tiptap .tableWrapper {
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+
+.tiptap-wrapper .tiptap.resize-cursor {
+  cursor: col-resize;
+}
+
 /* ================================================================== */
 /* Website Design System: Typography, Containers, Animations          */
 /* Ported from laubf-test/src/app/globals.css                         */
@@ -820,6 +877,23 @@
     color: var(--color-brand-2);
   }
 
+  .study-content table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+  }
+  .study-content th,
+  .study-content td {
+    border: 1px solid var(--color-white-2);
+    padding: 0.5rem 0.75rem;
+    vertical-align: top;
+  }
+  .study-content th {
+    background-color: var(--color-white-1-5);
+    font-weight: 600;
+    color: var(--color-black-1);
+  }
+
   .study-bible-text {
     font-family: var(--font-sans);
     color: var(--color-black-2);
@@ -835,6 +909,22 @@
   }
   .study-bible-text p {
     margin-bottom: 1rem;
+  }
+  .study-bible-text table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+  }
+  .study-bible-text th,
+  .study-bible-text td {
+    border: 1px solid var(--color-white-2);
+    padding: 0.5rem 0.75rem;
+    vertical-align: top;
+  }
+  .study-bible-text th {
+    background-color: var(--color-white-1-5);
+    font-weight: 600;
+    color: var(--color-black-2);
   }
 }
 

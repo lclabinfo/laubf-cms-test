@@ -17,7 +17,9 @@ import {
 import { DatePicker } from "@/components/ui/date-picker"
 import { SeriesSelect } from "./series-select"
 import { SpeakerSelect } from "./speaker-select"
-import type { Series, MessageStatus, Attachment } from "@/lib/messages-data"
+import type { Series, Attachment } from "@/lib/messages-data"
+
+type MessageStatus = "published" | "draft" | "scheduled" | "archived"
 import { BIBLE_VERSIONS } from "@/lib/bible-versions"
 import { statusDisplay } from "@/lib/status"
 

@@ -6,6 +6,10 @@ import Image from "@tiptap/extension-image"
 import Placeholder from "@tiptap/extension-placeholder"
 import { TextStyle } from "@tiptap/extension-text-style"
 import Color from "@tiptap/extension-color"
+import { Table } from "@tiptap/extension-table"
+import { TableRow } from "@tiptap/extension-table-row"
+import { TableHeader } from "@tiptap/extension-table-header"
+import { TableCell } from "@tiptap/extension-table-cell"
 import { generateHTML } from "@tiptap/html"
 import type { Extensions } from "@tiptap/react"
 import type { JSONContent } from "@tiptap/core"
@@ -31,6 +35,13 @@ export function getExtensions(placeholder?: string): Extensions {
       inline: false,
       allowBase64: true,
     }),
+    Table.configure({
+      resizable: true,
+      HTMLAttributes: { class: "tiptap-table" },
+    }),
+    TableRow,
+    TableHeader,
+    TableCell,
     TextStyle,
     Color,
     ...(placeholder

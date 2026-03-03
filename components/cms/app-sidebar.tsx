@@ -83,7 +83,7 @@ const navGroups: NavGroup[] = [
         icon: ChurchIcon,
       },
       {
-        title: "Messages",
+        title: "Bible Study",
         href: "/cms/messages",
         icon: MessageSquareIcon,
       },

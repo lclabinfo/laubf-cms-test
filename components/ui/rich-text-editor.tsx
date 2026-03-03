@@ -43,6 +43,12 @@ import {
   Minus,
   Undo,
   Redo,
+  Table,
+  Plus,
+  Trash2,
+  Rows3,
+  Columns3,
+  ToggleLeft,
 } from "lucide-react"
 
 interface RichTextEditorProps {
@@ -146,9 +152,62 @@ function ToolbarTooltip({
   )
 }
 
+function TableSizePicker({
+  onSelect,
+}: {
+  onSelect: (rows: number, cols: number) => void
+}) {
+  const [hoverRow, setHoverRow] = useState(0)
+  const [hoverCol, setHoverCol] = useState(0)
+  const maxRows = 6
+  const maxCols = 6
+
+  return (
+    <div className="p-2">
+      <p className="text-xs text-muted-foreground mb-1.5">
+        {hoverRow > 0 && hoverCol > 0
+          ? `${hoverRow} × ${hoverCol}`
+          : "Select size"}
+      </p>
+      <div
+        className="grid gap-0.5"
+        style={{ gridTemplateColumns: `repeat(${maxCols}, 1fr)` }}
+        onMouseLeave={() => {
+          setHoverRow(0)
+          setHoverCol(0)
+        }}
+      >
+        {Array.from({ length: maxRows * maxCols }, (_, i) => {
+          const row = Math.floor(i / maxCols) + 1
+          const col = (i % maxCols) + 1
+          const isHighlighted = row <= hoverRow && col <= hoverCol
+          return (
+            <button
+              key={i}
+              type="button"
+              className={cn(
+                "size-5 rounded-sm border",
+                isHighlighted
+                  ? "border-primary bg-primary/20"
+                  : "border-border bg-background hover:border-muted-foreground"
+              )}
+              onMouseEnter={() => {
+                setHoverRow(row)
+                setHoverCol(col)
+              }}
+              onClick={() => onSelect(row, col)}
+            />
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
   const [linkUrl, setLinkUrl] = useState("")
   const [linkOpen, setLinkOpen] = useState(false)
+  const [tableOpen, setTableOpen] = useState(false)
 
   const setLink = useCallback(() => {
     if (!editor || !linkUrl) return
@@ -382,6 +441,146 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
           <ListOrdered className="size-4" />
         </Toggle>
       </ToolbarTooltip>
+
+      <Separator orientation="vertical" className="mx-1 h-6" />
+
+      {/* Table */}
+      <Popover open={tableOpen} onOpenChange={setTableOpen}>
+        <ToolbarTooltip label="Insert Table">
+          <PopoverTrigger asChild>
+            <Toggle
+              size="sm"
+              pressed={editor.isActive("table")}
+              onPressedChange={() => setTableOpen(true)}
+            >
+              <Table className="size-4" />
+            </Toggle>
+          </PopoverTrigger>
+        </ToolbarTooltip>
+        <PopoverContent className="w-auto p-0" align="start">
+          <TableSizePicker
+            onSelect={(rows, cols) => {
+              editor
+                .chain()
+                .focus()
+                .insertTable({ rows, cols, withHeaderRow: true })
+                .run()
+              setTableOpen(false)
+            }}
+          />
+        </PopoverContent>
+      </Popover>
+
+      {editor.isActive("table") && (
+        <>
+          <ToolbarTooltip label="Add Row Above">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() =>
+                editor.chain().focus().addRowBefore().run()
+              }
+            >
+              <div className="relative">
+                <Rows3 className="size-4" />
+                <Plus className="size-2 absolute -top-0.5 -right-0.5" />
+              </div>
+            </Button>
+          </ToolbarTooltip>
+          <ToolbarTooltip label="Add Row Below">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() =>
+                editor.chain().focus().addRowAfter().run()
+              }
+            >
+              <div className="relative">
+                <Rows3 className="size-4" />
+                <Plus className="size-2 absolute -bottom-0.5 -right-0.5" />
+              </div>
+            </Button>
+          </ToolbarTooltip>
+          <ToolbarTooltip label="Add Column Before">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() =>
+                editor.chain().focus().addColumnBefore().run()
+              }
+            >
+              <div className="relative">
+                <Columns3 className="size-4" />
+                <Plus className="size-2 absolute -top-0.5 -left-0.5" />
+              </div>
+            </Button>
+          </ToolbarTooltip>
+          <ToolbarTooltip label="Add Column After">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() =>
+                editor.chain().focus().addColumnAfter().run()
+              }
+            >
+              <div className="relative">
+                <Columns3 className="size-4" />
+                <Plus className="size-2 absolute -top-0.5 -right-0.5" />
+              </div>
+            </Button>
+          </ToolbarTooltip>
+          <ToolbarTooltip label="Delete Row">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() =>
+                editor.chain().focus().deleteRow().run()
+              }
+            >
+              <div className="relative">
+                <Rows3 className="size-4" />
+                <Trash2 className="size-2 absolute -bottom-0.5 -right-0.5 text-destructive" />
+              </div>
+            </Button>
+          </ToolbarTooltip>
+          <ToolbarTooltip label="Delete Column">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() =>
+                editor.chain().focus().deleteColumn().run()
+              }
+            >
+              <div className="relative">
+                <Columns3 className="size-4" />
+                <Trash2 className="size-2 absolute -bottom-0.5 -right-0.5 text-destructive" />
+              </div>
+            </Button>
+          </ToolbarTooltip>
+          <ToolbarTooltip label="Toggle Header Row">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() =>
+                editor.chain().focus().toggleHeaderRow().run()
+              }
+            >
+              <ToggleLeft className="size-4" />
+            </Button>
+          </ToolbarTooltip>
+          <ToolbarTooltip label="Delete Table">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() =>
+                editor.chain().focus().deleteTable().run()
+              }
+            >
+              <Trash2 className="size-4 text-destructive" />
+            </Button>
+          </ToolbarTooltip>
+        </>
+      )}
 
       <Separator orientation="vertical" className="mx-1 h-6" />
 
