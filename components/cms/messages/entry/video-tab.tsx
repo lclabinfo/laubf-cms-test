@@ -137,9 +137,6 @@ export function VideoTab({
         </div>
       )}
 
-      {/* Speaker */}
-      {speakerSlot}
-
       {/* Content shown only after URL is verified */}
       {checked && videoUrl && (
         <>
@@ -206,6 +203,9 @@ export function VideoTab({
           </div>
         </>
       )}
+
+      {/* Speaker */}
+      {speakerSlot}
     </div>
   )
 }

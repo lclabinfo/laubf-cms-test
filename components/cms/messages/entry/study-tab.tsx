@@ -42,9 +42,27 @@ export function StudyTab({ sections, onSectionsChange, bibleVersionSlot }: Study
         try {
           const mammoth = await import("mammoth")
           const arrayBuffer = await file.arrayBuffer()
-          const result = await mammoth.convertToHtml({ arrayBuffer })
-          // Pass HTML string — the editor will parse it via setContent
-          handleContentChange(sectionId, result.value)
+          const result = await mammoth.convertToHtml(
+            { arrayBuffer },
+            {
+              styleMap: [
+                // Map common Word heading styles to HTML headings
+                "p[style-name='Heading 1'] => h1:fresh",
+                "p[style-name='Heading 2'] => h2:fresh",
+                "p[style-name='Heading 3'] => h3:fresh",
+                "p[style-name='Heading 4'] => h4:fresh",
+              ],
+            },
+          )
+
+          // Post-process HTML to preserve tabs and improve fidelity
+          let html = result.value
+          // Convert tab characters to em-spaces (HTML collapses \t to single space)
+          html = html.replace(/\t/g, "\u2003\u2003")
+          // Preserve consecutive spaces (Word often uses multiple spaces for alignment)
+          html = html.replace(/ {2,}/g, (match) => "\u00A0".repeat(match.length - 1) + " ")
+
+          handleContentChange(sectionId, html)
         } catch (err) {
           console.error("Failed to import DOCX:", err)
         }

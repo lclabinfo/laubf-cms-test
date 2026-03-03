@@ -181,21 +181,40 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false })
   }
 
-  function getPublishValidationIssues(): ValidationIssue[] {
+  function getPublishValidationIssues(vPub: boolean, sPub: boolean): ValidationIssue[] {
     const issues: ValidationIssue[] = []
 
+    // Always required for any publish
     if (!title.trim() || title.trim().length < 2) {
       issues.push({ field: "Title", message: "Title is required (at least 2 characters)" })
     }
-    if (!speaker.trim() || speaker.trim().length < 2) {
-      issues.push({ field: "Speaker", message: "Speaker name is required" })
-    }
     if (!date) {
-      issues.push({ field: "Date", message: "A date is required" })
+      issues.push({ field: "Date", message: "A message date is required" })
     }
     if (!videoContentExists && !studyContentExists) {
       issues.push({ field: "Content", message: "At least a video or bible study is required" })
     }
+
+    // Video publish requires speaker + video URL
+    if (vPub) {
+      if (!speaker.trim() || speaker.trim().length < 2) {
+        issues.push({ field: "Speaker", message: "Speaker is required to publish the video" })
+      }
+      if (!videoUrl) {
+        issues.push({ field: "Video URL", message: "A video URL is required to publish the video" })
+      }
+    }
+
+    // Study publish requires passage + at least one section with content
+    if (sPub) {
+      if (!passage.trim()) {
+        issues.push({ field: "Scripture Passage", message: "A scripture passage is required to publish the bible study" })
+      }
+      if (!studyContentExists) {
+        issues.push({ field: "Study Content", message: "At least one study section with content is required" })
+      }
+    }
+
     return issues
   }
 
@@ -249,10 +268,32 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   function handleSave() {
     setDialogVideoPublished(videoPublished)
     setDialogStudyPublished(studyPublished)
+
+    // If anything is being published, validate required fields
+    if (videoPublished || studyPublished) {
+      const issues = getPublishValidationIssues(videoPublished, studyPublished)
+      if (issues.length > 0) {
+        setValidationIssues(issues)
+        setValidationOpen(true)
+        return
+      }
+    }
+
     setSaveConfirmOpen(true)
   }
 
   function handleConfirmSave() {
+    // Validate again with the dialog toggle values (user may have toggled publish in dialog)
+    if (dialogVideoPublished || dialogStudyPublished) {
+      const issues = getPublishValidationIssues(dialogVideoPublished, dialogStudyPublished)
+      if (issues.length > 0) {
+        setSaveConfirmOpen(false)
+        setValidationIssues(issues)
+        setValidationOpen(true)
+        return
+      }
+    }
+
     setSaveConfirmOpen(false)
     // Apply the dialog toggle values to actual state before saving
     setVideoPublished(dialogVideoPublished)
