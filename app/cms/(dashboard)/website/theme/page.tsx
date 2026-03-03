@@ -213,7 +213,7 @@ export default function WebsiteThemePage() {
   /* --- Loading skeleton --------------------------------------------------- */
   if (loading) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="pt-5 flex flex-col gap-6">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <Skeleton className="h-7 w-32" />
@@ -237,7 +237,7 @@ export default function WebsiteThemePage() {
 
   if (!theme) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="pt-5 flex flex-col gap-6">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Theme</h1>
           <p className="text-muted-foreground mt-1 text-sm">
@@ -258,7 +258,7 @@ export default function WebsiteThemePage() {
 
   /* --- Render ------------------------------------------------------------- */
   return (
-    <div className="flex flex-col gap-6 flex-1 min-h-0">
+    <div className="pt-5 flex flex-col gap-6 flex-1 min-h-0">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

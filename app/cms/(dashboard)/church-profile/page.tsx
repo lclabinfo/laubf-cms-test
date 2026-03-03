@@ -138,7 +138,7 @@ export default function ChurchProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center flex-1">
+      <div className="pt-5 flex items-center justify-center flex-1">
         <p className="text-sm text-muted-foreground">Loading church profile...</p>
       </div>
     )
@@ -146,7 +146,7 @@ export default function ChurchProfilePage() {
 
   if (error && !profile) {
     return (
-      <div className="flex items-center justify-center flex-1">
+      <div className="pt-5 flex items-center justify-center flex-1">
         <p className="text-sm text-destructive">{error}</p>
       </div>
     )

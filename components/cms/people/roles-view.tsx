@@ -129,14 +129,14 @@ export function RolesView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
+      <div className="pt-5 flex items-center justify-center py-16">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
   return (
-    <div className="space-y-4">
+    <div className="pt-5 space-y-4">
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>

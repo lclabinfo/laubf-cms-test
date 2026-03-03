@@ -213,7 +213,7 @@ export default function EventsPage() {
   const filteredRows = table.getFilteredRowModel().rows
 
   return (
-    <div className="space-y-4">
+    <div className="pt-5 space-y-4">
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Events</h1>
         <p className="text-muted-foreground text-sm">

@@ -321,10 +321,12 @@ function MembersPageContent() {
 
 export default function PeopleMembersPage() {
   return (
-    <MembersProvider>
-      <Suspense>
-        <MembersPageContent />
-      </Suspense>
-    </MembersProvider>
+    <div className="pt-5">
+      <MembersProvider>
+        <Suspense>
+          <MembersPageContent />
+        </Suspense>
+      </MembersProvider>
+    </div>
   )
 }

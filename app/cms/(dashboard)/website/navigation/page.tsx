@@ -314,7 +314,7 @@ export default function WebsiteNavigationPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="pt-5 space-y-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Navigation</h1>
           <p className="text-muted-foreground text-sm">
@@ -330,7 +330,7 @@ export default function WebsiteNavigationPage() {
 
   if (menus.length === 0) {
     return (
-      <div className="space-y-4">
+      <div className="pt-5 space-y-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Navigation</h1>
           <p className="text-muted-foreground text-sm">
@@ -355,7 +355,7 @@ export default function WebsiteNavigationPage() {
   const locations = menus.map((m) => m.location)
 
   return (
-    <div className="space-y-4">
+    <div className="pt-5 space-y-4">
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Navigation</h1>
         <p className="text-muted-foreground text-sm">

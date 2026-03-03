@@ -166,7 +166,7 @@ export default function WebsiteDomainsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="pt-5 space-y-4">
         <div>
           <h1 className="text-xl font-semibold tracking-tight">Domains</h1>
           <p className="text-muted-foreground text-sm">
@@ -181,7 +181,7 @@ export default function WebsiteDomainsPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="pt-5 space-y-4">
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Domains</h1>
         <p className="text-muted-foreground text-sm">

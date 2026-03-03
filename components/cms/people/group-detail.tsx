@@ -332,7 +332,7 @@ export function GroupDetail({ groupId }: GroupDetailProps) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-16">
+      <div className="pt-5 flex items-center justify-center py-16">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />
       </div>
     )
@@ -340,7 +340,7 @@ export function GroupDetail({ groupId }: GroupDetailProps) {
 
   if (!group) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="pt-5 flex flex-col items-center justify-center py-16 text-center">
         <h3 className="text-sm font-medium">Group not found</h3>
         <p className="text-muted-foreground text-xs mt-1">
           This group may have been deleted or does not exist.
@@ -359,7 +359,7 @@ export function GroupDetail({ groupId }: GroupDetailProps) {
   const leaders = group.members.filter((m) => m.role === "LEADER" || m.role === "CO_LEADER")
 
   return (
-    <div className="space-y-6">
+    <div className="pt-5 space-y-6">
       {/* Breadcrumb */}
       <div>
         <Button variant="ghost" size="sm" asChild className="-ml-2">

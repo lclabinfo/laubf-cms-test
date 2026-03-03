@@ -15,7 +15,7 @@ export default function EditMessagePage({ params }: { params: Promise<{ id: stri
 
   if (!message) {
     return (
-      <div className="space-y-4">
+      <div className="pt-5 space-y-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" asChild>
             <Link href="/cms/messages">

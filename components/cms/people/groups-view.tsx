@@ -497,7 +497,7 @@ export function GroupsView() {
   const hasFilters = search !== "" || typeFilter !== "ALL" || statusFilter !== "ACTIVE"
 
   return (
-    <div className="space-y-4">
+    <div className="pt-5 space-y-4">
       {/* Page header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>

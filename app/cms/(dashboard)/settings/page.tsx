@@ -44,7 +44,7 @@ export default function SettingsPage() {
   const { theme, accent, setTheme, setAccent } = useCmsTheme()
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-6">
+    <div className="pt-5 mx-auto w-full max-w-2xl space-y-6">
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>

@@ -30,7 +30,7 @@ export function MemberProfile({ person: initialPerson, churchId }: Props) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="pt-5 space-y-6">
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" asChild>
           <Link href="/cms/people/members">

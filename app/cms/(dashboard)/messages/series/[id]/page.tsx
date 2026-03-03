@@ -73,7 +73,7 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
 
   if (!currentSeries) {
     return (
-      <div className="space-y-4">
+      <div className="pt-5 space-y-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" asChild>
             <Link href="/cms/messages?tab=series">
@@ -90,7 +90,7 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
   }
 
   return (
-    <div className="space-y-6">
+    <div className="pt-5 space-y-6">
       {/* Header */}
       <div className="flex items-center gap-2">
         <Button variant="ghost" size="icon" asChild>

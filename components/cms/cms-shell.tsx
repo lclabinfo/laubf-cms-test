@@ -58,7 +58,7 @@ function CmsHeader() {
   const label = state === "expanded" ? "Close sidebar" : "Open sidebar"
 
   return (
-    <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-2 border-b bg-background px-4">
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-4">
       <div className="group/trigger flex items-center gap-2">
         <SidebarTrigger className="-ml-1" />
         <span className="text-xs text-muted-foreground/0 transition-colors group-hover/trigger:text-muted-foreground">
@@ -97,11 +97,11 @@ export function CmsShell({ session, children }: { session: CmsSessionData; child
 
   return (
     <TooltipProvider>
-      <SidebarProvider open={open} onOpenChange={handleOpenChange}>
+      <SidebarProvider open={open} onOpenChange={handleOpenChange} className="h-svh">
         <AppSidebar session={session} />
-        <SidebarInset>
+        <SidebarInset className="overflow-hidden">
           <CmsHeader />
-          <main className="min-w-0 flex-1 flex flex-col py-5 px-6">{children}</main>
+          <main className="min-w-0 min-h-0 flex-1 flex flex-col overflow-y-auto pb-5 px-6">{children}</main>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>
