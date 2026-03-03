@@ -138,8 +138,9 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
   const [fetchedBibleText, setFetchedBibleText] = useState<string | null>(null)
   const [bibleTextLoading, setBibleTextLoading] = useState(false)
 
-  // Filter tabs based on available content — hide transcript tab if no transcript
+  // Filter tabs based on available content — hide tabs with no data
   const visibleTabs = TABS_CONFIG.filter((tab) => {
+    if (tab.id === "leaderGuide") return !!study.answers
     if (tab.id === "transcript") return !!study.transcript
     return true
   })
