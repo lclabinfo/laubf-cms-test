@@ -649,7 +649,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
         <TabsContent value="video" className="px-6 pt-4 pb-5">
           <div className="max-w-3xl mx-auto space-y-5">
             {/* Inline publish toggle */}
-            <div className="flex items-center justify-between rounded-lg border p-3">
+            <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
               <div className="flex items-center gap-2">
                 <Badge
                   variant={videoState === "published" ? "success" : videoState === "draft" ? "secondary" : "outline"}
@@ -706,7 +706,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
         <TabsContent value="study" className="px-6 pt-4 pb-5">
           <div className="max-w-3xl mx-auto space-y-5">
             {/* Inline publish toggle */}
-            <div className="flex items-center justify-between rounded-lg border p-3">
+            <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
               <div className="flex items-center gap-2">
                 <Badge
                   variant={studyState === "published" ? "success" : studyState === "draft" ? "secondary" : "outline"}
@@ -826,7 +826,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
           </AlertDialogHeader>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between rounded-lg border p-3">
+            <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
               <div className="flex items-center gap-2.5">
                 <Video className="size-4 text-blue-600 dark:text-blue-400" />
                 <span className="text-sm font-medium">Video</span>
@@ -835,7 +835,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                 {videoState === "published" ? "Published" : videoState === "draft" ? "Draft" : "Empty"}
               </Badge>
             </div>
-            <div className="flex items-center justify-between rounded-lg border p-3">
+            <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
               <div className="flex items-center gap-2.5">
                 <BookOpen className="size-4 text-purple-600 dark:text-purple-400" />
                 <span className="text-sm font-medium">Bible Study</span>
