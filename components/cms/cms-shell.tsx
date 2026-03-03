@@ -101,7 +101,7 @@ export function CmsShell({ session, children }: { session: CmsSessionData; child
         <AppSidebar session={session} />
         <SidebarInset className="overflow-hidden">
           <CmsHeader />
-          <main className="min-w-0 min-h-0 flex-1 flex flex-col overflow-y-auto pb-5 px-6">{children}</main>
+          <main className="min-w-0 min-h-0 flex-1 flex flex-col overflow-y-auto overflow-x-hidden pb-5 px-6">{children}</main>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>
