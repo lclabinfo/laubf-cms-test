@@ -232,6 +232,7 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
     filterFn: (row, id, value: string[]) => {
       return value.includes(row.getValue(id))
     },
+    enableHiding: true,
     size: 110,
   },
   {

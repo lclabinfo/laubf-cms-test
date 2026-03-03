@@ -22,16 +22,18 @@ import { SeriesTab } from "@/components/cms/messages/series/tab"
 import { useMessages } from "@/lib/messages-context"
 
 function globalFilterFn(
-  row: { original: { title: string; speaker: string; passage: string } },
+  row: { original: { title: string; speaker: string; passage: string; description?: string; date: string; seriesId?: string | null } },
   _columnId: string,
   filterValue: string
 ) {
   const search = filterValue.toLowerCase()
-  const { title, speaker, passage } = row.original
+  const { title, speaker, passage, description, date } = row.original
   return (
     title.toLowerCase().includes(search) ||
     speaker.toLowerCase().includes(search) ||
-    passage.toLowerCase().includes(search)
+    passage.toLowerCase().includes(search) ||
+    !!(description && description.toLowerCase().includes(search)) ||
+    !!(date && date.includes(search))
   )
 }
 
@@ -61,10 +63,21 @@ function MessagesPageContent() {
     { id: "date", desc: true },
   ])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({ status: false })
   const [rowSelection, setRowSelection] = useState({})
   const [globalFilter, setGlobalFilter] = useState("")
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
+  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 50 })
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
+
+  const filteredByDate = useMemo(() => {
+    if (!dateFrom && !dateTo) return messages
+    return messages.filter((m) => {
+      if (dateFrom && m.date < dateFrom) return false
+      if (dateTo && m.date > dateTo) return false
+      return true
+    })
+  }, [messages, dateFrom, dateTo])
 
   const speakers = useMemo(() => {
     const names = new Set(messages.map((m) => m.speaker).filter(Boolean))
@@ -94,7 +107,7 @@ function MessagesPageContent() {
   )
 
   const table = useReactTable({
-    data: messages,
+    data: filteredByDate,
     columns,
     state: {
       sorting,
@@ -140,6 +153,10 @@ function MessagesPageContent() {
             setGlobalFilter={handleGlobalFilterChange}
             speakers={speakers}
             allSeries={series}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onDateFromChange={(v) => { setDateFrom(v); resetPageIndex() }}
+            onDateToChange={(v) => { setDateTo(v); resetPageIndex() }}
           />
           {loading ? (
             <div className="flex items-center justify-center py-16">
@@ -164,8 +181,10 @@ function MessagesPageContent() {
 
 export default function MessagesPage() {
   return (
-    <Suspense>
-      <MessagesPageContent />
-    </Suspense>
+    <div className="pt-5">
+      <Suspense>
+        <MessagesPageContent />
+      </Suspense>
+    </div>
   )
 }

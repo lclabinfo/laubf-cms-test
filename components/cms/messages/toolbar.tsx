@@ -22,7 +22,6 @@ import type { Message, MessageStatus } from "@/lib/messages-data"
 const statuses: { value: MessageStatus; label: string }[] = [
   { value: "published", label: "Published" },
   { value: "draft", label: "Draft" },
-  { value: "scheduled", label: "Scheduled" },
   { value: "archived", label: "Archived" },
 ]
 
@@ -32,7 +31,6 @@ const columnLabels: Record<string, string> = {
   seriesId: "Series",
   date: "Message Date",
   publishedAt: "Posted",
-  status: "Status",
   resources: "Resources",
 }
 
@@ -42,12 +40,15 @@ interface ToolbarProps {
   setGlobalFilter: (value: string) => void
   speakers: string[]
   allSeries: { id: string; name: string }[]
+  dateFrom?: string
+  dateTo?: string
+  onDateFromChange?: (value: string) => void
+  onDateToChange?: (value: string) => void
 }
 
-export function Toolbar({ table, globalFilter, setGlobalFilter, speakers, allSeries }: ToolbarProps) {
+export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateFrom, dateTo, onDateFromChange, onDateToChange }: ToolbarProps) {
   const selectedCount = table.getFilteredSelectedRowModel().rows.length
   const statusFilter = (table.getColumn("status")?.getFilterValue() as MessageStatus[]) ?? []
-  const speakerFilter = (table.getColumn("speaker")?.getFilterValue() as string[]) ?? []
   const seriesFilter = (table.getColumn("seriesId")?.getFilterValue() as string[]) ?? []
 
   function toggleStatus(status: MessageStatus) {
@@ -56,14 +57,6 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, speakers, allSer
       ? current.filter((s) => s !== status)
       : [...current, status]
     table.getColumn("status")?.setFilterValue(next.length ? next : undefined)
-  }
-
-  function toggleSpeaker(speaker: string) {
-    const current = speakerFilter
-    const next = current.includes(speaker)
-      ? current.filter((s) => s !== speaker)
-      : [...current, speaker]
-    table.getColumn("speaker")?.setFilterValue(next.length ? next : undefined)
   }
 
   function toggleSeries(seriesId: string) {
@@ -76,11 +69,13 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, speakers, allSer
 
   function clearFilters() {
     table.getColumn("status")?.setFilterValue(undefined)
-    table.getColumn("speaker")?.setFilterValue(undefined)
     table.getColumn("seriesId")?.setFilterValue(undefined)
+    onDateFromChange?.("")
+    onDateToChange?.("")
   }
 
-  const filterCount = statusFilter.length + speakerFilter.length + seriesFilter.length
+  const hasDateFilter = !!(dateFrom || dateTo)
+  const filterCount = statusFilter.length + seriesFilter.length + (hasDateFilter ? 1 : 0)
   const hasFilters = filterCount > 0
 
   return (
@@ -109,7 +104,7 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, speakers, allSer
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-64" align="start">
+          <PopoverContent className="w-72 max-h-[min(480px,70vh)] overflow-y-auto" align="start">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Filters</span>
@@ -137,30 +132,11 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, speakers, allSer
                 </div>
               </div>
 
-              {/* Speaker */}
-              {speakers.length > 0 && (
-                <div className="space-y-2">
-                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Speaker</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {speakers.map((name) => (
-                      <Badge
-                        key={name}
-                        variant={speakerFilter.includes(name) ? "default" : "outline"}
-                        className="cursor-pointer"
-                        onClick={() => toggleSpeaker(name)}
-                      >
-                        {name}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Series */}
               {allSeries.length > 0 && (
                 <div className="space-y-2">
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Series</span>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1">
                     {allSeries.map((s) => (
                       <Badge
                         key={s.id}
@@ -174,6 +150,28 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, speakers, allSer
                   </div>
                 </div>
               )}
+
+              {/* Date range */}
+              <div className="space-y-2">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Date Range</span>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="date"
+                    value={dateFrom ?? ""}
+                    onChange={(e) => onDateFromChange?.(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="From"
+                  />
+                  <span className="text-xs text-muted-foreground">to</span>
+                  <Input
+                    type="date"
+                    value={dateTo ?? ""}
+                    onChange={(e) => onDateToChange?.(e.target.value)}
+                    className="h-8 text-xs"
+                    placeholder="To"
+                  />
+                </div>
+              </div>
             </div>
           </PopoverContent>
         </Popover>
@@ -216,17 +214,6 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, speakers, allSer
                 </button>
               </Badge>
             ))}
-            {speakerFilter.map((s) => (
-              <Badge key={`speaker-${s}`} variant="secondary" className="gap-1">
-                {s}
-                <button
-                  onClick={() => toggleSpeaker(s)}
-                  className="ml-0.5 rounded-full hover:bg-foreground/10"
-                >
-                  <X className="size-3" />
-                </button>
-              </Badge>
-            ))}
             {seriesFilter.map((id) => {
               const name = allSeries.find((s) => s.id === id)?.name ?? id
               return (
@@ -241,6 +228,17 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, speakers, allSer
                 </Badge>
               )
             })}
+            {hasDateFilter && (
+              <Badge variant="secondary" className="gap-1">
+                {dateFrom || "..."} — {dateTo || "..."}
+                <button
+                  onClick={() => { onDateFromChange?.(""); onDateToChange?.("") }}
+                  className="ml-0.5 rounded-full hover:bg-foreground/10"
+                >
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            )}
           </div>
         )}
 
