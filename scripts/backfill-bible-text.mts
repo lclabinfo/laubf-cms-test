@@ -10,7 +10,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
 const adapter = new PrismaPg(pool)
-const mod = await import('../lib/generated/prisma/client.ts')
+const mod = await import('../lib/generated/prisma/client')
 const prisma = new mod.PrismaClient({ adapter })
 
 // Re-implement parseBookFromPassage to avoid Next.js import issues

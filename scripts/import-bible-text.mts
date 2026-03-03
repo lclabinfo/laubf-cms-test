@@ -13,7 +13,7 @@ import { PrismaPg } from '@prisma/adapter-pg'
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
 const adapter = new PrismaPg(pool)
 
-const mod = await import('../lib/generated/prisma/client.ts')
+const mod = await import('../lib/generated/prisma/client')
 const PrismaClient = mod.PrismaClient
 const prisma = new PrismaClient({ adapter })
 
