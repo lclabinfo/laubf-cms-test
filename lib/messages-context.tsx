@@ -134,10 +134,8 @@ function cmsMessageToApiCreate(data: Omit<Message, "id">) {
     description: data.description || null,
     dateFor: data.date ? new Date(data.date + "T00:00:00").toISOString() : new Date().toISOString(),
     status: statusToApi[data.status] ?? "DRAFT",
-    hasVideo: data.hasVideo,
-    hasStudy: data.hasStudy,
-    videoPublished: data.videoPublished,
-    studyPublished: data.studyPublished,
+    hasVideo: data.videoPublished,
+    hasStudy: data.studyPublished,
     videoUrl: data.videoUrl || null,
     videoDescription: data.videoDescription || null,
     youtubeId: youtubeId || data.youtubeId || null,
@@ -166,12 +164,14 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
   if (data.status !== undefined) payload.status = statusToApi[data.status] ?? "DRAFT"
   if (data.hasVideo !== undefined) payload.hasVideo = data.hasVideo
   if (data.hasStudy !== undefined) payload.hasStudy = data.hasStudy
-  if (data.videoPublished !== undefined) payload.videoPublished = data.videoPublished
-  if (data.studyPublished !== undefined) payload.studyPublished = data.studyPublished
-  // Derive wrapper status from per-content publish state
+  // Map per-content publish state to the DB fields:
+  // hasVideo/hasStudy = content is published (what the DB actually stores)
+  // Also derive the wrapper status from per-content publish state
   if (data.videoPublished !== undefined || data.studyPublished !== undefined) {
     const vp = data.videoPublished ?? false
     const sp = data.studyPublished ?? false
+    payload.hasVideo = vp
+    payload.hasStudy = sp
     payload.status = (vp || sp) ? "PUBLISHED" : "DRAFT"
   }
   if (data.videoUrl !== undefined) {

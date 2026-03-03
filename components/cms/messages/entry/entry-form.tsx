@@ -126,7 +126,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const [videoPublished, setVideoPublished] = useState(message?.videoPublished ?? false)
   const [studyPublished, setStudyPublished] = useState(message?.studyPublished ?? false)
 
-  // Validation dialog state
+  // Confirmation / validation dialog state
+  const [saveConfirmOpen, setSaveConfirmOpen] = useState(false)
   const [validationOpen, setValidationOpen] = useState(false)
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([])
 
@@ -256,6 +257,11 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   }
 
   function handleSave() {
+    setSaveConfirmOpen(true)
+  }
+
+  function handleConfirmSave() {
+    setSaveConfirmOpen(false)
     saveMessage()
   }
 
@@ -812,6 +818,46 @@ export function EntryForm({ mode, message }: EntryFormProps) {
           </div>
         </Collapsible>
       </div>
+
+      {/* Save confirmation dialog — shows what will be published */}
+      <AlertDialog open={saveConfirmOpen} onOpenChange={setSaveConfirmOpen}>
+        <AlertDialogContent className="sm:max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save Changes</AlertDialogTitle>
+            <AlertDialogDescription>
+              Review what will be visible on the public site.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="flex items-center gap-2.5">
+                <Video className="size-4 text-blue-600 dark:text-blue-400" />
+                <span className="text-sm font-medium">Video</span>
+              </div>
+              <Badge variant={videoState === "published" ? "success" : videoState === "draft" ? "secondary" : "outline"}>
+                {videoState === "published" ? "Published" : videoState === "draft" ? "Draft" : "Empty"}
+              </Badge>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="flex items-center gap-2.5">
+                <BookOpen className="size-4 text-purple-600 dark:text-purple-400" />
+                <span className="text-sm font-medium">Bible Study</span>
+              </div>
+              <Badge variant={studyState === "published" ? "success" : studyState === "draft" ? "secondary" : "outline"}>
+                {studyState === "published" ? "Published" : studyState === "draft" ? "Draft" : "Empty"}
+              </Badge>
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmSave}>
+              Save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Validation dialog */}
       <AlertDialog open={validationOpen} onOpenChange={setValidationOpen}>
