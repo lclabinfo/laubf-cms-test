@@ -42,8 +42,8 @@ export async function getVideoBySlug(
   churchId: string,
   slug: string,
 ): Promise<VideoRecord | null> {
-  return prisma.video.findUnique({
-    where: { churchId_slug: { churchId, slug } },
+  return prisma.video.findFirst({
+    where: { churchId, slug, deletedAt: null, status: ContentStatus.PUBLISHED },
   })
 }
 

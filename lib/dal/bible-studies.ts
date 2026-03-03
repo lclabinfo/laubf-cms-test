@@ -55,7 +55,7 @@ export async function getBibleStudyBySlug(
   slug: string,
 ): Promise<BibleStudyWithRelations | null> {
   return prisma.bibleStudy.findFirst({
-    where: { churchId, slug, deletedAt: null },
+    where: { churchId, slug, deletedAt: null, status: ContentStatus.PUBLISHED },
     include: bibleStudyInclude,
   })
 }

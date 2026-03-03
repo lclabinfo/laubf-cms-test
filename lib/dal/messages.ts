@@ -79,8 +79,8 @@ export async function getMessageBySlug(
   churchId: string,
   slug: string,
 ): Promise<MessageDetail | null> {
-  return prisma.message.findUnique({
-    where: { churchId_slug: { churchId, slug } },
+  return prisma.message.findFirst({
+    where: { churchId, slug, deletedAt: null, status: ContentStatus.PUBLISHED },
     include: messageDetailInclude,
   })
 }
@@ -137,6 +137,11 @@ export async function createMessage(
   // Strip non-Message fields before passing to Prisma
   const messageData = stripNonMessageFields(data)
 
+  // Enforce: hasVideo requires a videoUrl or youtubeId
+  if (messageData.hasVideo && !messageData.videoUrl && !messageData.youtubeId) {
+    messageData.hasVideo = false
+  }
+
   // Ensure dateFor is provided (required field)
   if (!messageData.dateFor) {
     messageData.dateFor = new Date().toISOString()
@@ -179,6 +184,22 @@ export async function updateMessage(
 ) {
   // Strip non-Message fields before passing to Prisma
   const messageData = stripNonMessageFields(data)
+
+  // Enforce: hasVideo requires a videoUrl or youtubeId
+  if (messageData.hasVideo && !messageData.videoUrl && !messageData.youtubeId) {
+    // Check existing record if video fields not in update payload
+    if (messageData.videoUrl === undefined || messageData.youtubeId === undefined) {
+      const existing = await prisma.message.findUnique({
+        where: { id, churchId },
+        select: { videoUrl: true, youtubeId: true },
+      })
+      if (!existing?.videoUrl && !existing?.youtubeId) {
+        messageData.hasVideo = false
+      }
+    } else {
+      messageData.hasVideo = false
+    }
+  }
 
   // If slug is being updated, ensure uniqueness
   if (messageData.slug) {
