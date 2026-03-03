@@ -13,7 +13,7 @@ export type PaginatedResult<T> = {
 
 export function paginationArgs(params?: PaginationParams) {
   const page = Math.max(1, params?.page ?? 1)
-  const pageSize = Math.min(100, Math.max(1, params?.pageSize ?? 20))
+  const pageSize = Math.max(1, params?.pageSize ?? 20)
   return { skip: (page - 1) * pageSize, take: pageSize, page, pageSize }
 }
 

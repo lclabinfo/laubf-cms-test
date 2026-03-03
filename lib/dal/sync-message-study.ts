@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/db'
 import { ContentStatus, type BibleBook } from '@/lib/generated/prisma/client'
 import { tiptapJsonToHtml } from '@/lib/tiptap'
-import { fetchBibleText, getBibleApiTranslation } from '@/lib/bible-api'
+import { fetchBibleText } from '@/lib/bible-api'
 
 /**
  * Maps passage strings like "John 3:16", "1 Corinthians 13:1-8", "Genesis 12"
@@ -181,8 +181,7 @@ export async function syncMessageStudy(params: SyncParams): Promise<string> {
   // Fetch actual Bible text from API if passage is provided
   let bibleText: string | null = null
   if (passage) {
-    const translation = getBibleApiTranslation(bibleVersion || 'ESV')
-    const result = await fetchBibleText(passage, translation)
+    const result = await fetchBibleText(passage, bibleVersion || 'ESV')
     if (result) {
       bibleText = result.html
     }

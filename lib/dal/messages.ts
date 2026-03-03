@@ -3,7 +3,7 @@ import { ContentStatus, Prisma } from '@/lib/generated/prisma/client'
 import { paginationArgs, paginatedResult, type PaginationParams, type PaginatedResult } from './types'
 
 type MessageWithRelations = Prisma.MessageGetPayload<{
-  include: { speaker: true; messageSeries: { include: { series: true } } }
+  include: { speaker: true; messageSeries: { include: { series: true } }; relatedStudy: true }
 }>
 
 type MessageDetail = Prisma.MessageGetPayload<{
@@ -20,6 +20,7 @@ const messageListInclude = {
     include: { series: true },
     orderBy: { sortOrder: 'asc' as const },
   },
+  relatedStudy: true,
 } satisfies Prisma.MessageInclude
 
 const messageDetailInclude = {
@@ -54,6 +55,8 @@ export async function getMessages(
         { title: { contains: filters.search, mode: 'insensitive' as const } },
         { passage: { contains: filters.search, mode: 'insensitive' as const } },
         { description: { contains: filters.search, mode: 'insensitive' as const } },
+        { speaker: { name: { contains: filters.search, mode: 'insensitive' as const } } },
+        { videoDescription: { contains: filters.search, mode: 'insensitive' as const } },
       ],
     }),
   }

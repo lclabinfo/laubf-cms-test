@@ -31,8 +31,12 @@ export const edgeAuthConfig: NextAuthConfig = {
         return isAuthenticated
       }
 
-      // API v1 routes require authentication
+      // API v1 routes require authentication (except public endpoints)
       if (pathname.startsWith('/api/v1')) {
+        // Bible text endpoint is used by the public website
+        if (pathname.startsWith('/api/v1/bible')) {
+          return true
+        }
         return isAuthenticated
       }
 
