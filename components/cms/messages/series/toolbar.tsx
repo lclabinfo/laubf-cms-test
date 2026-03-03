@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select"
 
 export type ViewMode = "card" | "list"
-export type SortOption = "name-asc" | "name-desc" | "most-messages" | "fewest-messages"
+export type SortOption = "most-recent" | "name-asc" | "name-desc" | "most-messages" | "fewest-messages"
 
 interface SeriesToolbarProps {
   search: string
@@ -53,6 +53,7 @@ export function SeriesToolbar({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
+          <SelectItem value="most-recent">Most recent</SelectItem>
           <SelectItem value="name-asc">Name A–Z</SelectItem>
           <SelectItem value="name-desc">Name Z–A</SelectItem>
           <SelectItem value="most-messages">Most messages</SelectItem>

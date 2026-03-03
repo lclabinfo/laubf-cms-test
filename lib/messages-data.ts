@@ -18,6 +18,7 @@ export type Attachment = {
   name: string
   size: string
   type: string
+  url?: string
 }
 
 export type Message = {

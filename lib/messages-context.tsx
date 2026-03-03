@@ -167,8 +167,10 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
   // Map per-content publish state to the DB fields:
   // hasVideo/hasStudy = content is published (what the DB actually stores)
   // Also derive the wrapper status from per-content publish state
+  // Guard: hasVideo can only be true if a videoUrl or youtubeId exists
   if (data.videoPublished !== undefined || data.studyPublished !== undefined) {
-    const vp = data.videoPublished ?? false
+    const hasVideoSource = !!(data.videoUrl ?? payload.videoUrl ?? payload.youtubeId)
+    const vp = (data.videoPublished ?? false) && hasVideoSource
     const sp = data.studyPublished ?? false
     payload.hasVideo = vp
     payload.hasStudy = sp

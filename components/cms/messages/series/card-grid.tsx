@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ImageIcon } from "lucide-react"
+import { Library } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import type { Series } from "@/lib/messages-data"
@@ -28,15 +28,11 @@ export function SeriesCardGrid({ series }: SeriesCardGridProps) {
       {series.map((s) => (
         <Link key={s.id} href={`/cms/messages/series/${s.id}`} className="group">
           <Card className="transition-colors group-hover:bg-muted/50 h-full">
-            <div className="mx-4 mt-0 aspect-video rounded-md bg-muted flex items-center justify-center overflow-hidden">
-              {s.imageUrl ? (
-                <img src={s.imageUrl} alt={s.name} className="size-full object-cover" />
-              ) : (
-                <ImageIcon className="size-8 text-muted-foreground/50" />
-              )}
-            </div>
             <CardHeader>
-              <CardTitle>{s.name}</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Library className="size-4 text-muted-foreground shrink-0" />
+                {s.name}
+              </CardTitle>
               <CardDescription>
                 <Badge variant="secondary" className="text-xs">
                   {s.count} {s.count === 1 ? "message" : "messages"}

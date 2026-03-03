@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ImageIcon, ChevronRight } from "lucide-react"
+import { Library, ChevronRight } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import type { Series } from "@/lib/messages-data"
 
@@ -30,13 +30,7 @@ export function SeriesListView({ series }: SeriesListViewProps) {
           href={`/cms/messages/series/${s.id}`}
           className="flex items-center gap-4 rounded-lg border bg-card p-3 transition-colors hover:bg-muted/50"
         >
-          <div className="size-12 shrink-0 rounded-md bg-muted flex items-center justify-center overflow-hidden">
-            {s.imageUrl ? (
-              <img src={s.imageUrl} alt={s.name} className="size-full object-cover" />
-            ) : (
-              <ImageIcon className="size-5 text-muted-foreground/50" />
-            )}
-          </div>
+          <Library className="size-4 text-muted-foreground shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="font-medium truncate">{s.name}</p>
             <Badge variant="secondary" className="text-xs mt-0.5">

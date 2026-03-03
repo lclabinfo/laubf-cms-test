@@ -164,11 +164,9 @@ export function createColumns(options?: CreateColumnsOptions): ColumnDef<MemberP
             </Avatar>
             <div className="min-w-0">
               <div className="font-medium truncate">{displayName}</div>
-              {person.preferredName && (
-                <div className="text-muted-foreground text-xs truncate">
-                  {person.firstName} {person.lastName}
-                </div>
-              )}
+              <div className="text-muted-foreground text-xs truncate min-h-[1lh]">
+                {person.preferredName ? `${person.firstName} ${person.lastName}` : "\u00A0"}
+              </div>
             </div>
           </div>
         )

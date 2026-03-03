@@ -1,8 +1,7 @@
 "use client"
 
-import { useState, useRef, useMemo, useEffect, useCallback } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
-import Link from "next/link"
 import {
   ArrowLeft,
   AlertCircle,
@@ -18,6 +17,7 @@ import {
   Paperclip,
   ChevronDown,
   Link2,
+  ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -128,6 +128,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
   // Confirmation dialog state
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false)
+  const [dialogVideoPublished, setDialogVideoPublished] = useState(false)
+  const [dialogStudyPublished, setDialogStudyPublished] = useState(false)
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
   const [validationOpen, setValidationOpen] = useState(false)
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([])
@@ -258,12 +260,18 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   }
 
   function handleSave() {
+    setDialogVideoPublished(videoPublished)
+    setDialogStudyPublished(studyPublished)
     setSaveConfirmOpen(true)
   }
 
   function handleConfirmSave() {
     setSaveConfirmOpen(false)
-    saveMessage()
+    // Apply the dialog toggle values to actual state before saving
+    setVideoPublished(dialogVideoPublished)
+    setStudyPublished(dialogStudyPublished)
+    // Use setTimeout to let state settle before building data
+    setTimeout(() => saveMessage(), 0)
   }
 
   function handleSaveAsDraft() {
@@ -337,6 +345,16 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
   const isDirty = JSON.stringify(snapshotFields()) !== initialSnapshot.current
 
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (isDirty) {
+        e.preventDefault()
+      }
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [isDirty])
+
   return (
     <div className="flex flex-col -mx-6">
       {/* Tabs — wraps both the sticky header and tab content */}
@@ -345,10 +363,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
         <div className="sticky top-0 z-20 bg-background">
           {/* Header */}
           <div className="flex items-center gap-3 px-6 pt-5 pb-3">
-            <Button variant="ghost" size="icon" asChild>
-              <Link href="/cms/messages">
-                <ArrowLeft />
-              </Link>
+            <Button variant="ghost" size="icon" onClick={handleCancel}>
+              <ArrowLeft />
             </Button>
             <div className="flex items-center gap-2 min-w-0">
               {mode === "create" ? (
@@ -688,14 +704,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
               onVideoUrlChange={setVideoUrl}
               description={videoDescription}
               onDescriptionChange={setVideoDescription}
-              duration={duration}
-              onDurationChange={setDuration}
-              audioUrl={audioUrl}
-              onAudioUrlChange={setAudioUrl}
               rawTranscript={rawTranscript}
               onRawTranscriptChange={setRawTranscript}
-              liveTranscript={liveTranscript}
-              onLiveTranscriptChange={setLiveTranscript}
               segments={transcriptSegments}
               onSegmentsChange={setTranscriptSegments}
             />
@@ -796,8 +806,15 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                         <FileText className="size-4 text-muted-foreground shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{att.name}</p>
-                          <p className="text-xs text-muted-foreground">{att.size}</p>
+                          <p className="text-xs text-muted-foreground">{att.size || (att.url ? "External file" : "")}</p>
                         </div>
+                        {att.url && (
+                          <Button variant="ghost" size="icon-sm" asChild>
+                            <a href={att.url} target="_blank" rel="noopener noreferrer" title="Open file">
+                              <ExternalLink className="size-3.5" />
+                            </a>
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="icon-sm"
@@ -831,18 +848,34 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                 <Video className="size-4 text-blue-600 dark:text-blue-400" />
                 <span className="text-sm font-medium">Video</span>
               </div>
-              <Badge variant={videoState === "published" ? "success" : videoState === "draft" ? "secondary" : "outline"}>
-                {videoState === "published" ? "Published" : videoState === "draft" ? "Draft" : "Empty"}
-              </Badge>
+              <div className="flex items-center gap-2.5">
+                <Badge variant={dialogVideoPublished ? "success" : videoContentExists ? "secondary" : "outline"}>
+                  {dialogVideoPublished ? "Published" : videoContentExists ? "Draft" : "Empty"}
+                </Badge>
+                <Switch
+                  checked={dialogVideoPublished}
+                  onCheckedChange={setDialogVideoPublished}
+                  disabled={!videoContentExists}
+                  aria-label="Toggle video publish status"
+                />
+              </div>
             </div>
             <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
               <div className="flex items-center gap-2.5">
                 <BookOpen className="size-4 text-purple-600 dark:text-purple-400" />
                 <span className="text-sm font-medium">Bible Study</span>
               </div>
-              <Badge variant={studyState === "published" ? "success" : studyState === "draft" ? "secondary" : "outline"}>
-                {studyState === "published" ? "Published" : studyState === "draft" ? "Draft" : "Empty"}
-              </Badge>
+              <div className="flex items-center gap-2.5">
+                <Badge variant={dialogStudyPublished ? "success" : studyContentExists ? "secondary" : "outline"}>
+                  {dialogStudyPublished ? "Published" : studyContentExists ? "Draft" : "Empty"}
+                </Badge>
+                <Switch
+                  checked={dialogStudyPublished}
+                  onCheckedChange={setDialogStudyPublished}
+                  disabled={!studyContentExists}
+                  aria-label="Toggle bible study publish status"
+                />
+              </div>
             </div>
           </div>
 

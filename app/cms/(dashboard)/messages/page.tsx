@@ -63,7 +63,7 @@ function MessagesPageContent() {
     { id: "date", desc: true },
   ])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({ status: false })
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({ status: false, publishedAt: false })
   const [rowSelection, setRowSelection] = useState({})
   const [globalFilter, setGlobalFilter] = useState("")
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 50 })

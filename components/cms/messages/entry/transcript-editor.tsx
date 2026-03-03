@@ -53,7 +53,7 @@ export function TranscriptEditor({
   videoUrl,
 }: TranscriptEditorProps) {
   const hasVideoUrl = Boolean(videoUrl)
-  const [mode, setMode] = useState<TranscriptMode>(segments.length > 0 ? "synced" : "raw")
+  const [mode, setMode] = useState<TranscriptMode>("raw")
   const [processing, setProcessing] = useState<ProcessingState>("idle")
 
   async function handleAiAlignment() {
@@ -289,9 +289,13 @@ export function TranscriptEditor({
     <Tabs value={mode} onValueChange={(v) => setMode(v as TranscriptMode)} className="space-y-4">
       {/* Tab toggle + actions */}
       <div className="flex flex-wrap items-center gap-2">
-        <TabsList variant="line">
-          <TabsTrigger value="synced">Timestamped Segments</TabsTrigger>
-          <TabsTrigger value="raw">Full Transcript</TabsTrigger>
+        <TabsList className="bg-muted p-0.5 rounded-lg h-8">
+          <TabsTrigger value="raw" className="rounded-md px-3 text-xs h-7 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            Message Transcript
+          </TabsTrigger>
+          <TabsTrigger value="synced" className="rounded-md px-3 text-xs h-7 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+            Live Captions
+          </TabsTrigger>
         </TabsList>
 
         <div className="flex-1" />
@@ -340,8 +344,8 @@ export function TranscriptEditor({
                   <span>AI Auto-Align to Timestamps</span>
                   <span className="text-muted-foreground text-[11px] font-normal">
                     {!rawTranscript.trim()
-                      ? "Requires full text — paste text in Full Text tab first"
-                      : "Distributes your text into timestamped segments"}
+                      ? "Requires full text — paste text in Message Transcript tab first"
+                      : "Distributes your text into live caption segments"}
                   </span>
                 </div>
               </DropdownMenuItem>
@@ -418,9 +422,9 @@ export function TranscriptEditor({
           {segments.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-10 text-center">
               <FileText className="size-10 text-muted-foreground/50 mb-3" />
-              <p className="text-sm font-medium">No transcript segments</p>
+              <p className="text-sm font-medium">No caption segments</p>
               <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                Import captions from YouTube, upload an SRT file, generate with AI, or add segments manually.
+                Import captions from YouTube, upload an SRT file, generate with AI, or add caption segments manually.
               </p>
               <Button variant="outline" size="sm" className="mt-3" onClick={handleAddSegment}>
                 <Plus className="size-3.5" />
@@ -476,7 +480,7 @@ export function TranscriptEditor({
                 className="w-full flex items-center justify-center gap-2 rounded-md border-2 border-dashed border-muted-foreground/25 hover:border-primary/40 py-2 text-sm text-muted-foreground hover:text-primary transition-colors"
               >
                 <Plus className="size-3.5" />
-                Add Timestamp Segment
+                Add Caption Segment
               </button>
             </>
           )}

@@ -12,7 +12,7 @@ export function SeriesTab() {
 
   const [search, setSearch] = useState("")
   const [viewMode, setViewMode] = useState<ViewMode>("card")
-  const [sort, setSort] = useState<SortOption>("name-asc")
+  const [sort, setSort] = useState<SortOption>("most-recent")
   const [createOpen, setCreateOpen] = useState(false)
 
   const filteredSeries = useMemo(() => {
@@ -20,12 +20,18 @@ export function SeriesTab() {
 
     const withCount = series
       .filter((s) => !q || s.name.toLowerCase().includes(q))
-      .map((s) => ({
-        ...s,
-        count: messages.filter((m) => m.seriesId === s.id).length,
-      }))
+      .map((s) => {
+        const seriesMessages = messages.filter((m) => m.seriesId === s.id)
+        const latestDate = seriesMessages.reduce((max, m) => {
+          return m.date > max ? m.date : max
+        }, "")
+        return { ...s, count: seriesMessages.length, latestDate }
+      })
 
     switch (sort) {
+      case "most-recent":
+        withCount.sort((a, b) => b.latestDate.localeCompare(a.latestDate) || a.name.localeCompare(b.name))
+        break
       case "name-asc":
         withCount.sort((a, b) => a.name.localeCompare(b.name))
         break

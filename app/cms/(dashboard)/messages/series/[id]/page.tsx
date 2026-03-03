@@ -3,7 +3,7 @@
 import { use, useState, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Trash2, Plus, X } from "lucide-react"
+import { ArrowLeft, Trash2, Plus, X, Video, BookOpen, Pencil, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -18,9 +18,18 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { SeriesImageUpload } from "@/components/cms/messages/series/image-upload"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { ManageMessagesDialog } from "@/components/cms/messages/series/manage-messages-dialog"
 import { useMessages } from "@/lib/messages-context"
+import { statusDisplay } from "@/lib/status"
+import type { Message } from "@/lib/messages-data"
 
 export default function SeriesDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -30,9 +39,9 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
   const currentSeries = series.find((s) => s.id === id)
 
   const [name, setName] = useState(currentSeries?.name ?? "")
-  const [imageUrl, setImageUrl] = useState(currentSeries?.imageUrl)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [manageOpen, setManageOpen] = useState(false)
+  const [detailMessage, setDetailMessage] = useState<Message | null>(null)
 
   const seriesMessages = useMemo(
     () => messages.filter((m) => m.seriesId === id),
@@ -41,13 +50,13 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
 
   const hasChanges = useMemo(() => {
     if (!currentSeries) return false
-    return name !== currentSeries.name || imageUrl !== currentSeries.imageUrl
-  }, [currentSeries, name, imageUrl])
+    return name !== currentSeries.name
+  }, [currentSeries, name])
 
   const handleSave = useCallback(() => {
     if (!name.trim()) return
-    updateSeries(id, { name: name.trim(), imageUrl })
-  }, [id, name, imageUrl, updateSeries])
+    updateSeries(id, { name: name.trim() })
+  }, [id, name, updateSeries])
 
   const handleDelete = useCallback(() => {
     deleteSeries(id)
@@ -70,6 +79,19 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
     },
     [id, setSeriesMessages]
   )
+
+  function formatDate(dateStr: string) {
+    const date = new Date(dateStr + "T00:00:00")
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+  }
+
+  function formatDateTime(isoStr: string) {
+    const date = new Date(isoStr)
+    return date.toLocaleDateString("en-US", {
+      month: "short", day: "numeric", year: "numeric",
+      hour: "numeric", minute: "2-digit",
+    })
+  }
 
   if (!currentSeries) {
     return (
@@ -111,26 +133,23 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
       </div>
 
       {/* Series info */}
-      <div className="grid gap-6 lg:grid-cols-[320px_1fr]">
-        <SeriesImageUpload value={imageUrl} onChange={setImageUrl} />
-        <div className="space-y-4">
-          <div className="grid gap-2">
-            <Label htmlFor="series-name">Series Name</Label>
-            <Input
-              id="series-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Gospel of John"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Button onClick={handleSave} disabled={!name.trim() || !hasChanges}>
-              Save Changes
-            </Button>
-            {hasChanges && (
-              <span className="text-muted-foreground text-xs">Unsaved changes</span>
-            )}
-          </div>
+      <div className="space-y-4">
+        <div className="grid gap-2">
+          <Label htmlFor="series-name">Series Name</Label>
+          <Input
+            id="series-name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Gospel of John"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={handleSave} disabled={!name.trim() || !hasChanges}>
+            Save Changes
+          </Button>
+          {hasChanges && (
+            <span className="text-muted-foreground text-xs">Unsaved changes</span>
+          )}
         </div>
       </div>
 
@@ -169,32 +188,44 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
             {seriesMessages.map((m) => (
               <div
                 key={m.id}
-                className="flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-muted/50"
+                className="flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:bg-muted/50 cursor-pointer"
+                onClick={() => setDetailMessage(m)}
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">{m.title}</p>
                   <p className="text-muted-foreground text-xs">
-                    {m.passage} &middot; {m.speaker} &middot; {m.date}
+                    {m.passage} &middot; {m.speaker} &middot; {formatDate(m.date)}
                   </p>
                 </div>
-                <Badge
-                  variant={
-                    m.status === "published"
-                      ? "default"
-                      : m.status === "draft"
-                        ? "secondary"
-                        : m.status === "scheduled"
-                          ? "outline"
-                          : "secondary"
-                  }
-                  className="text-xs shrink-0"
-                >
-                  {m.status}
-                </Badge>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1" title="Video">
+                    <Video className="size-3.5 text-blue-600 dark:text-blue-400" />
+                    {m.videoPublished ? (
+                      <Badge variant="success" className="text-xs">Live</Badge>
+                    ) : m.hasVideo ? (
+                      <Badge variant="secondary" className="text-xs">Draft</Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">&mdash;</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1" title="Bible Study">
+                    <BookOpen className="size-3.5 text-purple-600 dark:text-purple-400" />
+                    {m.studyPublished ? (
+                      <Badge variant="success" className="text-xs">Live</Badge>
+                    ) : m.hasStudy ? (
+                      <Badge variant="secondary" className="text-xs">Draft</Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">&mdash;</span>
+                    )}
+                  </div>
+                </div>
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  onClick={() => handleRemoveMessage(m.id)}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    handleRemoveMessage(m.id)
+                  }}
                   title="Remove from series"
                 >
                   <X />
@@ -232,6 +263,95 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
         messages={messages}
         onSave={handleManageSave}
       />
+
+      {/* Message detail dialog */}
+      <Dialog open={!!detailMessage} onOpenChange={(open) => { if (!open) setDetailMessage(null) }}>
+        <DialogContent className="sm:max-w-md">
+          {detailMessage && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="leading-snug">{detailMessage.title}</DialogTitle>
+                <DialogDescription>
+                  {detailMessage.passage} &middot; {detailMessage.speaker}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3">
+                {/* Date & Status */}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Message Date</span>
+                  <span>{formatDate(detailMessage.date)}</span>
+                </div>
+                {detailMessage.publishedAt && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Posted</span>
+                    <span className="flex items-center gap-1.5">
+                      {detailMessage.status === "scheduled" && <Clock className="size-3 text-warning" />}
+                      {formatDateTime(detailMessage.publishedAt)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Status</span>
+                  <Badge variant={statusDisplay[detailMessage.status]?.variant ?? "secondary"}>
+                    {statusDisplay[detailMessage.status]?.label ?? detailMessage.status}
+                  </Badge>
+                </div>
+
+                {/* Content publish states */}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Content</p>
+                  <div className="flex items-center justify-between rounded-lg bg-muted/50 p-2.5">
+                    <div className="flex items-center gap-2">
+                      <Video className="size-4 text-blue-600 dark:text-blue-400" />
+                      <span className="text-sm font-medium">Video</span>
+                    </div>
+                    {detailMessage.videoPublished ? (
+                      <Badge variant="success">Published</Badge>
+                    ) : detailMessage.hasVideo ? (
+                      <Badge variant="secondary">Draft</Badge>
+                    ) : (
+                      <Badge variant="outline">Empty</Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between rounded-lg bg-muted/50 p-2.5">
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="size-4 text-purple-600 dark:text-purple-400" />
+                      <span className="text-sm font-medium">Bible Study</span>
+                    </div>
+                    {detailMessage.studyPublished ? (
+                      <Badge variant="success">Published</Badge>
+                    ) : detailMessage.hasStudy ? (
+                      <Badge variant="secondary">Draft</Badge>
+                    ) : (
+                      <Badge variant="outline">Empty</Badge>
+                    )}
+                  </div>
+                </div>
+
+                {detailMessage.description && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Description</p>
+                    <p className="text-sm text-muted-foreground">{detailMessage.description}</p>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDetailMessage(null)}>
+                  Close
+                </Button>
+                <Button asChild>
+                  <Link href={`/cms/messages/${detailMessage.id}`}>
+                    <Pencil />
+                    Edit Message
+                  </Link>
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -147,7 +147,7 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
     cell: ({ row }) => (
       <div className="min-w-0">
         <div className="font-medium truncate">{row.getValue("title")}</div>
-        <div className="text-muted-foreground text-xs truncate">{row.original.passage}</div>
+        <div className="text-muted-foreground text-xs truncate min-h-[1lh]">{row.original.passage || "\u00A0"}</div>
       </div>
     ),
     size: 220,
@@ -301,7 +301,11 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
   },
   {
     id: "actions",
-    cell: ({ row }) => <MessageActionsCell row={row} onDelete={onDelete} />,
+    cell: ({ row }) => (
+      <div className="flex justify-end">
+        <MessageActionsCell row={row} onDelete={onDelete} />
+      </div>
+    ),
     enableSorting: false,
     enableHiding: false,
     size: 50,

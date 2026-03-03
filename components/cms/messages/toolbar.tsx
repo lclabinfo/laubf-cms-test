@@ -30,7 +30,7 @@ const columnLabels: Record<string, string> = {
   speaker: "Speaker",
   seriesId: "Series",
   date: "Message Date",
-  publishedAt: "Posted",
+  publishedAt: "Date Posted",
   resources: "Resources",
 }
 
@@ -204,11 +204,11 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
         {hasFilters && (
           <div className="flex flex-wrap items-center gap-1">
             {statusFilter.map((s) => (
-              <Badge key={`status-${s}`} variant="secondary" className="gap-1">
+              <Badge key={`status-${s}`} variant="secondary" className="gap-1.5 h-7 px-2.5 text-xs">
                 {s}
                 <button
                   onClick={() => toggleStatus(s)}
-                  className="ml-0.5 rounded-full hover:bg-foreground/10"
+                  className="ml-0.5 p-1 rounded-full hover:bg-foreground/10 transition-colors"
                 >
                   <X className="size-3" />
                 </button>
@@ -217,11 +217,11 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
             {seriesFilter.map((id) => {
               const name = allSeries.find((s) => s.id === id)?.name ?? id
               return (
-                <Badge key={`series-${id}`} variant="secondary" className="gap-1">
+                <Badge key={`series-${id}`} variant="secondary" className="gap-1.5 h-7 px-2.5 text-xs">
                   {name}
                   <button
                     onClick={() => toggleSeries(id)}
-                    className="ml-0.5 rounded-full hover:bg-foreground/10"
+                    className="ml-0.5 p-1 rounded-full hover:bg-foreground/10 transition-colors"
                   >
                     <X className="size-3" />
                   </button>
@@ -229,11 +229,11 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
               )
             })}
             {hasDateFilter && (
-              <Badge variant="secondary" className="gap-1">
+              <Badge variant="secondary" className="gap-1.5 h-7 px-2.5 text-xs">
                 {dateFrom || "..."} — {dateTo || "..."}
                 <button
                   onClick={() => { onDateFromChange?.(""); onDateToChange?.("") }}
-                  className="ml-0.5 rounded-full hover:bg-foreground/10"
+                  className="ml-0.5 p-1 rounded-full hover:bg-foreground/10 transition-colors"
                 >
                   <X className="size-3" />
                 </button>
