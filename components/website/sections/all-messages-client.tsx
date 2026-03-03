@@ -18,8 +18,10 @@ interface SimpleMessage {
   dateFor: string
   description: string
   youtubeId: string
+  videoUrl: string
   thumbnailUrl: string
   duration: string
+  hasVideo: boolean
   rawTranscript?: string | null
   liveTranscript?: string | null
 }
@@ -348,19 +350,35 @@ function MessageListView({ messages }: { messages: SimpleMessage[] }) {
         >
           {/* Mini thumbnail -- desktop only */}
           <div className="relative w-[120px] aspect-video rounded-[8px] overflow-hidden bg-black-1 shrink-0 hidden sm:block">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`https://img.youtube.com/vi/${message.youtubeId}/mqdefault.jpg`}
-              alt=""
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="flex items-center justify-center rounded-full bg-white-0/80 size-7">
-                <svg viewBox="0 0 24 24" fill="none" className="size-3 ml-0.5 text-black-1">
-                  <path d="M8 5v14l11-7L8 5z" fill="currentColor" />
-                </svg>
+            {message.youtubeId ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`https://img.youtube.com/vi/${message.youtubeId}/mqdefault.jpg`}
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="flex items-center justify-center rounded-full bg-white-0/80 size-7">
+                    <svg viewBox="0 0 24 24" fill="none" className="size-3 ml-0.5 text-black-1">
+                      <path d="M8 5v14l11-7L8 5z" fill="currentColor" />
+                    </svg>
+                  </div>
+                </div>
+              </>
+            ) : message.hasVideo ? (
+              <div className="absolute inset-0 bg-gradient-to-br from-white-2 to-white-1-5 flex items-center justify-center">
+                <div className="flex items-center justify-center rounded-full bg-white-0/80 size-7">
+                  <svg viewBox="0 0 24 24" fill="none" className="size-3 ml-0.5 text-black-1">
+                    <path d="M8 5v14l11-7L8 5z" fill="currentColor" />
+                  </svg>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-white-2 to-white-1-5 flex items-center justify-center">
+                <IconBookOpen className="size-5 text-black-3/40" />
+              </div>
+            )}
           </div>
 
           <div className="flex-1 min-w-0">

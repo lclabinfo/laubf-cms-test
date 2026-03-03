@@ -1,8 +1,9 @@
 /*
  * MessageCard -- Card component for Sunday message/sermon entries
  *
- * Inner-padded card with YouTube thumbnail, series pill, date,
+ * Inner-padded card with video thumbnail, series pill, date,
  * title, speaker, and passage. Hover changes background color.
+ * Supports YouTube thumbnails, Vimeo placeholder, and no-video state.
  */
 import Link from "next/link"
 import { resolveHref } from "@/lib/website/resolve-href"
@@ -16,6 +17,8 @@ interface Message {
   slug: string
   title: string
   youtubeId: string
+  videoUrl?: string
+  hasVideo?: boolean
   speaker: string
   series: string
   passage: string
@@ -38,37 +41,69 @@ function formatDate(dateStr: string) {
 }
 
 export default function MessageCard({ message }: { message: Message }) {
+  const hasYouTube = !!message.youtubeId
+  const hasVimeo = !hasYouTube && !!message.videoUrl
+  const hasAnyVideo = hasYouTube || hasVimeo || message.hasVideo
+
   return (
     <Link
       href={resolveHref(`/messages/${message.slug}`)}
       className="group relative rounded-[24px] p-3 cursor-pointer transition-all duration-300 bg-white-0 hover:bg-white-1-5 hover:-translate-y-0.5 hover:shadow-[0px_8px_16px_0px_rgba(0,0,0,0.06)]"
     >
-      {/* YouTube Thumbnail */}
+      {/* Video Thumbnail */}
       <div className="relative aspect-video rounded-[16px] overflow-hidden bg-black-1">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`https://img.youtube.com/vi/${message.youtubeId}/maxresdefault.jpg`}
-          alt={message.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-        />
-        {/* Dark overlay */}
-        <div className="absolute inset-0 bg-black/20 transition-colors group-hover:bg-black/30" />
-        {/* Play button */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="flex items-center justify-center rounded-full bg-white-0/90 backdrop-blur-sm size-12 transition-transform group-hover:scale-110">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              className="size-5 ml-0.5 text-black-1"
-            >
-              <path d="M8 5v14l11-7L8 5z" fill="currentColor" />
-            </svg>
+        {hasYouTube ? (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`https://img.youtube.com/vi/${message.youtubeId}/maxresdefault.jpg`}
+              alt={message.title}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+            {/* Dark overlay */}
+            <div className="absolute inset-0 bg-black/20 transition-colors group-hover:bg-black/30" />
+          </>
+        ) : hasAnyVideo ? (
+          /* Vimeo or other video -- gradient placeholder */
+          <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a2e] to-[#16213e]" />
+        ) : (
+          /* No video at all */
+          <div className="absolute inset-0 bg-gradient-to-br from-white-2 to-white-1-5" />
+        )}
+
+        {/* Play button (show for any video) */}
+        {hasAnyVideo && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex items-center justify-center rounded-full bg-white-0/90 backdrop-blur-sm size-12 transition-transform group-hover:scale-110">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                className="size-5 ml-0.5 text-black-1"
+              >
+                <path d="M8 5v14l11-7L8 5z" fill="currentColor" />
+              </svg>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* No-video icon */}
+        {!hasAnyVideo && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <IconBookOpen className="size-8 text-black-3/30" />
+          </div>
+        )}
+
         {/* Duration badge */}
         {message.duration && (
           <span className="absolute bottom-2 right-2 bg-black-1/80 text-white-0 text-[12px] font-medium px-2 py-0.5 rounded-[6px]">
             {message.duration}
+          </span>
+        )}
+
+        {/* Vimeo badge */}
+        {hasVimeo && (
+          <span className="absolute top-2 left-2 bg-white-0/80 text-black-1 text-[10px] font-bold px-1.5 py-0.5 rounded-[4px] uppercase tracking-wider backdrop-blur-sm">
+            Vimeo
           </span>
         )}
       </div>

@@ -20,6 +20,13 @@ interface PageProps {
 
 /* ── Helpers ── */
 
+/** Convert a Vimeo watch URL to its embeddable player URL. */
+function toEmbedUrl(url: string): string {
+  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/)
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`
+  return url
+}
+
 function formatDate(date: Date): string {
   return date
     .toLocaleDateString("en-US", {
@@ -100,7 +107,7 @@ export default async function MessageDetailPage({ params }: PageProps) {
           ) : message.videoUrl ? (
             <div className="aspect-video rounded-[24px] overflow-hidden bg-black-1 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]">
               <iframe
-                src={message.videoUrl}
+                src={toEmbedUrl(message.videoUrl)}
                 title={message.title}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen

@@ -32,8 +32,10 @@ export default async function AllMessagesSection({ content, churchId }: Props) {
       dateFor: m.dateFor instanceof Date ? m.dateFor.toISOString().split('T')[0] : String(m.dateFor),
       description: m.description || '',
       youtubeId: m.youtubeId || '',
+      videoUrl: m.videoUrl || '',
       thumbnailUrl: m.thumbnailUrl || (m.youtubeId ? `https://img.youtube.com/vi/${m.youtubeId}/maxresdefault.jpg` : ''),
       duration: m.duration || '',
+      hasVideo: m.hasVideo,
       rawTranscript: m.rawTranscript || undefined,
       liveTranscript: m.liveTranscript || undefined,
     }))
