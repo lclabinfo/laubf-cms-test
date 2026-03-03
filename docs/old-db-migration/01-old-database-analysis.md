@@ -1,6 +1,7 @@
 # Old LA UBF Database Analysis
 
 > Analyzed: 2026-03-02
+> Updated: 2026-03-02 (Korean-only tables marked as excluded from migration)
 > Source: `00_old_laubf_db_dump/` (MySQL 8.0 dump from legacy LA UBF website)
 
 ## Overview
@@ -16,7 +17,9 @@ The legacy LA UBF website uses a MySQL database with a **board-based CMS archite
 
 All `_list` tables share an **identical schema** — they are instances of the same generic board system. The `board_name` column differentiates content types.
 
-## Bible Study Content Tables
+## Bible Study Content Tables (Korean — EXCLUDED from migration)
+
+> **Note:** These three board tables contain Korean-only content and are excluded from migration per user decision. Retained in this analysis for documentation purposes.
 
 ### 1. `a_tn2_BibleStudy_list` — Bible Study Materials
 

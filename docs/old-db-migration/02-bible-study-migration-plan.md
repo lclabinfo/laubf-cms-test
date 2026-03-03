@@ -1,420 +1,299 @@
 # Bible Study Data Migration Plan
 
 > Created: 2026-03-02
-> Status: DRAFT — Awaiting review before implementation
+> Updated: 2026-03-02 (Scoped to English-only content)
+> Status: DRAFT — Research in progress
 
 ## 1. Executive Summary
 
-The legacy LA UBF database contains **~5,000 content entries** across 8 tables. The most important are:
-- **`laubfmaterial`** (1,637 entries) — The primary study materials library with structured bible passage data and DOCX file attachments (questions, notes, manuscripts). Spans 26 years (2000-2026).
-- **`videolist`** (315 entries) — Sermon video catalog with YouTube links, speakers, and passages.
-- **Korean board tables** (~2,838 entries) — BibleStudy Q&A worksheets, Bible66 verse-by-verse expositions, BibleForest book overviews.
+Migrate English-language content from the legacy LA UBF database into the new CMS. Korean-only content (BibleStudy, BibleForest, Bible66 boards) is **excluded** from migration.
 
-### Migration scope (this plan):
+### Migration scope:
 
-**Phase 1 — High Priority (English, structured):**
-- ✅ `laubfmaterial` → `Message` + `BibleStudy` + `BibleStudyAttachment` (1,637 records with document links)
-- ✅ `videolist` → `Message` model (315 video records, joined to laubfmaterial by title+date+passage)
+**Content Migration:**
+- ✅ `laubfmaterial` → `Message` + `BibleStudy` + `BibleStudyAttachment` (1,637 records with DOCX attachments)
+- ✅ `videolist` → `Message` (315 video records, joined to laubfmaterial by title+date+passage)
 
-**Phase 2 — Medium Priority (Korean, HTML content):**
-- ✅ `BibleStudy_list` → `BibleStudy` model (~1,232 Korean Q&A worksheets)
-- ✅ `Bible66_list` → `BibleStudy` model (~1,409 Korean verse-by-verse exposition)
-- ✅ `BibleForest_list` → `BibleStudy` model (~197 Korean book overviews)
+**Infrastructure Migration:**
+- ✅ `bible_nword` → New `BibleVerse` model (~342K rows, 11 translations: 7 English + 3 Korean + 1 Spanish)
+- ✅ `bible_names` / `bible_ename` → Used as reference for book code mapping during migration
 
-**Deferred / Skipped:**
-- ⏭️ `IBSIntro_list` / `IBSMessage_list` → Deferred (5 total entries)
-- ⏭️ `messengers` → Deferred (schedule planner, 247 entries)
-- ❌ `bible_nword` / `bible_enlog2` → NOT migrated (replaced by bible API)
-- ❌ `_cnt` / `_ad` / `_re` tables → NOT migrated (analytics/config/comments, all empty)
-- ❌ `message_list` → NOT migrated (empty table)
+**Speaker Setup:**
+- ✅ Delete all existing People → Replace with deduplicated speakers from migration data
 
-## 2. Current Schema (New System)
+**Excluded (Korean-only):**
+- ❌ `BibleStudy_list` (~1,232 Korean Q&A worksheets) — Korean only
+- ❌ `Bible66_list` (~1,409 Korean exposition) — Korean only
+- ❌ `BibleForest_list` (~197 Korean overviews) — Korean only
+- ❌ `IBSIntro_list` / `IBSMessage_list` — Minimal content (5 entries)
+- ❌ `_cnt` / `_ad` / `_re` / `message_list` — Empty or admin config
 
-### Message Model
-```prisma
-model Message {
-  id               String        @id @default(uuid())
-  churchId         String
-  slug             String
-  title            String
-  passage          String?       // e.g., "John 3:16-21"
-  bibleVersion     String?       @default("ESV")
-  speakerId        String?       // FK to Speaker
-  dateFor          DateTime      @db.Date
-  description      String?
-  videoUrl         String?
-  youtubeId        String?
-  thumbnailUrl     String?
-  duration         String?
-  audioUrl         String?
-  rawTranscript    String?
-  liveTranscript   String?
-  transcriptSegments Json?
-  studySections    Json?
-  attachments      Json?
-  hasVideo         Boolean       @default(false)
-  hasStudy         Boolean       @default(false)
-  status           ContentStatus @default(DRAFT)
-  publishedAt      DateTime?
-  relatedStudyId   String?       // FK to BibleStudy
-  viewCount        Int           @default(0)
-  // ... timestamps
-}
-```
+**Excluded (replaced by local DB):**
+- ❌ External bible-api.com dependency → Replaced by local `bible_nword` data
 
-### BibleStudy Model
-```prisma
-model BibleStudy {
-  id               String        @id @default(uuid())
-  churchId         String
-  slug             String
-  title            String
-  book             BibleBook     // Enum: GENESIS, EXODUS, etc.
-  passage          String        // e.g., "Genesis 1:1-25"
-  datePosted       DateTime      @db.Date
-  dateFor          DateTime      @db.Date
-  seriesId         String?       // FK to Series
-  speakerId        String?       // FK to Speaker
-  questions        String?
-  answers          String?
-  transcript       String?
-  bibleText        String?
-  keyVerseRef      String?
-  keyVerseText     String?
-  hasQuestions      Boolean       @default(false)
-  hasAnswers       Boolean       @default(false)
-  hasTranscript    Boolean       @default(false)
-  relatedMessage   Message?      // via Message.relatedStudyId
-  status           ContentStatus @default(DRAFT)
-  publishedAt      DateTime?
-  // ... timestamps
-}
-```
+## 2. Decisions Log
+
+| # | Decision | Rationale |
+|---|----------|-----------|
+| 1 | No `studyType` field | Use Series model to categorize (Sunday Service, etc.) |
+| 2 | No Korean content migration | English-only scope |
+| 3 | No `language` field | All migrated content is English |
+| 4 | Temporary `legacySourceId` on BibleStudyAttachment | For second-pass file import if files can't be migrated now |
+| 5 | Series from `mtype` / `videotype` | Sunday Service, Wednesday Study, Events, Conference, CBF, JBF, etc. |
+| 6 | Replace bible-api.com with local DB | Import `bible_nword` English translations into PostgreSQL |
+| 7 | Speaker consolidation | Wipe existing People, import deduplicated names from videolist |
+| 8 | File storage TBD | Researching scalable solution for 200+ churches |
 
 ## 3. Field Mapping: Old → New
 
 ### laubfmaterial → Message + BibleStudy + BibleStudyAttachment
 
-This is the **primary migration source**. Each `laubfmaterial` row becomes a `Message` record, and its document attachments become `BibleStudyAttachment` records linked to an auto-created `BibleStudy`.
-
 | Old Field | New Field(s) | Transformation |
 |-----------|-------------|----------------|
-| `no` | — | Used for `legacyId` if enabled |
 | `title` | `Message.title`, `BibleStudy.title` | Direct copy |
 | `passage` | `Message.passage`, `BibleStudy.passage` | Normalize: replace `~` with `-` |
 | `bcode` | `BibleStudy.book` | Map 101-166 → BibleBook enum |
-| `bname` | — | Validation only (redundant with bcode) |
-| `from_chapter`/`to_chapter` | — | Captured in passage string |
 | `mdate` | `Message.dateFor`, `BibleStudy.dateFor/datePosted` | Parse "YYYY/MM/DD" → Date |
-| `mtype` | Series assignment | Map: Sunday→"Sunday Messages", CBF→"CBF", etc. |
-| `doctype1-4` | `BibleStudyAttachment.type` + `name` | Question→PDF/DOCX, Note→PDF/DOCX, etc. |
-| `filename1-4` | `BibleStudyAttachment.name` | Direct copy |
-| `fileurl1-4` | `BibleStudyAttachment.url` | Convert from `/documentation/bible/...` to new storage path |
+| `mtype` | Series assignment | Sunday→"Sunday Service", etc. |
+| `doctype1-4` + `filename1-4` + `fileurl1-4` | `BibleStudyAttachment` records | One attachment per non-null slot |
 | — | `Message.slug` | Generate from title + date |
 | — | `Message.status` | `PUBLISHED` |
-| — | `Message.hasStudy` | `true` (if has question/note docs) |
-| — | `BibleStudy.hasQuestions` | `true` if doctype includes "Question" |
-| — | `BibleStudy.hasAnswers` | `false` (answers not separate in old system) |
+| — | `Message.hasStudy` | `true` if has Question/Note docs |
 
-**Joining with videolist:** After inserting laubfmaterial records as Messages, match with videolist by `title + mdate + passage` to attach YouTube video IDs to the same Message record (set `youtubeId`, `hasVideo=true`).
-
-### videolist → Message
+### videolist → Merge into Message records
 
 | Old Field | New Field | Transformation |
 |-----------|-----------|----------------|
-| `no` | — | Not migrated (new UUID generated) |
-| `title` | `title` | Direct copy |
-| `passage` | `passage` | Direct copy (e.g., "Joshua 23:1~16" → "Joshua 23:1-16", replace `~` with `-`) |
-| `bname` | — | Used to validate passage, not stored separately |
-| `from_chapter`/`to_chapter` | — | Captured in `passage` string |
-| `mdate` | `dateFor` | Parse "YYYY/MM/DD" → Date |
-| `messenger` | `speakerId` | Lookup/create Speaker by name |
-| `videonum` | `youtubeId` / `videoUrl` | Parse: if Vimeo ID → `videoUrl`, if YouTube ID/URL → `youtubeId` |
-| `videotype` | — | Could map to Series (Sunday/Wednesday/Events) |
-| — | `slug` | Generate from title: slugify(title) |
-| — | `status` | `PUBLISHED` |
-| — | `hasVideo` | `true` |
-| — | `bibleVersion` | `null` (unknown) |
-| `no` | `viewCount` | 0 (or could use `hit` from corresponding _cnt table) |
+| `title` | — | Used for matching to laubfmaterial Message |
+| `videonum` | `Message.youtubeId` | Parse YouTube ID from various URL formats |
+| `messenger` | `Message.speakerId` | Lookup Speaker by consolidated name |
+| `mdate` | — | Used for matching |
+| `videotype` | Series | Sunday/Wednesday/Events |
+| — | `Message.hasVideo` | `true` |
 
-### BibleStudy/BibleForest/Bible66 `_list` → BibleStudy
+### bible_nword → BibleVerse (new model)
 
 | Old Field | New Field | Transformation |
 |-----------|-----------|----------------|
-| `no` | — | Not migrated (new UUID generated) |
-| `subject` | `title` | Direct copy |
-| `tbody` | `transcript` | Store full HTML as transcript content |
-| `tbody` | `questions` | Extract from HTML if Q&A sections found (regex) |
-| `tbody` | `answers` | Extract from HTML if Q&A sections found (regex) |
-| `tbody` | `keyVerseRef` / `keyVerseText` | Extract "요절/" pattern from HTML |
-| `tbody` | `book` / `passage` | Extract bible reference from HTML title section |
-| `wdate` | `datePosted` / `dateFor` | Convert Unix timestamp → Date |
-| `name` / `mnick` | `speakerId` | Lookup/create Speaker by name |
-| `board_name` | — | Used to determine Series grouping |
-| `hit` | — | Not migrated (analytics) |
-| `category` | — | Could map to Series or tags |
-| `ufile1`/`ufile2` | `attachments` | Convert to BibleStudyAttachment if files exist |
-| `ulink1`/`ulink2` | `attachments` | Convert to BibleStudyAttachment if links exist |
-| — | `slug` | Generate from title + date |
-| — | `status` | `PUBLISHED` |
-| — | `bibleVersion` | Not in old data |
+| `b_num` | `book` | Map 101-166 → BibleBook enum |
+| `chapter` | `chapter` | Direct copy |
+| `verse` | `verse` | Direct copy |
+| `word` | `text` | Direct copy |
+| `bversion` | `version` | Normalize version code (ESV, NIV, KJV, etc.) |
 
-### Content Extraction from `tbody` HTML
+Only import English translations: ESV, NIV, KJV, NASB, AMP, NLT (skip Korean and Spanish).
 
-The old system stores ALL content in a single HTML blob (`tbody`). Key patterns to extract:
+## 4. Bible Book Code Mapping
 
 ```
-Pattern: <h4>{title}</h4>
-Pattern: <h2 align=center>{theme/subtitle}</h2>
-Pattern: {BookName} {Chapter}:{VerseStart}-{VerseEnd}
-Pattern: 요절/{BookName} {Chapter}:{Verse} "{key verse text}"
-Pattern: <h3>{section_number}. {section_title}</h3>
+101=GENESIS         140=MATTHEW
+102=EXODUS          141=MARK
+103=LEVITICUS       142=LUKE
+104=NUMBERS         143=JOHN
+105=DEUTERONOMY     144=ACTS
+106=JOSHUA          145=ROMANS
+107=JUDGES          146=FIRST_CORINTHIANS
+108=RUTH            147=SECOND_CORINTHIANS
+109=FIRST_SAMUEL    148=GALATIANS
+110=SECOND_SAMUEL   149=EPHESIANS
+111=FIRST_KINGS     150=PHILIPPIANS
+112=SECOND_KINGS    151=COLOSSIANS
+113=FIRST_CHRONICLES 152=FIRST_THESSALONIANS
+114=SECOND_CHRONICLES 153=SECOND_THESSALONIANS
+115=EZRA            154=FIRST_TIMOTHY
+116=NEHEMIAH        155=SECOND_TIMOTHY
+117=ESTHER          156=TITUS
+118=JOB             157=PHILEMON
+119=PSALMS          158=HEBREWS
+120=PROVERBS        159=JAMES
+121=ECCLESIASTES    160=FIRST_PETER
+122=SONG_OF_SOLOMON 161=SECOND_PETER
+123=ISAIAH          162=FIRST_JOHN
+124=JEREMIAH        163=SECOND_JOHN
+125=LAMENTATIONS    164=THIRD_JOHN
+126=EZEKIEL         165=JUDE
+127=DANIEL          166=REVELATION
+128=HOSEA
+129=JOEL
+130=AMOS
+131=OBADIAH
+132=JONAH
+133=MICAH
+134=NAHUM
+135=HABAKKUK
+136=ZEPHANIAH
+137=HAGGAI
+138=ZECHARIAH
+139=MALACHI
 ```
 
-**Extraction strategy:**
-1. Parse book/chapter/verse from the first lines of content
-2. Parse key verse from "요절/" pattern
-3. The rest of the HTML becomes `transcript` content
-4. The `subject` field becomes `title`
+## 5. Speaker Consolidation
 
-## 4. Gap Analysis: Missing Fields in Current Schema
+All existing People records will be deleted and replaced with this deduplicated list from videolist:
 
-### Fields in old data NOT in current schema:
+| Canonical Name | Variations in Old Data |
+|---|---|
+| William Larsen | "William", "William Larsen" |
+| John Kwon | "John Kwon", "John" |
+| David Park | "David Park" |
+| Paul Lim | "Paul Lim", "Dr. Paul Lim", "Paul" |
+| Robert Fishman | "Robert Fishman", "Robert" |
+| David Min | "David Min" |
+| Troy Segale | "Troy Segale" |
+| Augustine Kim | "Augustine Kim" |
+| Frank Holman | "Frank Holman" |
+| Terry Lopez | "Terry Lopez" |
+| Daniel Shim | "Daniel Shim" |
+| Juan Perez | "Juan Perez" |
+| Peace Oh | "Peace Oh" |
+| Jason Koch | "Jason Koch" |
+| John Baik | "John Baik" |
+| Moses Yoon | "Moses Yoon" |
+| Ron Ward | "Ron Ward" |
+| James Park | "James Park" |
+| Timothy Cho | "Timothy Cho" |
+| Joshua Lopez | "Joshua Lopez" |
+| Isiah Pulido | "Isiah Pulido" |
+| Andrew Cuevas | "Andrew Cuevas" |
+| Paul Im | "Paul Im" |
+| Mark Yang | "Mark C Yang" |
 
-| Old Field | Description | Recommendation |
-|-----------|-------------|----------------|
-| `board_name` | Content category (BibleStudy/BibleForest/Bible66) | **QUESTION:** Should we add a `category` or `studyType` field to BibleStudy? Or use Series to group them? |
-| `category` (numeric) | Sub-category within a board | Map to Series if meaningful |
-| `tbody` (full HTML) | Rich formatted content | Current `transcript` is `@db.Text` — fits. But original HTML includes formatting, tables, etc. |
-| `name`/`id`/`mnick` | Author identity | Current schema has `speakerId` FK — need to create Speaker records |
-| `wmail` | Author email | Not in BibleStudy model (but in Person model) |
-| `ufile1`/`ufile2` | Attached files | Current `BibleStudyAttachment` model handles this, but files may no longer be accessible |
-| `ulink1`/`ulink2` | External links | Not in current schema. Could use `attachments` JSON or BibleStudyAttachment |
-| `hit` | View count | Not in BibleStudy model (Message has `viewCount`) |
-| `ip` | Author IP | Not needed |
-| `comment`/`comment2` | Comment counts | No comment system in new CMS |
-| `vote` | Vote count | No voting in new CMS |
-| `secret` | Secret/private flag | Not in current schema |
-| Korean book names | 창세기, 출애굽기, etc. | Current schema uses English BibleBook enum. Need Korean→English mapping |
-| `videotype` | Sunday/Wednesday/Events | Not in Message model. Could use Series |
+Each speaker gets: Person record + Speaker role assignment.
 
-### Recommended Schema Changes
+## 6. Series Organization
 
-> **QUESTION FOR USER:** Please review these proposed changes:
+Create Series from `laubfmaterial.mtype` and `videolist.videotype`:
 
-#### 4a. Add `studyType` enum to BibleStudy?
+| Series Name | Source | Estimated Count |
+|---|---|---|
+| Sunday Service | mtype="Sunday" + videotype="Sunday" | ~1,182 |
+| Wednesday Bible Study | mtype="Wednesday" + videotype="Wednesday" | ~82 |
+| Conference | mtype="Conference" | ~61 |
+| CBF (Children's Bible Fellowship) | mtype="CBF" | ~149 |
+| JBF (Junior Bible Fellowship) | mtype="JBF" | ~91 |
+| Events | videotype="Events" | ~10 |
+| Prayer Meeting | mtype="Prayer" | ~40 |
+| Special Studies | mtype="Genesis", "9 Step", "LBCC GBS", etc. | ~22 |
 
-The old data has 3 distinct bible study categories. Options:
-- **Option A:** Add `studyType` enum (`WEEKLY_STUDY`, `BOOK_OVERVIEW`, `VERSE_COMMENTARY`, `IBS`) to BibleStudy model
-- **Option B:** Use the existing `Series` model to group them (create "Bible Study", "Bible Forest", "Bible 66" series)
-- **Option C:** Don't differentiate — treat all as generic bible studies
+## 7. File Attachment Strategy
 
-#### 4b. Add `contentHtml` field to BibleStudy?
+### File Accessibility (CONFIRMED)
+- Old server at `https://laubf.org` is **live and serving files**
+- DOCX files accessible at `https://laubf.org/documentation/bible/{filename}`
+- Tested: `Mk2d-2019Q.docx` (7.1KB, 200 OK), `Mk2d-2019N.docx` (28KB, 200 OK), `.doc` and `.rtf` also verified
+- **3,266 unique file URLs** across 1,637 laubfmaterial rows (up to 4 files per row)
+- File types: .doc (1,910/58%), .docx (1,268/39%), .rtf (79), .pdf (3), other (6)
+- Some files may return 404 — track failures for manual follow-up
+- **Download urgently** before old server is retired
 
-The old content is rich HTML with tables, formatting, etc. Current schema has:
-- `transcript` (plain text)
-- `questions` / `answers` (plain text)
+### Recommended Storage: Cloudflare R2
+- Zero egress fees (critical for file serving at scale)
+- S3-compatible API, built-in CDN
+- Cost: ~$3/month for 200 churches × 2,000 files × 500KB avg
+- Multi-tenant via `{churchId}/` prefix
+- Project already uses Cloudflare (see `docs/cloudflare-cdn-setup.md`)
 
-Options:
-- **Option A:** Add `contentHtml` Text field to preserve original HTML formatting
-- **Option B:** Store HTML in `transcript` field (repurpose it)
-- **Option C:** Strip HTML to plain text during migration
+### Temporary Approach
+Until R2 is set up:
+1. Add temporary `legacySourceId` column to `BibleStudyAttachment` (maps to `laubfmaterial.no`)
+2. Store the original `fileurl` path in `BibleStudyAttachment.url`
+3. Mark attachment records as `pendingMigration` (or use a flag)
+4. **REMINDER FOR FUTURE**: Run a second-pass migration to download files from old server and re-upload to new storage
 
-#### 4c. Add `language` field?
+### Scalable Storage Solution
+Research in progress — evaluating Cloudflare R2, AWS S3, Vercel Blob for 200+ church scalability.
 
-Most old content is Korean. Current schema doesn't have a language field.
-- **Option A:** Add `language` field to BibleStudy (e.g., 'ko', 'en')
-- **Option B:** Don't add — assume content language from church context
+> **⚠️ TEMPORARY COLUMN**: `BibleStudyAttachment.legacySourceId` is a migration artifact. Remove after file migration is complete. This column maps back to `laubfmaterial.no` in the old MySQL database for second-pass file imports.
 
-#### 4d. Add `legacyId` field for traceability?
+## 8. Bible Text Database (Replacing External API)
 
-- **Option A:** Add `legacyId` Int field to BibleStudy and Message for mapping back to old `no` values
-- **Option B:** Don't add — one-time migration, no ongoing sync needed
+### Current Problem
+- `lib/bible-api.ts` fetches from bible-api.com (only supports KJV, ASV, WEB, YLT natively)
+- ESV is the default version but silently falls back to KJV — misleading
+- NIV, NASB, NLT, AMP are listed in UI but not actually available
 
-#### 4e. Video message type?
+### Solution: Import `bible_nword` into PostgreSQL
+The old database has a complete local Bible text database with 12 translations including ESV, NIV, KJV, NASB, AMP, NLT.
 
-The `videotype` field (Sunday/Wednesday/Events) is useful categorization.
-- **Option A:** Create Series records for "Sunday Messages", "Wednesday Messages", "Events" and link videos to them
-- **Option B:** Add a `messageType` field to Message model
+1. Create new `BibleVerse` Prisma model
+2. Import ~186K English verses (31,102 verses × 6 translations)
+3. Refactor `lib/bible-api.ts` to query local PostgreSQL instead of external API
+4. Update bible version dropdown to show actually available translations
+5. Fix study detail page to use local data
 
-## 5. Bible Book Name Mapping
+### Translations to Import (ALL — Bible is a global service)
 
-The old system uses a numeric book numbering system (101-166) with Korean names. We need to map to our `BibleBook` enum.
+Bible text is not tenant-scoped content — it's a shared reference service. Import all available translations to future-proof for Korean/Spanish-speaking churches.
 
-```
-101=GENESIS (창세기)    140=MATTHEW (마태복음)
-102=EXODUS (출애굽기)   141=MARK (마가복음)
-103=LEVITICUS (레위기)  142=LUKE (누가복음)
-104=NUMBERS (민수기)    143=JOHN (요한복음)
-105=DEUTERONOMY (신명기) 144=ACTS (사도행전)
-...                     ...
-139=MALACHI (말라기)    166=REVELATION (요한계시록)
-```
+| Version | Code | Language | Rows | Notes |
+|---|---|---|---|---|
+| ESV | ESV | English | 31,086 | Primary default |
+| NIV | NIV | English | 31,103 | Most popular (2011 edition) |
+| KJV | KJV | English | 31,101 | Public domain classic |
+| NASB | NASB | English | 31,103 | Literal translation |
+| NLT | NLT | English | 31,080 | Easy reading |
+| AMP | AMP | English | 31,103 | Amplified |
+| NIV(1984) | NIV1984 | English | 31,102 | Legacy edition, kept for reference |
+| 개역개정 | 개역개정 | Korean | 31,099 | Korean Revised Version |
+| 새번역 | 새번역 | Korean | 31,088 | New Korean Standard |
+| 바른성경 | 바른성경 | Korean | 31,102 | Korean Correct Bible |
+| RVR1960 | RVR1960 | Spanish | 31,102 | Reina-Valera 1960 |
+| **Total** | | | **~342,000** | **~64MB in PostgreSQL** |
 
-The mapping table is already available in `bible_names` (198 rows, Korean+English+Spanish). We'll build a lookup map from Korean book names → BibleBook enum values.
+Skip: NIV1 (duplicate of NIV 2011)
 
-## 6. Speaker Resolution
+The `version` column is a String, so adding new translations in the future requires only data insertion — no schema migration.
 
-Old data has author names in `name`/`mnick`/`messenger` fields. These need to map to the `Speaker` model.
+The UI version dropdown will initially show the 6 primary English versions (ESV, NIV, KJV, NASB, NLT, AMP). Korean and Spanish versions can be exposed per-church when needed.
 
-### Known speakers from videolist:
-- William Larsen (most frequent)
-- John Kwon
-- David Park
-- Paul Lim / Dr. Paul Lim
-- Robert Fishman / Robert
-- David Min
-- Troy Segale
-- Augustine Kim
-- Frank Holman
-- Terry Lopez
-- Daniel Shim
-- Juan Perez
-- Peace Oh
-- Jason Koch
-- John Baik
-- Moses Yoon
-- Ron Ward
-- James Park
-- Timothy Cho
-- Joshua Lopez
-- Isiah Pulido
-- Andrew Cuevas
+## 9. Migration Execution Plan
 
-### Known authors from Korean bible studies:
-- 전요한 (John Jeon)
-- john66
-- joseph / Joseph3
-- Prayer (username)
-- bible (username)
-- Various others
+### Phase 0: Schema & Infrastructure
+1. [ ] Add `BibleVerse` model to Prisma schema
+2. [ ] Add temporary `legacySourceId` to `BibleStudyAttachment`
+3. [ ] Run Prisma migration
+4. [ ] Import `bible_nword` English translations into BibleVerse table
+5. [ ] Refactor `lib/bible-api.ts` to use local DB
+6. [ ] Delete `docs/bible-api-research.md` ✅ (done)
 
-**Strategy:** Create Speaker records for each unique name. For Korean studies, create speakers from the `name` field. For videos, use the `messenger` field. Deduplicate where possible.
+### Phase 1: Speakers & Series Setup
+1. [ ] Delete all existing People records
+2. [ ] Create Person + Speaker role for each canonical speaker name
+3. [ ] Create Series records from Section 6
 
-## 7. Migration Execution Plan
+### Phase 2: laubfmaterial → Message + BibleStudy (1,637 records)
+1. [ ] Parse SQL dump, skip non-English entries if any
+2. [ ] For each entry: create Message, create BibleStudy (linked), create BibleStudyAttachment records
+3. [ ] Assign to Series based on `mtype`
+4. [ ] Store `laubfmaterial.no` in `BibleStudyAttachment.legacySourceId`
 
-### Phase 0: Preparation (no data changes)
-1. [ ] Review and approve schema changes (Section 4 questions)
-2. [ ] Create Prisma migration for any approved schema changes
-3. [ ] Build bible book code mapping: `bcode` (101-166) → `BibleBook` enum
-4. [ ] Build Korean→English bible book name mapping (from `bible_names` table)
-5. [ ] Build speaker name deduplication mapping (normalize "William" → "William Larsen" etc.)
-6. [ ] Verify accessibility of old file URLs (`/documentation/bible/*.docx`)
+### Phase 3: videolist → Merge into Messages (315 records)
+1. [ ] Parse SQL dump
+2. [ ] Match to existing Messages by title+date+passage
+3. [ ] Set youtubeId, hasVideo=true on matched Messages
+4. [ ] Create new Messages for unmatched videos
+5. [ ] Assign speakers from `messenger` field
 
-### Phase 1: laubfmaterial → Message + BibleStudy (PRIMARY, 1,637 records)
-This is the richest data source with structured fields AND document attachments.
-1. [ ] Parse `laubfmaterial` SQL dump
-2. [ ] Create/resolve Speaker records (deduplicate names)
-3. [ ] Create Series records from `mtype`: "Sunday Messages", "CBF Bible Study", "JBF Bible Study", "Conference Messages", "Prayer Meeting", "Wednesday Study", etc.
-4. [ ] For each `laubfmaterial` entry:
-   a. Create `Message` record: title, passage (normalized), dateFor, status=PUBLISHED
-   b. Map `bcode` → BibleBook enum
-   c. Create `BibleStudy` record linked via `Message.relatedStudyId`
-   d. Set `hasStudy=true`, `hasQuestions` based on doctype slots
-   e. Create `BibleStudyAttachment` records for each non-null filename/fileurl pair
-   f. Assign to appropriate Series based on `mtype`
-   g. Generate unique slugs
-5. [ ] Verify: 1,637 Message + BibleStudy pairs created
+### Phase 4: Verification
+1. [ ] Verify total counts
+2. [ ] Spot-check random entries
+3. [ ] Test CMS Messages page
+4. [ ] Test public website study detail pages
+5. [ ] Test bible version switching (local DB)
 
-### Phase 2: videolist → Merge into existing Messages (315 records)
-Join video data into Messages created in Phase 1.
-1. [ ] Parse `videolist` SQL dump
-2. [ ] For each video entry:
-   a. Parse `videonum` → YouTube ID (handle Vimeo IDs, YouTube URLs, YouTube live URLs)
-   b. Match to existing Message by title + date + passage (fuzzy matching)
-   c. If match found: update Message with `youtubeId`, `videoUrl`, `hasVideo=true`
-   d. If no match: create new Message with video data only
-3. [ ] Resolve speaker names from `messenger` field → Speaker records
-4. [ ] Create "Sunday Messages", "Wednesday Messages", "Events" Series if not already created
-5. [ ] Verify: ~315 Messages now have video data
-
-### Phase 3: Korean Board Tables → BibleStudy (2,838 records)
-Import Korean study content as standalone BibleStudy records (no Message link).
-1. [ ] Parse `BibleStudy_list` SQL dump (~1,232 Q&A worksheets)
-   - Use `user_add2` for bible book code, `user_add3` for chapter
-   - Store `tbody` HTML in transcript or contentHtml field
-   - Extract key verse from "요절/" pattern
-2. [ ] Parse `Bible66_list` SQL dump (~1,409 verse-by-verse expositions)
-   - Use `user_add2` for bible book code, `user_add3` for chapter, `user_add1` for part number
-   - Store full exposition HTML
-3. [ ] Parse `BibleForest_list` SQL dump (~197 book overviews)
-   - Use `user_add4`/`user_add5`/`user_add6` for chapter ranges
-   - Store overview HTML
-4. [ ] Create Series: "성경공부 (Bible Study)", "성경66권 강해 (Bible 66)", "성경숲 (Bible Forest)"
-5. [ ] Generate unique slugs, set status=PUBLISHED
-6. [ ] Verify: ~2,838 BibleStudy records created
-
-### Phase 4: Verification & Cleanup
-1. [ ] Run full migration script in dev environment
-2. [ ] Verify total counts:
-   - ~1,637 Messages from laubfmaterial
-   - ~315 with video data from videolist
-   - ~4,475 total BibleStudy records (1,637 linked + 2,838 standalone)
-3. [ ] Spot-check 10 random entries per source for data accuracy
-4. [ ] Verify CMS Messages page displays migrated content
-5. [ ] Verify public website study detail pages render correctly
-6. [ ] Check for encoding issues (Korean text, HTML entities)
-7. [ ] Verify BibleStudyAttachment URLs resolve correctly
-
-## 8. Technical Implementation
-
-### Migration Script Approach
-
-**Recommended:** TypeScript migration script (similar to `prisma/seed.mts`)
-
-```
-scripts/migrate-legacy-bible-data.ts
-```
-
-The script will:
-1. Read SQL dump files and parse INSERT statements
-2. Build lookup tables (book names, speakers)
-3. Use Prisma client to insert records in batches
-4. Handle duplicates gracefully (upsert or skip)
-5. Log progress and errors
-
-### SQL Parsing Strategy
-
-The dump files contain single-line INSERT statements with all records. Strategy:
-1. Extract the INSERT VALUES portion
-2. Split on `),( ` pattern (careful with escaped content)
-3. Parse each record's fields by position
-4. Handle escaped quotes and special characters in HTML content
-
-### Alternative: Direct MySQL → PostgreSQL
-
-If parsing SQL dumps proves too complex (due to HTML escaping), we could:
-1. Load dumps into a temporary MySQL database
-2. Query MySQL directly from the migration script
-3. Transform and insert into PostgreSQL via Prisma
-
-## 9. Open Questions for User
-
-### Schema Questions
-1. **Content categorization:** Should we add a `studyType` field to BibleStudy, use Series, or treat all as generic? (Section 4a)
-2. **HTML preservation:** Should we add a `contentHtml` field, store in `transcript`, or strip to plain text? (Section 4b) — The Korean board content is rich HTML with tables, footnotes, and structured formatting.
-3. **Language field:** Add explicit `language` field? (Section 4c) — ~2,838 entries are Korean, ~1,952 are English.
-4. **Legacy ID tracking:** Add `legacyId` for traceability? (Section 4d)
-5. **Video types → Series:** Create Sunday/Wednesday/Events series from videolist + laubfmaterial mtypes? (Section 4e)
-
-### Data Questions
-6. **File attachments:** The `laubfmaterial` table has 1,637 rows with DOCX file references at `/documentation/bible/`. Are these files still accessible on the old server? Should we download and re-host them? This is the most valuable structured data.
-7. **laubfmaterial scope:** Should we import ALL 1,637 laubfmaterial entries (including CBF, JBF, Conference, Prayer meeting materials), or focus only on Sunday messages (~1,182)?
-8. **Korean content display:** The CMS is English-oriented. How should ~2,838 Korean-language bible studies appear? Separate section? Mixed with English? Different Series?
-9. **Reply/comment data:** All `_re` tables are empty. Confirmed skip.
-10. **messengers table:** The weekly schedule planner (247 entries) — skip or use for speaker/date validation?
-
-### Priority Questions
-11. **Phase 1 scope:** Start with `laubfmaterial` (1,637 structured records with documents) + `videolist` (315 video records)? This gives us the richest, most display-ready content.
-12. **Phase 2 timing:** Import Korean board tables in same release or defer to a later sprint?
+### Phase 5: File Migration (DEFERRED — second pass)
+1. [ ] Set up scalable file storage (R2/S3/etc.)
+2. [ ] Download files from old server using `legacySourceId` → `laubfmaterial.fileurl*` mapping
+3. [ ] Upload to new storage, update `BibleStudyAttachment.url`
+4. [ ] Remove `legacySourceId` column after migration complete
 
 ## 10. Risk Assessment
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
-| HTML parsing errors | Data corruption | Test parser on sample data first; manual review |
-| Korean encoding issues | Garbled text | Ensure UTF-8 throughout pipeline |
-| Duplicate speakers | Messy speaker list | Build dedup mapping before migration |
-| Missing bible passages | Can't set BibleBook enum | Default to a "UNCATEGORIZED" approach or require manual fix |
-| Large data volume (~3,200 records) | Slow migration | Batch inserts, progress logging |
-| Old file URLs broken | Missing attachments | Pre-check URL accessibility |
+| SQL parsing errors | Data loss | Test parser on sample data first |
+| Duplicate Messages | Double entries | Match laubfmaterial↔videolist before insertion |
+| Speaker name mismatches | Wrong attribution | Build dedup mapping upfront |
+| Missing bible passages (bcode=0) | Can't set BibleBook | Default to generic or skip |
+| Old files inaccessible | No attachments | legacySourceId enables second-pass |
+| bible_nword licensing | Legal risk for NIV/ESV | These translations were already in old system; same church usage |
