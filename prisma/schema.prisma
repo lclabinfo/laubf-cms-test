@@ -754,17 +754,18 @@ enum BibleBook {
 }
 
 model BibleStudyAttachment {
-  id           String         @id @default(uuid()) @db.Uuid
-  bibleStudyId String         @db.Uuid
-  name         String
-  url          String
-  type         AttachmentType
-  fileSize     Int?
-  sortOrder    Int            @default(0)
+  id              String         @id @default(uuid()) @db.Uuid
+  bibleStudyId    String         @db.Uuid
+  name            String
+  url             String
+  type            AttachmentType
+  fileSize        Int?
+  sortOrder       Int            @default(0)
+  legacySourceId  Int?           /// TEMPORARY: maps to laubfmaterial.no for file migration second-pass. Remove after files are migrated to cloud storage.
 
-  createdAt    DateTime       @default(now())
+  createdAt       DateTime       @default(now())
 
-  bibleStudy   BibleStudy     @relation(fields: [bibleStudyId], references: [id], onDelete: Cascade)
+  bibleStudy      BibleStudy     @relation(fields: [bibleStudyId], references: [id], onDelete: Cascade)
 
   @@index([bibleStudyId])
 }
@@ -772,8 +773,31 @@ model BibleStudyAttachment {
 enum AttachmentType {
   PDF
   DOCX
+  DOC
+  RTF
   IMAGE
   OTHER
+}
+
+// ─── Bible Text ──────────────────────────────────────────────────────
+// Global bible text database (not tenant-scoped). Serves scripture text
+// for study detail pages. Imported from legacy bible_nword MySQL table.
+// 11 translations: ESV, NIV, KJV, NLT, NASB, AMP, NIV1984 (English),
+// 개역개정, 새번역, 바른성경 (Korean), RVR1960 (Spanish).
+
+model BibleVerse {
+  id      Int       @id @default(autoincrement())
+  book    BibleBook
+  chapter Int
+  verse   Int
+  text    String    @db.Text
+  version String    @db.VarChar(10)
+
+  @@unique([version, book, chapter, verse])
+  @@index([book, chapter, verse, version])
+  @@index([version, book, chapter])
+
+  @@map("bible_verses")
 }
 
 model Video {
