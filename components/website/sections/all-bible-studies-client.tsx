@@ -151,7 +151,7 @@ export default function AllBibleStudiesClient({ studies, heading }: Props) {
         seriesMap.set(s.series, { name: s.series, count: 1, lastDate: s.dateFor })
       }
     })
-    return Array.from(seriesMap.values()).sort((a, b) => b.lastDate.localeCompare(a.lastDate))
+    return Array.from(seriesMap.values()).sort((a, b) => b.count - a.count)
   }, [studies])
 
   const bookCounts = useMemo(() => {
@@ -416,12 +416,14 @@ function StudyListView({ studies }: { studies: BibleStudy[] }) {
         >
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-1">
-              <span className="bg-white-2 px-[8px] py-[4px] rounded-[6px] text-[11px] font-medium text-black-3 tracking-[0.22px] shrink-0">
-                {study.series}
-              </span>
               <span className="text-[13px] text-black-3 whitespace-nowrap">
                 {formatDate(study.dateFor)}
               </span>
+              {study.series && (
+                <span className="bg-white-2 px-[8px] py-[4px] rounded-[6px] text-[11px] font-medium text-black-3 tracking-[0.22px] shrink-0">
+                  {study.series}
+                </span>
+              )}
             </div>
             <h3 className="text-[18px] font-medium text-black-1 mb-1 sm:truncate">
               {study.title}
