@@ -70,7 +70,7 @@ export async function resolveSectionData(
               series: message.messageSeries?.[0]?.series?.name?.toUpperCase() || '',
               thumbnailUrl: message.thumbnailUrl ||
                 (message.youtubeId
-                  ? `https://img.youtube.com/vi/${message.youtubeId}/maxresdefault.jpg`
+                  ? `https://img.youtube.com/vi/${message.youtubeId}/hqdefault.jpg`
                   : null),
               videoUrl: message.youtubeId
                 ? `https://www.youtube.com/watch?v=${message.youtubeId}`
@@ -153,7 +153,7 @@ export async function resolveSectionData(
               id: v.id,
               title: v.title,
               thumbnailUrl: v.youtubeId
-                ? `https://img.youtube.com/vi/${v.youtubeId}/maxresdefault.jpg`
+                ? `https://img.youtube.com/vi/${v.youtubeId}/hqdefault.jpg`
                 : null,
               youtubeId: v.youtubeId || '',
               duration: v.duration || '',
@@ -180,7 +180,7 @@ export async function resolveSectionData(
               dateFor: m.dateFor instanceof Date ? m.dateFor.toISOString().split('T')[0] : String(m.dateFor),
               description: m.description || '',
               youtubeId: m.youtubeId || '',
-              thumbnailUrl: m.thumbnailUrl || (m.youtubeId ? `https://img.youtube.com/vi/${m.youtubeId}/maxresdefault.jpg` : ''),
+              thumbnailUrl: m.thumbnailUrl || (m.youtubeId ? `https://img.youtube.com/vi/${m.youtubeId}/hqdefault.jpg` : ''),
               duration: m.duration || '',
             })),
           },
@@ -244,7 +244,7 @@ export async function resolveSectionData(
               id: v.id,
               title: v.title,
               thumbnailUrl: v.youtubeId
-                ? `https://img.youtube.com/vi/${v.youtubeId}/maxresdefault.jpg`
+                ? `https://img.youtube.com/vi/${v.youtubeId}/hqdefault.jpg`
                 : null,
               youtubeId: v.youtubeId || '',
               duration: v.duration || '',

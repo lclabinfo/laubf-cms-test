@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import { ContentStatus, Prisma } from '@/lib/generated/prisma/client'
+import { Prisma } from '@/lib/generated/prisma/client'
 import { paginationArgs, paginatedResult, type PaginationParams, type PaginatedResult } from './types'
 
 type MessageWithRelations = Prisma.MessageGetPayload<{
@@ -32,7 +32,10 @@ export type MessageFilters = {
   speakerId?: string
   seriesId?: string
   search?: string
-  status?: ContentStatus | null // null = all statuses, undefined = default (PUBLISHED)
+  /** When true, only return messages with at least one published resource */
+  publishedOnly?: boolean
+  /** When true, only return messages where video is published */
+  videoPublished?: boolean
 }
 
 export async function getMessages(
@@ -40,12 +43,12 @@ export async function getMessages(
   filters?: MessageFilters & PaginationParams,
 ): Promise<PaginatedResult<MessageWithRelations>> {
   const { skip, take, page, pageSize } = paginationArgs(filters)
-  const status = filters?.status === null ? undefined : (filters?.status ?? ContentStatus.PUBLISHED)
 
   const where: Prisma.MessageWhereInput = {
     churchId,
     deletedAt: null,
-    ...(status !== undefined && { status }),
+    ...(filters?.videoPublished && { hasVideo: true }),
+    ...(filters?.publishedOnly && !filters?.videoPublished && { OR: [{ hasVideo: true }, { hasStudy: true }] }),
     ...(filters?.speakerId && { speakerId: filters.speakerId }),
     ...(filters?.seriesId && {
       messageSeries: { some: { seriesId: filters.seriesId } },
@@ -78,9 +81,15 @@ export async function getMessages(
 export async function getMessageBySlug(
   churchId: string,
   slug: string,
+  { publishedOnly = true }: { publishedOnly?: boolean } = {},
 ): Promise<MessageDetail | null> {
   return prisma.message.findFirst({
-    where: { churchId, slug, deletedAt: null, status: ContentStatus.PUBLISHED },
+    where: {
+      churchId,
+      slug,
+      deletedAt: null,
+      ...(publishedOnly ? { hasVideo: true } : {}),
+    },
     include: messageDetailInclude,
   })
 }
@@ -89,7 +98,7 @@ export async function getLatestMessage(
   churchId: string,
 ): Promise<MessageWithRelations | null> {
   return prisma.message.findFirst({
-    where: { churchId, deletedAt: null, status: ContentStatus.PUBLISHED },
+    where: { churchId, deletedAt: null, hasVideo: true },
     include: messageListInclude,
     orderBy: { dateFor: 'desc' },
   })

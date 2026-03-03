@@ -4,7 +4,6 @@ import { createContext, useContext, useState, useCallback, useEffect, useMemo, t
 import type {
   Series,
   Message,
-  MessageStatus,
   StudySection,
 } from "./messages-data"
 
@@ -25,20 +24,6 @@ interface MessagesContextValue {
 const MessagesContext = createContext<MessagesContextValue | null>(null)
 
 // --- Adapter: API response -> CMS Message type ---
-
-const statusFromApi: Record<string, MessageStatus> = {
-  PUBLISHED: "published",
-  DRAFT: "draft",
-  SCHEDULED: "scheduled",
-  ARCHIVED: "archived",
-}
-
-const statusToApi: Record<string, string> = {
-  published: "PUBLISHED",
-  draft: "DRAFT",
-  scheduled: "SCHEDULED",
-  archived: "ARCHIVED",
-}
 
 // Synthesize studySections from BibleStudy data when Message.studySections is null
 // (legacy migrated entries store content in BibleStudy.questions/answers/transcript)
@@ -91,11 +76,10 @@ function apiMessageToCms(apiMsg: any): Message {
     seriesId: (apiMsg.messageSeries ?? []).length > 0 ? apiMsg.messageSeries[0].series.id : null,
     date: apiMsg.dateFor ? new Date(apiMsg.dateFor).toISOString().slice(0, 10) : "",
     publishedAt: apiMsg.publishedAt ? new Date(apiMsg.publishedAt).toISOString() : undefined,
-    status: statusFromApi[apiMsg.status] ?? "draft",
     hasVideo: apiMsg.hasVideo ?? false,
     hasStudy: apiMsg.hasStudy ?? false,
-    videoPublished: apiMsg.videoPublished ?? (apiMsg.hasVideo && apiMsg.status === "PUBLISHED"),
-    studyPublished: apiMsg.studyPublished ?? (apiMsg.hasStudy && apiMsg.status === "PUBLISHED"),
+    videoPublished: apiMsg.hasVideo ?? false,
+    studyPublished: apiMsg.hasStudy ?? false,
     videoUrl,
     videoDescription: apiMsg.videoDescription ?? undefined,
     youtubeId: apiMsg.youtubeId ?? undefined,
@@ -133,13 +117,12 @@ function cmsMessageToApiCreate(data: Omit<Message, "id">) {
     bibleVersion: data.bibleVersion || "ESV",
     description: data.description || null,
     dateFor: data.date ? new Date(data.date + "T00:00:00").toISOString() : new Date().toISOString(),
-    status: statusToApi[data.status] ?? "DRAFT",
     hasVideo: data.videoPublished,
     hasStudy: data.studyPublished,
     videoUrl: data.videoUrl || null,
     videoDescription: data.videoDescription || null,
     youtubeId: youtubeId || data.youtubeId || null,
-    thumbnailUrl: data.thumbnailUrl || (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg` : null),
+    thumbnailUrl: data.thumbnailUrl || (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : null),
     duration: data.duration || null,
     audioUrl: data.audioUrl || null,
     rawTranscript: data.rawTranscript || null,
@@ -161,7 +144,6 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
   if (data.bibleVersion !== undefined) payload.bibleVersion = data.bibleVersion || "ESV"
   if (data.description !== undefined) payload.description = data.description || null
   if (data.date !== undefined) payload.dateFor = new Date(data.date + "T00:00:00").toISOString()
-  if (data.status !== undefined) payload.status = statusToApi[data.status] ?? "DRAFT"
   if (data.hasVideo !== undefined) payload.hasVideo = data.hasVideo
   if (data.hasStudy !== undefined) payload.hasStudy = data.hasStudy
   // Map per-content publish state to the DB fields:
@@ -174,7 +156,6 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
     const sp = data.studyPublished ?? false
     payload.hasVideo = vp
     payload.hasStudy = sp
-    payload.status = (vp || sp) ? "PUBLISHED" : "DRAFT"
   }
   if (data.videoUrl !== undefined) {
     payload.videoUrl = data.videoUrl || null
@@ -182,7 +163,7 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
     const ytId = data.videoUrl ? extractYouTubeId(data.videoUrl) : null
     if (ytId) {
       payload.youtubeId = ytId
-      payload.thumbnailUrl = `https://img.youtube.com/vi/${ytId}/maxresdefault.jpg`
+      payload.thumbnailUrl = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
     }
   }
   if (data.videoDescription !== undefined) payload.videoDescription = data.videoDescription || null
@@ -215,7 +196,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
         setError(null)
 
         const [messagesRes, seriesRes] = await Promise.all([
-          fetch("/api/v1/messages?pageSize=10000&status="),
+          fetch("/api/v1/messages?pageSize=10000"),
           fetch("/api/v1/series"),
         ])
 
@@ -415,44 +396,40 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateMessage = useCallback((id: string, data: Partial<Omit<Message, "id">>) => {
-    // Capture pre-update snapshot for rollback, then optimistic update
+    // Capture pre-update snapshot (including original slug) for rollback + API call
     let snapshot: Message | undefined
     setMessages((prev) => {
       snapshot = prev.find((m) => m.id === id)
       return prev.map((m) => (m.id === id ? { ...m, ...data } : m))
     })
 
-    // Find the message slug from current state
-    setMessages((prev) => {
-      const msg = prev.find((m) => m.id === id)
-      if (!msg?.slug) return prev
+    // Use the original slug (before optimistic update) for the API call
+    const originalSlug = snapshot?.slug
+    if (!originalSlug) return
 
-      fetch(`/api/v1/messages/${msg.slug}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(cmsMessageToApiUpdate(data)),
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error(`Failed to update message (${res.status})`)
-          return res.json()
-        })
-        .then((json) => {
-          if (json.success && json.data) {
-            setMessages((p) =>
-              p.map((m) => (m.id === id ? apiMessageToCms(json.data) : m))
-            )
-          }
-        })
-        .catch((err) => {
-          console.error("updateMessage error:", err)
-          // Rollback to snapshot
-          if (snapshot) {
-            setMessages((p) => p.map((m) => (m.id === id ? snapshot! : m)))
-          }
-        })
-
-      return prev // no state change in this call, just reading slug
+    fetch(`/api/v1/messages/${originalSlug}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(cmsMessageToApiUpdate(data)),
     })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to update message (${res.status})`)
+        return res.json()
+      })
+      .then((json) => {
+        if (json.success && json.data) {
+          setMessages((p) =>
+            p.map((m) => (m.id === id ? apiMessageToCms(json.data) : m))
+          )
+        }
+      })
+      .catch((err) => {
+        console.error("updateMessage error:", err)
+        // Rollback to snapshot
+        if (snapshot) {
+          setMessages((p) => p.map((m) => (m.id === id ? snapshot! : m)))
+        }
+      })
   }, [])
 
   const deleteMessage = useCallback((id: string) => {

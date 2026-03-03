@@ -41,9 +41,9 @@ function formatDate(dateStr: string) {
 }
 
 export default function MessageCard({ message }: { message: Message }) {
-  const hasYouTube = !!message.youtubeId
-  const hasVimeo = !hasYouTube && !!message.videoUrl
-  const hasAnyVideo = hasYouTube || hasVimeo || message.hasVideo
+  const hasYouTube = message.hasVideo && !!message.youtubeId
+  const hasVimeo = message.hasVideo && !hasYouTube && !!message.videoUrl
+  const hasAnyVideo = message.hasVideo && (hasYouTube || hasVimeo)
 
   return (
     <Link
@@ -56,7 +56,7 @@ export default function MessageCard({ message }: { message: Message }) {
           <>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={`https://img.youtube.com/vi/${message.youtubeId}/maxresdefault.jpg`}
+              src={`https://img.youtube.com/vi/${message.youtubeId}/hqdefault.jpg`}
               alt={message.title}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             />

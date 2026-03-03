@@ -94,7 +94,7 @@ export default async function MessageDetailPage({ params }: PageProps) {
         {/* ── Left column: Video + Metadata ── */}
         <div>
           {/* YouTube Embed */}
-          {message.youtubeId ? (
+          {message.hasVideo && message.youtubeId ? (
             <div className="aspect-video rounded-[24px] overflow-hidden bg-black-1 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]">
               <iframe
                 src={`https://www.youtube.com/embed/${message.youtubeId}`}
@@ -104,7 +104,7 @@ export default async function MessageDetailPage({ params }: PageProps) {
                 className="w-full h-full"
               />
             </div>
-          ) : message.videoUrl ? (
+          ) : message.hasVideo && message.videoUrl ? (
             <div className="aspect-video rounded-[24px] overflow-hidden bg-black-1 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]">
               <iframe
                 src={toEmbedUrl(message.videoUrl)}

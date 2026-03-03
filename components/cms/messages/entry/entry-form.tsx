@@ -11,7 +11,6 @@ import {
   Upload,
   X,
   FileText,
-  Clock,
   Info,
   ArrowRight,
   Paperclip,
@@ -63,11 +62,9 @@ import {
 } from "@/components/ui/tooltip"
 import { BIBLE_VERSIONS, DEFAULT_BIBLE_VERSION } from "@/lib/bible-versions"
 import { useMessages } from "@/lib/messages-context"
-import { statusDisplay } from "@/lib/status"
 import { isTiptapContentEmpty } from "@/lib/tiptap"
 import type {
   Message,
-  MessageStatus,
   TranscriptSegment,
   StudySection,
   Attachment,
@@ -83,17 +80,14 @@ interface ValidationIssue {
   message: string
 }
 
-const statusOptions: MessageStatus[] = ["draft", "published", "archived"]
-
 export function EntryForm({ mode, message }: EntryFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const pathname = usePathname()
-  const { series, addMessage, updateMessage } = useMessages()
+  const { series, addSeries, addMessage, updateMessage } = useMessages()
 
   // Shared metadata
   const [title, setTitle] = useState(message?.title ?? "")
-  const [status, setStatus] = useState<MessageStatus>(message?.status ?? "draft")
   const [date, setDate] = useState(message?.date ?? new Date().toISOString().slice(0, 10))
   const [speaker, setSpeaker] = useState(message?.speaker ?? "")
   const [speakerId, setSpeakerId] = useState<string | undefined>(message?.speakerId)
@@ -202,20 +196,14 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     if (!videoContentExists && !studyContentExists) {
       issues.push({ field: "Content", message: "At least a video or bible study is required" })
     }
-    if (status === "scheduled" && !publishedAt) {
-      issues.push({ field: "Scheduled Post Date", message: "A post date and time is required for scheduling" })
-    }
-
     return issues
   }
 
   function buildMessageData(): Omit<Message, "id"> {
-    // Derive wrapper status from per-content publish state
-    const derivedStatus: MessageStatus = (videoPublished || studyPublished) ? "published" : "draft"
-
     // Auto-set publishedAt when first publishing
+    const isPublished = videoPublished || studyPublished
     let finalPublishedAt = publishedAt || undefined
-    if (derivedStatus === "published" && !finalPublishedAt) {
+    if (isPublished && !finalPublishedAt) {
       finalPublishedAt = new Date().toISOString()
     }
 
@@ -230,7 +218,6 @@ export function EntryForm({ mode, message }: EntryFormProps) {
       seriesId,
       date,
       publishedAt: finalPublishedAt,
-      status: derivedStatus,
       hasVideo,
       hasStudy,
       videoPublished,
@@ -280,13 +267,6 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     setValidationOpen(false)
     // Need to save with next tick after state updates
     setTimeout(() => saveMessage(true), 0)
-  }
-
-  function handleUnarchive() {
-    setStatus("draft")
-    setVideoPublished(false)
-    setStudyPublished(false)
-    saveMessage()
   }
 
   function handleCancel() {
@@ -412,11 +392,6 @@ export function EntryForm({ mode, message }: EntryFormProps) {
               <Button variant="outline" onClick={handleCancel}>
                 Cancel
               </Button>
-              {status === "archived" && (
-                <Button variant="outline" onClick={handleUnarchive}>
-                  Unarchive
-                </Button>
-              )}
               <Button onClick={handleSave} disabled={!canSave || !isDirty}>
                 Save Changes
               </Button>
@@ -488,97 +463,15 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                 />
               </div>
 
-              {/* Speaker + Message Date */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Speaker <span className="text-destructive">*</span></Label>
-                  <SpeakerSelect
-                    value={speaker}
-                    onChange={(name, id) => {
-                      setSpeaker(name)
-                      setSpeakerId(id)
-                    }}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Message Date <span className="text-destructive">*</span></Label>
-                  <DatePicker
-                    value={date}
-                    onChange={setDate}
-                    placeholder="When was this message delivered?"
-                  />
-                </div>
+              {/* Message Date */}
+              <div className="space-y-2">
+                <Label>Message Date <span className="text-destructive">*</span></Label>
+                <DatePicker
+                  value={date}
+                  onChange={setDate}
+                  placeholder="When was this message delivered?"
+                />
               </div>
-
-              {/* Status + Bible Version */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
-                  <Select value={status} onValueChange={(v) => setStatus(v as MessageStatus)}>
-                    <SelectTrigger id="status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {statusOptions.map((s) => {
-                        const config = statusDisplay[s]
-                        return (
-                          <SelectItem key={s} value={s}>
-                            <div className="flex items-center gap-2">
-                              <Badge variant={config.variant} className="text-[10px] px-1.5 py-0">
-                                {config.label}
-                              </Badge>
-                            </div>
-                          </SelectItem>
-                        )
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bible-version">Bible Version</Label>
-                  <Select value={bibleVersion} onValueChange={setBibleVersion}>
-                    <SelectTrigger id="bible-version">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BIBLE_VERSIONS.map((v) => (
-                        <SelectItem key={v.code} value={v.code}>
-                          {v.abbreviation} - {v.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Scheduled Post Date + Time (conditional) */}
-              {status === "scheduled" && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>
-                      Scheduled Post Date
-                      <span className="text-destructive"> *</span>
-                    </Label>
-                    <DatePicker
-                      value={publishDate}
-                      onChange={handlePublishDateChange}
-                      placeholder="When should this be posted?"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Scheduled Post Time</Label>
-                    <div className="flex items-center gap-2">
-                      <Clock className="size-3.5 text-muted-foreground" />
-                      <Input
-                        type="time"
-                        value={publishTime}
-                        onChange={(e) => handlePublishTimeChange(e.target.value)}
-                        className="w-32 h-9"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
 
               {/* Series + Scripture Passage */}
               <div className="grid grid-cols-2 gap-4">
@@ -588,6 +481,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                     series={series}
                     selectedId={seriesId}
                     onChange={setSeriesId}
+                    onCreateSeries={(name) => addSeries({ name })}
                   />
                 </div>
                 <div className="space-y-2">
@@ -708,6 +602,18 @@ export function EntryForm({ mode, message }: EntryFormProps) {
               onRawTranscriptChange={setRawTranscript}
               segments={transcriptSegments}
               onSegmentsChange={setTranscriptSegments}
+              speakerSlot={
+                <div className="space-y-2">
+                  <Label>Speaker <span className="text-destructive">*</span></Label>
+                  <SpeakerSelect
+                    value={speaker}
+                    onChange={(name, id) => {
+                      setSpeaker(name)
+                      setSpeakerId(id)
+                    }}
+                  />
+                </div>
+              }
             />
           </div>
         </TabsContent>
@@ -753,6 +659,23 @@ export function EntryForm({ mode, message }: EntryFormProps) {
             <StudyTab
               sections={studySections}
               onSectionsChange={setStudySections}
+              bibleVersionSlot={
+                <div className="space-y-2">
+                  <Label htmlFor="bible-version">Bible Version</Label>
+                  <Select value={bibleVersion} onValueChange={setBibleVersion}>
+                    <SelectTrigger id="bible-version">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BIBLE_VERSIONS.map((v) => (
+                        <SelectItem key={v.code} value={v.code}>
+                          {v.abbreviation} - {v.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              }
             />
           </div>
         </TabsContent>
@@ -923,7 +846,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
               Required fields missing
             </AlertDialogTitle>
             <AlertDialogDescription>
-              The following fields are required to {status === "scheduled" ? "schedule" : "publish"} this message:
+              The following fields are required to publish this message:
             </AlertDialogDescription>
           </AlertDialogHeader>
 

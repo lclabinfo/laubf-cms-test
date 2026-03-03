@@ -10,9 +10,11 @@ import type { StudySection } from "@/lib/messages-data"
 interface StudyTabProps {
   sections: StudySection[]
   onSectionsChange: (sections: StudySection[]) => void
+  /** Bible version selector — lives on the Study tab since it's about study materials */
+  bibleVersionSlot?: React.ReactNode
 }
 
-export function StudyTab({ sections, onSectionsChange }: StudyTabProps) {
+export function StudyTab({ sections, onSectionsChange, bibleVersionSlot }: StudyTabProps) {
   function handleContentChange(id: string, content: string) {
     onSectionsChange(
       sections.map((s) => (s.id === id ? { ...s, content } : s))
@@ -60,16 +62,19 @@ export function StudyTab({ sections, onSectionsChange }: StudyTabProps) {
 
   if (sections.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
-        <FileText className="size-12 text-muted-foreground/50 mb-4" />
-        <h3 className="text-lg font-medium">No Bible Study Material</h3>
-        <p className="text-muted-foreground text-sm mt-1 max-w-sm">
-          Add questions and answers for this message&apos;s bible study.
-        </p>
-        <Button variant="outline" className="mt-4" onClick={handleAddQuestionsAndAnswers}>
-          <Plus className="size-3.5" />
-          Add Questions & Answers
-        </Button>
+      <div className="space-y-6">
+        {bibleVersionSlot}
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
+          <FileText className="size-12 text-muted-foreground/50 mb-4" />
+          <h3 className="text-lg font-medium">No Bible Study Material</h3>
+          <p className="text-muted-foreground text-sm mt-1 max-w-sm">
+            Add questions and answers for this message&apos;s bible study.
+          </p>
+          <Button variant="outline" className="mt-4" onClick={handleAddQuestionsAndAnswers}>
+            <Plus className="size-3.5" />
+            Add Questions & Answers
+          </Button>
+        </div>
       </div>
     )
   }
@@ -78,6 +83,7 @@ export function StudyTab({ sections, onSectionsChange }: StudyTabProps) {
 
   return (
     <div className="space-y-4">
+      {bibleVersionSlot}
       <Tabs defaultValue={defaultTab} key={defaultTab}>
         <TabsList variant="line">
           {sections.map((section) => (
@@ -93,7 +99,7 @@ export function StudyTab({ sections, onSectionsChange }: StudyTabProps) {
             <div className="flex items-center gap-2">
               <h3 className="text-sm font-medium flex-1">{section.title}</h3>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => handleImportDocx(section.id)}
               >

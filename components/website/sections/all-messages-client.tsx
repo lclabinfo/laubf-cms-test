@@ -350,7 +350,7 @@ function MessageListView({ messages }: { messages: SimpleMessage[] }) {
         >
           {/* Mini thumbnail -- desktop only */}
           <div className="relative w-[120px] aspect-video rounded-[8px] overflow-hidden bg-black-1 shrink-0 hidden sm:block">
-            {message.youtubeId ? (
+            {message.hasVideo && message.youtubeId ? (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img

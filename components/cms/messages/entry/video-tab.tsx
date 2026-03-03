@@ -19,6 +19,8 @@ interface VideoTabProps {
   onRawTranscriptChange: (value: string) => void
   segments: TranscriptSegment[]
   onSegmentsChange: (segments: TranscriptSegment[]) => void
+  /** Speaker field — lives on the Video tab since it's about who delivered the sermon */
+  speakerSlot?: React.ReactNode
 }
 
 function extractYouTubeId(url: string): string | null {
@@ -43,6 +45,7 @@ export function VideoTab({
   onRawTranscriptChange,
   segments,
   onSegmentsChange,
+  speakerSlot,
 }: VideoTabProps) {
   const [urlInput, setUrlInput] = useState(videoUrl)
   const [checked, setChecked] = useState(!!videoUrl)
@@ -133,6 +136,9 @@ export function VideoTab({
           </p>
         </div>
       )}
+
+      {/* Speaker */}
+      {speakerSlot}
 
       {/* Content shown only after URL is verified */}
       {checked && videoUrl && (

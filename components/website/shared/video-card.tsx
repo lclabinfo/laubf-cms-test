@@ -41,7 +41,7 @@ export default function VideoCard({
       <div className="relative aspect-video rounded-[16px] overflow-hidden bg-white-1-5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={`https://img.youtube.com/vi/${video.youtubeId}/maxresdefault.jpg`}
+          src={`https://img.youtube.com/vi/${video.youtubeId}/hqdefault.jpg`}
           alt={video.title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />

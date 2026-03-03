@@ -16,7 +16,7 @@ interface Props {
 export default async function AllMessagesSection({ content, churchId }: Props) {
   try {
     const [messagesResult, speakers, series] = await Promise.all([
-      getMessages(churchId, { pageSize: 200 }),
+      getMessages(churchId, { pageSize: 200, videoPublished: true }),
       getSpeakers(churchId),
       getAllSeries(churchId),
     ])
@@ -33,7 +33,7 @@ export default async function AllMessagesSection({ content, churchId }: Props) {
       description: m.description || '',
       youtubeId: m.youtubeId || '',
       videoUrl: m.videoUrl || '',
-      thumbnailUrl: m.thumbnailUrl || (m.youtubeId ? `https://img.youtube.com/vi/${m.youtubeId}/maxresdefault.jpg` : ''),
+      thumbnailUrl: m.thumbnailUrl || (m.youtubeId ? `https://img.youtube.com/vi/${m.youtubeId}/hqdefault.jpg` : ''),
       duration: m.duration || '',
       hasVideo: m.hasVideo,
       rawTranscript: m.rawTranscript || undefined,
