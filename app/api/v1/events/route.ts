@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
     if (body.locationType !== undefined) data.locationType = body.locationType
     if (body.location !== undefined) data.location = body.location
     if (body.address !== undefined) data.address = body.address
+    if (body.directionsUrl !== undefined) data.directionsUrl = body.directionsUrl
     if (body.meetingUrl !== undefined) data.meetingUrl = body.meetingUrl
     if (body.shortDescription !== undefined) data.shortDescription = body.shortDescription
     if (body.description !== undefined) data.description = body.description
@@ -139,6 +140,7 @@ export async function POST(request: NextRequest) {
     if (body.recurrenceEndDate != null) data.recurrenceEndDate = new Date(body.recurrenceEndDate)
     if (body.recurrenceEndAfter !== undefined) data.recurrenceEndAfter = body.recurrenceEndAfter
     if (body.customRecurrence !== undefined) data.customRecurrence = body.customRecurrence
+    if (body.monthlyRecurrenceType !== undefined) data.monthlyRecurrenceType = body.monthlyRecurrenceType
     if (body.recurrenceSchedule !== undefined) data.recurrenceSchedule = body.recurrenceSchedule
     if (body.badge !== undefined) data.badge = body.badge
     if (body.capacity !== undefined) data.capacity = body.capacity

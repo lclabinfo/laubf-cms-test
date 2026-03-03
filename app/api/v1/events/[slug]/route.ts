@@ -85,6 +85,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (body.locationType !== undefined) data.locationType = body.locationType
     if (body.location !== undefined) data.location = body.location
     if (body.address !== undefined) data.address = body.address
+    if (body.directionsUrl !== undefined) data.directionsUrl = body.directionsUrl
     if (body.meetingUrl !== undefined) data.meetingUrl = body.meetingUrl
     if (body.shortDescription !== undefined) data.shortDescription = body.shortDescription
     if (body.description !== undefined) data.description = body.description
@@ -105,6 +106,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (body.recurrenceEndDate !== undefined) data.recurrenceEndDate = body.recurrenceEndDate ? new Date(body.recurrenceEndDate) : null
     if (body.recurrenceEndAfter !== undefined) data.recurrenceEndAfter = body.recurrenceEndAfter
     if (body.customRecurrence !== undefined) data.customRecurrence = body.customRecurrence
+    if (body.monthlyRecurrenceType !== undefined) data.monthlyRecurrenceType = body.monthlyRecurrenceType
     if (body.recurrenceSchedule !== undefined) data.recurrenceSchedule = body.recurrenceSchedule
     if (body.badge !== undefined) data.badge = body.badge
     if (body.links !== undefined) data.links = body.links

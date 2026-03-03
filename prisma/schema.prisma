@@ -512,6 +512,7 @@ model Event {
   locationType       LocationType  @default(IN_PERSON)
   location           String?
   address            String?
+  directionsUrl      String?
   latitude           Decimal?      @db.Decimal(10, 8)
   longitude          Decimal?      @db.Decimal(11, 8)
   meetingUrl         String?
@@ -552,6 +553,7 @@ model Event {
   recurrenceEndDate  DateTime?     @db.Date
   recurrenceEndAfter Int?
   customRecurrence   Json?         @db.JsonB
+  monthlyRecurrenceType String?
   recurrenceSchedule String?
 
   // Publishing

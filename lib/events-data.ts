@@ -82,6 +82,7 @@ export type ChurchEvent = {
   imageAlt?: string
   tags: string[]
   registrationUrl?: string
+  capacity?: number
   links: EventLink[]
 }
 
