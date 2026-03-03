@@ -241,14 +241,15 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
     cell: ({ row }) => {
       const hasVideo = row.original.hasVideo
       const isPublished = row.original.status === "published"
-      const badge = hasVideo && isPublished
-        ? <Badge variant="success">Live</Badge>
-        : hasVideo
-        ? <Badge variant="secondary">Draft</Badge>
-        : <Badge variant="outline">Empty</Badge>
       return (
         <div className="flex items-center gap-1.5">
-          {badge}
+          {hasVideo && isPublished ? (
+            <Badge variant="success">Live</Badge>
+          ) : hasVideo ? (
+            <Badge variant="secondary">Ready</Badge>
+          ) : (
+            <span className="text-muted-foreground text-xs">&mdash;</span>
+          )}
           <Button
             variant="ghost"
             size="icon-sm"
@@ -272,14 +273,15 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
     cell: ({ row }) => {
       const hasStudy = row.original.hasStudy
       const isPublished = row.original.status === "published"
-      const badge = hasStudy && isPublished
-        ? <Badge variant="success">Live</Badge>
-        : hasStudy
-        ? <Badge variant="secondary">Draft</Badge>
-        : <Badge variant="outline">Empty</Badge>
       return (
         <div className="flex items-center gap-1.5">
-          {badge}
+          {hasStudy && isPublished ? (
+            <Badge variant="success">Live</Badge>
+          ) : hasStudy ? (
+            <Badge variant="secondary">Ready</Badge>
+          ) : (
+            <span className="text-muted-foreground text-xs">&mdash;</span>
+          )}
           <Button
             variant="ghost"
             size="icon-sm"

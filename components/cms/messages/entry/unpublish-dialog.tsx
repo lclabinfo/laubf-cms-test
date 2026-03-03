@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Video, BookOpen } from "lucide-react"
+import { Video, BookOpen, Info } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -14,47 +14,55 @@ import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-interface PublishDialogProps {
+interface UnpublishDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  title: string
   hasVideo: boolean
   hasStudy: boolean
   videoSummary: string
   studySummary: string
-  onPublish: (options: { publishVideo: boolean; publishStudy: boolean }) => void
+  onUnpublish: (options: {
+    unpublishVideo: boolean
+    unpublishStudy: boolean
+    revertToDraft: boolean
+  }) => void
 }
 
-export function PublishDialog({
+export function UnpublishDialog({
   open,
   onOpenChange,
-  title,
   hasVideo,
   hasStudy,
   videoSummary,
   studySummary,
-  onPublish,
-}: PublishDialogProps) {
-  const [publishVideo, setPublishVideo] = useState(hasVideo)
-  const [publishStudy, setPublishStudy] = useState(hasStudy)
+  onUnpublish,
+}: UnpublishDialogProps) {
+  // Toggles represent "keep live" — ON = stays on public site, OFF = take offline
+  const [keepVideoLive, setKeepVideoLive] = useState(true)
+  const [keepStudyLive, setKeepStudyLive] = useState(true)
 
-  // Reset toggle state when dialog opens
   useEffect(() => {
     if (open) {
-      setPublishVideo(hasVideo)
-      setPublishStudy(hasStudy)
+      setKeepVideoLive(hasVideo)
+      setKeepStudyLive(hasStudy)
     }
   }, [open, hasVideo, hasStudy])
 
-  const noneSelected = !publishVideo && !publishStudy
+  // Nothing changed — both still live
+  const nothingChanged =
+    (keepVideoLive === hasVideo) && (keepStudyLive === hasStudy)
+
+  // Everything will be taken offline
+  const willRevertToDraft =
+    (!keepVideoLive || !hasVideo) && (!keepStudyLive || !hasStudy)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Publish Message</DialogTitle>
+          <DialogTitle>Manage Published Content</DialogTitle>
           <DialogDescription>
-            Choose which content to make live on the public site.
+            Toggle off content you want to remove from the public site.
           </DialogDescription>
         </DialogHeader>
 
@@ -63,7 +71,7 @@ export function PublishDialog({
           <div
             className={cn(
               "flex items-center justify-between rounded-lg border p-3.5 transition-colors",
-              publishVideo
+              keepVideoLive
                 ? "border-green-200 bg-green-50 dark:border-green-700/50 dark:bg-green-900/30"
                 : "border-border bg-muted/40"
             )}
@@ -82,13 +90,13 @@ export function PublishDialog({
             <div className="flex items-center gap-2">
               <span className={cn(
                 "text-xs font-medium",
-                publishVideo ? "text-green-700 dark:text-green-400" : "text-muted-foreground"
+                keepVideoLive ? "text-green-700 dark:text-green-400" : "text-muted-foreground"
               )}>
-                {publishVideo ? "Live" : "Skip"}
+                {keepVideoLive ? "Live" : "Offline"}
               </span>
               <Switch
-                checked={publishVideo}
-                onCheckedChange={setPublishVideo}
+                checked={keepVideoLive}
+                onCheckedChange={setKeepVideoLive}
                 disabled={!hasVideo}
               />
             </div>
@@ -98,7 +106,7 @@ export function PublishDialog({
           <div
             className={cn(
               "flex items-center justify-between rounded-lg border p-3.5 transition-colors",
-              publishStudy
+              keepStudyLive
                 ? "border-green-200 bg-green-50 dark:border-green-700/50 dark:bg-green-900/30"
                 : "border-border bg-muted/40"
             )}
@@ -117,39 +125,38 @@ export function PublishDialog({
             <div className="flex items-center gap-2">
               <span className={cn(
                 "text-xs font-medium",
-                publishStudy ? "text-green-700 dark:text-green-400" : "text-muted-foreground"
+                keepStudyLive ? "text-green-700 dark:text-green-400" : "text-muted-foreground"
               )}>
-                {publishStudy ? "Live" : "Skip"}
+                {keepStudyLive ? "Live" : "Offline"}
               </span>
               <Switch
-                checked={publishStudy}
-                onCheckedChange={setPublishStudy}
+                checked={keepStudyLive}
+                onCheckedChange={setKeepStudyLive}
                 disabled={!hasStudy}
               />
             </div>
           </div>
 
-          {/* Summary block */}
+          {/* Result summary */}
           <div className="rounded-lg border bg-muted/50 px-3.5 py-3 text-sm leading-relaxed">
-            <div
-              className={cn(
-                publishVideo ? "text-green-700 dark:text-green-400" : "text-muted-foreground"
-              )}
-            >
-              {publishVideo ? "\u2713 Video will be published" : "\u2014 Video not included"}
-            </div>
-            <div
-              className={cn(
-                publishStudy ? "text-green-700 dark:text-green-400" : "text-muted-foreground"
-              )}
-            >
-              {publishStudy
-                ? "\u2713 Bible Study will be published"
-                : "\u2014 Bible Study not included"}
-            </div>
-            {noneSelected && (
-              <div className="mt-1 text-amber-600 dark:text-amber-400">
-                Select at least one content type
+            {hasVideo && (
+              <div className={cn(
+                keepVideoLive ? "text-green-700 dark:text-green-400" : "text-foreground"
+              )}>
+                {keepVideoLive ? "\u2713 Video stays live" : "\u2717 Video will go offline"}
+              </div>
+            )}
+            {hasStudy && (
+              <div className={cn(
+                keepStudyLive ? "text-green-700 dark:text-green-400" : "text-foreground"
+              )}>
+                {keepStudyLive ? "\u2713 Bible Study stays live" : "\u2717 Bible Study will go offline"}
+              </div>
+            )}
+            {willRevertToDraft && (
+              <div className="mt-2 flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-medium">
+                <Info className="size-3.5" />
+                Message will revert to Draft
               </div>
             )}
           </div>
@@ -160,11 +167,16 @@ export function PublishDialog({
             Cancel
           </Button>
           <Button
-            disabled={noneSelected}
-            className="bg-green-600 hover:bg-green-700 text-white"
-            onClick={() => onPublish({ publishVideo, publishStudy })}
+            disabled={nothingChanged}
+            onClick={() =>
+              onUnpublish({
+                unpublishVideo: hasVideo && !keepVideoLive,
+                unpublishStudy: hasStudy && !keepStudyLive,
+                revertToDraft: willRevertToDraft,
+              })
+            }
           >
-            Publish Selected
+            Save Changes
           </Button>
         </DialogFooter>
       </DialogContent>

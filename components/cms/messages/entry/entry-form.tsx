@@ -370,7 +370,20 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                   />
                 </div>
               )}
-              <Badge variant={statusConfig.variant} className="shrink-0">{statusConfig.label}</Badge>
+              {status === "published" ? (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Badge variant={hasVideo ? "success" : "outline"} className="gap-1">
+                    <Video className="size-3" />
+                    {hasVideo ? "Video Live" : "No Video"}
+                  </Badge>
+                  <Badge variant={hasStudy ? "success" : "outline"} className="gap-1">
+                    <BookOpen className="size-3" />
+                    {hasStudy ? "Study Live" : "No Study"}
+                  </Badge>
+                </div>
+              ) : (
+                <Badge variant={statusConfig.variant} className="shrink-0">{statusConfig.label}</Badge>
+              )}
             </div>
             <div className="flex items-center gap-2 ml-auto shrink-0">
               <Button variant="outline" onClick={handleCancel}>
