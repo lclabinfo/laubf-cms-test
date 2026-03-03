@@ -197,7 +197,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     if (!date) {
       issues.push({ field: "Date", message: "A date is required" })
     }
-    if (!hasContent) {
+    if (!videoContentExists && !studyContentExists) {
       issues.push({ field: "Content", message: "At least a video or bible study is required" })
     }
     if (status === "scheduled" && !publishedAt) {
