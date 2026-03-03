@@ -37,6 +37,10 @@ export type Message = {
   status: MessageStatus
   hasVideo: boolean
   hasStudy: boolean
+  /** Whether the video content is published on the public site */
+  videoPublished: boolean
+  /** Whether the bible study content is published on the public site */
+  studyPublished: boolean
   // Detail fields (populated when editing)
   videoUrl?: string
   videoDescription?: string

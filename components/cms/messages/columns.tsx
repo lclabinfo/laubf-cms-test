@@ -240,13 +240,13 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
     header: "Video",
     cell: ({ row }) => {
       const hasVideo = row.original.hasVideo
-      const isPublished = row.original.status === "published"
+      const isLive = row.original.videoPublished
       return (
         <div className="flex items-center gap-1.5">
-          {hasVideo && isPublished ? (
-            <Badge variant="success">Live</Badge>
+          {isLive ? (
+            <Badge variant="success">Published</Badge>
           ) : hasVideo ? (
-            <Badge variant="secondary">Ready</Badge>
+            <Badge variant="secondary">Draft</Badge>
           ) : (
             <span className="text-muted-foreground text-xs">&mdash;</span>
           )}
@@ -272,13 +272,13 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
     header: "Study",
     cell: ({ row }) => {
       const hasStudy = row.original.hasStudy
-      const isPublished = row.original.status === "published"
+      const isLive = row.original.studyPublished
       return (
         <div className="flex items-center gap-1.5">
-          {hasStudy && isPublished ? (
-            <Badge variant="success">Live</Badge>
+          {isLive ? (
+            <Badge variant="success">Published</Badge>
           ) : hasStudy ? (
-            <Badge variant="secondary">Ready</Badge>
+            <Badge variant="secondary">Draft</Badge>
           ) : (
             <span className="text-muted-foreground text-xs">&mdash;</span>
           )}

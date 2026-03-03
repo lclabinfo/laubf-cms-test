@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useMemo } from "react"
+import { useState, useRef, useMemo, useEffect, useCallback } from "react"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import Link from "next/link"
 import {
@@ -54,8 +54,13 @@ import { StudyTab } from "./study-tab"
 import { SpeakerSelect } from "./speaker-select"
 import { SeriesSelect } from "./series-select"
 import { BiblePassageInput } from "./bible-passage-input"
-import { PublishDialog } from "./publish-dialog"
-import { UnpublishDialog } from "./unpublish-dialog"
+import { Switch } from "@/components/ui/switch"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { BIBLE_VERSIONS, DEFAULT_BIBLE_VERSION } from "@/lib/bible-versions"
 import { useMessages } from "@/lib/messages-context"
 import { statusDisplay } from "@/lib/status"
@@ -117,13 +122,14 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     message?.studySections ?? []
   )
 
+  // Per-content publish state
+  const [videoPublished, setVideoPublished] = useState(message?.videoPublished ?? false)
+  const [studyPublished, setStudyPublished] = useState(message?.studyPublished ?? false)
+
   // Validation dialog state
   const [validationOpen, setValidationOpen] = useState(false)
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([])
 
-  // Publish dialog state
-  const [publishOpen, setPublishOpen] = useState(false)
-  const [unpublishOpen, setUnpublishOpen] = useState(false)
 
   // Attachment file input
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -132,12 +138,23 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const initialTab = searchParams.get("tab") || "details"
   const [activeTab, setActiveTab] = useState(initialTab)
 
-  const statusConfig = statusDisplay[status]
+  // Content detection (does content exist, separate from publish state)
+  const videoContentExists = !!videoUrl
+  const studyContentExists = studySections.length > 0 && studySections.some((s) => !isTiptapContentEmpty(s.content))
 
-  // Content detection
-  const hasVideo = !!videoUrl
-  const hasStudy = studySections.length > 0 && studySections.some((s) => !isTiptapContentEmpty(s.content))
-  const hasContent = hasVideo || hasStudy
+  // For backward compat with API — hasVideo/hasStudy mean "content exists"
+  const hasVideo = videoContentExists
+  const hasStudy = studyContentExists
+
+  // Derive per-content status for display
+  const videoState = videoPublished ? "published" as const : videoContentExists ? "draft" as const : "empty" as const
+  const studyState = studyPublished ? "published" as const : studyContentExists ? "draft" as const : "empty" as const
+
+  // Auto-unpublish if content was removed
+  useEffect(() => {
+    if (!videoContentExists && videoPublished) setVideoPublished(false)
+    if (!studyContentExists && studyPublished) setStudyPublished(false)
+  }, [videoContentExists, studyContentExists, videoPublished, studyPublished])
 
   // Parse publishedAt into date and time parts
   const publishDate = publishedAt ? publishedAt.split("T")[0] : ""
@@ -189,9 +206,12 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   }
 
   function buildMessageData(): Omit<Message, "id"> {
-    // Auto-set publishedAt for publishing if not already set
+    // Derive wrapper status from per-content publish state
+    const derivedStatus: MessageStatus = (videoPublished || studyPublished) ? "published" : "draft"
+
+    // Auto-set publishedAt when first publishing
     let finalPublishedAt = publishedAt || undefined
-    if (status === "published" && !finalPublishedAt) {
+    if (derivedStatus === "published" && !finalPublishedAt) {
       finalPublishedAt = new Date().toISOString()
     }
 
@@ -206,9 +226,11 @@ export function EntryForm({ mode, message }: EntryFormProps) {
       seriesId,
       date,
       publishedAt: finalPublishedAt,
-      status,
+      status: derivedStatus,
       hasVideo,
       hasStudy,
+      videoPublished,
+      studyPublished,
       videoUrl: videoUrl || undefined,
       videoDescription: videoDescription || undefined,
       duration: duration || undefined,
@@ -221,15 +243,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     }
   }
 
-  function saveMessage(overrideStatus?: MessageStatus, publishOptions?: { publishVideo: boolean; publishStudy: boolean }, navigate = false) {
+  function saveMessage(navigate = false) {
     const data = buildMessageData()
-    if (overrideStatus) data.status = overrideStatus
-
-    // When publishing/unpublishing, use the dialog's toggle selections for hasVideo/hasStudy
-    if (publishOptions) {
-      data.hasVideo = publishOptions.publishVideo
-      data.hasStudy = publishOptions.publishStudy
-    }
 
     if (mode === "create") {
       addMessage(data)
@@ -240,38 +255,23 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     }
   }
 
-  function handlePublishClick() {
-    const issues = getPublishValidationIssues()
-    if (issues.length > 0) {
-      setValidationIssues(issues)
-      setValidationOpen(true)
-      return
-    }
-    setPublishOpen(true)
-  }
-
-  function handleSaveAsDraft() {
-    setStatus("draft")
-    setValidationOpen(false)
-    saveMessage("draft", undefined, true)
-  }
-
   function handleSave() {
     saveMessage()
   }
 
-  function handleUnpublishClick() {
-    setUnpublishOpen(true)
-  }
-
-  function handleUnschedule() {
-    setStatus("draft")
-    saveMessage("draft")
+  function handleSaveAsDraft() {
+    setVideoPublished(false)
+    setStudyPublished(false)
+    setValidationOpen(false)
+    // Need to save with next tick after state updates
+    setTimeout(() => saveMessage(true), 0)
   }
 
   function handleUnarchive() {
     setStatus("draft")
-    saveMessage("draft")
+    setVideoPublished(false)
+    setStudyPublished(false)
+    saveMessage()
   }
 
   function handleCancel() {
@@ -322,12 +322,15 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     transcriptSegments: message?.transcriptSegments ?? [],
     studySections: message?.studySections ?? [],
     attachments: message?.attachments ?? [],
+    videoPublished: message?.videoPublished ?? false,
+    studyPublished: message?.studyPublished ?? false,
   }), []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentSnapshot = JSON.stringify({
     title, description, speaker, speakerId, seriesId, passage, bibleVersion,
     date, publishedAt, videoUrl, videoDescription, duration, audioUrl,
     rawTranscript, liveTranscript, transcriptSegments, studySections, attachments,
+    videoPublished, studyPublished,
   })
 
   const isDirty = initialSnapshot !== currentSnapshot
@@ -370,67 +373,35 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                   />
                 </div>
               )}
-              {status === "published" ? (
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <Badge variant={hasVideo ? "success" : "outline"} className="gap-1">
-                    <Video className="size-3" />
-                    {hasVideo ? "Video Live" : "No Video"}
-                  </Badge>
-                  <Badge variant={hasStudy ? "success" : "outline"} className="gap-1">
-                    <BookOpen className="size-3" />
-                    {hasStudy ? "Study Live" : "No Study"}
-                  </Badge>
-                </div>
-              ) : (
-                <Badge variant={statusConfig.variant} className="shrink-0">{statusConfig.label}</Badge>
-              )}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Badge
+                  variant={videoState === "published" ? "success" : videoState === "draft" ? "secondary" : "outline"}
+                  className="gap-1"
+                >
+                  <Video className="size-3" />
+                  {videoState === "published" ? "Video Live" : videoState === "draft" ? "Video Draft" : "No Video"}
+                </Badge>
+                <Badge
+                  variant={studyState === "published" ? "success" : studyState === "draft" ? "secondary" : "outline"}
+                  className="gap-1"
+                >
+                  <BookOpen className="size-3" />
+                  {studyState === "published" ? "Study Live" : studyState === "draft" ? "Study Draft" : "No Study"}
+                </Badge>
+              </div>
             </div>
             <div className="flex items-center gap-2 ml-auto shrink-0">
               <Button variant="outline" onClick={handleCancel}>
                 Cancel
               </Button>
-
-              {status === "draft" ? (
-                <>
-                  <Button variant="outline" onClick={handleSaveAsDraft} disabled={!canSave}>
-                    Save Draft
-                  </Button>
-                  <Button
-                    onClick={handlePublishClick}
-                    disabled={!canSave}
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                  >
-                    Publish...
-                  </Button>
-                </>
-              ) : status === "published" ? (
-                <>
-                  <Button variant="outline" onClick={handleUnpublishClick}>
-                    Unpublish...
-                  </Button>
-                  <Button onClick={handleSave} disabled={!canSave || !isDirty}>
-                    Save Changes
-                  </Button>
-                </>
-              ) : status === "scheduled" ? (
-                <>
-                  <Button variant="outline" onClick={handleUnschedule}>
-                    Unschedule
-                  </Button>
-                  <Button onClick={handleSave} disabled={!canSave || !isDirty}>
-                    Save Changes
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button variant="outline" onClick={handleUnarchive}>
-                    Unarchive
-                  </Button>
-                  <Button onClick={handleSave} disabled={!canSave || !isDirty}>
-                    Save Changes
-                  </Button>
-                </>
+              {status === "archived" && (
+                <Button variant="outline" onClick={handleUnarchive}>
+                  Unarchive
+                </Button>
               )}
+              <Button onClick={handleSave} disabled={!canSave || !isDirty}>
+                Save
+              </Button>
             </div>
           </div>
 
@@ -443,11 +414,13 @@ export function EntryForm({ mode, message }: EntryFormProps) {
               </TabsTrigger>
               <TabsTrigger value="video" className="gap-1.5">
                 Video
-                {hasVideo && <span className="size-1.5 rounded-full bg-primary" />}
+                {videoState === "published" && <span className="size-1.5 rounded-full bg-green-500" />}
+                {videoState === "draft" && <span className="size-1.5 rounded-full bg-muted-foreground/50" />}
               </TabsTrigger>
               <TabsTrigger value="study" className="gap-1.5">
                 Bible Study
-                {hasStudy && <span className="size-1.5 rounded-full bg-primary" />}
+                {studyState === "published" && <span className="size-1.5 rounded-full bg-green-500" />}
+                {studyState === "draft" && <span className="size-1.5 rounded-full bg-muted-foreground/50" />}
               </TabsTrigger>
             </TabsList>
           </div>
@@ -672,7 +645,42 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
         {/* Video Tab */}
         <TabsContent value="video" className="px-6 pt-4 pb-5">
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-3xl mx-auto space-y-5">
+            {/* Inline publish toggle */}
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={videoState === "published" ? "success" : videoState === "draft" ? "secondary" : "outline"}
+                >
+                  {videoState === "published" ? "Published" : videoState === "draft" ? "Draft" : "Empty"}
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  {videoState === "published"
+                    ? "Video is live on the public site"
+                    : videoState === "draft"
+                    ? "Video saved but not yet published"
+                    : "Add a video URL to enable publishing"}
+                </span>
+              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <Switch
+                        checked={videoPublished}
+                        onCheckedChange={setVideoPublished}
+                        disabled={!videoContentExists}
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  {!videoContentExists && (
+                    <TooltipContent>
+                      <p>Add a video URL below to publish</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <VideoTab
               videoUrl={videoUrl}
               onVideoUrlChange={setVideoUrl}
@@ -694,7 +702,42 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
         {/* Bible Study Tab */}
         <TabsContent value="study" className="px-6 pt-4 pb-5">
-          <div className="max-w-3xl mx-auto">
+          <div className="max-w-3xl mx-auto space-y-5">
+            {/* Inline publish toggle */}
+            <div className="flex items-center justify-between rounded-lg border p-3">
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={studyState === "published" ? "success" : studyState === "draft" ? "secondary" : "outline"}
+                >
+                  {studyState === "published" ? "Published" : studyState === "draft" ? "Draft" : "Empty"}
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  {studyState === "published"
+                    ? "Bible study is live on the public site"
+                    : studyState === "draft"
+                    ? "Study saved but not yet published"
+                    : "Add study content to enable publishing"}
+                </span>
+              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <Switch
+                        checked={studyPublished}
+                        onCheckedChange={setStudyPublished}
+                        disabled={!studyContentExists}
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  {!studyContentExists && (
+                    <TooltipContent>
+                      <p>Add questions & answers below to publish</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <StudyTab
               sections={studySections}
               onSectionsChange={setStudySections}
@@ -769,37 +812,6 @@ export function EntryForm({ mode, message }: EntryFormProps) {
           </div>
         </Collapsible>
       </div>
-
-      {/* Publish Dialog */}
-      <PublishDialog
-        open={publishOpen}
-        onOpenChange={setPublishOpen}
-        title={title}
-        hasVideo={hasVideo}
-        hasStudy={hasStudy}
-        videoSummary={videoUrl ? `YouTube · ${duration || "\u2014"}` : "No video content"}
-        studySummary={studySections.length > 0 ? `${studySections.length} section${studySections.length !== 1 ? "s" : ""}` : "No study material"}
-        onPublish={({ publishVideo, publishStudy }) => {
-          saveMessage("published", { publishVideo, publishStudy }, true)
-        }}
-      />
-
-      {/* Unpublish Dialog */}
-      <UnpublishDialog
-        open={unpublishOpen}
-        onOpenChange={setUnpublishOpen}
-        hasVideo={hasVideo}
-        hasStudy={hasStudy}
-        videoSummary={videoUrl ? `YouTube · ${duration || "\u2014"}` : "No video content"}
-        studySummary={studySections.length > 0 ? `${studySections.length} section${studySections.length !== 1 ? "s" : ""}` : "No study material"}
-        onUnpublish={({ unpublishVideo, unpublishStudy, revertToDraft }) => {
-          const newStatus = revertToDraft ? "draft" : "published"
-          saveMessage(newStatus as MessageStatus, {
-            publishVideo: unpublishVideo ? false : hasVideo,
-            publishStudy: unpublishStudy ? false : hasStudy,
-          }, true)
-        }}
-      />
 
       {/* Validation dialog */}
       <AlertDialog open={validationOpen} onOpenChange={setValidationOpen}>

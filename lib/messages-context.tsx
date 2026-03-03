@@ -5,6 +5,7 @@ import type {
   Series,
   Message,
   MessageStatus,
+  StudySection,
 } from "./messages-data"
 
 interface MessagesContextValue {
@@ -39,8 +40,45 @@ const statusToApi: Record<string, string> = {
   archived: "ARCHIVED",
 }
 
+// Synthesize studySections from BibleStudy data when Message.studySections is null
+// (legacy migrated entries store content in BibleStudy.questions/answers/transcript)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function synthesizeStudySections(relatedStudy: any): StudySection[] | undefined {
+  if (!relatedStudy) return undefined
+  const sections: StudySection[] = []
+  if (relatedStudy.questions) {
+    sections.push({
+      id: `legacy-q-${relatedStudy.id}`,
+      title: "Questions",
+      content: relatedStudy.questions,
+    })
+  }
+  if (relatedStudy.answers) {
+    sections.push({
+      id: `legacy-a-${relatedStudy.id}`,
+      title: "Answers",
+      content: relatedStudy.answers,
+    })
+  }
+  if (relatedStudy.transcript) {
+    sections.push({
+      id: `legacy-t-${relatedStudy.id}`,
+      title: "Transcript",
+      content: relatedStudy.transcript,
+    })
+  }
+  return sections.length > 0 ? sections : undefined
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function apiMessageToCms(apiMsg: any): Message {
+  // Reconstruct a full video URL for the CMS form if only youtubeId is stored
+  // (common for migrated records that stored youtubeId but not videoUrl)
+  let videoUrl: string | undefined = apiMsg.videoUrl ?? undefined
+  if (!videoUrl && apiMsg.youtubeId) {
+    videoUrl = `https://www.youtube.com/watch?v=${apiMsg.youtubeId}`
+  }
+
   return {
     id: apiMsg.id,
     slug: apiMsg.slug ?? "",
@@ -56,7 +94,9 @@ function apiMessageToCms(apiMsg: any): Message {
     status: statusFromApi[apiMsg.status] ?? "draft",
     hasVideo: apiMsg.hasVideo ?? false,
     hasStudy: apiMsg.hasStudy ?? false,
-    videoUrl: apiMsg.videoUrl ?? undefined,
+    videoPublished: apiMsg.videoPublished ?? (apiMsg.hasVideo && apiMsg.status === "PUBLISHED"),
+    studyPublished: apiMsg.studyPublished ?? (apiMsg.hasStudy && apiMsg.status === "PUBLISHED"),
+    videoUrl,
     videoDescription: apiMsg.videoDescription ?? undefined,
     youtubeId: apiMsg.youtubeId ?? undefined,
     thumbnailUrl: apiMsg.thumbnailUrl ?? undefined,
@@ -65,7 +105,7 @@ function apiMessageToCms(apiMsg: any): Message {
     rawTranscript: apiMsg.rawTranscript ?? undefined,
     liveTranscript: apiMsg.liveTranscript ?? undefined,
     transcriptSegments: apiMsg.transcriptSegments ?? undefined,
-    studySections: apiMsg.studySections ?? undefined,
+    studySections: apiMsg.studySections ?? synthesizeStudySections(apiMsg.relatedStudy),
     attachments: apiMsg.attachments ?? undefined,
   }
 }
@@ -96,6 +136,8 @@ function cmsMessageToApiCreate(data: Omit<Message, "id">) {
     status: statusToApi[data.status] ?? "DRAFT",
     hasVideo: data.hasVideo,
     hasStudy: data.hasStudy,
+    videoPublished: data.videoPublished,
+    studyPublished: data.studyPublished,
     videoUrl: data.videoUrl || null,
     videoDescription: data.videoDescription || null,
     youtubeId: youtubeId || data.youtubeId || null,
@@ -124,6 +166,14 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
   if (data.status !== undefined) payload.status = statusToApi[data.status] ?? "DRAFT"
   if (data.hasVideo !== undefined) payload.hasVideo = data.hasVideo
   if (data.hasStudy !== undefined) payload.hasStudy = data.hasStudy
+  if (data.videoPublished !== undefined) payload.videoPublished = data.videoPublished
+  if (data.studyPublished !== undefined) payload.studyPublished = data.studyPublished
+  // Derive wrapper status from per-content publish state
+  if (data.videoPublished !== undefined || data.studyPublished !== undefined) {
+    const vp = data.videoPublished ?? false
+    const sp = data.studyPublished ?? false
+    payload.status = (vp || sp) ? "PUBLISHED" : "DRAFT"
+  }
   if (data.videoUrl !== undefined) {
     payload.videoUrl = data.videoUrl || null
     // Auto-extract youtubeId and thumbnailUrl from video URL
@@ -163,7 +213,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
         setError(null)
 
         const [messagesRes, seriesRes] = await Promise.all([
-          fetch("/api/v1/messages?pageSize=100&status="),
+          fetch("/api/v1/messages?pageSize=10000&status="),
           fetch("/api/v1/series"),
         ])
 
