@@ -1,6 +1,5 @@
 import { requireAuth } from "@/lib/auth/require-auth"
 import { prisma } from "@/lib/db"
-import { ContentStatus } from "@/lib/generated/prisma/client"
 import { getLatestMessage } from "@/lib/dal/messages"
 import { getUpcomingEvents } from "@/lib/dal/events"
 import { DashboardContent } from "@/components/cms/dashboard/dashboard-content"
@@ -39,10 +38,10 @@ export default async function DashboardPage() {
     // Message counts
     prisma.message.count({ where: { churchId, deletedAt: null } }),
     prisma.message.count({
-      where: { churchId, deletedAt: null, status: ContentStatus.PUBLISHED },
+      where: { churchId, deletedAt: null, OR: [{ hasVideo: true }, { hasStudy: true }] },
     }),
     prisma.message.count({
-      where: { churchId, deletedAt: null, status: ContentStatus.DRAFT },
+      where: { churchId, deletedAt: null, hasVideo: false, hasStudy: false },
     }),
 
     // Event counts (upcoming vs past)
@@ -74,7 +73,8 @@ export default async function DashboardPage() {
         id: true,
         title: true,
         slug: true,
-        status: true,
+        hasVideo: true,
+        hasStudy: true,
         updatedAt: true,
       },
     }),
@@ -164,7 +164,7 @@ export default async function DashboardPage() {
       id: m.id,
       title: m.title,
       type: "message" as const,
-      status: m.status,
+      status: (m.hasVideo || m.hasStudy) ? ("PUBLISHED" as const) : ("DRAFT" as const),
       updatedAt: m.updatedAt.toISOString(),
       href: `/cms/messages/${m.id}`,
     })),

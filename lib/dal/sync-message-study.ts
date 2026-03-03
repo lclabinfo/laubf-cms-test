@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { ContentStatus, type BibleBook } from '@/lib/generated/prisma/client'
+// ContentStatus still used for BibleStudy model (which retains its own status column)
 import { tiptapJsonToHtml } from '@/lib/tiptap'
 import { fetchBibleText } from '@/lib/bible-api'
 
@@ -102,7 +103,8 @@ interface SyncParams {
   /** First series ID from MessageSeries join, or null */
   seriesId?: string | null
   dateFor: Date | string
-  status: ContentStatus
+  /** Whether the study content is published */
+  hasStudy: boolean
   publishedAt?: Date | string | null
   studySections?: StudySection[] | null
   bibleVersion?: string | null
@@ -126,7 +128,7 @@ export async function syncMessageStudy(params: SyncParams): Promise<string> {
     speakerId,
     seriesId,
     dateFor,
-    status,
+    hasStudy,
     publishedAt,
     studySections,
     bibleVersion,
@@ -170,7 +172,7 @@ export async function syncMessageStudy(params: SyncParams): Promise<string> {
   const dateForValue = dateFor instanceof Date ? dateFor : new Date(dateFor)
   const publishedAtValue = publishedAt
     ? (publishedAt instanceof Date ? publishedAt : new Date(publishedAt))
-    : (status === ContentStatus.PUBLISHED ? new Date() : null)
+    : (hasStudy ? new Date() : null)
 
   // Ensure unique slug for the BibleStudy table
   const studySlug = await ensureUniqueBibleStudySlug(churchId, slug, existingStudyId)
@@ -196,7 +198,7 @@ export async function syncMessageStudy(params: SyncParams): Promise<string> {
     seriesId: seriesId || null,
     dateFor: dateForValue,
     datePosted: dateForValue,
-    status,
+    status: hasStudy ? ContentStatus.PUBLISHED : ContentStatus.DRAFT,
     publishedAt: publishedAtValue,
     questions,
     answers,

@@ -1,5 +1,3 @@
-export type MessageStatus = "published" | "draft" | "scheduled" | "archived"
-
 export type TranscriptSegment = {
   id: string
   startTime: string // "00:01:23"
@@ -33,9 +31,8 @@ export type Message = {
   seriesId: string | null
   /** The date the message/sermon was delivered (e.g. Sunday service date) */
   date: string
-  /** When the entry was or will be posted (ISO datetime for scheduled, date for published) */
+  /** When the entry was first published */
   publishedAt?: string
-  status: MessageStatus
   hasVideo: boolean
   hasStudy: boolean
   /** Whether the video content is published on the public site */

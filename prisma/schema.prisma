@@ -437,12 +437,11 @@ model Message {
   studySections    Json?         @db.JsonB
   attachments      Json?         @db.JsonB
 
-  // Availability flags
+  // Availability flags (also serve as per-resource publish state)
   hasVideo         Boolean       @default(false)
   hasStudy         Boolean       @default(false)
 
   // Publishing
-  status           ContentStatus @default(DRAFT)
   publishedAt      DateTime?
 
   // Relationship to Bible Study
@@ -468,9 +467,8 @@ model Message {
   @@unique([churchId, slug])
   @@index([churchId, dateFor(sort: Desc)])
   @@index([churchId, speakerId])
-  @@index([churchId, status])
-  @@index([churchId, status, dateFor(sort: Desc)])
   @@index([churchId, hasVideo])
+  @@index([churchId, hasStudy])
 }
 
 model MessageSeries {

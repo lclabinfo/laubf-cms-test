@@ -3,7 +3,7 @@
 import { use, useState, useMemo, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { ArrowLeft, Trash2, Plus, X, Video, BookOpen, Pencil, Clock } from "lucide-react"
+import { ArrowLeft, Trash2, Plus, X, Video, BookOpen, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/dialog"
 import { ManageMessagesDialog } from "@/components/cms/messages/series/manage-messages-dialog"
 import { useMessages } from "@/lib/messages-context"
-import { statusDisplay } from "@/lib/status"
 import type { Message } from "@/lib/messages-data"
 
 export default function SeriesDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -285,16 +284,19 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
                 {detailMessage.publishedAt && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Posted</span>
-                    <span className="flex items-center gap-1.5">
-                      {detailMessage.status === "scheduled" && <Clock className="size-3 text-warning" />}
-                      {formatDateTime(detailMessage.publishedAt)}
-                    </span>
+                    <span>{formatDateTime(detailMessage.publishedAt)}</span>
                   </div>
                 )}
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Status</span>
-                  <Badge variant={statusDisplay[detailMessage.status]?.variant ?? "secondary"}>
-                    {statusDisplay[detailMessage.status]?.label ?? detailMessage.status}
+                  <span className="text-muted-foreground">Video</span>
+                  <Badge variant={detailMessage.videoPublished ? "success" : "secondary"}>
+                    {detailMessage.videoPublished ? "Published" : "Draft"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Study</span>
+                  <Badge variant={detailMessage.studyPublished ? "success" : "secondary"}>
+                    {detailMessage.studyPublished ? "Published" : "Draft"}
                   </Badge>
                 </div>
 

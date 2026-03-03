@@ -140,6 +140,7 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const payload: Record<string, any> = {}
   if (data.title !== undefined) payload.title = data.title
+  if (data.slug !== undefined) payload.slug = data.slug
   if (data.passage !== undefined) payload.passage = data.passage || null
   if (data.bibleVersion !== undefined) payload.bibleVersion = data.bibleVersion || "ESV"
   if (data.description !== undefined) payload.description = data.description || null

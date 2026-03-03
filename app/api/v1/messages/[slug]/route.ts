@@ -41,7 +41,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const { slug } = await params
     const body = await request.json()
 
-    const existing = await getMessageBySlug(churchId, slug)
+    const existing = await getMessageBySlug(churchId, slug, { publishedOnly: false })
     if (!existing) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Message not found' } },
@@ -85,7 +85,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           speakerId: updated.speakerId,
           seriesId: effectiveSeriesId,
           dateFor: updated.dateFor,
-          status: updated.status,
+          hasStudy: updated.hasStudy,
           publishedAt: updated.publishedAt,
           studySections: effectiveStudySections,
           bibleVersion: updated.bibleVersion,
@@ -123,7 +123,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     const churchId = await getChurchId()
     const { slug } = await params
 
-    const existing = await getMessageBySlug(churchId, slug)
+    const existing = await getMessageBySlug(churchId, slug, { publishedOnly: false })
     if (!existing) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Message not found' } },

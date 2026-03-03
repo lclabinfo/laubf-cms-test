@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { type ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, Pencil, Trash2, Clock, TriangleAlert, SquarePen, Plus } from "lucide-react"
+import { MoreHorizontal, Pencil, Trash2, TriangleAlert, SquarePen, Plus } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -27,22 +27,10 @@ import {
 } from "@/components/ui/alert-dialog"
 import { SortableHeader } from "@/components/ui/sortable-header"
 import type { Message, Series } from "@/lib/messages-data"
-import { statusDisplay } from "@/lib/status"
 
 function formatDate(dateStr: string) {
   const date = new Date(dateStr + "T00:00:00")
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-}
-
-function formatDateTime(isoStr: string) {
-  const date = new Date(isoStr)
-  return date.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  })
 }
 
 function MessageActionsCell({ row, onDelete }: { row: { original: Message }; onDelete?: (id: string) => void }) {
@@ -192,47 +180,6 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
     cell: ({ row }) => (
       <span className="text-sm">{formatDate(row.getValue("date"))}</span>
     ),
-    size: 110,
-  },
-  {
-    accessorKey: "publishedAt",
-    header: ({ column }) => (
-      <SortableHeader column={column}>Posted</SortableHeader>
-    ),
-    cell: ({ row }) => {
-      const publishedAt = row.original.publishedAt
-      const status = row.original.status
-      if (!publishedAt) {
-        return <span className="text-xs text-muted-foreground">—</span>
-      }
-      if (status === "scheduled") {
-        return (
-          <span className="flex items-center gap-1.5 text-sm">
-            <Clock className="size-3 text-warning" />
-            {formatDateTime(publishedAt)}
-          </span>
-        )
-      }
-      return <span className="text-sm">{formatDateTime(publishedAt)}</span>
-    },
-    size: 140,
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => {
-      const status = row.getValue("status") as Message["status"]
-      const config = statusDisplay[status]
-      return (
-        <Badge variant={config.variant}>
-          {config.label}
-        </Badge>
-      )
-    },
-    filterFn: (row, id, value: string[]) => {
-      return value.includes(row.getValue(id))
-    },
-    enableHiding: true,
     size: 110,
   },
   {

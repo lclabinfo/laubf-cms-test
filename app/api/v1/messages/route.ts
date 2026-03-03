@@ -3,8 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getMessages, createMessage, type MessageFilters } from '@/lib/dal/messages'
 import { syncMessageStudy } from '@/lib/dal/sync-message-study'
-import { ContentStatus } from '@/lib/generated/prisma/client'
-import { validateAll, validateTitle, validateSlug, validateLongText, validateUrl, validateEnum, CONTENT_STATUS_VALUES } from '@/lib/api/validation'
+import { validateAll, validateTitle, validateSlug, validateLongText, validateUrl } from '@/lib/api/validation'
 import { requireApiAuth } from '@/lib/api/require-auth'
 
 export async function GET(request: NextRequest) {
@@ -12,17 +11,13 @@ export async function GET(request: NextRequest) {
     const churchId = await getChurchId()
     const { searchParams } = request.nextUrl
 
-    const statusParam = searchParams.get('status')
     const filters: MessageFilters & { page?: number; pageSize?: number } = {
       page: searchParams.get('page') ? Number(searchParams.get('page')) : undefined,
       pageSize: searchParams.get('pageSize') ? Number(searchParams.get('pageSize')) : undefined,
       speakerId: searchParams.get('speakerId') ?? undefined,
       seriesId: searchParams.get('seriesId') ?? undefined,
       search: searchParams.get('search') ?? undefined,
-      // Empty string status param = all statuses (null), missing = default (undefined)
-      status: searchParams.has('status')
-        ? (statusParam ? statusParam as ContentStatus : null)
-        : undefined,
+      publishedOnly: searchParams.get('publishedOnly') === 'true',
     }
 
     const result = await getMessages(churchId, filters)
@@ -63,7 +58,6 @@ export async function POST(request: NextRequest) {
       validateLongText(body.body, 'body'),
       validateUrl(body.videoUrl, 'videoUrl'),
       validateUrl(body.audioUrl, 'audioUrl'),
-      validateEnum(body.status, CONTENT_STATUS_VALUES, 'status'),
     )
     if (!validation.valid) {
       return NextResponse.json(
@@ -89,7 +83,7 @@ export async function POST(request: NextRequest) {
           speakerId: message.speakerId,
           seriesId: seriesId ?? null,
           dateFor: message.dateFor,
-          status: message.status,
+          hasStudy: message.hasStudy,
           publishedAt: message.publishedAt,
           studySections: message.studySections as { id: string; title: string; content: string }[],
           bibleVersion: message.bibleVersion,

@@ -134,7 +134,7 @@ function MessagesPageContent() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Messages</h1>
+        <h1 className="text-xl font-semibold tracking-tight">Bible Study</h1>
         <p className="text-muted-foreground text-sm">
           Manage sermons, Bible studies, and other messages.
         </p>
@@ -142,7 +142,7 @@ function MessagesPageContent() {
 
       <Tabs defaultValue={defaultTab} key={defaultTab}>
         <TabsList variant="line">
-          <TabsTrigger value="all">All Messages</TabsTrigger>
+          <TabsTrigger value="all">All Entries</TabsTrigger>
           <TabsTrigger value="series">Series</TabsTrigger>
         </TabsList>
 

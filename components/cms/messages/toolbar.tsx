@@ -17,21 +17,13 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { Message, MessageStatus } from "@/lib/messages-data"
-
-const statuses: { value: MessageStatus; label: string }[] = [
-  { value: "published", label: "Published" },
-  { value: "draft", label: "Draft" },
-  { value: "archived", label: "Archived" },
-]
+import type { Message } from "@/lib/messages-data"
 
 const columnLabels: Record<string, string> = {
   title: "Title",
   speaker: "Speaker",
   seriesId: "Series",
   date: "Message Date",
-  publishedAt: "Date Posted",
-  resources: "Resources",
 }
 
 interface ToolbarProps {
@@ -48,16 +40,7 @@ interface ToolbarProps {
 
 export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateFrom, dateTo, onDateFromChange, onDateToChange }: ToolbarProps) {
   const selectedCount = table.getFilteredSelectedRowModel().rows.length
-  const statusFilter = (table.getColumn("status")?.getFilterValue() as MessageStatus[]) ?? []
   const seriesFilter = (table.getColumn("seriesId")?.getFilterValue() as string[]) ?? []
-
-  function toggleStatus(status: MessageStatus) {
-    const current = statusFilter
-    const next = current.includes(status)
-      ? current.filter((s) => s !== status)
-      : [...current, status]
-    table.getColumn("status")?.setFilterValue(next.length ? next : undefined)
-  }
 
   function toggleSeries(seriesId: string) {
     const current = seriesFilter
@@ -68,14 +51,13 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
   }
 
   function clearFilters() {
-    table.getColumn("status")?.setFilterValue(undefined)
     table.getColumn("seriesId")?.setFilterValue(undefined)
     onDateFromChange?.("")
     onDateToChange?.("")
   }
 
   const hasDateFilter = !!(dateFrom || dateTo)
-  const filterCount = statusFilter.length + seriesFilter.length + (hasDateFilter ? 1 : 0)
+  const filterCount = seriesFilter.length + (hasDateFilter ? 1 : 0)
   const hasFilters = filterCount > 0
 
   return (
@@ -113,23 +95,6 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
                     Clear all
                   </Button>
                 )}
-              </div>
-
-              {/* Status */}
-              <div className="space-y-2">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {statuses.map((s) => (
-                    <Badge
-                      key={s.value}
-                      variant={statusFilter.includes(s.value) ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => toggleStatus(s.value)}
-                    >
-                      {s.label}
-                    </Badge>
-                  ))}
-                </div>
               </div>
 
               {/* Series */}
@@ -203,17 +168,6 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
         {/* Active filter badges */}
         {hasFilters && (
           <div className="flex flex-wrap items-center gap-1">
-            {statusFilter.map((s) => (
-              <Badge key={`status-${s}`} variant="secondary" className="gap-1.5 h-7 px-2.5 text-xs">
-                {s}
-                <button
-                  onClick={() => toggleStatus(s)}
-                  className="ml-0.5 p-1 rounded-full hover:bg-foreground/10 transition-colors"
-                >
-                  <X className="size-3" />
-                </button>
-              </Badge>
-            ))}
             {seriesFilter.map((id) => {
               const name = allSeries.find((s) => s.id === id)?.name ?? id
               return (
