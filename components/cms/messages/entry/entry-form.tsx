@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useMemo } from "react"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import Link from "next/link"
 import {
@@ -55,6 +55,7 @@ import { SpeakerSelect } from "./speaker-select"
 import { SeriesSelect } from "./series-select"
 import { BiblePassageInput } from "./bible-passage-input"
 import { PublishDialog } from "./publish-dialog"
+import { UnpublishDialog } from "./unpublish-dialog"
 import { BIBLE_VERSIONS, DEFAULT_BIBLE_VERSION } from "@/lib/bible-versions"
 import { useMessages } from "@/lib/messages-context"
 import { statusDisplay } from "@/lib/status"
@@ -77,7 +78,7 @@ interface ValidationIssue {
   message: string
 }
 
-const statusOptions: MessageStatus[] = ["draft", "published", "scheduled", "archived"]
+const statusOptions: MessageStatus[] = ["draft", "published", "archived"]
 
 export function EntryForm({ mode, message }: EntryFormProps) {
   const router = useRouter()
@@ -122,6 +123,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
   // Publish dialog state
   const [publishOpen, setPublishOpen] = useState(false)
+  const [unpublishOpen, setUnpublishOpen] = useState(false)
 
   // Attachment file input
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -219,11 +221,11 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     }
   }
 
-  function saveMessage(overrideStatus?: MessageStatus, publishOptions?: { publishVideo: boolean; publishStudy: boolean }) {
+  function saveMessage(overrideStatus?: MessageStatus, publishOptions?: { publishVideo: boolean; publishStudy: boolean }, navigate = false) {
     const data = buildMessageData()
     if (overrideStatus) data.status = overrideStatus
 
-    // When publishing, use the dialog's toggle selections for hasVideo/hasStudy
+    // When publishing/unpublishing, use the dialog's toggle selections for hasVideo/hasStudy
     if (publishOptions) {
       data.hasVideo = publishOptions.publishVideo
       data.hasStudy = publishOptions.publishStudy
@@ -231,11 +233,11 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
     if (mode === "create") {
       addMessage(data)
+      router.push("/cms/messages")
     } else if (message) {
       updateMessage(message.id, data)
+      if (navigate) router.push("/cms/messages")
     }
-
-    router.push("/cms/messages")
   }
 
   function handlePublishClick() {
@@ -251,6 +253,24 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   function handleSaveAsDraft() {
     setStatus("draft")
     setValidationOpen(false)
+    saveMessage("draft", undefined, true)
+  }
+
+  function handleSave() {
+    saveMessage()
+  }
+
+  function handleUnpublishClick() {
+    setUnpublishOpen(true)
+  }
+
+  function handleUnschedule() {
+    setStatus("draft")
+    saveMessage("draft")
+  }
+
+  function handleUnarchive() {
+    setStatus("draft")
     saveMessage("draft")
   }
 
@@ -282,46 +302,127 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   // Minimal validation for the button disabled state: need a title for any save
   const canSave = title.trim().length >= 2
 
+  // Dirty tracking — compare current state against initial message prop
+  const initialSnapshot = useMemo(() => JSON.stringify({
+    title: message?.title ?? "",
+    description: message?.description ?? "",
+    speaker: message?.speaker ?? "",
+    speakerId: message?.speakerId,
+    seriesId: message?.seriesId ?? null,
+    passage: message?.passage ?? "",
+    bibleVersion: message?.bibleVersion ?? DEFAULT_BIBLE_VERSION.code,
+    date: message?.date ?? "",
+    publishedAt: message?.publishedAt ?? "",
+    videoUrl: message?.videoUrl ?? "",
+    videoDescription: message?.videoDescription ?? "",
+    duration: message?.duration ?? "",
+    audioUrl: message?.audioUrl ?? "",
+    rawTranscript: message?.rawTranscript ?? "",
+    liveTranscript: message?.liveTranscript ?? "",
+    transcriptSegments: message?.transcriptSegments ?? [],
+    studySections: message?.studySections ?? [],
+    attachments: message?.attachments ?? [],
+  }), []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const currentSnapshot = JSON.stringify({
+    title, description, speaker, speakerId, seriesId, passage, bibleVersion,
+    date, publishedAt, videoUrl, videoDescription, duration, audioUrl,
+    rawTranscript, liveTranscript, transcriptSegments, studySections, attachments,
+  })
+
+  const isDirty = initialSnapshot !== currentSnapshot
+
   return (
-    <div className="flex flex-col gap-0 flex-1 min-h-0">
+    <div className="flex flex-col -mx-6">
       {/* Tabs — wraps both the sticky header and tab content */}
-      <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 min-h-0 flex flex-col">
-        {/* Sticky top bar: header row + tab row */}
-        <div className="sticky top-0 z-20 bg-background pb-0">
+      <Tabs value={activeTab} onValueChange={handleTabChange}>
+        {/* Sticky top bar: header row + tab row — negative margin pulls it full-bleed */}
+        <div className="sticky top-0 z-20 bg-background">
           {/* Header */}
-          <div className="flex items-center gap-3 pb-4">
+          <div className="flex items-center gap-3 px-6 pt-5 pb-3">
             <Button variant="ghost" size="icon" asChild>
               <Link href="/cms/messages">
                 <ArrowLeft />
               </Link>
             </Button>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-semibold tracking-tight truncate">
-                  {mode === "create" ? "New Message" : (title || "Untitled")}
-                </h1>
-                <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
-              </div>
+            <div className="flex items-center gap-2 min-w-0">
+              {mode === "create" ? (
+                <h1 className="text-xl font-semibold tracking-tight truncate">New Message</h1>
+              ) : (
+                <div className="grid w-fit flex-none items-center max-w-[min(60ch,50vw)]">
+                  <span
+                    className="invisible whitespace-pre text-xl font-semibold tracking-tight col-start-1 row-start-1"
+                    aria-hidden="true"
+                  >
+                    {title || "Untitled"}
+                  </span>
+                  <input
+                    type="text"
+                    size={1}
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") e.currentTarget.blur()
+                    }}
+                    placeholder="Untitled"
+                    className="text-xl font-semibold tracking-tight bg-transparent border-0 border-b border-transparent hover:border-muted-foreground/25 focus:border-ring focus:outline-none focus:ring-0 rounded-none px-0 py-0 transition-colors col-start-1 row-start-1 w-full min-w-0"
+                    aria-label="Message title"
+                  />
+                </div>
+              )}
+              <Badge variant={statusConfig.variant} className="shrink-0">{statusConfig.label}</Badge>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ml-auto shrink-0">
               <Button variant="outline" onClick={handleCancel}>
                 Cancel
               </Button>
-              <Button variant="outline" onClick={handleSaveAsDraft}>
-                Save Draft
-              </Button>
-              <Button
-                onClick={handlePublishClick}
-                disabled={!canSave}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                Publish...
-              </Button>
+
+              {status === "draft" ? (
+                <>
+                  <Button variant="outline" onClick={handleSaveAsDraft} disabled={!canSave}>
+                    Save Draft
+                  </Button>
+                  <Button
+                    onClick={handlePublishClick}
+                    disabled={!canSave}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    Publish...
+                  </Button>
+                </>
+              ) : status === "published" ? (
+                <>
+                  <Button variant="outline" onClick={handleUnpublishClick}>
+                    Unpublish...
+                  </Button>
+                  <Button onClick={handleSave} disabled={!canSave || !isDirty}>
+                    Save Changes
+                  </Button>
+                </>
+              ) : status === "scheduled" ? (
+                <>
+                  <Button variant="outline" onClick={handleUnschedule}>
+                    Unschedule
+                  </Button>
+                  <Button onClick={handleSave} disabled={!canSave || !isDirty}>
+                    Save Changes
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={handleUnarchive}>
+                    Unarchive
+                  </Button>
+                  <Button onClick={handleSave} disabled={!canSave || !isDirty}>
+                    Save Changes
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
           {/* Tab row with bottom border */}
-          <div className="border-b border-border">
+          <div className="border-b border-border px-6">
             <TabsList variant="line">
               <TabsTrigger value="details" className="gap-1.5">
                 <Settings className="size-3.5" />
@@ -340,7 +441,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
         </div>
 
         {/* Details Tab */}
-        <TabsContent value="details" className="flex-1 overflow-y-auto pt-4">
+        <TabsContent value="details" className="px-6 pt-4 pb-5">
           <div className="max-w-3xl mx-auto space-y-6">
             {/* Info banner for create mode */}
             {mode === "create" && (
@@ -557,7 +658,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
         </TabsContent>
 
         {/* Video Tab */}
-        <TabsContent value="video" className="flex-1 overflow-y-auto pt-4">
+        <TabsContent value="video" className="px-6 pt-4 pb-5">
           <div className="max-w-3xl mx-auto">
             <VideoTab
               videoUrl={videoUrl}
@@ -579,7 +680,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
         </TabsContent>
 
         {/* Bible Study Tab */}
-        <TabsContent value="study" className="flex-1 overflow-y-auto pt-4">
+        <TabsContent value="study" className="px-6 pt-4 pb-5">
           <div className="max-w-3xl mx-auto">
             <StudyTab
               sections={studySections}
@@ -590,7 +691,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
       </Tabs>
 
       {/* Shared Attachments Panel */}
-      <div className="max-w-3xl mx-auto w-full mt-4">
+      <div className="max-w-3xl mx-auto w-full mt-4 px-6 pb-5">
         <Collapsible defaultOpen={attachments.length > 0}>
           <div className="rounded-xl border border-dashed">
             <CollapsibleTrigger className="flex items-center w-full px-4 py-3 gap-3 hover:bg-muted/50 rounded-t-xl transition-colors group">
@@ -666,7 +767,24 @@ export function EntryForm({ mode, message }: EntryFormProps) {
         videoSummary={videoUrl ? `YouTube · ${duration || "\u2014"}` : "No video content"}
         studySummary={studySections.length > 0 ? `${studySections.length} section${studySections.length !== 1 ? "s" : ""}` : "No study material"}
         onPublish={({ publishVideo, publishStudy }) => {
-          saveMessage("published", { publishVideo, publishStudy })
+          saveMessage("published", { publishVideo, publishStudy }, true)
+        }}
+      />
+
+      {/* Unpublish Dialog */}
+      <UnpublishDialog
+        open={unpublishOpen}
+        onOpenChange={setUnpublishOpen}
+        hasVideo={hasVideo}
+        hasStudy={hasStudy}
+        videoSummary={videoUrl ? `YouTube · ${duration || "\u2014"}` : "No video content"}
+        studySummary={studySections.length > 0 ? `${studySections.length} section${studySections.length !== 1 ? "s" : ""}` : "No study material"}
+        onUnpublish={({ unpublishVideo, unpublishStudy, revertToDraft }) => {
+          const newStatus = revertToDraft ? "draft" : "published"
+          saveMessage(newStatus as MessageStatus, {
+            publishVideo: unpublishVideo ? false : hasVideo,
+            publishStudy: unpublishStudy ? false : hasStudy,
+          }, true)
         }}
       />
 

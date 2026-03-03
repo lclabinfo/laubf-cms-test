@@ -42,7 +42,7 @@ interface MetadataSidebarProps {
   onPublishedAtChange: (value: string) => void
 }
 
-const statusOptions: MessageStatus[] = ["draft", "published", "scheduled", "archived"]
+const statusOptions: MessageStatus[] = ["draft", "published", "archived"]
 
 export function MetadataSidebar({
   status,
