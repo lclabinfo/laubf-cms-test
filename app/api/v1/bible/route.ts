@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { fetchBibleText, getBibleApiTranslation, NATIVE_TRANSLATIONS } from '@/lib/bible-api'
+import { fetchBibleText, LOCAL_VERSIONS } from '@/lib/bible-api'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,21 +13,21 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const version = (searchParams.get('version') || 'KJV').toUpperCase()
+    const version = (searchParams.get('version') || 'ESV').toUpperCase()
 
-    if (!NATIVE_TRANSLATIONS.has(version)) {
+    if (!LOCAL_VERSIONS.has(version)) {
+      const available = Array.from(LOCAL_VERSIONS).join(', ')
       return NextResponse.json(
-        { success: false, error: { code: 'UNSUPPORTED_VERSION', message: `${version} is not available for inline display. Supported: KJV, ASV, WEB, YLT.` } },
+        { success: false, error: { code: 'UNSUPPORTED_VERSION', message: `${version} is not available for inline display. Supported: ${available}` } },
         { status: 422 },
       )
     }
 
-    const translation = getBibleApiTranslation(version)
-    const result = await fetchBibleText(passage, translation)
+    const result = await fetchBibleText(passage, version)
 
     if (!result) {
       return NextResponse.json(
-        { success: false, error: { code: 'NOT_FOUND', message: `Could not fetch Bible text for "${passage}"` } },
+        { success: false, error: { code: 'NOT_FOUND', message: `Could not find Bible text for "${passage}" in ${version}` } },
         { status: 404 },
       )
     }

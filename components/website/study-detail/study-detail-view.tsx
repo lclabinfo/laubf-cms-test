@@ -132,8 +132,8 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
   const [fontSize, setFontSize] = useState(100)
   const [isDesktop, setIsDesktop] = useState(true)
   const [bibleVersion, setBibleVersion] = useState<string>(() => {
-    const stored = study.bibleVersion || "KJV"
-    return API_AVAILABLE_VERSIONS.some(v => v.code === stored) ? stored : "KJV"
+    const stored = study.bibleVersion || "ESV"
+    return API_AVAILABLE_VERSIONS.some(v => v.code === stored) ? stored : "ESV"
   })
   const [fetchedBibleText, setFetchedBibleText] = useState<string | null>(null)
   const [bibleTextLoading, setBibleTextLoading] = useState(false)
@@ -214,16 +214,8 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
 
   /* ── Bible version switching ── */
 
-  const initialVersion = useRef(bibleVersion)
-
   const handleVersionChange = useCallback(async (version: string) => {
     setBibleVersion(version)
-
-    // If switching back to the original version, use pre-stored text
-    if (version === initialVersion.current) {
-      setFetchedBibleText(null)
-      return
-    }
 
     if (!study.passage) return
 
@@ -243,6 +235,32 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
       setBibleTextLoading(false)
     }
   }, [study.passage])
+
+  /* ── Fetch bible text on mount ── */
+  // Always fetch from the BibleVerse database to ensure version-accurate text.
+  // study.bibleText (backfilled ESV) is only used as fallback if the API fails.
+
+  useEffect(() => {
+    if (!study.passage) return
+
+    setBibleTextLoading(true)
+    fetch(
+      `/api/v1/bible?passage=${encodeURIComponent(study.passage)}&version=${encodeURIComponent(bibleVersion)}`
+    )
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success && json.data?.html) {
+          setFetchedBibleText(json.data.html)
+        }
+      })
+      .catch(() => {
+        // Silently fail — study.bibleText fallback will be used
+      })
+      .finally(() => {
+        setBibleTextLoading(false)
+      })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   /* ── Helpers ── */
 
