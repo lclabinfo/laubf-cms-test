@@ -313,38 +313,29 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   // Minimal validation for the button disabled state: need a title for any save
   const canSave = title.trim().length >= 2
 
-  // Dirty tracking — compare current state against initial message prop
-  const initialSnapshot = useMemo(() => JSON.stringify({
-    title: message?.title ?? "",
-    description: message?.description ?? "",
-    speaker: message?.speaker ?? "",
-    speakerId: message?.speakerId,
-    seriesId: message?.seriesId ?? null,
-    passage: message?.passage ?? "",
-    bibleVersion: message?.bibleVersion ?? DEFAULT_BIBLE_VERSION.code,
-    date: message?.date ?? "",
-    publishedAt: message?.publishedAt ?? "",
-    videoUrl: message?.videoUrl ?? "",
-    videoDescription: message?.videoDescription ?? "",
-    duration: message?.duration ?? "",
-    audioUrl: message?.audioUrl ?? "",
-    rawTranscript: message?.rawTranscript ?? "",
-    liveTranscript: message?.liveTranscript ?? "",
-    transcriptSegments: message?.transcriptSegments ?? [],
-    studySections: message?.studySections ?? [],
-    attachments: message?.attachments ?? [],
-    videoPublished: message?.videoPublished ?? false,
-    studyPublished: message?.studyPublished ?? false,
-  }), []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const currentSnapshot = JSON.stringify({
+  // Dirty tracking — snapshot must use the exact same defaults as state initializers above
+  const snapshotFields = useCallback(() => ({
+    title, description, speaker, speakerId: speakerId ?? null, seriesId, passage, bibleVersion,
+    date, publishedAt, videoUrl, videoDescription: videoDescription ?? "", duration, audioUrl,
+    rawTranscript, liveTranscript,
+    transcriptSegments: JSON.stringify(transcriptSegments),
+    studySections: JSON.stringify(studySections),
+    attachments: JSON.stringify(attachments),
+    videoPublished, studyPublished,
+  }), [
     title, description, speaker, speakerId, seriesId, passage, bibleVersion,
     date, publishedAt, videoUrl, videoDescription, duration, audioUrl,
     rawTranscript, liveTranscript, transcriptSegments, studySections, attachments,
     videoPublished, studyPublished,
-  })
+  ])
 
-  const isDirty = initialSnapshot !== currentSnapshot
+  // Capture initial state on mount (runs once)
+  const initialSnapshot = useRef<string | null>(null)
+  if (initialSnapshot.current === null) {
+    initialSnapshot.current = JSON.stringify(snapshotFields())
+  }
+
+  const isDirty = JSON.stringify(snapshotFields()) !== initialSnapshot.current
 
   return (
     <div className="flex flex-col -mx-6">
