@@ -47,7 +47,7 @@ export default function HighlightCardsSection({ content, enableAnimations, color
     date: e.date,
     location: e.location,
     imageUrl: e.imageUrl,
-    badge: e.badge,
+    // NOTE: badge (e.g. "Featured") omitted for now — will be re-enabled with featured curation flow
     imageObjectPosition: e.objectPosition,
     href: resolveHref(`/events/${e.slug}`),
   }))

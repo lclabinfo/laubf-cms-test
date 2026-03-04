@@ -134,7 +134,7 @@ function MessagesPageContent() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Bible Study</h1>
+        <h1 className="text-xl font-semibold tracking-tight">Bible Studies</h1>
         <p className="text-muted-foreground text-sm">
           Manage sermons, Bible studies, and other messages.
         </p>

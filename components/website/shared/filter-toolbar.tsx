@@ -11,6 +11,8 @@ import { useState, useRef, useEffect, useCallback, useLayoutEffect } from "react
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { DayPicker } from "react-day-picker";
+import { format, parse } from "date-fns";
 import {
   IconSearch,
   IconChevronDown,
@@ -19,8 +21,8 @@ import {
   IconArrowUp,
   IconX,
   IconCheck,
+  IconCalendar,
 } from "@/components/website/shared/icons";
-import { DatePicker } from "@/components/ui/date-picker";
 
 /* ── Types ── */
 
@@ -411,13 +413,13 @@ export default function FilterToolbar({
                 ))}
                 {dateRange && (
                   <>
-                    <DatePicker
-                      placeholder={dateRange.fromLabel ?? "Date from"}
+                    <FilterDatePicker
+                      label={dateRange.fromLabel ?? "From"}
                       value={dateRange.fromValue}
                       onChange={dateRange.onFromChange}
                     />
-                    <DatePicker
-                      placeholder={dateRange.toLabel ?? "Date to"}
+                    <FilterDatePicker
+                      label={dateRange.toLabel ?? "To"}
                       value={dateRange.toValue}
                       onChange={dateRange.onToChange}
                     />
@@ -873,6 +875,154 @@ function FilterDropdownButton({ config }: { config: FilterDropdownConfig }) {
 }
 
 
+/* ── Pill-styled date picker matching FilterDropdownButton ── */
+
+const CHEVRON_DOWN_SVG = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23676767' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`;
+
+function FilterDatePicker({
+  value,
+  onChange,
+  label,
+  className,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  label: string;
+  className?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selected = value ? parse(value, "yyyy-MM-dd", new Date()) : undefined;
+
+  const displayLabel = value
+    ? new Date(value + "T00:00:00").toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : label;
+
+  const handleSelect = useCallback(
+    (day: Date | undefined) => {
+      if (day) {
+        onChange(format(day, "yyyy-MM-dd"));
+      } else {
+        onChange("");
+      }
+      setOpen(false);
+    },
+    [onChange],
+  );
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  const isActive = !!value;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((prev) => !prev)}
+        className={cn(
+          "flex items-center gap-2 rounded-[12px] border h-[40px] px-3.5 text-[14px] font-medium transition-colors bg-white-0",
+          isActive
+            ? "border-white-3 text-black-1"
+            : open
+              ? "border-white-3 text-black-1"
+              : "border-white-2-5 text-black-3 hover:border-white-3",
+          className,
+        )}
+      >
+        <IconCalendar className="size-4" />
+        <span>{displayLabel}</span>
+        <IconChevronDown
+          className={cn(
+            "size-3.5 transition-transform",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full mt-1 z-50 rounded-[12px] border border-white-2 bg-white-0 shadow-[0px_8px_24px_rgba(0,0,0,0.1)] overflow-hidden">
+          <DayPicker
+            mode="single"
+            captionLayout="dropdown"
+            startMonth={new Date(2000, 0)}
+            endMonth={new Date(2036, 11)}
+            selected={selected}
+            onSelect={handleSelect}
+            defaultMonth={selected}
+            className="p-3"
+            classNames={{
+              months: "relative flex flex-col",
+              month: "space-y-4",
+              month_caption: "flex justify-center items-center h-7",
+              caption_label: "sr-only",
+              dropdowns: "flex items-center gap-2",
+              dropdown_root: "relative inline-flex items-center",
+              dropdown: cn(
+                "appearance-none bg-white-0 border border-white-2-5 rounded-[8px]",
+                "px-2.5 py-1 pr-6 text-[13px] font-medium text-black-1 cursor-pointer",
+                "hover:border-white-3 transition-colors outline-none",
+                "focus-visible:ring-2 focus-visible:ring-brand-1",
+                "bg-no-repeat bg-[right_6px_center] bg-[length:12px]",
+              ),
+              nav: "absolute top-0 left-0 right-0 flex justify-between items-center h-7 z-10 pointer-events-none",
+              button_previous: cn(
+                "inline-flex items-center justify-center size-7 rounded-[8px] pointer-events-auto",
+                "text-black-3 hover:bg-white-1-5 hover:text-black-1 transition-colors",
+              ),
+              button_next: cn(
+                "inline-flex items-center justify-center size-7 rounded-[8px] pointer-events-auto",
+                "text-black-3 hover:bg-white-1-5 hover:text-black-1 transition-colors",
+              ),
+              weekdays: "flex",
+              weekday: "w-9 text-[12px] font-medium text-black-3 text-center",
+              week: "flex w-full mt-1",
+              day: "relative p-0 text-center text-[14px] focus-within:z-20",
+              day_button: cn(
+                "inline-flex items-center justify-center size-9 rounded-[8px] cursor-pointer",
+                "text-black-1 transition-colors",
+                "hover:bg-white-1-5",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-1",
+              ),
+              today: "font-semibold",
+              selected:
+                "[&>button]:bg-brand-1 [&>button]:text-white-0 [&>button]:hover:bg-brand-1",
+              outside: "text-black-3/40",
+              disabled: "text-black-3/30 pointer-events-none",
+              hidden: "invisible",
+            }}
+            styles={{
+              dropdown: { backgroundImage: CHEVRON_DOWN_SVG },
+            }}
+            components={{
+              Chevron: ({ orientation }) =>
+                orientation === "left" ? (
+                  <ChevronLeft className="size-4" />
+                ) : (
+                  <ChevronRight className="size-4" />
+                ),
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+
 /* ══════════════════════════════════════════════════════════
    MOBILE SUB-COMPONENTS
    ══════════════════════════════════════════════════════════ */
@@ -1151,8 +1301,8 @@ function MobileBottomSheet({
                   <label className="text-[12px] text-black-3 mb-1.5 block">
                     {dateRange.fromLabel ?? "From"}
                   </label>
-                  <DatePicker
-                    placeholder={dateRange.fromLabel ?? "From"}
+                  <FilterDatePicker
+                    label={dateRange.fromLabel ?? "From"}
                     value={dateRange.fromValue}
                     onChange={dateRange.onFromChange}
                     className="w-full justify-between"
@@ -1162,8 +1312,8 @@ function MobileBottomSheet({
                   <label className="text-[12px] text-black-3 mb-1.5 block">
                     {dateRange.toLabel ?? "To"}
                   </label>
-                  <DatePicker
-                    placeholder={dateRange.toLabel ?? "To"}
+                  <FilterDatePicker
+                    label={dateRange.toLabel ?? "To"}
                     value={dateRange.toValue}
                     onChange={dateRange.onToChange}
                     className="w-full justify-between"

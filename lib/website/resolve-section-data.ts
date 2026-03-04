@@ -1,5 +1,5 @@
 import { getLatestMessage, getMessages } from '@/lib/dal/messages'
-import { getFeaturedEvents, getUpcomingEvents, getEvents } from '@/lib/dal/events'
+import { getUpcomingEvents, getEvents } from '@/lib/dal/events'
 import { getVideos } from '@/lib/dal/videos'
 import { getBibleStudies } from '@/lib/dal/bible-studies'
 import { getTodaysDailyBread } from '@/lib/dal/daily-bread'
@@ -80,9 +80,11 @@ export async function resolveSectionData(
         }
       }
 
+      // TODO: Re-enable featured events filtering once the CMS featured toggle is implemented.
+      // For now, fetch the 3 most upcoming events instead.
       case 'featured-events': {
         const count = (content.count as number) || 3
-        const events = await getFeaturedEvents(churchId, count)
+        const events = await getUpcomingEvents(churchId, count)
         return {
           content: {
             ...content,
@@ -92,7 +94,6 @@ export async function resolveSectionData(
               date: formatEventDate(e.dateStart),
               location: e.location || '',
               imageUrl: e.coverImage || null,
-              badge: e.isFeatured ? 'Featured' : undefined,
               slug: e.slug,
             })),
           },
