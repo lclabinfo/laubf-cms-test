@@ -1,5 +1,7 @@
 import StarterKit from "@tiptap/starter-kit"
 import Underline from "@tiptap/extension-underline"
+import Superscript from "@tiptap/extension-superscript"
+import Subscript from "@tiptap/extension-subscript"
 import TextAlign from "@tiptap/extension-text-align"
 import Link from "@tiptap/extension-link"
 import Image from "@tiptap/extension-image"
@@ -11,8 +13,41 @@ import { TableRow } from "@tiptap/extension-table-row"
 import { TableHeader } from "@tiptap/extension-table-header"
 import { TableCell } from "@tiptap/extension-table-cell"
 import { generateHTML } from "@tiptap/html"
+import { Extension } from "@tiptap/core"
 import type { Extensions } from "@tiptap/react"
 import type { JSONContent } from "@tiptap/core"
+
+/**
+ * Custom extension that adds indent support to paragraphs and headings.
+ * Parses margin-left from HTML (produced during DOCX import) and renders it back.
+ */
+const Indent = Extension.create({
+  name: "indent",
+  addGlobalAttributes() {
+    return [
+      {
+        types: ["paragraph", "heading"],
+        attributes: {
+          indent: {
+            default: 0,
+            parseHTML: (element) => {
+              const ml = element.style.marginLeft
+              if (ml) {
+                const px = parseFloat(ml)
+                if (px > 0) return Math.round(px / 40)
+              }
+              return 0
+            },
+            renderHTML: (attributes) => {
+              if (!attributes.indent) return {}
+              return { style: `margin-left: ${(attributes.indent as number) * 40}px` }
+            },
+          },
+        },
+      },
+    ]
+  },
+})
 
 /**
  * Shared TipTap extension configuration.
@@ -24,6 +59,9 @@ export function getExtensions(placeholder?: string): Extensions {
       heading: { levels: [1, 2, 3, 4] },
     }),
     Underline,
+    Superscript,
+    Subscript,
+    Indent,
     TextAlign.configure({
       types: ["heading", "paragraph"],
     }),
@@ -56,7 +94,11 @@ export function getExtensions(placeholder?: string): Extensions {
 export function tiptapJsonToHtml(jsonString: string): string {
   try {
     const json = JSON.parse(jsonString) as JSONContent
-    return generateHTML(json, getExtensions())
+    let html = generateHTML(json, getExtensions())
+    // Empty paragraphs from TipTap come as <p></p> which collapse in browsers
+    // (no line box = zero height). Insert <br> to give them visible height.
+    html = html.replace(/<p([^>]*)><\/p>/g, "<p$1><br></p>")
+    return html
   } catch {
     // If it's plain text (legacy), wrap in paragraphs
     return jsonString
