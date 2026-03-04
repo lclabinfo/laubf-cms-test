@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { toast } from "sonner"
 import Link from "next/link"
 import {
   ArrowLeft,
@@ -18,9 +19,9 @@ import {
   Settings,
   Sparkles,
   Upload,
-  Users,
   X,
 } from "lucide-react"
+import { PeopleSelect } from "@/components/cms/shared/people-select"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -38,13 +39,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { CustomRecurrenceDialog } from "./custom-recurrence-dialog"
+import { AddressAutocomplete } from "./address-autocomplete"
 import { MediaSelectorDialog } from "@/components/cms/media/media-selector-dialog"
 import { useEvents } from "@/lib/events-context"
 import { statusDisplay } from "@/lib/status"
@@ -52,11 +49,8 @@ import type { ContentStatus } from "@/lib/status"
 import {
   recurrenceDisplay,
   eventTypeDisplay,
-  generateSlug,
   allDays,
   dayLabels,
-  ministryOptions,
-  campusOptions,
   tagSuggestions,
   type ChurchEvent,
   type EventType,
@@ -93,7 +87,7 @@ const dayPickerRecurrences: Recurrence[] = ["weekly"]
 
 const URL_REGEX = /^https?:\/\/.+/
 
-const statusOptions: ContentStatus[] = ["draft", "published", "scheduled", "archived"]
+const statusOptions: ContentStatus[] = ["draft", "published", "archived"]
 const eventTypes: EventType[] = ["event", "meeting", "program"]
 
 const mockUnsplashImages = [
@@ -122,10 +116,39 @@ export function EventForm({ mode, event }: EventFormProps) {
   const router = useRouter()
   const { addEvent, updateEvent } = useEvents()
 
+  // Dynamic ministry/campus options fetched from API
+  const [ministryOptions, setMinistryOptions] = useState<{ value: MinistryTag; label: string }[]>([])
+  const [campusOptions, setCampusOptions] = useState<{ value: CampusTag; label: string }[]>([])
+
+  useEffect(() => {
+    fetch("/api/v1/ministries")
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.success) {
+          setMinistryOptions(
+            json.data.map((m: { slug: string; name: string }) => ({ value: m.slug as MinistryTag, label: m.name }))
+          )
+        }
+      })
+      .catch(() => {}) // silently fail — form still works with empty list
+
+    fetch("/api/v1/campuses")
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.success) {
+          setCampusOptions(
+            json.data.map((c: { slug: string; name: string; shortName?: string | null }) => ({
+              value: c.slug as CampusTag,
+              label: c.shortName ?? c.name,
+            }))
+          )
+        }
+      })
+      .catch(() => {})
+  }, [])
+
   // Basic info
   const [title, setTitle] = useState(event?.title ?? "")
-  const [slug, setSlug] = useState(event?.slug ?? "")
-  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false)
   const [shortDescription, setShortDescription] = useState(event?.shortDescription ?? "")
 
   // Date & time
@@ -152,7 +175,6 @@ export function EventForm({ mode, event }: EventFormProps) {
   const [locationType, setLocationType] = useState<LocationType>(event?.locationType ?? "in-person")
   const [location, setLocation] = useState(event?.location ?? "")
   const [address, setAddress] = useState(event?.address ?? "")
-  const [directionsUrl, setDirectionsUrl] = useState(event?.directionsUrl ?? "")
   const [meetingUrl, setMeetingUrl] = useState(event?.meetingUrl ?? "")
   const [meetingUrlError, setMeetingUrlError] = useState<string | null>(null)
 
@@ -160,9 +182,8 @@ export function EventForm({ mode, event }: EventFormProps) {
   const [description, setDescription] = useState(event?.description ?? "")
   const [welcomeMessage, setWelcomeMessage] = useState(event?.welcomeMessage ?? "")
 
-  // Links (kept for backwards compatibility, UI section removed)
-  const [registrationUrl, setRegistrationUrl] = useState(event?.registrationUrl ?? "")
-  const [links] = useState<EventLink[]>(event?.links ?? [])
+  // Links (up to 3)
+  const [links, setLinks] = useState<EventLink[]>(event?.links ?? [])
 
   // Settings state
   const [status, setStatus] = useState<ContentStatus>(event?.status ?? "draft")
@@ -170,14 +191,12 @@ export function EventForm({ mode, event }: EventFormProps) {
   const [ministry, setMinistry] = useState<MinistryTag>(event?.ministry ?? "church-wide")
   const [campus, setCampus] = useState<CampusTag | undefined>(event?.campus)
   const [isFeatured, setIsFeatured] = useState(event?.isFeatured ?? false)
-  const [capacity, setCapacity] = useState<number | undefined>(event?.capacity)
   const [contacts, setContacts] = useState<string[]>(event?.contacts ?? [])
   const [coverImage, setCoverImage] = useState(event?.coverImage ?? "")
   const [imageAlt, setImageAlt] = useState(event?.imageAlt ?? "")
   const [tags, setTags] = useState<string[]>(event?.tags ?? [])
 
   // Sidebar-absorbed local state
-  const [contactInput, setContactInput] = useState("")
   const [tagInput, setTagInput] = useState("")
   const [mediaSelectorOpen, setMediaSelectorOpen] = useState(false)
 
@@ -199,18 +218,6 @@ export function EventForm({ mode, event }: EventFormProps) {
 
   // Filter tag suggestions to only show tags not already added
   const availableSuggestions = tagSuggestions.filter(t => !tags.includes(t))
-
-  function handleTitleChange(value: string) {
-    setTitle(value)
-    if (!slugManuallyEdited) {
-      setSlug(generateSlug(value))
-    }
-  }
-
-  function handleSlugChange(value: string) {
-    setSlugManuallyEdited(true)
-    setSlug(generateSlug(value))
-  }
 
   function handleRecurrenceChange(value: string) {
     const rec = value as Recurrence
@@ -274,25 +281,6 @@ export function EventForm({ mode, event }: EventFormProps) {
     }
   }
 
-  // Contact handlers (absorbed from sidebar)
-  function handleAddContact() {
-    const name = contactInput.trim()
-    if (!name || contacts.includes(name)) return
-    setContacts([...contacts, name])
-    setContactInput("")
-  }
-
-  function handleRemoveContact(name: string) {
-    setContacts(contacts.filter((c) => c !== name))
-  }
-
-  function handleContactKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter") {
-      e.preventDefault()
-      handleAddContact()
-    }
-  }
-
   // Tag handlers (absorbed from sidebar)
   function handleAddTag() {
     let tag = tagInput.trim().toUpperCase()
@@ -317,6 +305,20 @@ export function EventForm({ mode, event }: EventFormProps) {
   function handleTagSuggestionClick(tag: string) {
     if (tags.includes(tag)) return
     setTags([...tags, tag])
+  }
+
+  // Link handlers (up to 3 links)
+  function handleAddLink() {
+    if (links.length >= 3) return
+    setLinks([...links, { label: "", href: "", external: true }])
+  }
+
+  function handleRemoveLink(index: number) {
+    setLinks(links.filter((_, i) => i !== index))
+  }
+
+  function handleLinkChange(index: number, field: keyof EventLink, value: string | boolean) {
+    setLinks(links.map((l, i) => i === index ? { ...l, [field]: value } : l))
   }
 
   // Image handlers (absorbed from sidebar)
@@ -349,7 +351,7 @@ export function EventForm({ mode, event }: EventFormProps) {
     if (!isValid) return
 
     const eventData: Omit<ChurchEvent, "id"> = {
-      slug: slug || generateSlug(title),
+      slug: "",  // Auto-generated from title in context layer
       title: title.trim(),
       type: eventType,
       date: startDate,
@@ -364,14 +366,12 @@ export function EventForm({ mode, event }: EventFormProps) {
       locationType,
       location: location.trim(),
       address: address.trim() || undefined,
-      directionsUrl: directionsUrl.trim() || undefined,
       meetingUrl: meetingUrl.trim() || undefined,
       monthlyType: recurrence === "monthly" ? monthlyType : undefined,
       ministry,
       campus: campus || undefined,
       status,
       isFeatured,
-      capacity,
       shortDescription: shortDescription.trim() || undefined,
       description: description || undefined,
       welcomeMessage: welcomeMessage || undefined,
@@ -379,14 +379,15 @@ export function EventForm({ mode, event }: EventFormProps) {
       coverImage: coverImage || undefined,
       imageAlt: imageAlt.trim() || undefined,
       tags,
-      registrationUrl: registrationUrl.trim() || undefined,
       links: links.filter(l => l.label.trim() && l.href.trim()),
     }
 
     if (mode === "create") {
       addEvent(eventData)
+      toast.success("Event created")
     } else if (event) {
       updateEvent(event.id, eventData)
+      toast.success("Event saved")
     }
 
     router.push("/cms/events")
@@ -430,26 +431,29 @@ export function EventForm({ mode, event }: EventFormProps) {
 
           {/* 1. Title zone (no card) */}
           <div className="space-y-3">
-            <Input
-              value={title}
-              onChange={(e) => handleTitleChange(e.target.value)}
-              placeholder="Event title"
-              className="text-lg font-medium h-12"
-              aria-label="Event title"
-              autoFocus={mode === "create"}
-            />
-            {title.trim().length > 0 && title.trim().length < 2 && (
-              <p className="text-xs text-destructive mt-1">Title must be at least 2 characters</p>
-            )}
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground shrink-0">/events/</span>
+            <div className="space-y-1.5">
+              <Label htmlFor="event-title" className="text-sm text-muted-foreground">
+                Title <span className="text-destructive">*</span>
+              </Label>
               <Input
-                value={slug}
-                onChange={(e) => handleSlugChange(e.target.value)}
-                placeholder="auto-generated-slug"
-                className="text-sm h-8 font-mono"
-                aria-label="Event slug"
+                id="event-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Event title"
+                maxLength={100}
+                className="text-lg font-medium h-12"
+                autoFocus={mode === "create"}
               />
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  {title.trim().length > 0 && title.trim().length < 2 && (
+                    <p className="text-xs text-destructive">Title must be at least 2 characters</p>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground tabular-nums shrink-0">
+                  {title.length}/100
+                </p>
+              </div>
             </div>
           </div>
 
@@ -702,56 +706,57 @@ export function EventForm({ mode, event }: EventFormProps) {
                 </div>
               </div>
 
-              {/* Address & Directions - only for in-person events */}
+              {/* Getting There — in-person: address with auto Google Maps link */}
               {locationType === "in-person" && (
-                <>
+                <div className="space-y-3 rounded-lg bg-muted/40 px-4 py-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Getting There</p>
                   <div className="space-y-2">
                     <Label htmlFor="address-input">Address</Label>
-                    <Input
+                    <AddressAutocomplete
                       id="address-input"
                       value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      placeholder="e.g. 1234 Main St, Los Angeles, CA 90001"
+                      onChange={setAddress}
                     />
+                    {address.trim() ? (
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Navigation className="size-3 shrink-0" />
+                        Google Maps link will be generated automatically.
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Enter an address to auto-generate a Google Maps link.
+                      </p>
+                    )}
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="directions-url">Directions URL</Label>
-                    <div className="relative">
-                      <Navigation className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                      <Input
-                        id="directions-url"
-                        value={directionsUrl}
-                        onChange={(e) => setDirectionsUrl(e.target.value)}
-                        placeholder="e.g. https://maps.google.com/..."
-                        className="pl-9"
-                      />
-                    </div>
-                  </div>
-                </>
+                </div>
               )}
 
-              {/* Meeting URL - always visible */}
-              <div className="space-y-2">
-                <Label htmlFor="meeting-url">Meeting URL</Label>
-                <div className="relative">
-                  <Globe className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                  <Input
-                    id="meeting-url"
-                    value={meetingUrl}
-                    onChange={(e) => handleMeetingUrlChange(e.target.value)}
-                    placeholder="e.g. https://zoom.us/j/..."
-                    className={cn("pl-9", meetingUrlError && "border-destructive")}
-                  />
+              {/* Join Details — online: meeting link */}
+              {locationType === "online" && (
+                <div className="space-y-3 rounded-lg bg-muted/40 px-4 py-3">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Join Details</p>
+                  <div className="space-y-2">
+                    <Label htmlFor="meeting-url">Meeting Link</Label>
+                    <div className="relative">
+                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                      <Input
+                        id="meeting-url"
+                        value={meetingUrl}
+                        onChange={(e) => handleMeetingUrlChange(e.target.value)}
+                        placeholder="e.g. https://zoom.us/j/..."
+                        className={cn("pl-9", meetingUrlError && "border-destructive")}
+                      />
+                    </div>
+                    {meetingUrlError ? (
+                      <p className="text-xs text-destructive">{meetingUrlError}</p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Zoom, Google Meet, YouTube Live, etc.
+                      </p>
+                    )}
+                  </div>
                 </div>
-                {meetingUrlError ? (
-                  <p className="text-xs text-destructive">{meetingUrlError}</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground">
-                    Online meeting link (Zoom, YouTube, Google Meet).
-                  </p>
-                )}
-              </div>
+              )}
             </div>
           </section>
 
@@ -890,7 +895,7 @@ export function EventForm({ mode, event }: EventFormProps) {
                 </div>
               </div>
 
-              {/* Featured Event */}
+              {/* TODO: Re-enable Featured Event toggle once the featured curation flow is implemented.
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Featured Event</Label>
@@ -898,82 +903,85 @@ export function EventForm({ mode, event }: EventFormProps) {
                 </div>
                 <Switch checked={isFeatured} onCheckedChange={setIsFeatured} />
               </div>
+              */}
 
-              {/* Registration URL + Capacity */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="registration-url">Registration URL</Label>
-                  <div className="relative">
-                    <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                    <Input
-                      id="registration-url"
-                      value={registrationUrl}
-                      onChange={(e) => setRegistrationUrl(e.target.value)}
-                      placeholder="https://forms.google.com/..."
-                      className="pl-9"
-                    />
+              {/* Links (up to 3) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Links</Label>
+                  {links.length < 3 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs text-muted-foreground hover:text-foreground -mr-2"
+                      onClick={handleAddLink}
+                    >
+                      <PlusIcon className="size-3" />
+                      Add link
+                    </Button>
+                  )}
+                </div>
+                {links.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Add registration links, forms, or resources (up to 3).
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {links.map((link, index) => (
+                      <div key={index} className="flex gap-2 items-start">
+                        <div className="flex-1 grid grid-cols-2 gap-2">
+                          <Input
+                            value={link.label}
+                            onChange={(e) => handleLinkChange(index, "label", e.target.value)}
+                            placeholder="Label (e.g. Register)"
+                            className="text-sm"
+                          />
+                          <div className="relative">
+                            <ExternalLink className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                            <Input
+                              value={link.href}
+                              onChange={(e) => handleLinkChange(index, "href", e.target.value)}
+                              placeholder="https://..."
+                              className="text-sm pl-8"
+                            />
+                          </div>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-9 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => handleRemoveLink(index)}
+                          aria-label="Remove link"
+                        >
+                          <X className="size-3.5" />
+                        </Button>
+                      </div>
+                    ))}
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="capacity">Capacity</Label>
-                  <Input
-                    id="capacity"
-                    type="number"
-                    min={0}
-                    value={capacity ?? ""}
-                    onChange={(e) => setCapacity(e.target.value ? Number(e.target.value) : undefined)}
-                    placeholder="No limit"
-                  />
-                </div>
+                )}
+                {links.length < 3 && links.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={handleAddLink}
+                  >
+                    <PlusIcon className="size-3.5" />
+                    Add another link
+                  </Button>
+                )}
               </div>
 
               {/* Points of Contact */}
               <div className="space-y-2">
                 <Label>Points of Contact</Label>
-                {contacts.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {contacts.map((name) => (
-                      <Badge key={name} variant="secondary" className="gap-1 pr-1">
-                        {name}
-                        <button
-                          onClick={() => handleRemoveContact(name)}
-                          className="rounded-full hover:bg-foreground/10 p-0.5"
-                          aria-label={`Remove ${name}`}
-                        >
-                          <X className="size-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-                <div className="flex gap-1.5">
-                  <Input
-                    value={contactInput}
-                    onChange={(e) => setContactInput(e.target.value)}
-                    onKeyDown={handleContactKeyDown}
-                    placeholder="Add a person..."
-                    className="flex-1"
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handleAddContact}
-                    disabled={!contactInput.trim()}
-                  >
-                    <PlusIcon className="size-4" />
-                  </Button>
-                </div>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="outline" size="sm" disabled className="w-full">
-                      <Users className="size-3.5" />
-                      Browse People
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Coming soon</p>
-                  </TooltipContent>
-                </Tooltip>
+                <PeopleSelect
+                  mode="multi"
+                  roleLabel="contact"
+                  values={contacts}
+                  onChange={setContacts}
+                  placeholder="Add a contact..."
+                />
               </div>
             </div>
           </section>

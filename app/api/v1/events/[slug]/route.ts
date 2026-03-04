@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
-import { getEventBySlug, updateEvent, deleteEvent } from '@/lib/dal/events'
+import { getEventBySlug, updateEvent, deleteEvent, syncEventLinks } from '@/lib/dal/events'
 import { getMinistryBySlug } from '@/lib/dal/ministries'
 import { getCampusBySlug } from '@/lib/dal/campuses'
 import { requireApiAuth } from '@/lib/api/require-auth'
@@ -96,7 +96,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (body.ministryId !== undefined) data.ministryId = body.ministryId
     if (body.campusId !== undefined) data.campusId = body.campusId
     if (body.registrationUrl !== undefined) data.registrationUrl = body.registrationUrl
-    if (body.capacity !== undefined) data.capacity = body.capacity
     if (body.isFeatured !== undefined) data.isFeatured = body.isFeatured
     if (body.isPinned !== undefined) data.isPinned = body.isPinned
     if (body.isRecurring !== undefined) data.isRecurring = body.isRecurring
@@ -109,7 +108,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (body.monthlyRecurrenceType !== undefined) data.monthlyRecurrenceType = body.monthlyRecurrenceType
     if (body.recurrenceSchedule !== undefined) data.recurrenceSchedule = body.recurrenceSchedule
     if (body.badge !== undefined) data.badge = body.badge
-    if (body.links !== undefined) data.links = body.links
 
     // Handle status change: set publishedAt when transitioning to PUBLISHED
     if (body.status !== undefined) {
@@ -123,6 +121,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const tagNames: string[] | undefined = Array.isArray(body.tags) ? body.tags : undefined
 
     const updated = await updateEvent(churchId, existing.id, data, tagNames)
+
+    // Sync event links via EventLink relation (not the legacy Json blob)
+    if (Array.isArray(body.links)) {
+      await syncEventLinks(existing.id, body.links)
+    }
 
     // Revalidate public website pages that display events
     revalidatePath('/website')

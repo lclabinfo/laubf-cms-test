@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
-import { getEvents, createEvent, type EventFilters } from '@/lib/dal/events'
+import { getEvents, createEvent, syncEventLinks, type EventFilters } from '@/lib/dal/events'
 import { getMinistryBySlug } from '@/lib/dal/ministries'
 import { getCampusBySlug } from '@/lib/dal/campuses'
 import { ContentStatus, type EventType } from '@/lib/generated/prisma/client'
@@ -143,8 +143,6 @@ export async function POST(request: NextRequest) {
     if (body.monthlyRecurrenceType !== undefined) data.monthlyRecurrenceType = body.monthlyRecurrenceType
     if (body.recurrenceSchedule !== undefined) data.recurrenceSchedule = body.recurrenceSchedule
     if (body.badge !== undefined) data.badge = body.badge
-    if (body.capacity !== undefined) data.capacity = body.capacity
-    if (body.links !== undefined) data.links = body.links
 
     // Set resolved ministry/campus IDs
     if (ministryId) data.ministryId = ministryId
@@ -159,6 +157,11 @@ export async function POST(request: NextRequest) {
     const tagNames: string[] | undefined = Array.isArray(body.tags) ? body.tags : undefined
 
     const event = await createEvent(churchId, data as Parameters<typeof createEvent>[1], tagNames)
+
+    // Sync event links via EventLink relation (not the legacy Json blob)
+    if (Array.isArray(body.links)) {
+      await syncEventLinks(event.id, body.links)
+    }
 
     // Revalidate public website pages that display events
     revalidatePath('/website')

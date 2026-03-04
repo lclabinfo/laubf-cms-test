@@ -66,7 +66,6 @@ export type ChurchEvent = {
   locationType: LocationType
   location: string
   address?: string
-  directionsUrl?: string
   meetingUrl?: string
   monthlyType?: MonthlyRecurrenceType
   ministry: MinistryTag
@@ -81,8 +80,6 @@ export type ChurchEvent = {
   coverImage?: string
   imageAlt?: string
   tags: string[]
-  registrationUrl?: string
-  capacity?: number
   links: EventLink[]
 }
 
@@ -164,15 +161,8 @@ export const tagSuggestions = [
   "#CHILDREN",
 ] as const
 
-/* ── Helper: generate slug from title ── */
-export function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "")
-}
+// Re-export shared slug utility for backwards compatibility
+export { generateSlug } from "@/lib/utils"
 
 /* ── Helper: compute recurrence schedule label ── */
 export function computeRecurrenceSchedule(event: ChurchEvent): string | undefined {

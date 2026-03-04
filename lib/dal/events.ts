@@ -276,3 +276,29 @@ export async function syncEventTags(
     ),
   ])
 }
+
+/**
+ * Sync EventLink records for an event. Replaces all existing EventLink records
+ * with the provided array. Each item must have at least `label` and `href`.
+ */
+export async function syncEventLinks(
+  eventId: string,
+  links: { label: string; href: string; external?: boolean }[],
+): Promise<void> {
+  await prisma.$transaction([
+    prisma.eventLink.deleteMany({ where: { eventId } }),
+    ...links
+      .filter(l => l.label.trim() && l.href.trim())
+      .map((l, i) =>
+        prisma.eventLink.create({
+          data: {
+            eventId,
+            label: l.label.trim(),
+            href: l.href.trim(),
+            external: l.external ?? true,
+            sortOrder: i,
+          },
+        })
+      ),
+  ])
+}

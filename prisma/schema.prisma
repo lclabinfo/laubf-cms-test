@@ -533,7 +533,6 @@ model Event {
 
   // Registration
   registrationUrl    String?
-  capacity           Int?
   registrationCount  Int           @default(0)
 
   // Links
