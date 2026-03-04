@@ -446,14 +446,9 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
             {/* Header */}
             <div className="mb-8">
               <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="bg-brand-1 text-white-0 px-3 py-1 text-xs font-medium uppercase tracking-wider rounded-lg">
-                    Study Guide
-                  </span>
-                  <span className="text-sm font-medium text-white-3 uppercase tracking-wide">
-                    {formatDate(study.dateFor)}
-                  </span>
-                </div>
+                <span className="text-sm font-medium text-white-3 uppercase tracking-wide">
+                  {formatDate(study.dateFor)}
+                </span>
                 {study.attachments?.find(
                   (a) =>
                     a.type === "docx" &&
@@ -480,27 +475,27 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                 {study.title}
               </h1>
               <div className="flex flex-wrap items-center gap-3 text-sm text-black-3">
-                <span className="font-medium uppercase tracking-wide text-white-3">
-                  {study.series}
-                </span>
-                <span className="w-1 h-1 rounded-full bg-white-2-5" />
-                <a
-                  href={getBibleGatewayUrl(study.passage)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-1 text-brand-1 hover:text-brand-2 transition-colors"
-                >
-                  <BookOpen className="w-3.5 h-3.5" />
-                  <span className="underline underline-offset-4 decoration-brand-1/30 hover:decoration-brand-1">
-                    {study.passage}
-                  </span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
                 {study.messenger && (
-                  <>
-                    <span className="w-1 h-1 rounded-full bg-white-2-5" />
-                    <span>Msg by {study.messenger}</span>
-                  </>
+                  <span className="font-medium text-black-2">
+                    {study.messenger}
+                  </span>
+                )}
+                {study.messenger && study.passage && (
+                  <span className="w-1 h-1 rounded-full bg-white-2-5" />
+                )}
+                {study.passage && (
+                  <a
+                    href={getBibleGatewayUrl(study.passage)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1 text-brand-1 hover:text-brand-2 transition-colors"
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span className="underline underline-offset-4 decoration-brand-1/30 hover:decoration-brand-1">
+                      {study.passage}
+                    </span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
                 )}
               </div>
             </div>

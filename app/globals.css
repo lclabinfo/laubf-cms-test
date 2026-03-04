@@ -249,6 +249,41 @@
     overscroll-behavior: none;
   }
 
+  /* ---- Scrollbar styling: prevent white background in dark mode ---- */
+  /* Firefox */
+  * {
+    scrollbar-color: oklch(0.45 0 0) transparent;
+    scrollbar-width: thin;
+  }
+
+  /* WebKit (Chrome, Safari, Edge) */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: oklch(0.45 0 0 / 50%);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: oklch(0.45 0 0 / 80%);
+  }
+
+  /* Dark mode scrollbar */
+  .dark ::-webkit-scrollbar-thumb {
+    background-color: oklch(0.55 0 0 / 50%);
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background-color: oklch(0.55 0 0 / 80%);
+  }
+
   /* ---- CMS-only base styles (scoped to [data-cms]) ---- */
   [data-cms] * {
     @apply border-border;
@@ -438,6 +473,19 @@
   border: none;
   border-top: 1px solid var(--border);
   margin: 1em 0;
+}
+
+/* Field highlight animation (validation "go to field") */
+[data-field-highlight] {
+  outline: 2px solid oklch(var(--destructive));
+  outline-offset: 4px;
+  border-radius: 8px;
+  animation: field-highlight-fade 2s ease forwards;
+}
+
+@keyframes field-highlight-fade {
+  0%, 60% { outline-color: oklch(var(--destructive)); }
+  100% { outline-color: transparent; }
 }
 
 /* Tables */
@@ -854,6 +902,9 @@
   .study-content p {
     margin-bottom: 0.875rem;
   }
+  .study-content p:empty {
+    min-height: 1lh;
+  }
   .study-content ul,
   .study-content ol {
     padding-left: 1.5rem;
@@ -909,6 +960,9 @@
   }
   .study-bible-text p {
     margin-bottom: 1rem;
+  }
+  .study-bible-text p:empty {
+    min-height: 1lh;
   }
   .study-bible-text table {
     border-collapse: collapse;
