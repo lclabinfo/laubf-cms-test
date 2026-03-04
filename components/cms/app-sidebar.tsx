@@ -21,6 +21,8 @@ import {
   ChevronsUpDownIcon,
   LogOutIcon,
   SettingsIcon,
+  Building2Icon,
+  MapPinIcon,
   type LucideIcon,
 } from "lucide-react"
 
@@ -83,7 +85,7 @@ const navGroups: NavGroup[] = [
         icon: ChurchIcon,
       },
       {
-        title: "Bible Study",
+        title: "Bible Studies",
         href: "/cms/messages",
         icon: MessageSquareIcon,
       },
@@ -116,6 +118,16 @@ const navGroups: NavGroup[] = [
         title: "Roles",
         href: "/cms/people/roles",
         icon: ShieldIcon,
+      },
+      {
+        title: "Ministries",
+        href: "/cms/people/ministries",
+        icon: Building2Icon,
+      },
+      {
+        title: "Campuses",
+        href: "/cms/people/campuses",
+        icon: MapPinIcon,
       },
     ],
   },
