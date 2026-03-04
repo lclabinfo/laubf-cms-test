@@ -6,6 +6,7 @@ import type {
   Message,
   StudySection,
 } from "./messages-data"
+import { generateSlug } from "@/lib/utils"
 
 interface MessagesContextValue {
   series: Series[]
@@ -112,7 +113,7 @@ function cmsMessageToApiCreate(data: Omit<Message, "id">) {
   const youtubeId = data.videoUrl ? extractYouTubeId(data.videoUrl) : null
   return {
     title: data.title,
-    slug: data.title.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, ""),
+    slug: generateSlug(data.title),
     passage: data.passage || null,
     bibleVersion: data.bibleVersion || "ESV",
     description: data.description || null,
@@ -362,7 +363,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const addMessage = useCallback((data: Omit<Message, "id">) => {
-    const slug = data.slug || data.title.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "")
+    const slug = data.slug || generateSlug(data.title)
     const tempMessage: Message = {
       ...data,
       id: `m${Date.now()}`,

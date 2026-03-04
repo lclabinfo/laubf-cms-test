@@ -89,7 +89,7 @@ export function VideoTab({
   return (
     <div className="space-y-6">
       {/* Video URL */}
-      <div className="space-y-3">
+      <div id="field-video-url" className="space-y-3">
         <Label>Video URL</Label>
         <div className="flex gap-2">
           <div className="relative flex-1">

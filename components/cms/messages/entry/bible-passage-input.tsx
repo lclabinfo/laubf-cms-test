@@ -8,6 +8,7 @@ import {
   BIBLE_BOOKS,
   parseBibleReference,
   formatReference,
+  validateReference,
   type BibleReference,
 } from "@/lib/bible-data"
 
@@ -24,6 +25,7 @@ export function BiblePassageInput({
 }: BiblePassageInputProps) {
   const [inputValue, setInputValue] = useState("")
   const [parsedReference, setParsedReference] = useState<BibleReference | null>(null)
+  const [validationError, setValidationError] = useState<string | null>(null)
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
@@ -58,7 +60,9 @@ export function BiblePassageInput({
     if (showBadge) return
 
     const result = parseBibleReference(inputValue)
-    setParsedReference(result)
+    const error = result ? validateReference(result) : null
+    setValidationError(error)
+    setParsedReference(error ? null : result)
 
     const trimmed = inputValue.trim().toLowerCase()
 
@@ -201,10 +205,15 @@ export function BiblePassageInput({
               />
             </div>
 
-            {/* Green dot for valid reference */}
+            {/* Status dot: green for valid, red for invalid */}
             {parsedReference && (
               <div className="pr-2.5 flex-shrink-0">
                 <div className="size-2 rounded-full bg-green-500 animate-pulse" />
+              </div>
+            )}
+            {validationError && (
+              <div className="pr-2.5 flex-shrink-0">
+                <div className="size-2 rounded-full bg-destructive" />
               </div>
             )}
           </div>
@@ -227,6 +236,15 @@ export function BiblePassageInput({
                   Enter
                 </kbd>
               </button>
+            </div>
+          )}
+
+          {/* Validation error dropdown */}
+          {validationError && !showSuggestions && (
+            <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover rounded-md shadow-md border ring-1 ring-foreground/10 overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-100">
+              <div className="px-3 py-2 text-sm text-destructive">
+                {validationError}
+              </div>
             </div>
           )}
 
