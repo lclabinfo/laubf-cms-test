@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, MapPin, Globe, Star, Pencil, Copy, Trash2, Clock, TriangleAlert } from "lucide-react"
+import { MoreHorizontal, MapPin, Globe, Pencil, Copy, Trash2, Clock, TriangleAlert } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { SortableHeader } from "@/components/ui/sortable-header"
@@ -42,7 +42,11 @@ function formatDateFull(dateStr: string) {
 }
 
 function formatTime(time: string) {
-  const [h, m] = time.split(":").map(Number)
+  if (!time) return ""
+  const parts = time.split(":")
+  const h = parseInt(parts[0], 10)
+  const m = parseInt(parts[1], 10)
+  if (isNaN(h) || isNaN(m)) return time
   const suffix = h >= 12 ? "PM" : "AM"
   const hour = h % 12 || 12
   return `${hour}:${m.toString().padStart(2, "0")} ${suffix}`
@@ -158,9 +162,11 @@ export function createColumns(options?: { onDelete?: (id: string) => void }): Co
       const past = isPast(row.original.date)
       return (
         <div className={cn("flex items-center gap-2 min-w-0", past && "opacity-60")}>
+          {/* TODO: Re-enable featured star once the featured curation flow is implemented.
           {row.original.isFeatured && (
             <Star className="size-3.5 shrink-0 text-warning fill-warning" />
           )}
+          */}
           <div className="min-w-0">
             <div className="font-medium truncate">{row.getValue("title")}</div>
           </div>
@@ -178,11 +184,19 @@ export function createColumns(options?: { onDelete?: (id: string) => void }): Co
   {
     accessorKey: "type",
     header: "Type",
-    cell: ({ row }) => (
-      <Badge variant="secondary">
-        {eventTypeDisplay[row.original.type]}
-      </Badge>
-    ),
+    cell: ({ row }) => {
+      const type = row.original.type
+      const typeStyles: Record<string, string> = {
+        event: "bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800",
+        meeting: "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800",
+        program: "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800",
+      }
+      return (
+        <Badge variant="outline" className={cn(typeStyles[type])}>
+          {eventTypeDisplay[type]}
+        </Badge>
+      )
+    },
     filterFn: (row, id, value: string[]) => {
       return value.includes(row.getValue(id))
     },

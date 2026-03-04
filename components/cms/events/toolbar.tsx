@@ -6,6 +6,7 @@ import { Search, SlidersHorizontal, Settings2, Plus, X, List, LayoutGrid } from 
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { DatePicker } from "@/components/ui/date-picker"
 import {
   Popover,
   PopoverContent,
@@ -20,10 +21,11 @@ import {
 import type { ChurchEvent, EventType, Recurrence, MinistryTag } from "@/lib/events-data"
 import type { ContentStatus } from "@/lib/status"
 
+type RecurrenceFilter = "recurring" | "one-time"
+
 const statuses: { value: ContentStatus; label: string }[] = [
   { value: "published", label: "Published" },
   { value: "draft", label: "Draft" },
-  { value: "scheduled", label: "Scheduled" },
   { value: "archived", label: "Archived" },
 ]
 
@@ -33,14 +35,9 @@ const eventTypes: { value: EventType; label: string }[] = [
   { value: "program", label: "Program" },
 ]
 
-const recurrences: { value: Recurrence; label: string }[] = [
-  { value: "none", label: "None" },
-  { value: "daily", label: "Daily" },
-  { value: "weekly", label: "Weekly" },
-  { value: "monthly", label: "Monthly" },
-  { value: "yearly", label: "Yearly" },
-  { value: "weekday", label: "Weekday" },
-  { value: "custom", label: "Custom" },
+const recurrenceOptions: { value: RecurrenceFilter; label: string }[] = [
+  { value: "recurring", label: "Recurring" },
+  { value: "one-time", label: "One-time" },
 ]
 
 const ministries: { value: MinistryTag; label: string }[] = [
@@ -67,14 +64,26 @@ interface ToolbarProps {
   setGlobalFilter: (value: string) => void
   view: "list" | "card"
   onViewChange: (view: "list" | "card") => void
+  dateFrom?: string
+  dateTo?: string
+  onDateFromChange?: (value: string) => void
+  onDateToChange?: (value: string) => void
 }
 
-export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChange }: ToolbarProps) {
+export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChange, dateFrom, dateTo, onDateFromChange, onDateToChange }: ToolbarProps) {
   const selectedCount = table.getFilteredSelectedRowModel().rows.length
   const statusFilter = (table.getColumn("status")?.getFilterValue() as ContentStatus[]) ?? []
   const typeFilter = (table.getColumn("type")?.getFilterValue() as EventType[]) ?? []
   const recurrenceFilter = (table.getColumn("recurrence")?.getFilterValue() as Recurrence[]) ?? []
   const ministryFilter = (table.getColumn("ministry")?.getFilterValue() as MinistryTag[]) ?? []
+
+  // Derived simplified recurrence filter state
+  const recurringSelected = recurrenceFilter.some((r) => r !== "none")
+  const oneTimeSelected = recurrenceFilter.includes("none")
+  const activeRecurrenceOptions: RecurrenceFilter[] = [
+    ...(recurringSelected ? (["recurring"] as RecurrenceFilter[]) : []),
+    ...(oneTimeSelected ? (["one-time"] as RecurrenceFilter[]) : []),
+  ]
 
   function toggleStatus(status: ContentStatus) {
     const current = statusFilter
@@ -92,11 +101,25 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChan
     table.getColumn("type")?.setFilterValue(next.length ? next : undefined)
   }
 
-  function toggleRecurrence(recurrence: Recurrence) {
-    const current = recurrenceFilter
-    const next = current.includes(recurrence)
-      ? current.filter((r) => r !== recurrence)
-      : [...current, recurrence]
+  const allRecurringValues: Recurrence[] = ["daily", "weekly", "monthly", "yearly", "weekday", "custom"]
+
+  function toggleRecurrenceOption(option: RecurrenceFilter) {
+    let next: Recurrence[]
+    if (option === "recurring") {
+      const hasRecurring = recurrenceFilter.some((r) => r !== "none")
+      if (hasRecurring) {
+        next = recurrenceFilter.filter((r) => r === "none")
+      } else {
+        next = [...recurrenceFilter.filter((r) => r === "none"), ...allRecurringValues]
+      }
+    } else {
+      // one-time
+      if (recurrenceFilter.includes("none")) {
+        next = recurrenceFilter.filter((r) => r !== "none")
+      } else {
+        next = [...recurrenceFilter, "none"]
+      }
+    }
     table.getColumn("recurrence")?.setFilterValue(next.length ? next : undefined)
   }
 
@@ -113,9 +136,12 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChan
     table.getColumn("type")?.setFilterValue(undefined)
     table.getColumn("recurrence")?.setFilterValue(undefined)
     table.getColumn("ministry")?.setFilterValue(undefined)
+    onDateFromChange?.("")
+    onDateToChange?.("")
   }
 
-  const filterCount = statusFilter.length + typeFilter.length + recurrenceFilter.length + ministryFilter.length
+  const hasDateFilter = !!(dateFrom || dateTo)
+  const filterCount = statusFilter.length + typeFilter.length + activeRecurrenceOptions.length + ministryFilter.length + (hasDateFilter ? 1 : 0)
   const hasFilters = filterCount > 0
 
   return (
@@ -144,7 +170,7 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChan
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-64" align="start">
+        <PopoverContent className="w-72 max-h-[min(480px,70vh)] overflow-y-auto" align="start">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Filters</span>
@@ -193,12 +219,12 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChan
             <div className="space-y-2">
               <span className="text-xs font-medium text-muted-foreground">Recurrence</span>
               <div className="flex flex-wrap gap-1.5">
-                {recurrences.map((r) => (
+                {recurrenceOptions.map((r) => (
                   <Badge
                     key={r.value}
-                    variant={recurrenceFilter.includes(r.value) ? "default" : "outline"}
+                    variant={activeRecurrenceOptions.includes(r.value) ? "default" : "outline"}
                     className="cursor-pointer"
-                    onClick={() => toggleRecurrence(r.value)}
+                    onClick={() => toggleRecurrenceOption(r.value)}
                   >
                     {r.label}
                   </Badge>
@@ -220,6 +246,27 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChan
                     {m.label}
                   </Badge>
                 ))}
+              </div>
+            </div>
+
+            {/* Date range */}
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-muted-foreground">Date Range</span>
+              <div className="flex items-center gap-2">
+                <DatePicker
+                  value={dateFrom || undefined}
+                  onChange={(v) => onDateFromChange?.(v)}
+                  placeholder="From"
+                  className="h-8 text-xs"
+                />
+                <span className="text-xs text-muted-foreground shrink-0">to</span>
+                <DatePicker
+                  value={dateTo || undefined}
+                  onChange={(v) => onDateToChange?.(v)}
+                  placeholder="To"
+                  min={dateFrom || undefined}
+                  className="h-8 text-xs"
+                />
               </div>
             </div>
           </div>
@@ -297,11 +344,11 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChan
               </button>
             </Badge>
           ))}
-          {recurrenceFilter.map((r) => (
+          {activeRecurrenceOptions.map((r) => (
             <Badge key={r} variant="secondary" className="gap-1">
-              {r}
+              {r === "recurring" ? "Recurring" : "One-time"}
               <button
-                onClick={() => toggleRecurrence(r)}
+                onClick={() => toggleRecurrenceOption(r)}
                 className="ml-0.5 rounded-full hover:bg-foreground/10"
               >
                 <X className="size-3" />
@@ -319,6 +366,17 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChan
               </button>
             </Badge>
           ))}
+          {hasDateFilter && (
+            <Badge variant="secondary" className="gap-1.5 h-7 px-2.5 text-xs">
+              {dateFrom || "..."} — {dateTo || "..."}
+              <button
+                onClick={() => { onDateFromChange?.(""); onDateToChange?.("") }}
+                className="ml-0.5 p-1 rounded-full hover:bg-foreground/10 transition-colors"
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          )}
         </div>
       )}
 

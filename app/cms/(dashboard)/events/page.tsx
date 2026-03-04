@@ -113,12 +113,6 @@ export default function EventsPage() {
   }, [events, deleteEvent])
 
   const columns = useMemo(() => createColumns({ onDelete: handleDelete }), [handleDelete])
-  // Sort: featured events pinned to top, then by date descending
-  const sortedEvents = useMemo(() => {
-    const featured = events.filter((e) => e.isFeatured)
-    const nonFeatured = events.filter((e) => !e.isFeatured)
-    return [...featured, ...nonFeatured]
-  }, [events])
 
   const [sorting, setSorting] = useState<SortingState>([
     { id: "date", desc: true },
@@ -129,8 +123,27 @@ export default function EventsPage() {
   const [globalFilter, setGlobalFilter] = useState("")
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
   const [view, setView] = useState<"list" | "card">("list")
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date())
+
+  // Filter by date range
+  const filteredByDate = useMemo(() => {
+    if (!dateFrom && !dateTo) return events
+    return events.filter((e) => {
+      if (dateFrom && e.date < dateFrom) return false
+      if (dateTo && e.date > dateTo) return false
+      return true
+    })
+  }, [events, dateFrom, dateTo])
+
+  // Sort: featured events pinned to top, then by date descending
+  const sortedEvents = useMemo(() => {
+    const featured = filteredByDate.filter((e) => e.isFeatured)
+    const nonFeatured = filteredByDate.filter((e) => !e.isFeatured)
+    return [...featured, ...nonFeatured]
+  }, [filteredByDate])
 
   // Reset page index when filters change (replaces TanStack's autoResetPageIndex
   // which uses microtasks that fire before mount in React 19 strict mode)
@@ -234,6 +247,10 @@ export default function EventsPage() {
             setGlobalFilter={handleGlobalFilterChange}
             view={view}
             onViewChange={setView}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onDateFromChange={setDateFrom}
+            onDateToChange={setDateTo}
           />
           {loading ? (
             <div className="flex items-center justify-center py-16">

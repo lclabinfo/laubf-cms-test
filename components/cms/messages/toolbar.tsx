@@ -6,6 +6,7 @@ import { Search, SlidersHorizontal, Settings2, Plus, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { DatePicker } from "@/components/ui/date-picker"
 import {
   Popover,
   PopoverContent,
@@ -120,20 +121,19 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
               <div className="space-y-2">
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Date Range</span>
                 <div className="flex items-center gap-2">
-                  <Input
-                    type="date"
-                    value={dateFrom ?? ""}
-                    onChange={(e) => onDateFromChange?.(e.target.value)}
-                    className="h-8 text-xs"
+                  <DatePicker
+                    value={dateFrom || undefined}
+                    onChange={(v) => onDateFromChange?.(v)}
                     placeholder="From"
-                  />
-                  <span className="text-xs text-muted-foreground">to</span>
-                  <Input
-                    type="date"
-                    value={dateTo ?? ""}
-                    onChange={(e) => onDateToChange?.(e.target.value)}
                     className="h-8 text-xs"
+                  />
+                  <span className="text-xs text-muted-foreground shrink-0">to</span>
+                  <DatePicker
+                    value={dateTo || undefined}
+                    onChange={(v) => onDateToChange?.(v)}
                     placeholder="To"
+                    min={dateFrom || undefined}
+                    className="h-8 text-xs"
                   />
                 </div>
               </div>
