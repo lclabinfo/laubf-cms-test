@@ -124,14 +124,13 @@ export default function MinistriesPage() {
     setForm((prev) => ({
       ...prev,
       name,
-      // Auto-generate slug if we're creating and slug hasn't been manually changed
-      slug: editingMinistry ? prev.slug : slugify(name),
+      slug: slugify(name),
     }))
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.name.trim() || !form.slug.trim()) return
+    if (!form.name.trim()) return
 
     setSaving(true)
     try {
@@ -255,7 +254,6 @@ export default function MinistriesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Slug</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Order</TableHead>
                 <TableHead className="w-[100px]" />
@@ -279,9 +277,6 @@ export default function MinistriesPage() {
                         {ministry.description}
                       </p>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <code className="text-xs text-muted-foreground">{ministry.slug}</code>
                   </TableCell>
                   <TableCell>
                     <Badge variant={ministry.isActive ? "default" : "secondary"} className="text-xs">
@@ -341,18 +336,6 @@ export default function MinistriesPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ministry-slug">Slug <span className="text-destructive">*</span></Label>
-              <Input
-                id="ministry-slug"
-                value={form.slug}
-                onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))}
-                placeholder="e.g. young-adult"
-              />
-              <p className="text-xs text-muted-foreground">
-                Used as a unique identifier. Lowercase letters, numbers, and hyphens only.
-              </p>
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="ministry-description">Description</Label>
               <Textarea
                 id="ministry-description"
@@ -406,7 +389,7 @@ export default function MinistriesPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={saving || !form.name.trim() || !form.slug.trim()}
+                disabled={saving || !form.name.trim()}
               >
                 {saving && <Loader2 className="size-4 animate-spin" />}
                 {editingMinistry ? "Save Changes" : "Create Ministry"}

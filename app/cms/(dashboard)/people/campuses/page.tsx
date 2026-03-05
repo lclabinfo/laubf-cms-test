@@ -140,13 +140,13 @@ export default function CampusesPage() {
     setForm((prev) => ({
       ...prev,
       name,
-      slug: editingCampus ? prev.slug : slugify(name),
+      slug: slugify(name),
     }))
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.name.trim() || !form.slug.trim()) return
+    if (!form.name.trim()) return
 
     setSaving(true)
     try {
@@ -267,7 +267,6 @@ export default function CampusesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Slug</TableHead>
                 <TableHead>Location</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Order</TableHead>
@@ -289,9 +288,6 @@ export default function CampusesPage() {
                         {campus.description}
                       </p>
                     )}
-                  </TableCell>
-                  <TableCell>
-                    <code className="text-xs text-muted-foreground">{campus.slug}</code>
                   </TableCell>
                   <TableCell>
                     <span className="text-sm text-muted-foreground">
@@ -365,18 +361,6 @@ export default function CampusesPage() {
                   placeholder="e.g. CSULB"
                 />
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="campus-slug">Slug <span className="text-destructive">*</span></Label>
-              <Input
-                id="campus-slug"
-                value={form.slug}
-                onChange={(e) => setForm((prev) => ({ ...prev, slug: e.target.value }))}
-                placeholder="e.g. csulb"
-              />
-              <p className="text-xs text-muted-foreground">
-                Used as a unique identifier. Lowercase letters, numbers, and hyphens only.
-              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="campus-description">Description</Label>
@@ -453,7 +437,7 @@ export default function CampusesPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={saving || !form.name.trim() || !form.slug.trim()}
+                disabled={saving || !form.name.trim()}
               >
                 {saving && <Loader2 className="size-4 animate-spin" />}
                 {editingCampus ? "Save Changes" : "Create Campus"}
