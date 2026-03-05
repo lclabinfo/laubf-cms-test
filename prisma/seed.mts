@@ -795,7 +795,7 @@ async function main() {
         bibleVersion: 'ESV',
         speakerId: speakerMap.get(msg.speaker) || null,
         dateFor: new Date(msg.dateFor),
-        description: msg.description,
+        videoDescription: msg.description,
         videoUrl: msg.youtubeId ? `https://www.youtube.com/watch?v=${msg.youtubeId}` : null,
         youtubeId: msg.youtubeId,
         thumbnailUrl,
@@ -805,7 +805,6 @@ async function main() {
         hasVideo,
         hasStudy: !!relatedStudyId,
         relatedStudyId,
-        status: 'PUBLISHED',
         publishedAt: new Date(msg.dateFor),
       },
     })
