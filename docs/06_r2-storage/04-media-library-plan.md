@@ -11,7 +11,7 @@
 ## Target State
 
 - Full media library: upload, browse, search, edit metadata, delete
-- Files stored on R2 at `{churchId}/media/{type}/{year}/{uuid}-{filename}`
+- Files stored in the **`file-media`** R2 bucket at `{churchId}/{type}/{year}/{uuid}-{filename}`
 - Reusable media selector for embedding images in bible studies, messages, events, etc.
 - Shared storage quota with bible study attachments (10 GB combined per church)
 
@@ -21,7 +21,7 @@
 
 ### Phase 1: R2 Infrastructure
 
-**Shared with Bible Study plan** — same bucket, same client, same upload URL endpoint. The `context` param in `POST /api/v1/upload-url` distinguishes media vs attachments for key generation.
+**Shared with Bible Study plan** — same Cloudflare account, same S3 client, same upload URL endpoint. The `context` param in `POST /api/v1/upload-url` routes to the correct bucket (`file-media` for media, `file-attachments` for bible study materials).
 
 ### Phase 2: Media DAL (`lib/dal/media.ts`)
 

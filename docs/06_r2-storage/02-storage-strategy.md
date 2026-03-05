@@ -46,9 +46,11 @@ None of these apply to this project in its current phase.
 
 ### Phased Approach
 
-1. **Now (MVP):** Cloud-only with R2. Free tier covers 10 GB. Single bucket, tenant-prefixed keys.
-2. **Growth (10+ churches):** Same architecture. R2 scales automatically. Monitor storage via Cloudflare dashboard.
-3. **Scale (100+ churches):** Evaluate per-tenant buckets if regulatory isolation needed. Add Infrequent Access lifecycle rules for old content.
+1. **Now (LA UBF):** Cloud-only with R2. Dedicated Cloudflare account per church. Two buckets (`file-attachments`, `file-media`). 10 GB free tier per account.
+2. **Growth (2-5 churches):** Same pattern — new Cloudflare account per church, managed by lclab.io. Single-tenant deployments.
+3. **Consolidation (~5-10 churches):** Migrate to centralized lclab.io Cloudflare account. Shared buckets with tenant-prefixed keys. Multi-tenant app.
+
+See `00-account-strategy.md` for the full account management and migration plan.
 
 ## R2 Pricing Reality Check
 
@@ -87,20 +89,42 @@ Egress is any time data leaves R2’s network, not only when a user downloads in
 
 Track usage via `MediaAsset.fileSize` and `BibleStudyAttachment.fileSize` columns — sum per `churchId` on upload to enforce the limit server-side.
 
+## Two-Bucket Architecture
+
+Files are split across two R2 buckets by purpose:
+
+| Bucket | Contents | Access Pattern |
+|---|---|---|
+| `file-attachments` | Bible study PDFs, DOCXs, sermon handouts | Download-oriented |
+| `file-media` | Images, audio, thumbnails, series covers | Serve-oriented (inline, cached) |
+
+See `docs/06_r2-storage/01-r2-env-setup.md` for env vars and rationale.
+
 ## Multi-Tenant Key Structure
 
+Both buckets use the same key pattern — `churchId` prefix for tenant isolation.
+
+**Phase 1 (account-per-church):** The `churchId` prefix is technically redundant since each church has its own buckets, but we include it from day one so that keys don't need to change during Phase 2 migration.
+
+**Phase 2 (shared buckets):** The `churchId` prefix becomes essential for isolation.
+
+**`file-attachments` bucket:**
 ```
 {churchId}/
-  attachments/
+  {year}/
+    {uuid}-{sanitized-filename}.pdf
+    {uuid}-{sanitized-filename}.docx
+```
+
+**`file-media` bucket:**
+```
+{churchId}/
+  images/
     {year}/
-      {uuid}-{sanitized-filename}.pdf
-  media/
-    images/
-      {year}/
-        {uuid}-{sanitized-filename}.jpg
-    audio/
-      {year}/
-        {uuid}-{sanitized-filename}.mp3
+      {uuid}-{sanitized-filename}.jpg
+  audio/
+    {year}/
+      {uuid}-{sanitized-filename}.mp3
 ```
 
 - `churchId` prefix provides tenant isolation
@@ -110,9 +134,17 @@ Track usage via `MediaAsset.fileSize` and `BibleStudyAttachment.fileSize` column
 
 ## Lifecycle Rules
 
-Configure in Cloudflare dashboard:
+Configure per-bucket in Cloudflare dashboard:
+
+**`file-attachments` bucket:**
 
 | Prefix | Rule | Purpose |
 |---|---|---|
 | `staging/` | Delete after 24 hours | Orphan upload cleanup |
-| `*/attachments/` | Transition to IA after 90 days | Cost optimization for old study materials |
+| (all) | Transition to IA after 90 days | Cost optimization for old study materials |
+
+**`file-media` bucket:**
+
+| Prefix | Rule | Purpose |
+|---|---|---|
+| `staging/` | Delete after 24 hours | Orphan upload cleanup |

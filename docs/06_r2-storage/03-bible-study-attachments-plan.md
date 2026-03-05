@@ -10,8 +10,8 @@
 
 ## Target State
 
-- Files uploaded to R2 via presigned URLs
-- `BibleStudyAttachment.url` stores the CDN URL (e.g., `https://cdn.laubf.org/{churchId}/attachments/2026/{uuid}-handout.pdf`)
+- Files uploaded to the **`file-attachments`** R2 bucket via presigned URLs
+- `BibleStudyAttachment.url` stores the CDN URL (e.g., `https://{R2_ATTACHMENTS_PUBLIC_URL}/{churchId}/2026/{uuid}-handout.pdf`)
 - Upload, replace, and delete operations all keep R2 and DB in sync
 - Orphan files auto-cleaned via staging prefix + lifecycle rule
 
@@ -34,16 +34,18 @@ Create a thin wrapper around the S3 client:
 
 ```ts
 // lib/storage/r2.ts
-export async function getUploadUrl(key: string, contentType: string, maxSize: number): Promise<string>
-export async function deleteObject(key: string): Promise<void>
-export async function moveObject(srcKey: string, destKey: string): Promise<void>
-export function getPublicUrl(key: string): string
+export async function getUploadUrl(bucket: string, key: string, contentType: string, maxSize: number): Promise<string>
+export async function deleteObject(bucket: string, key: string): Promise<void>
+export async function moveObject(bucket: string, srcKey: string, destKey: string): Promise<void>
+export function getPublicUrl(bucket: "attachments" | "media", key: string): string
 ```
 
-- `getUploadUrl` — generates presigned PUT URL (5-minute expiry)
-- `deleteObject` — removes file from R2
-- `moveObject` — copies from staging to permanent key, then deletes staging
-- `getPublicUrl` — returns `${R2_PUBLIC_URL}/${key}`
+- `getUploadUrl` — generates presigned PUT URL (5-minute expiry) for the specified bucket
+- `deleteObject` — removes file from the specified bucket
+- `moveObject` — copies from staging to permanent key within the same bucket, then deletes staging
+- `getPublicUrl` — returns `${R2_ATTACHMENTS_PUBLIC_URL}/${key}` or `${R2_MEDIA_PUBLIC_URL}/${key}`
+
+All functions accept a `bucket` param — the shared S3 client handles both buckets.
 
 ### Phase 3: Upload API Route (`app/api/v1/upload-url/route.ts`)
 
@@ -58,7 +60,7 @@ Server-side logic:
 2. Validate file type (PDF, DOCX, DOC, RTF, IMAGE for bible study)
 3. Validate file size (max 50 MB per file)
 4. Check church storage quota (sum of existing files < 10 GB)
-5. Generate staging key: `staging/{churchId}/attachments/{uuid}-{filename}`
+5. Generate staging key: `staging/{churchId}/{uuid}-{filename}` in the `file-attachments` bucket
 6. Return presigned PUT URL + final public URL
 
 ### Phase 4: Client Upload Flow
