@@ -6,7 +6,7 @@ export type Recurrence = "none" | "daily" | "weekly" | "monthly" | "yearly" | "w
 
 export type MonthlyRecurrenceType = "day-of-month" | "day-of-week"
 
-export type LocationType = "in-person" | "online"
+export type LocationType = "in-person" | "online" | "hybrid"
 
 export type DayOfWeek = "sun" | "mon" | "tue" | "wed" | "thu" | "fri" | "sat"
 
@@ -43,6 +43,14 @@ export type CampusTag =
   | "cal-poly-pomona"
   | "all"
 
+export type EventContact = {
+  name: string
+  label?: string
+  isMain?: boolean
+}
+
+export type CostType = "free" | "paid" | "donation"
+
 export type EventLink = {
   label: string
   href: string
@@ -77,11 +85,17 @@ export type ChurchEvent = {
   shortDescription?: string
   description?: string
   welcomeMessage?: string
-  contacts?: string[]
+  contacts?: EventContact[]
   coverImage?: string
   imageAlt?: string
-  tags: string[]
   links: EventLink[]
+  // Cost & Registration
+  costType?: CostType
+  costAmount?: string
+  registrationRequired?: boolean
+  registrationUrl?: string
+  maxParticipants?: number
+  registrationDeadline?: string
 }
 
 export const eventTypeDisplay: Record<EventType, string> = {
@@ -142,25 +156,6 @@ export const dayLabels: Record<DayOfWeek, { short: string; full: string }> = {
 }
 
 export const allDays: DayOfWeek[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
-
-/** Common tag suggestions for the tag input */
-export const tagSuggestions = [
-  "#YAM",
-  "#HBF",
-  "#JBF",
-  "#BIBLE STUDY",
-  "#WORSHIP",
-  "#FELLOWSHIP",
-  "#OUTREACH",
-  "#CONFERENCE",
-  "#CAMPUS",
-  "#RECURRING",
-  "#OPEN EVENT",
-  "#PRAYER",
-  "#DEVOTIONAL",
-  "#DISCIPLESHIP",
-  "#CHILDREN",
-] as const
 
 // Re-export shared slug utility for backwards compatibility
 export { generateSlug } from "@/lib/utils"

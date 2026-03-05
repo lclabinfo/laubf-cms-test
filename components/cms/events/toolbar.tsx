@@ -160,22 +160,23 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChan
       {/* Filters */}
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="default">
+          <Button variant={hasFilters ? "default" : "outline"} size="default">
             <SlidersHorizontal />
             <span className="hidden sm:inline">Filters</span>
             {hasFilters && (
-              <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+              <Badge variant={hasFilters ? "outline" : "secondary"} className="ml-1 h-4 px-1 text-[10px] bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30">
                 {filterCount}
               </Badge>
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-72 max-h-[min(480px,70vh)] overflow-y-auto" align="start">
+        <PopoverContent className="w-72 max-h-[min(480px,70vh)] overflow-y-auto overflow-x-hidden" align="start">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Filters</span>
               {hasFilters && (
-                <Button variant="ghost" size="xs" onClick={clearFilters}>
+                <Button variant="ghost" size="xs" onClick={clearFilters} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                  <X className="size-3" />
                   Clear all
                 </Button>
               )}
@@ -252,20 +253,20 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChan
             {/* Date range */}
             <div className="space-y-2">
               <span className="text-xs font-medium text-muted-foreground">Date Range</span>
-              <div className="flex items-center gap-2">
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                 <DatePicker
                   value={dateFrom || undefined}
                   onChange={(v) => onDateFromChange?.(v)}
                   placeholder="From"
-                  className="h-8 text-xs"
+                  className="h-8 text-xs min-w-0"
                 />
-                <span className="text-xs text-muted-foreground shrink-0">to</span>
+                <span className="text-xs text-muted-foreground">to</span>
                 <DatePicker
                   value={dateTo || undefined}
                   onChange={(v) => onDateToChange?.(v)}
                   placeholder="To"
                   min={dateFrom || undefined}
-                  className="h-8 text-xs"
+                  className="h-8 text-xs min-w-0"
                 />
               </div>
             </div>
@@ -318,67 +319,6 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChan
           <LayoutGrid className="size-4" />
         </Button>
       </div>
-
-      {/* Active filter badges */}
-      {hasFilters && (
-        <div className="flex items-center gap-1 flex-wrap">
-          {statusFilter.map((s) => (
-            <Badge key={s} variant="secondary" className="gap-1">
-              {s}
-              <button
-                onClick={() => toggleStatus(s)}
-                className="ml-0.5 rounded-full hover:bg-foreground/10"
-              >
-                <X className="size-3" />
-              </button>
-            </Badge>
-          ))}
-          {typeFilter.map((t) => (
-            <Badge key={t} variant="secondary" className="gap-1">
-              {t}
-              <button
-                onClick={() => toggleType(t)}
-                className="ml-0.5 rounded-full hover:bg-foreground/10"
-              >
-                <X className="size-3" />
-              </button>
-            </Badge>
-          ))}
-          {activeRecurrenceOptions.map((r) => (
-            <Badge key={r} variant="secondary" className="gap-1">
-              {r === "recurring" ? "Recurring" : "One-time"}
-              <button
-                onClick={() => toggleRecurrenceOption(r)}
-                className="ml-0.5 rounded-full hover:bg-foreground/10"
-              >
-                <X className="size-3" />
-              </button>
-            </Badge>
-          ))}
-          {ministryFilter.map((m) => (
-            <Badge key={m} variant="secondary" className="gap-1">
-              {m}
-              <button
-                onClick={() => toggleMinistry(m)}
-                className="ml-0.5 rounded-full hover:bg-foreground/10"
-              >
-                <X className="size-3" />
-              </button>
-            </Badge>
-          ))}
-          {hasDateFilter && (
-            <Badge variant="secondary" className="gap-1.5 h-7 px-2.5 text-xs">
-              {dateFrom || "..."} — {dateTo || "..."}
-              <button
-                onClick={() => { onDateFromChange?.(""); onDateToChange?.("") }}
-                className="ml-0.5 p-1 rounded-full hover:bg-foreground/10 transition-colors"
-              >
-                <X className="size-3" />
-              </button>
-            </Badge>
-          )}
-        </div>
-      )}
 
       <div className="flex-1" />
 

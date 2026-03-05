@@ -80,13 +80,23 @@ export function AddressAutocomplete({
     }
     setLoading(true)
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`
-      const res = await fetch(url, {
-        headers: { "Accept-Language": "en" },
-      })
-      const data: NominatimResult[] = await res.json()
-      setSuggestions(data)
-      setOpen(data.length > 0)
+      const base = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q=${encodeURIComponent(query)}`
+      const headers = { "Accept-Language": "en" }
+
+      // Try US-only first
+      const usRes = await fetch(`${base}&countrycodes=us`, { headers })
+      const usData: NominatimResult[] = await usRes.json()
+
+      if (usData.length > 0) {
+        setSuggestions(usData)
+        setOpen(true)
+      } else {
+        // Fallback: search all countries
+        const allRes = await fetch(base, { headers })
+        const allData: NominatimResult[] = await allRes.json()
+        setSuggestions(allData)
+        setOpen(allData.length > 0)
+      }
     } catch {
       setSuggestions([])
       setOpen(false)

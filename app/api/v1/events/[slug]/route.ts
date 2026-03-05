@@ -97,6 +97,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (body.ministryId !== undefined) data.ministryId = body.ministryId
     if (body.campusId !== undefined) data.campusId = body.campusId
     if (body.registrationUrl !== undefined) data.registrationUrl = body.registrationUrl
+    if (body.costType !== undefined) data.costType = body.costType
+    if (body.costAmount !== undefined) data.costAmount = body.costAmount
+    if (body.registrationRequired !== undefined) data.registrationRequired = body.registrationRequired
+    if (body.maxParticipants !== undefined) data.maxParticipants = body.maxParticipants != null ? Number(body.maxParticipants) : null
+    if (body.registrationDeadline !== undefined) data.registrationDeadline = body.registrationDeadline ? new Date(body.registrationDeadline) : null
     if (body.isFeatured !== undefined) data.isFeatured = body.isFeatured
     if (body.isPinned !== undefined) data.isPinned = body.isPinned
     if (body.isRecurring !== undefined) data.isRecurring = body.isRecurring
@@ -118,14 +123,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       }
     }
 
-    // Extract tags for sync (stored via ContentTag join table, not on Event model)
-    const tagNames: string[] | undefined = Array.isArray(body.tags) ? body.tags : undefined
-
-    const updated = await updateEvent(churchId, existing.id, data, tagNames)
+    let updated = await updateEvent(churchId, existing.id, data)
 
     // Sync event links via EventLink relation (not the legacy Json blob)
     if (Array.isArray(body.links)) {
       await syncEventLinks(existing.id, body.links)
+      // Re-fetch to include synced eventLinks in response
+      const refreshed = await getEventBySlug(churchId, updated.slug)
+      if (refreshed) updated = refreshed
     }
 
     // Revalidate public website pages that display events

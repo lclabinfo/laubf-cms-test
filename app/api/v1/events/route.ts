@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
-import { getEvents, createEvent, syncEventLinks, type EventFilters } from '@/lib/dal/events'
+import { getEvents, getEventBySlug, createEvent, syncEventLinks, type EventFilters } from '@/lib/dal/events'
 import { getMinistryBySlug } from '@/lib/dal/ministries'
 import { getCampusBySlug } from '@/lib/dal/campuses'
 import { ContentStatus, type EventType } from '@/lib/generated/prisma/client'
@@ -132,6 +132,11 @@ export async function POST(request: NextRequest) {
     if (body.imageAlt !== undefined) data.imageAlt = body.imageAlt
     if (body.contacts !== undefined) data.contacts = Array.isArray(body.contacts) ? body.contacts : []
     if (body.registrationUrl !== undefined) data.registrationUrl = body.registrationUrl
+    if (body.costType !== undefined) data.costType = body.costType
+    if (body.costAmount !== undefined) data.costAmount = body.costAmount
+    if (body.registrationRequired !== undefined) data.registrationRequired = body.registrationRequired
+    if (body.maxParticipants !== undefined) data.maxParticipants = body.maxParticipants != null ? Number(body.maxParticipants) : null
+    if (body.registrationDeadline != null) data.registrationDeadline = new Date(body.registrationDeadline)
     if (body.isFeatured !== undefined) data.isFeatured = body.isFeatured
     if (body.isPinned !== undefined) data.isPinned = body.isPinned
     if (body.isRecurring !== undefined) data.isRecurring = body.isRecurring
@@ -154,14 +159,14 @@ export async function POST(request: NextRequest) {
       data.publishedAt = new Date()
     }
 
-    // Extract tags before creating (tags are stored via ContentTag join table, not on Event model)
-    const tagNames: string[] | undefined = Array.isArray(body.tags) ? body.tags : undefined
-
-    const event = await createEvent(churchId, data as Parameters<typeof createEvent>[1], tagNames)
+    let event = await createEvent(churchId, data as Parameters<typeof createEvent>[1])
 
     // Sync event links via EventLink relation (not the legacy Json blob)
-    if (Array.isArray(body.links)) {
+    if (Array.isArray(body.links) && body.links.length > 0) {
       await syncEventLinks(event.id, body.links)
+      // Re-fetch to include synced eventLinks in response
+      const refreshed = await getEventBySlug(churchId, event.slug)
+      if (refreshed) event = refreshed
     }
 
     // Revalidate public website pages that display events

@@ -10,6 +10,7 @@ import {
   ExternalLink,
   FileText,
   Globe,
+  Laptop,
   ImageIcon,
   Library,
   MapPin,
@@ -17,10 +18,11 @@ import {
   Plus as PlusIcon,
   Settings,
   Sparkles,
+  Ticket,
   Upload,
   X,
 } from "lucide-react"
-import { PeopleSelect } from "@/components/cms/shared/people-select"
+import { EventContactList } from "./event-contact-list"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -50,9 +52,10 @@ import {
   eventTypeDisplay,
   allDays,
   dayLabels,
-  tagSuggestions,
   type ChurchEvent,
+  type CostType,
   type EventType,
+  type EventContact,
   type EventLink,
   type LocationType,
   type MinistryTag,
@@ -188,13 +191,17 @@ export function EventForm({ mode, event }: EventFormProps) {
   const [ministry, setMinistry] = useState<MinistryTag>(event?.ministry ?? "church-wide")
   const [campus, setCampus] = useState<CampusTag | undefined>(event?.campus)
   const [isFeatured, setIsFeatured] = useState(event?.isFeatured ?? false)
-  const [contacts, setContacts] = useState<string[]>(event?.contacts ?? [])
+  const [contacts, setContacts] = useState<EventContact[]>(event?.contacts ?? [])
   const [coverImage, setCoverImage] = useState(event?.coverImage ?? "")
   const [imageAlt, setImageAlt] = useState(event?.imageAlt ?? "")
-  const [tags, setTags] = useState<string[]>(event?.tags ?? [])
-
+  // Cost & Registration
+  const [costType, setCostType] = useState<CostType>(event?.costType ?? "free")
+  const [costAmount, setCostAmount] = useState(event?.costAmount ?? "")
+  const [registrationRequired, setRegistrationRequired] = useState(event?.registrationRequired ?? false)
+  const [registrationUrl, setRegistrationUrl] = useState(event?.registrationUrl ?? "")
+  const [maxParticipants, setMaxParticipants] = useState<number | undefined>(event?.maxParticipants)
+  const [registrationDeadline, setRegistrationDeadline] = useState(event?.registrationDeadline ?? "")
   // Sidebar-absorbed local state
-  const [tagInput, setTagInput] = useState("")
   const [mediaSelectorOpen, setMediaSelectorOpen] = useState(false)
 
   const isValid = title.trim().length >= 2 && startDate && startTime && endTime && location.trim()
@@ -212,9 +219,6 @@ export function EventForm({ mode, event }: EventFormProps) {
       nthWeekday: `Monthly on the ${getNthWeekdayLabel(startDate)}`,
     }
   }, [startDate])
-
-  // Filter tag suggestions to only show tags not already added
-  const availableSuggestions = tagSuggestions.filter(t => !tags.includes(t))
 
   function handleRecurrenceChange(value: string) {
     const rec = value as Recurrence
@@ -267,32 +271,6 @@ export function EventForm({ mode, event }: EventFormProps) {
     } else {
       setMeetingUrlError(null)
     }
-  }
-
-  // Tag handlers (absorbed from sidebar)
-  function handleAddTag() {
-    let tag = tagInput.trim().toUpperCase()
-    if (!tag) return
-    if (!tag.startsWith("#")) tag = `#${tag}`
-    if (tags.includes(tag)) return
-    setTags([...tags, tag])
-    setTagInput("")
-  }
-
-  function handleRemoveTag(tag: string) {
-    setTags(tags.filter((t) => t !== tag))
-  }
-
-  function handleTagKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter") {
-      e.preventDefault()
-      handleAddTag()
-    }
-  }
-
-  function handleTagSuggestionClick(tag: string) {
-    if (tags.includes(tag)) return
-    setTags([...tags, tag])
   }
 
   // Link handlers (up to 3 links)
@@ -367,8 +345,14 @@ export function EventForm({ mode, event }: EventFormProps) {
       contacts: contacts.length > 0 ? contacts : undefined,
       coverImage: coverImage || undefined,
       imageAlt: imageAlt.trim() || undefined,
-      tags,
       links: links.filter(l => l.label.trim() && l.href.trim()),
+      // Cost & Registration
+      costType,
+      costAmount: costType === "paid" ? costAmount.trim() || undefined : undefined,
+      registrationRequired,
+      registrationUrl: registrationRequired ? registrationUrl.trim() || undefined : undefined,
+      maxParticipants: registrationRequired ? maxParticipants : undefined,
+      registrationDeadline: registrationRequired ? registrationDeadline || undefined : undefined,
     }
 
     if (mode === "create") {
@@ -625,11 +609,18 @@ export function EventForm({ mode, event }: EventFormProps) {
                     Online
                   </Label>
                 </div>
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="hybrid" id="loc-hybrid" />
+                  <Label htmlFor="loc-hybrid" className="font-normal flex items-center gap-1.5">
+                    <Laptop className="size-3.5" />
+                    Hybrid
+                  </Label>
+                </div>
               </RadioGroup>
 
               <div className="space-y-2">
                 <Label htmlFor="location-input">
-                  Location Name <span className="text-destructive">*</span>
+                  Location Name
                 </Label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -638,79 +629,76 @@ export function EventForm({ mode, event }: EventFormProps) {
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     placeholder={
-                      locationType === "in-person"
-                        ? "e.g. LA UBF Main Center, Room 201"
-                        : "e.g. Zoom, Google Meet"
+                      locationType === "online"
+                        ? "e.g. Zoom, Google Meet"
+                        : "e.g. LA UBF Main Center, Room 201"
                     }
                     className="pl-9"
                   />
                 </div>
               </div>
 
-              {/* Address + instructions — in-person only */}
-              {locationType === "in-person" && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="address-input">Address</Label>
-                    <AddressAutocomplete
-                      id="address-input"
-                      value={address}
-                      onChange={setAddress}
-                    />
-                    {address.trim() ? (
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Navigation className="size-3 shrink-0" />
-                        Google Maps link will be generated automatically.
-                      </p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">
-                        Enter an address to auto-generate a Google Maps link.
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="location-instructions">Additional Instructions</Label>
-                    <Textarea
-                      id="location-instructions"
-                      value={locationInstructions}
-                      onChange={(e) => setLocationInstructions(e.target.value)}
-                      placeholder="e.g. Enter through the side gate, parking in Lot B"
-                      rows={3}
-                      maxLength={1000}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      {locationInstructions.length}/1000 characters
+              {/* Address — in-person and hybrid */}
+              {(locationType === "in-person" || locationType === "hybrid") && (
+                <div className="space-y-2">
+                  <Label htmlFor="address-input">Address</Label>
+                  <AddressAutocomplete
+                    id="address-input"
+                    value={address}
+                    onChange={setAddress}
+                  />
+                  {address.trim() ? (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Navigation className="size-3 shrink-0" />
+                      Google Maps link will be generated automatically.
                     </p>
-                  </div>
-                </>
-              )}
-
-              {/* Join Details — online: meeting link */}
-              {locationType === "online" && (
-                <div className="space-y-3 rounded-lg bg-muted/40 px-4 py-3">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Join Details</p>
-                  <div className="space-y-2">
-                    <Label htmlFor="meeting-url">Meeting Link</Label>
-                    <div className="relative">
-                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                      <Input
-                        id="meeting-url"
-                        value={meetingUrl}
-                        onChange={(e) => handleMeetingUrlChange(e.target.value)}
-                        placeholder="e.g. https://zoom.us/j/..."
-                        className={cn("pl-9", meetingUrlError && "border-destructive")}
-                      />
-                    </div>
-                    {meetingUrlError ? (
-                      <p className="text-xs text-destructive">{meetingUrlError}</p>
-                    ) : (
-                      <p className="text-xs text-muted-foreground">
-                        Zoom, Google Meet, YouTube Live, etc.
-                      </p>
-                    )}
-                  </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Enter an address to auto-generate a Google Maps link.
+                    </p>
+                  )}
                 </div>
               )}
+
+              {/* Meeting Link — online and hybrid */}
+              {(locationType === "online" || locationType === "hybrid") && (
+                <div className="space-y-2">
+                  <Label htmlFor="meeting-url">Meeting Link</Label>
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                    <Input
+                      id="meeting-url"
+                      value={meetingUrl}
+                      onChange={(e) => handleMeetingUrlChange(e.target.value)}
+                      placeholder="e.g. https://zoom.us/j/..."
+                      className={cn("pl-9", meetingUrlError && "border-destructive")}
+                    />
+                  </div>
+                  {meetingUrlError ? (
+                    <p className="text-xs text-destructive">{meetingUrlError}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Zoom, Google Meet, YouTube Live, etc.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* Additional Instructions — shared across all location types */}
+              <div className="space-y-2">
+                <Label htmlFor="location-instructions">Additional Instructions</Label>
+                <Textarea
+                  id="location-instructions"
+                  value={locationInstructions}
+                  onChange={(e) => setLocationInstructions(e.target.value)}
+                  placeholder="e.g. Enter through the side gate, parking in Lot B, meeting passcode: 1234"
+                  rows={3}
+                  maxLength={1000}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Any extra details visitors need to find or join the event. {locationInstructions.length}/1000
+                </p>
+              </div>
             </div>
           </section>
 
@@ -722,18 +710,20 @@ export function EventForm({ mode, event }: EventFormProps) {
             </div>
             <div className="p-5 space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="short-description">Short Description</Label>
+                <Label htmlFor="short-description">Short Summary</Label>
                 <Textarea
                   id="short-description"
                   value={shortDescription}
                   onChange={(e) => setShortDescription(e.target.value)}
                   placeholder="A brief summary for event cards and list views (1-2 sentences)..."
-                  rows={3}
-                  maxLength={250}
+                  rows={2}
+                  maxLength={100}
+                  className="resize-none"
                 />
-                <p className="text-xs text-muted-foreground">
-                  {shortDescription.length}/250 characters
-                </p>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>A short description of the event shown on cards and list views.</span>
+                  <span className="tabular-nums shrink-0">{shortDescription.length}/100</span>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -761,7 +751,100 @@ export function EventForm({ mode, event }: EventFormProps) {
             </div>
           </section>
 
-          {/* 5. Settings card */}
+          {/* 5. Cost & Registration card */}
+          <section className="rounded-xl border bg-card">
+            <div className="px-5 py-3 border-b flex items-center gap-2">
+              <Ticket className="size-4 text-muted-foreground" />
+              <h2 className="text-sm font-semibold">Cost & Registration</h2>
+            </div>
+            <div className="p-5 space-y-4">
+              {/* Cost Type */}
+              <div className="space-y-2">
+                <Label htmlFor="cost-type">Cost Type</Label>
+                <Select value={costType} onValueChange={(v) => setCostType(v as CostType)}>
+                  <SelectTrigger id="cost-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="free">Free</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="donation">Donation</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Cost Amount (shown when Paid or Donation) */}
+              {(costType === "paid" || costType === "donation") && (
+                <div className="space-y-2">
+                  <Label htmlFor="cost-amount">
+                    {costType === "donation" ? "Suggested Amount" : "Cost Amount"}
+                  </Label>
+                  <Input
+                    id="cost-amount"
+                    value={costAmount}
+                    onChange={(e) => setCostAmount(e.target.value)}
+                    placeholder='e.g. $10, $5-20'
+                    className="text-sm"
+                  />
+                </div>
+              )}
+
+              <hr className="border-border" />
+
+              {/* Registration Required */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>Registration Required</Label>
+                  <p className="text-xs text-muted-foreground">Require attendees to register before the event</p>
+                </div>
+                <Switch checked={registrationRequired} onCheckedChange={setRegistrationRequired} />
+              </div>
+
+              {/* Registration fields (shown when registration is on) */}
+              {registrationRequired && (
+                <div className="space-y-4 pl-0">
+                  <div className="space-y-2">
+                    <Label htmlFor="registration-url">Registration URL</Label>
+                    <div className="relative">
+                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+                      <Input
+                        id="registration-url"
+                        value={registrationUrl}
+                        onChange={(e) => setRegistrationUrl(e.target.value)}
+                        placeholder="https://forms.google.com/..."
+                        className="pl-9 text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="max-participants">Max Participants</Label>
+                      <Input
+                        id="max-participants"
+                        type="number"
+                        min={1}
+                        value={maxParticipants ?? ""}
+                        onChange={(e) => setMaxParticipants(e.target.value ? Number(e.target.value) : undefined)}
+                        placeholder="Unlimited"
+                        className="text-sm [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Registration Deadline</Label>
+                      <DatePicker
+                        value={registrationDeadline || undefined}
+                        onChange={setRegistrationDeadline}
+                        placeholder="No deadline"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* 6. Settings card */}
           <section className="rounded-xl border bg-card">
             <div className="px-5 py-3 border-b flex items-center gap-2">
               <Settings className="size-4 text-muted-foreground" />
@@ -861,29 +944,21 @@ export function EventForm({ mode, event }: EventFormProps) {
 
               {/* Links (up to 3) */}
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Links</Label>
-                  {links.length < 3 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 text-xs text-muted-foreground hover:text-foreground -mr-2"
-                      onClick={handleAddLink}
-                    >
-                      <PlusIcon className="size-3" />
-                      Add link
-                    </Button>
-                  )}
-                </div>
+                <Label>Links</Label>
                 {links.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    Add registration links, forms, or resources (up to 3).
-                  </p>
+                  <button
+                    type="button"
+                    onClick={handleAddLink}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 px-4 py-3 text-sm text-muted-foreground transition-colors hover:border-muted-foreground/40 hover:bg-muted/50"
+                  >
+                    <PlusIcon className="size-4" />
+                    Add registration links, forms, or resources (up to 3)
+                  </button>
                 ) : (
                   <div className="space-y-2">
                     {links.map((link, index) => (
                       <div key={index} className="flex gap-2 items-start">
-                        <div className="flex-1 grid grid-cols-2 gap-2">
+                        <div className="flex-1 grid grid-cols-[2fr_3fr] gap-2">
                           <Input
                             value={link.label}
                             onChange={(e) => handleLinkChange(index, "label", e.target.value)}
@@ -911,156 +986,104 @@ export function EventForm({ mode, event }: EventFormProps) {
                         </Button>
                       </div>
                     ))}
+                    {links.length < 3 && (
+                      <button
+                        type="button"
+                        onClick={handleAddLink}
+                        className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/25 px-4 py-2.5 text-sm text-muted-foreground transition-colors hover:border-muted-foreground/40 hover:bg-muted/50"
+                      >
+                        <PlusIcon className="size-3.5" />
+                        Add another link
+                      </button>
+                    )}
                   </div>
-                )}
-                {links.length < 3 && links.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={handleAddLink}
-                  >
-                    <PlusIcon className="size-3.5" />
-                    Add another link
-                  </Button>
                 )}
               </div>
 
               {/* Points of Contact */}
-              <div className="space-y-2">
+              <div className="space-y-2 pt-4 border-t">
                 <Label>Points of Contact</Label>
-                <PeopleSelect
-                  mode="multi"
-                  roleLabel="contact"
-                  values={contacts}
-                  onChange={setContacts}
-                  placeholder="Add a contact..."
-                />
+                <EventContactList values={contacts} onChange={setContacts} />
               </div>
             </div>
           </section>
 
-          {/* 6. Media & Tags card */}
+          {/* 6. Media card */}
           <section className="rounded-xl border bg-card">
             <div className="px-5 py-3 border-b flex items-center gap-2">
               <ImageIcon className="size-4 text-muted-foreground" />
-              <h2 className="text-sm font-semibold">Media & Tags</h2>
+              <h2 className="text-sm font-semibold">Media</h2>
             </div>
             <div className="p-5 space-y-4">
               {/* Cover Image section */}
               <div className="space-y-3">
                 <Label>Cover Image</Label>
-                <div className="aspect-video rounded-lg border bg-muted/50 overflow-hidden">
-                  {coverImage ? (
+                {coverImage ? (
+                  <div className="relative group rounded-lg border overflow-hidden">
                     <img
                       src={coverImage}
                       alt={imageAlt || "Event cover"}
-                      className="size-full object-cover"
+                      className="w-full aspect-video object-cover"
                     />
-                  ) : (
-                    <div className="size-full flex flex-col items-center justify-center text-muted-foreground">
-                      <ImageIcon className="size-8 mb-1" />
-                      <span className="text-xs">No image selected</span>
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                      <Button size="sm" variant="secondary" onClick={handleUploadImage}>
+                        <Upload className="size-3.5" />
+                        Replace
+                      </Button>
+                      <Button size="sm" variant="secondary" onClick={handleSelectFromLibrary}>
+                        <Library className="size-3.5" />
+                        Library
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => setCoverImage("")}>
+                        <X className="size-3.5" />
+                        Remove
+                      </Button>
                     </div>
-                  )}
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label htmlFor="image-alt" className="text-xs">Alt Text</Label>
-                  <Input
-                    id="image-alt"
-                    value={imageAlt}
-                    onChange={(e) => setImageAlt(e.target.value)}
-                    placeholder="Describe the image..."
-                    className="text-sm h-8"
-                  />
-                </div>
-
-                <div className="flex flex-wrap gap-1.5">
-                  <Button variant="outline" size="sm" onClick={handleUploadImage}>
-                    <Upload className="size-3.5" />
-                    Upload
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleGenerateAI}>
-                    <Sparkles className="size-3.5" />
-                    Generate AI
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleSelectFromLibrary}>
-                    <Library className="size-3.5" />
-                    Library
-                  </Button>
-                  {coverImage && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setCoverImage("")}
-                    >
-                      <X className="size-3.5" />
-                      Remove
-                    </Button>
-                  )}
-                </div>
-              </div>
-
-              {/* Tags section */}
-              <div className="space-y-3">
-                <Label>Tags</Label>
-                {tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {tags.map((tag) => (
-                      <Badge key={tag} variant="outline" className="gap-1 pr-1 text-xs">
-                        {tag}
-                        <button
-                          onClick={() => handleRemoveTag(tag)}
-                          className="rounded-full hover:bg-foreground/10 p-0.5"
-                          aria-label={`Remove tag ${tag}`}
-                        >
-                          <X className="size-3" />
-                        </button>
-                      </Badge>
-                    ))}
                   </div>
-                )}
-
-                <div className="flex gap-1.5">
-                  <Input
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={handleTagKeyDown}
-                    placeholder="Add tag..."
-                    className="flex-1 text-sm"
-                  />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handleAddTag}
-                    disabled={!tagInput.trim()}
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleUploadImage}
+                    className="w-full aspect-video rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50 bg-muted/30 hover:bg-muted/50 transition-colors flex flex-col items-center justify-center gap-3 cursor-pointer group"
                   >
-                    <PlusIcon className="size-4" />
-                  </Button>
-                </div>
-
-                {/* Tag suggestions */}
-                {availableSuggestions.length > 0 && (
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-                      Suggestions
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                      {availableSuggestions.slice(0, 8).map((tag) => (
-                        <Badge
-                          key={tag}
-                          variant="outline"
-                          className="cursor-pointer text-[10px] hover:bg-muted"
-                          onClick={() => handleTagSuggestionClick(tag)}
-                        >
-                          {tag}
-                        </Badge>
-                      ))}
+                    <div className="flex size-10 items-center justify-center rounded-full bg-muted group-hover:bg-muted-foreground/10 transition-colors">
+                      <Upload className="size-5 text-muted-foreground" />
                     </div>
+                    <div className="text-center">
+                      <p className="text-sm font-medium text-muted-foreground">
+                        Click to upload an image
+                      </p>
+                      <p className="text-xs text-muted-foreground/70 mt-0.5">
+                        or{" "}
+                        <span
+                          role="button"
+                          className="text-primary underline underline-offset-2 hover:text-primary/80"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleSelectFromLibrary()
+                          }}
+                        >
+                          choose from media library
+                        </span>
+                      </p>
+                    </div>
+                  </button>
+                )}
+
+                {coverImage && (
+                  <div className="space-y-1.5">
+                    <Label htmlFor="image-alt" className="text-xs">Alt Text</Label>
+                    <Input
+                      id="image-alt"
+                      value={imageAlt}
+                      onChange={(e) => setImageAlt(e.target.value)}
+                      placeholder="Describe the image..."
+                      className="text-sm h-8"
+                    />
                   </div>
                 )}
               </div>
+
             </div>
           </section>
 

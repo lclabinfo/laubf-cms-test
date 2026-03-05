@@ -4,6 +4,8 @@ import { createContext, useContext, useState, useCallback, useEffect, useMemo, t
 import {
   generateSlug,
   type ChurchEvent,
+  type CostType,
+  type EventContact,
   type EventType,
   type Recurrence,
   type LocationType,
@@ -12,6 +14,16 @@ import {
   type CampusTag,
 } from "./events-data"
 import type { ContentStatus } from "./status"
+
+/** Handle both old String[] format and new {name,label}[] format from DB */
+function normalizeContacts(raw: unknown): EventContact[] | undefined {
+  if (!raw || !Array.isArray(raw) || raw.length === 0) return undefined
+  return raw.map((item) => {
+    if (typeof item === "string") return { name: item }
+    if (typeof item === "object" && item !== null && "name" in item) return item as EventContact
+    return { name: String(item) }
+  })
+}
 
 interface EventsContextValue {
   events: ChurchEvent[]
@@ -75,11 +87,18 @@ const recurrenceToApi: Record<string, string> = {
 const locationTypeFromApi: Record<string, LocationType> = {
   IN_PERSON: "in-person",
   ONLINE: "online",
+  HYBRID: "hybrid",
 }
 
 const locationTypeToApi: Record<string, string> = {
   "in-person": "IN_PERSON",
   online: "ONLINE",
+  hybrid: "HYBRID",
+}
+
+const monthlyTypeToApi: Record<string, string> = {
+  "day-of-month": "DAY_OF_MONTH",
+  "day-of-week": "DAY_OF_WEEK",
 }
 
 const recurrenceEndTypeFromApi: Record<string, RecurrenceEndType> = {
@@ -125,15 +144,21 @@ function apiEventToCms(apiEvt: any): ChurchEvent {
     shortDescription: apiEvt.shortDescription ?? undefined,
     description: apiEvt.description ?? undefined,
     welcomeMessage: apiEvt.welcomeMessage ?? undefined,
-    contacts: apiEvt.contacts ?? undefined,
+    contacts: normalizeContacts(apiEvt.contacts),
     coverImage: apiEvt.coverImage ?? undefined,
     imageAlt: apiEvt.imageAlt ?? undefined,
-    tags: (apiEvt.tags ?? []).map((ct: { tag: { name: string } }) => `#${ct.tag.name}`),
     links: (apiEvt.eventLinks ?? []).map((l: { label: string; href: string; external?: boolean }) => ({
       label: l.label,
       href: l.href,
       external: l.external ?? false,
     })),
+    // Cost & Registration
+    costType: (apiEvt.costType?.toLowerCase() as CostType) ?? "free",
+    costAmount: apiEvt.costAmount ?? undefined,
+    registrationRequired: apiEvt.registrationRequired ?? false,
+    registrationUrl: apiEvt.registrationUrl ?? undefined,
+    maxParticipants: apiEvt.maxParticipants ?? undefined,
+    registrationDeadline: apiEvt.registrationDeadline ? new Date(apiEvt.registrationDeadline).toISOString().slice(0, 10) : undefined,
   }
 }
 
@@ -158,7 +183,7 @@ function cmsEventToApiCreate(data: Omit<ChurchEvent, "id">) {
     isFeatured: data.isFeatured ?? false,
     address: data.address || null,
     locationInstructions: data.locationInstructions || null,
-    monthlyRecurrenceType: data.monthlyType || undefined,
+    monthlyRecurrenceType: data.monthlyType ? (monthlyTypeToApi[data.monthlyType] ?? data.monthlyType) : undefined,
     isRecurring: data.recurrence !== "none",
     recurrence: recurrenceToApi[data.recurrence] ?? "NONE",
     recurrenceDays: data.recurrenceDays ?? [],
@@ -169,10 +194,15 @@ function cmsEventToApiCreate(data: Omit<ChurchEvent, "id">) {
     // Send ministry/campus slugs for server-side resolution to UUIDs
     ministrySlug: data.ministry && data.ministry !== "church-wide" ? data.ministry : null,
     campusSlug: data.campus && data.campus !== "all" ? data.campus : null,
-    // Tags: send as string array, API will sync via ContentTag join table
-    tags: data.tags ?? [],
     // Links: send as array
     links: data.links ?? [],
+    // Cost & Registration
+    costType: data.costType?.toUpperCase() || "FREE",
+    costAmount: data.costAmount || null,
+    registrationRequired: data.registrationRequired ?? false,
+    registrationUrl: data.registrationUrl || null,
+    maxParticipants: data.maxParticipants ?? null,
+    registrationDeadline: data.registrationDeadline ? new Date(data.registrationDeadline + "T00:00:00").toISOString() : null,
   }
 }
 
@@ -283,7 +313,7 @@ export function EventsProvider({ children }: { children: ReactNode }) {
       if (data.isFeatured !== undefined) payload.isFeatured = data.isFeatured
       if (data.address !== undefined) payload.address = data.address || null
       if (data.locationInstructions !== undefined) payload.locationInstructions = data.locationInstructions || null
-      if (data.monthlyType !== undefined) payload.monthlyRecurrenceType = data.monthlyType || null
+      if (data.monthlyType !== undefined) payload.monthlyRecurrenceType = data.monthlyType ? (monthlyTypeToApi[data.monthlyType] ?? data.monthlyType) : null
       if (data.recurrence !== undefined) {
         payload.recurrence = recurrenceToApi[data.recurrence] ?? "NONE"
         payload.isRecurring = data.recurrence !== "none"
@@ -300,10 +330,15 @@ export function EventsProvider({ children }: { children: ReactNode }) {
       if (data.campus !== undefined) {
         payload.campusSlug = data.campus && data.campus !== "all" ? data.campus : null
       }
-      // Tags: send as string array, API will sync via ContentTag join table
-      if (data.tags !== undefined) payload.tags = data.tags ?? []
       // Links: send the full array
       if (data.links !== undefined) payload.links = data.links ?? []
+      // Cost & Registration
+      if (data.costType !== undefined) payload.costType = data.costType?.toUpperCase() || "FREE"
+      if (data.costAmount !== undefined) payload.costAmount = data.costAmount || null
+      if (data.registrationRequired !== undefined) payload.registrationRequired = data.registrationRequired
+      if (data.registrationUrl !== undefined) payload.registrationUrl = data.registrationUrl || null
+      if (data.maxParticipants !== undefined) payload.maxParticipants = data.maxParticipants ?? null
+      if (data.registrationDeadline !== undefined) payload.registrationDeadline = data.registrationDeadline ? new Date(data.registrationDeadline + "T00:00:00").toISOString() : null
 
       fetch(`/api/v1/events/${evt.slug}`, {
         method: "PATCH",
