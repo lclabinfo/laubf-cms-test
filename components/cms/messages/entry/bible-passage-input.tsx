@@ -167,7 +167,7 @@ export function BiblePassageInput({
         /* Confirmed state: styled badge/pill */
         <Badge
           variant="secondary"
-          className="h-7 gap-1.5 pl-2 pr-1 text-sm font-normal cursor-pointer hover:bg-secondary/80"
+          className="h-8 gap-1.5 pl-2 pr-1 text-sm font-normal cursor-pointer hover:bg-secondary/80"
           onClick={handleEditClick}
         >
           <BookOpen className="size-3.5 text-muted-foreground" />
@@ -187,7 +187,7 @@ export function BiblePassageInput({
         <>
           {/* Editing state: clean input */}
           <div
-            className="relative flex items-center h-9 w-full rounded-md border border-input bg-transparent shadow-xs transition-colors focus-within:border-ring focus-within:ring-[1px] focus-within:ring-ring/50"
+            className="relative flex items-center h-8 w-full rounded-lg border border-input bg-transparent shadow-xs transition-colors focus-within:border-ring focus-within:ring-[1px] focus-within:ring-ring/50"
           >
             <div className="flex-grow relative px-3 h-full flex items-center">
               <input

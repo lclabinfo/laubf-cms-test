@@ -178,6 +178,9 @@ export function VideoTab({
             </div>
           )}
 
+          {/* Speaker */}
+          {speakerSlot}
+
           {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="video-description">Video Description</Label>
@@ -203,9 +206,6 @@ export function VideoTab({
           </div>
         </>
       )}
-
-      {/* Speaker */}
-      {speakerSlot}
     </div>
   )
 }

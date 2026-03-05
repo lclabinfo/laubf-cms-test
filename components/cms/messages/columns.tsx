@@ -125,7 +125,7 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
     ),
     enableSorting: false,
     enableHiding: false,
-    size: 40,
+    size: 28,
   },
   {
     accessorKey: "title",
@@ -138,7 +138,6 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
         <div className="text-muted-foreground text-xs truncate-fade min-h-[1lh]">{row.original.passage || "\u00A0"}</div>
       </div>
     ),
-    size: 180,
   },
   {
     accessorKey: "speaker",

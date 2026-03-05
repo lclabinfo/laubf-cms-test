@@ -165,6 +165,7 @@ function MessagesPageContent() {
             <DataTable
               columns={columns}
               table={table}
+              fixedLayout
               onRowClick={(row) => router.push(`/cms/messages/${row.id}`)}
             />
           )}

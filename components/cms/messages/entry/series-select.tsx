@@ -1,8 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ChevronsUpDown, Plus, Loader2, X } from "lucide-react"
-import { Badge } from "@/components/ui/badge"
+import { ChevronsUpDown, Plus, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -176,20 +175,6 @@ export function SeriesSelect({ series, selectedId, onChange, onCreateSeries }: S
             </Command>
           </PopoverContent>
         </Popover>
-        {selected && (
-          <div className="flex flex-wrap gap-1">
-            <Badge variant="secondary" className="gap-1">
-              {selected.name}
-              <button
-                type="button"
-                onClick={() => onChange(null)}
-                className="ml-0.5 rounded-full hover:bg-foreground/10"
-              >
-                <X className="size-3" />
-              </button>
-            </Badge>
-          </div>
-        )}
       </div>
 
       {/* Create new series dialog */}

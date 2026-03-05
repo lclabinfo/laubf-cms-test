@@ -40,6 +40,8 @@ interface DataTableProps<TData, TValue> {
   activeRowId?: string | null
   /** Render a sub-component below the row when it is expanded. */
   renderSubComponent?: (props: { row: Row<TData> }) => React.ReactNode
+  /** Use table-layout:fixed so column sizes are respected regardless of content. */
+  fixedLayout?: boolean
 }
 
 export function DataTable<TData, TValue>({
@@ -48,24 +50,31 @@ export function DataTable<TData, TValue>({
   onRowClick,
   activeRowId,
   renderSubComponent,
+  fixedLayout,
 }: DataTableProps<TData, TValue>) {
   return (
     <div className="space-y-4">
       <div className="rounded-lg border overflow-x-auto">
-        <Table className="min-w-[750px]">
+        <Table className={cn("min-w-[750px]", fixedLayout && "table-fixed")}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                ))}
+                {headerGroup.headers.map((header) => {
+                  const size = header.column.columnDef.size
+                  return (
+                    <TableHead
+                      key={header.id}
+                      style={fixedLayout && size ? { width: size } : undefined}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  )
+                })}
               </TableRow>
             ))}
           </TableHeader>
