@@ -1,10 +1,10 @@
 # Database Snapshots
 
-## 2026-03-05-bible-study-migration.dump
+## 2026-03-05-merge-duplicates.dump
 
-Full database snapshot after bible study content migration. Includes:
+Full database snapshot after merging duplicate video+study messages. Includes:
+- ~1,196 messages (duplicates merged, videoTitle set for alternate titles)
 - 1,180 bible studies (all PUBLISHED) with questions/answers/transcripts as cleaned HTML
-- 1,356 messages (260 with video + 1,096 study-only)
 - 2,731 bible study attachments with slug-based URLs
 - All other seeded data (series, speakers, pages, theme, etc.)
 
@@ -13,7 +13,7 @@ Full database snapshot after bible study content migration. Includes:
 ```bash
 # Strip query params from DATABASE_URL and restore
 DB_URL=$(echo "$DATABASE_URL" | sed 's/\?.*//')
-pg_restore --no-owner --no-privileges --clean --if-exists -d "$DB_URL" db-snapshots/2026-03-05-bible-study-migration.dump
+pg_restore --no-owner --no-privileges --clean --if-exists -d "$DB_URL" db-snapshots/2026-03-05-merge-duplicates.dump
 ```
 
 ### Replicate from scratch
@@ -24,3 +24,7 @@ npx prisma db seed               # Seed all data (reads scripts/bible-study-cont
 ```
 
 The seed is fully idempotent and produces the same result as this dump.
+
+## 2026-03-05-bible-study-migration.dump
+
+Previous snapshot before duplicate merge. Kept for reference.

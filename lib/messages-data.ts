@@ -23,6 +23,7 @@ export type Message = {
   id: string
   slug: string
   title: string
+  videoTitle?: string
   passage: string
   bibleVersion?: string
   speaker: string

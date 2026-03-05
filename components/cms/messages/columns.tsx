@@ -182,38 +182,6 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
     size: 100,
   },
   {
-    id: "video",
-    header: () => <span className="whitespace-nowrap">Video</span>,
-    cell: ({ row }) => {
-      const hasVideo = row.original.hasVideo
-      const isLive = row.original.videoPublished
-      return (
-        <div className="flex items-center gap-1.5">
-          {isLive ? (
-            <Badge variant="success">Published</Badge>
-          ) : hasVideo ? (
-            <Badge variant="secondary">Draft</Badge>
-          ) : (
-            <span className="text-muted-foreground text-xs">&mdash;</span>
-          )}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="size-7 hidden xl:inline-flex"
-            asChild
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Link href={`/cms/messages/${row.original.id}?tab=video`} aria-label={hasVideo ? "Edit video" : "Add video"}>
-              {hasVideo ? <SquarePen className="size-3.5" /> : <Plus className="size-3.5" />}
-            </Link>
-          </Button>
-        </div>
-      )
-    },
-    enableSorting: false,
-    size: 90,
-  },
-  {
     id: "study",
     header: () => <span className="whitespace-nowrap">Study</span>,
     cell: ({ row }) => {
@@ -237,6 +205,38 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
           >
             <Link href={`/cms/messages/${row.original.id}?tab=study`} aria-label={hasStudy ? "Edit study" : "Add study"}>
               {hasStudy ? <SquarePen className="size-3.5" /> : <Plus className="size-3.5" />}
+            </Link>
+          </Button>
+        </div>
+      )
+    },
+    enableSorting: false,
+    size: 90,
+  },
+  {
+    id: "video",
+    header: () => <span className="whitespace-nowrap">Video</span>,
+    cell: ({ row }) => {
+      const hasVideo = row.original.hasVideo
+      const isLive = row.original.videoPublished
+      return (
+        <div className="flex items-center gap-1.5">
+          {isLive ? (
+            <Badge variant="success">Published</Badge>
+          ) : hasVideo ? (
+            <Badge variant="secondary">Draft</Badge>
+          ) : (
+            <span className="text-muted-foreground text-xs">&mdash;</span>
+          )}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="size-7 hidden xl:inline-flex"
+            asChild
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Link href={`/cms/messages/${row.original.id}?tab=video`} aria-label={hasVideo ? "Edit video" : "Add video"}>
+              {hasVideo ? <SquarePen className="size-3.5" /> : <Plus className="size-3.5" />}
             </Link>
           </Button>
         </div>

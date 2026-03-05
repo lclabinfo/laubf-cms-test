@@ -91,6 +91,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const [publishedAt, setPublishedAt] = useState(message?.publishedAt ?? "")
 
   // Video tab state
+  const [videoTitle, setVideoTitle] = useState(message?.videoTitle ?? "")
   const [videoUrl, setVideoUrl] = useState(message?.videoUrl ?? "")
   const [videoDescription, setVideoDescription] = useState(message?.videoDescription ?? "")
   const [duration, setDuration] = useState(message?.duration ?? "")
@@ -237,6 +238,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
     return {
       title: title.trim(),
+      videoTitle: videoTitle.trim() || undefined,
       slug: generateSlug(title.trim()),
       passage: passage.trim(),
       bibleVersion,
@@ -375,7 +377,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
   // Dirty tracking — snapshot must use the exact same defaults as state initializers above
   const snapshotFields = useCallback(() => ({
-    title, speaker, speakerId: speakerId ?? null, seriesId, passage, bibleVersion,
+    title, videoTitle, speaker, speakerId: speakerId ?? null, seriesId, passage, bibleVersion,
     date, publishedAt, videoUrl, videoDescription: videoDescription ?? "", duration, audioUrl,
     rawTranscript, liveTranscript,
     transcriptSegments: JSON.stringify(transcriptSegments),
@@ -383,7 +385,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     attachments: JSON.stringify(attachments),
     videoPublished, studyPublished,
   }), [
-    title, speaker, speakerId, seriesId, passage, bibleVersion,
+    title, videoTitle, speaker, speakerId, seriesId, passage, bibleVersion,
     date, publishedAt, videoUrl, videoDescription, duration, audioUrl,
     rawTranscript, liveTranscript, transcriptSegments, studySections, attachments,
     videoPublished, studyPublished,
@@ -421,18 +423,18 @@ export function EntryForm({ mode, message }: EntryFormProps) {
               </h1>
               <div className="flex items-center gap-1.5 shrink-0">
                 <Badge
-                  variant={videoState === "published" ? "success" : videoState === "draft" ? "secondary" : "outline"}
-                  className="gap-1"
-                >
-                  <Video className="size-3" />
-                  {videoState === "published" ? "Video Live" : videoState === "draft" ? "Video Draft" : "No Video"}
-                </Badge>
-                <Badge
                   variant={studyState === "published" ? "success" : studyState === "draft" ? "secondary" : "outline"}
                   className="gap-1"
                 >
                   <BookOpen className="size-3" />
                   {studyState === "published" ? "Study Live" : studyState === "draft" ? "Study Draft" : "No Study"}
+                </Badge>
+                <Badge
+                  variant={videoState === "published" ? "success" : videoState === "draft" ? "secondary" : "outline"}
+                  className="gap-1"
+                >
+                  <Video className="size-3" />
+                  {videoState === "published" ? "Video Live" : videoState === "draft" ? "Video Draft" : "No Video"}
                 </Badge>
               </div>
             </div>
@@ -454,17 +456,6 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                 Details
                 {tabsWithIssues.has("details") && <span className="size-1.5 rounded-full bg-destructive animate-pulse" />}
               </TabsTrigger>
-              <TabsTrigger value="video" className="gap-1.5">
-                Video
-                {tabsWithIssues.has("video") ? (
-                  <span className="size-1.5 rounded-full bg-destructive animate-pulse" />
-                ) : (
-                  <>
-                    {videoState === "published" && <span className="size-1.5 rounded-full bg-green-500" />}
-                    {videoState === "draft" && <span className="size-1.5 rounded-full bg-muted-foreground/50" />}
-                  </>
-                )}
-              </TabsTrigger>
               <TabsTrigger value="study" className="gap-1.5">
                 Bible Study
                 {tabsWithIssues.has("study") ? (
@@ -473,6 +464,17 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                   <>
                     {studyState === "published" && <span className="size-1.5 rounded-full bg-green-500" />}
                     {studyState === "draft" && <span className="size-1.5 rounded-full bg-muted-foreground/50" />}
+                  </>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="video" className="gap-1.5">
+                Video
+                {tabsWithIssues.has("video") ? (
+                  <span className="size-1.5 rounded-full bg-destructive animate-pulse" />
+                ) : (
+                  <>
+                    {videoState === "published" && <span className="size-1.5 rounded-full bg-green-500" />}
+                    {videoState === "draft" && <span className="size-1.5 rounded-full bg-muted-foreground/50" />}
                   </>
                 )}
               </TabsTrigger>
@@ -573,31 +575,6 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                 Content Overview
               </p>
               <div className="grid grid-cols-2 gap-3">
-                {/* Video card */}
-                <button
-                  type="button"
-                  onClick={() => handleTabChange("video")}
-                  className="rounded-xl border p-4 text-left transition-colors hover:bg-muted/50"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="flex size-9 items-center justify-center rounded-lg bg-blue-500/10 dark:bg-blue-500/20 shrink-0">
-                      <Video className="size-4 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">Video</span>
-                        <Badge variant={hasVideo ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
-                          {hasVideo ? "Added" : "Empty"}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground">
-                        Go to Video tab
-                        <ArrowRight className="size-3" />
-                      </div>
-                    </div>
-                  </div>
-                </button>
-
                 {/* Bible Study card */}
                 <button
                   type="button"
@@ -622,72 +599,34 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                     </div>
                   </div>
                 </button>
-              </div>
-            </div>
 
-          </div>
-        </TabsContent>
-
-        {/* Video Tab */}
-        <TabsContent value="video" className="px-6 pt-4">
-          <div className="max-w-3xl mx-auto space-y-5">
-            {/* Inline publish toggle */}
-            <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
-              <div className="flex items-center gap-2">
-                <Badge
-                  variant={videoState === "published" ? "success" : videoState === "draft" ? "secondary" : "outline"}
+                {/* Video card */}
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("video")}
+                  className="rounded-xl border p-4 text-left transition-colors hover:bg-muted/50"
                 >
-                  {videoState === "published" ? "Published" : videoState === "draft" ? "Draft" : "Empty"}
-                </Badge>
-                <span className="text-sm text-muted-foreground">
-                  {videoState === "published"
-                    ? "Video is live on the public site"
-                    : videoState === "draft"
-                    ? "Video saved but not yet published"
-                    : "Add a video URL to enable publishing"}
-                </span>
-              </div>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <Switch
-                        checked={videoPublished}
-                        onCheckedChange={setVideoPublished}
-                        disabled={!videoContentExists}
-                      />
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-9 items-center justify-center rounded-lg bg-blue-500/10 dark:bg-blue-500/20 shrink-0">
+                      <Video className="size-4 text-blue-600 dark:text-blue-400" />
                     </div>
-                  </TooltipTrigger>
-                  {!videoContentExists && (
-                    <TooltipContent>
-                      <p>Add a video URL below to publish</p>
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-              </TooltipProvider>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">Video</span>
+                        <Badge variant={hasVideo ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+                          {hasVideo ? "Added" : "Empty"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-1 mt-1.5 text-xs text-muted-foreground">
+                        Go to Video tab
+                        <ArrowRight className="size-3" />
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              </div>
             </div>
-            <VideoTab
-              videoUrl={videoUrl}
-              onVideoUrlChange={setVideoUrl}
-              description={videoDescription}
-              onDescriptionChange={setVideoDescription}
-              rawTranscript={rawTranscript}
-              onRawTranscriptChange={setRawTranscript}
-              segments={transcriptSegments}
-              onSegmentsChange={setTranscriptSegments}
-              speakerSlot={
-                <div id="field-speaker" className="space-y-2 max-w-xs">
-                  <Label>Speaker <span className="text-destructive">*</span></Label>
-                  <SpeakerSelect
-                    value={speaker}
-                    onChange={(name, id) => {
-                      setSpeaker(name)
-                      setSpeakerId(id)
-                    }}
-                  />
-                </div>
-              }
-            />
+
           </div>
         </TabsContent>
 
@@ -733,6 +672,87 @@ export function EntryForm({ mode, message }: EntryFormProps) {
               sections={studySections}
               onSectionsChange={setStudySections}
               onAttachmentAdd={(att) => setAttachments(prev => [...prev, att])}
+            />
+          </div>
+        </TabsContent>
+
+        {/* Video Tab */}
+        <TabsContent value="video" className="px-6 pt-4">
+          <div className="max-w-3xl mx-auto space-y-5">
+            {/* Inline publish toggle */}
+            <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={videoState === "published" ? "success" : videoState === "draft" ? "secondary" : "outline"}
+                >
+                  {videoState === "published" ? "Published" : videoState === "draft" ? "Draft" : "Empty"}
+                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  {videoState === "published"
+                    ? "Video is live on the public site"
+                    : videoState === "draft"
+                    ? "Video saved but not yet published"
+                    : "Add a video URL to enable publishing"}
+                </span>
+              </div>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <Switch
+                        checked={videoPublished}
+                        onCheckedChange={setVideoPublished}
+                        disabled={!videoContentExists}
+                      />
+                    </div>
+                  </TooltipTrigger>
+                  {!videoContentExists && (
+                    <TooltipContent>
+                      <p>Add a video URL below to publish</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+
+            {/* Video Title (alternate) */}
+            <div className="space-y-2">
+              <Label htmlFor="video-title" className="text-sm text-muted-foreground">
+                Video Title
+              </Label>
+              <Input
+                id="video-title"
+                value={videoTitle}
+                onChange={(e) => setVideoTitle(e.target.value)}
+                placeholder={title || "Same as message title"}
+                maxLength={100}
+              />
+              <p className="text-xs text-muted-foreground">
+                Optional. If different from the message title, this will be shown on the video player.
+              </p>
+            </div>
+
+            <VideoTab
+              videoUrl={videoUrl}
+              onVideoUrlChange={setVideoUrl}
+              description={videoDescription}
+              onDescriptionChange={setVideoDescription}
+              rawTranscript={rawTranscript}
+              onRawTranscriptChange={setRawTranscript}
+              segments={transcriptSegments}
+              onSegmentsChange={setTranscriptSegments}
+              speakerSlot={
+                <div id="field-speaker" className="space-y-2 max-w-xs">
+                  <Label>Speaker <span className="text-destructive">*</span></Label>
+                  <SpeakerSelect
+                    value={speaker}
+                    onChange={(name, id) => {
+                      setSpeaker(name)
+                      setSpeakerId(id)
+                    }}
+                  />
+                </div>
+              }
             />
           </div>
         </TabsContent>
@@ -824,23 +844,6 @@ export function EntryForm({ mode, message }: EntryFormProps) {
           <div className="space-y-2">
             <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
               <div className="flex items-center gap-2.5">
-                <Video className="size-4 text-blue-600 dark:text-blue-400" />
-                <span className="text-sm font-medium">Video</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Badge variant={dialogVideoPublished ? "success" : videoContentExists ? "secondary" : "outline"}>
-                  {dialogVideoPublished ? "Published" : videoContentExists ? "Draft" : "Empty"}
-                </Badge>
-                <Switch
-                  checked={dialogVideoPublished}
-                  onCheckedChange={setDialogVideoPublished}
-                  disabled={!videoContentExists}
-                  aria-label="Toggle video publish status"
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
-              <div className="flex items-center gap-2.5">
                 <BookOpen className="size-4 text-purple-600 dark:text-purple-400" />
                 <span className="text-sm font-medium">Bible Study</span>
               </div>
@@ -853,6 +856,23 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                   onCheckedChange={setDialogStudyPublished}
                   disabled={!studyContentExists}
                   aria-label="Toggle bible study publish status"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
+              <div className="flex items-center gap-2.5">
+                <Video className="size-4 text-blue-600 dark:text-blue-400" />
+                <span className="text-sm font-medium">Video</span>
+              </div>
+              <div className="flex items-center gap-2.5">
+                <Badge variant={dialogVideoPublished ? "success" : videoContentExists ? "secondary" : "outline"}>
+                  {dialogVideoPublished ? "Published" : videoContentExists ? "Draft" : "Empty"}
+                </Badge>
+                <Switch
+                  checked={dialogVideoPublished}
+                  onCheckedChange={setDialogVideoPublished}
+                  disabled={!videoContentExists}
+                  aria-label="Toggle video publish status"
                 />
               </div>
             </div>

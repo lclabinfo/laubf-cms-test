@@ -581,30 +581,68 @@ async function main() {
   }
   console.log(`  Created ${messageCount} messages`)
 
-  // ── 7b. Create Messages for Bible Studies without Videos ──
-  // Bible studies after the last video (June 2024) have no Message record.
-  // Create study-only Message entries so they appear in the CMS.
-  console.log('Creating study-only messages (no video)...')
+  // ── 7b. Create/Merge Messages for Bible Studies without Videos ──
+  // Bible studies that matched a video by slug were already linked in step 7.
+  // For remaining bible studies, either merge into an existing video message
+  // on the same date+passage, or create a new study-only message.
+  console.log('Creating/merging study-only messages...')
   const existingMessageSlugs = new Set(MESSAGES.map(m => m.slug))
+
+  // Build lookup: "date|passage" -> message id (for video messages without a study)
+  const datePsgToMsg = new Map<string, { id: string; title: string }>()
+  for (const msg of MESSAGES) {
+    const relatedStudyId = bibleStudyMap.get(msg.slug) || null
+    if (msg.youtubeId && !relatedStudyId) {
+      const key = `${msg.dateFor}|${msg.passage || ''}`
+      datePsgToMsg.set(key, { id: msg.slug, title: msg.title })
+    }
+  }
+
   let studyOnlyCount = 0
+  let mergedCount = 0
   for (const bs of BIBLE_STUDIES) {
-    // Skip if a message already exists for this slug
+    // Skip if a message already exists for this slug (linked in step 7)
     if (existingMessageSlugs.has(bs.slug)) continue
     // Skip if no bible study was created (e.g. null book filtered out)
     const relatedStudyId = bibleStudyMap.get(bs.slug)
     if (!relatedStudyId) continue
 
-    // Handle duplicate slugs with video messages
+    // Try to merge into existing video message on same date + passage
+    const datePsgKey = `${bs.dateFor}|${bs.passage || ''}`
+    const existingVideoMsg = datePsgToMsg.get(datePsgKey)
+    if (existingVideoMsg) {
+      // Merge: update the video message to also have the study
+      const videoMsg = await prisma.message.findUnique({
+        where: { churchId_slug: { churchId, slug: existingVideoMsg.id } },
+        select: { id: true, title: true },
+      })
+      if (videoMsg) {
+        const titlesMatch = videoMsg.title.trim().toLowerCase() === bs.title.trim().toLowerCase()
+        await prisma.message.update({
+          where: { id: videoMsg.id },
+          data: {
+            hasStudy: true,
+            relatedStudyId,
+            // Bible study title becomes primary; video gets alternate title
+            title: bs.title,
+            videoTitle: titlesMatch ? null : videoMsg.title,
+          },
+        })
+        datePsgToMsg.delete(datePsgKey) // prevent double-merge
+        mergedCount++
+        continue
+      }
+    }
+
+    // No matching video — create a standalone study-only message
     let msgSlug = bs.slug
     const bsYear = bs.dateFor.split('-')[0]
-    // Check if slug is taken by a video message (different legacyId)
     const existingMsg = await prisma.message.findUnique({
       where: { churchId_slug: { churchId, slug: msgSlug } },
       select: { id: true },
     })
     if (existingMsg) {
       msgSlug = `${bs.slug}-${bsYear}`
-      // Check again
       const existingMsg2 = await prisma.message.findUnique({
         where: { churchId_slug: { churchId, slug: msgSlug } },
         select: { id: true },
@@ -644,7 +682,7 @@ async function main() {
 
     studyOnlyCount++
   }
-  console.log(`  Created ${studyOnlyCount} study-only messages`)
+  console.log(`  Merged ${mergedCount} studies into video messages, created ${studyOnlyCount} study-only messages`)
 
   // ── 8. Create Events ──────────────────────────────────────
   console.log('Creating events...')

@@ -414,6 +414,7 @@ model Message {
   churchId         String        @db.Uuid
   slug             String
   title            String
+  videoTitle       String?
   passage          String?
   bibleVersion     String?       @default("ESV")
   speakerId        String?       @db.Uuid
