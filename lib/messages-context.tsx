@@ -5,6 +5,7 @@ import type {
   Series,
   Message,
   StudySection,
+  Attachment,
 } from "./messages-data"
 import { generateSlug } from "@/lib/utils"
 
@@ -31,21 +32,21 @@ const MessagesContext = createContext<MessagesContextValue | null>(null)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function synthesizeStudySections(relatedStudy: any): StudySection[] | undefined {
   if (!relatedStudy) return undefined
-  const sections: StudySection[] = []
-  if (relatedStudy.questions) {
-    sections.push({
+  // Always include Questions & Answers pair so users can add content even if empty
+  const hasAnyContent = relatedStudy.questions || relatedStudy.answers || relatedStudy.transcript
+  if (!hasAnyContent) return undefined
+  const sections: StudySection[] = [
+    {
       id: `legacy-q-${relatedStudy.id}`,
       title: "Questions",
-      content: relatedStudy.questions,
-    })
-  }
-  if (relatedStudy.answers) {
-    sections.push({
+      content: relatedStudy.questions || "",
+    },
+    {
       id: `legacy-a-${relatedStudy.id}`,
       title: "Answers",
-      content: relatedStudy.answers,
-    })
-  }
+      content: relatedStudy.answers || "",
+    },
+  ]
   if (relatedStudy.transcript) {
     sections.push({
       id: `legacy-t-${relatedStudy.id}`,
@@ -53,7 +54,27 @@ function synthesizeStudySections(relatedStudy: any): StudySection[] | undefined 
       content: relatedStudy.transcript,
     })
   }
-  return sections.length > 0 ? sections : undefined
+  return sections
+}
+
+// Synthesize attachments from BibleStudy.attachments when Message.attachments is null
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function synthesizeAttachments(relatedStudy: any): Attachment[] | undefined {
+  if (!relatedStudy?.attachments?.length) return undefined
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return relatedStudy.attachments.map((att: any) => ({
+    id: att.id,
+    name: att.name,
+    size: att.fileSize ? formatFileSize(att.fileSize) : "",
+    type: att.type ?? "",
+    url: att.url ?? undefined,
+  }))
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -90,7 +111,7 @@ function apiMessageToCms(apiMsg: any): Message {
     liveTranscript: apiMsg.liveTranscript ?? undefined,
     transcriptSegments: apiMsg.transcriptSegments ?? undefined,
     studySections: apiMsg.studySections ?? synthesizeStudySections(apiMsg.relatedStudy),
-    attachments: apiMsg.attachments ?? undefined,
+    attachments: apiMsg.attachments ?? synthesizeAttachments(apiMsg.relatedStudy),
   }
 }
 

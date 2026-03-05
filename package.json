@@ -67,6 +67,7 @@
     "@types/pg": "^8.16.0",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@xmldom/xmldom": "^0.8.11",
     "agentation": "^2.2.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.6",

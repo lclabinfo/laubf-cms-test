@@ -143,334 +143,59 @@ function toRecurrenceEnum(type?: string): string {
 }
 
 // ============================================================
-// Mock data (inline to avoid import path issues with tsx)
+// Data from legacy LA UBF database (imported from parsed files)
 // ============================================================
 
-// --- Messages ---
-const MESSAGES = [
-  { slug: "as-the-spirit-gave-them-utterance", title: "As The Spirit Gave Them Utterance", youtubeId: "U-vvxbOHQEM", speaker: "P. William", series: "Sunday Message", passage: "Acts 2:1-47", dateFor: "2026-02-08", relatedStudySlug: "more-than-conquerors", description: "On the day of Pentecost, the Holy Spirit came upon the disciples and they spoke in other tongues — the birth of the church and the beginning of the gospel mission to all nations.", rawTranscript: "<p>Today we study Acts chapter 2, the day of Pentecost.</p>", liveTranscript: "<p>[Auto-generated] Good morning everyone.</p>", duration: "1:24:33" },
-  { slug: "the-rich-man-and-lazarus", title: "The Rich Man and Lazarus", youtubeId: "_RweYgsz6ts", speaker: "P. William", series: "Sunday Message", passage: "Luke 16:13-31", dateFor: "2026-02-01", relatedStudySlug: "remain-in-my-love", description: "Jesus tells the parable of the rich man and Lazarus.", rawTranscript: "<p>In Luke 16, Jesus teaches about wealth.</p>", liveTranscript: "<p>[Auto-generated] Good morning church family.</p>", duration: "1:33:27" },
-  { slug: "the-shrewd-manager", title: "The Shrewd Manager", youtubeId: "f7jyTGQvpPo", speaker: "P. William", series: "Sunday Message", passage: "Luke 16:1-13", dateFor: "2026-01-25", relatedStudySlug: "the-call-of-abram", description: "Jesus tells the surprising parable of the shrewd manager.", rawTranscript: "<p>The parable of the shrewd manager.</p>", duration: "1:38:04" },
-  { slug: "the-cost-of-being-a-disciple", title: "The Cost of Being a Disciple", youtubeId: "7xn8gf3BnJE", speaker: "P. William", series: "Sunday Message", passage: "Luke 14:12-35", dateFor: "2026-01-18", relatedStudySlug: "the-day-of-pentecost", description: "Jesus teaches about the cost of discipleship.", rawTranscript: "<p>In Luke 14, Jesus teaches discipleship.</p>", liveTranscript: "<p>[Auto-generated] Good morning everyone.</p>", duration: "1:44:51" },
-  { slug: "god-and-money", title: "God and Money", youtubeId: "t7kdrujgwXY", speaker: "P. William", series: "Sunday Message", passage: "Luke 12:13-34", dateFor: "2026-01-11", relatedStudySlug: "saved-by-grace-through-faith", description: "Jesus warns against greed and anxiety.", rawTranscript: "<p>Someone in the crowd asked Jesus.</p>", duration: "1:27:53" },
-  { slug: "not-of-this-world", title: "Not of This World", youtubeId: "Xm_-hOsaDzw", speaker: "P. William", series: "Sunday Message", passage: "John 17:13-26", dateFor: "2026-01-04", relatedStudySlug: "not-of-the-world", description: "In his high priestly prayer, Jesus prays for his disciples.", rawTranscript: "<p>In the second half of Jesus' high priestly prayer.</p>", liveTranscript: "<p>[Auto-generated] Good morning everyone.</p>", duration: "1:30:48" },
-  { slug: "new-years-worship-service", title: "New Year's Worship Service", youtubeId: "SEeOTr3NAr0", speaker: "P. William", series: "Sunday Message", passage: "Isaiah 43:18-19", dateFor: "2026-01-01", description: "A special New Year's Day worship service.", rawTranscript: "<p>As we begin a new year.</p>", liveTranscript: "<p>[Auto-generated] Happy New Year everyone!</p>", duration: "2:42:51" },
-  { slug: "eternal-life", title: "Eternal Life", youtubeId: "nXnKFnkpTUk", speaker: "P. William", series: "Sunday Message", passage: "John 17:1-13", dateFor: "2025-12-28", description: "Jesus begins his high priestly prayer.", rawTranscript: "<p>John 17 contains Jesus' most intimate prayer.</p>", duration: "1:19:01" },
-  { slug: "favor-with-god", title: "Favor with God", youtubeId: "WrOgB3-UjlM", speaker: "P. William", series: "Sunday Message", passage: "Luke 1:26-45", dateFor: "2025-12-25", description: "A Christmas worship service message on the angel Gabriel's announcement to Mary.", rawTranscript: "<p>On this Christmas Day.</p>", liveTranscript: "<p>[Auto-generated] Merry Christmas everyone!</p>", duration: "2:29:42" },
-  { slug: "your-prayer-has-been-heard", title: "Your Prayer Has Been Heard", youtubeId: "O1oAoyIH_qQ", speaker: "P. William", series: "Sunday Message", passage: "Luke 1:1-25", dateFor: "2025-12-21", description: "The angel appears to Zechariah in the temple.", rawTranscript: "<p>Luke begins his Gospel with Zechariah.</p>", liveTranscript: "<p>[Auto-generated] Good morning church.</p>", duration: "1:32:36" },
-  { slug: "take-heart", title: "Take Heart", youtubeId: "uBow9c2qUIU", speaker: "P. William", series: "Sunday Message", passage: "John 16:25-33", dateFor: "2025-12-14", description: "Jesus concludes his farewell discourse with a promise of peace and victory.", rawTranscript: "<p>As Jesus concludes his farewell discourse.</p>", duration: "1:19:15" },
-  { slug: "you-will-see-me", title: "You Will See Me", youtubeId: "pVEniec0Gus", speaker: "P. William", series: "Sunday Message", passage: "John 16:16-24", dateFor: "2025-12-07", description: "Jesus tells his confused disciples that their grief will turn to joy.", rawTranscript: "<p>Jesus says to his disciples.</p>", liveTranscript: "<p>[Auto-generated] Good morning everyone.</p>", duration: "1:24:05" },
-  { slug: "thanksgiving-worship-service", title: "Thanksgiving Worship Service", youtubeId: "Ir2exCpgYhs", speaker: "P. William", series: "Sunday Message", passage: "Psalm 100:1-5", dateFor: "2025-11-27", description: "A special Thanksgiving worship service.", rawTranscript: "<p>On this Thanksgiving.</p>", duration: "2:43:14" },
-  { slug: "praise-is-fitting", title: "Praise Is Fitting", youtubeId: "q3-hbS2dcw4", speaker: "P. William", series: "Sunday Message", passage: "Psalm 147:1-20", dateFor: "2025-11-23", description: "A meditation on Psalm 147.", rawTranscript: "<p>Praise the Lord.</p>", duration: "1:32:28" },
-  { slug: "to-your-advantage", title: "To Your Advantage", youtubeId: "BaWV8VXZsWM", speaker: "P. William", series: "Sunday Message", passage: "John 16:4-15", dateFor: "2025-11-16", description: "Jesus tells his disciples it is to their advantage that he goes away.", rawTranscript: "<p>The disciples were filled with grief.</p>", duration: "1:35:09" },
-  { slug: "not-of-the-world-message", title: "Not of the World", youtubeId: "i7Mnn-yxajg", speaker: "P. William", series: "Sunday Message", passage: "John 15:18-16:4", dateFor: "2025-11-09", description: "Jesus prepares his disciples for the world's hatred.", rawTranscript: "<p>If the world hates you.</p>", liveTranscript: "<p>[Auto-generated] Good morning church.</p>", duration: "1:24:24" },
-  { slug: "treasure-in-heaven-day-2", title: "Treasure in Heaven — Day 2", youtubeId: "UM4iDeDTyrk", speaker: "P. Abraham Kim", series: "Conference", passage: "Matthew 6:19-24", dateFor: "2025-11-02", description: "Day 2 of the fall conference on storing up treasures in heaven.", rawTranscript: "<p>On the second day of our conference.</p>", duration: "2:11:02" },
-  { slug: "treasure-in-heaven-day-1", title: "Treasure in Heaven — Day 1", youtubeId: "P-VvW0XEUIY", speaker: "P. Kevin Albright", series: "Conference", passage: "Matthew 6:19-24", dateFor: "2025-11-01", description: "Day 1 of the fall conference.", rawTranscript: "<p>Welcome to our fall conference.</p>", liveTranscript: "<p>[Auto-generated] Welcome everyone to our fall conference.</p>", duration: "1:48:27" },
-  { slug: "called-you-friends", title: "Called You Friends", youtubeId: "gBYXD72LiA0", speaker: "P. William", series: "Sunday Message", passage: "John 15:1-17", dateFor: "2025-10-26", description: "Jesus calls his disciples friends.", rawTranscript: "<p>I am the true vine.</p>", duration: "1:24:50" },
-  { slug: "peace-i-leave-with-you", title: "Peace I Leave with You", youtubeId: "wqmMCf8gNWE", speaker: "P. William", series: "Sunday Message", passage: "John 14:15-31", dateFor: "2025-10-19", description: "Jesus promises the Holy Spirit.", rawTranscript: "<p>If you love me, keep my commands.</p>", liveTranscript: "<p>[Auto-generated] Good morning everyone.</p>", duration: "1:35:50" },
-  { slug: "the-father", title: "The Father", youtubeId: "9t-TZ2MMftA", speaker: "P. William", series: "Sunday Message", passage: "John 14:1-14", dateFor: "2025-10-12", description: "Jesus comforts his troubled disciples.", rawTranscript: "<p>Do not let your hearts be troubled.</p>", duration: "1:16:09" },
-  { slug: "to-be-content", title: "To Be Content", youtubeId: "HvztmRXJ3Bc", speaker: "P. William", series: "Sunday Message", passage: "Philippians 4:10-23", dateFor: "2025-10-05", description: "Paul shares the secret of contentment.", rawTranscript: "<p>Paul writes from prison.</p>", liveTranscript: "<p>[Auto-generated] Good morning everyone.</p>", duration: "1:24:40" },
-  { slug: "friday-worship", title: "Friday Worship", youtubeId: "dd4hcojPKeU", speaker: "P. William", series: "Sunday Message", passage: "Philippians 4:4-9", dateFor: "2025-10-03", description: "A special Friday worship gathering.", rawTranscript: "<p>Rejoice in the Lord always.</p>", duration: "1:31:35" },
-  { slug: "god-of-peace", title: "God of Peace", youtubeId: "ta6rfdHSYgA", speaker: "P. William", series: "Sunday Message", passage: "Philippians 4:1-9", dateFor: "2025-09-28", description: "Paul urges the Philippians to stand firm.", rawTranscript: "<p>Paul urges his dear friends.</p>", duration: "1:20:10" },
-  { slug: "the-upward-call-of-god", title: "The Upward Call of God", youtubeId: "9aI23VPBxd4", speaker: "P. William", series: "Sunday Message", passage: "Philippians 3:11-4:1", dateFor: "2025-09-21", description: "Paul presses on toward the goal.", rawTranscript: "<p>Not that I have already obtained.</p>", liveTranscript: "<p>[Auto-generated] Good morning church family.</p>", duration: "1:16:40" },
-  { slug: "the-surpassing-worth-of-knowing-christ", title: "The Surpassing Worth of Knowing Christ", youtubeId: "xHhY2wGT0EI", speaker: "P. William", series: "Sunday Message", passage: "Philippians 3:1-11", dateFor: "2025-09-14", description: "Paul counts everything as loss.", rawTranscript: "<p>Paul had every reason to boast.</p>", duration: "1:20:38" },
-  { slug: "timothy-and-epaphroditus", title: "Timothy and Epaphroditus", youtubeId: "WqGml4EyWnE", speaker: "P. William", series: "Sunday Message", passage: "Philippians 2:19-30", dateFor: "2025-09-07", description: "Paul commends Timothy and Epaphroditus.", rawTranscript: "<p>Paul commends two faithful co-workers.</p>", duration: "1:17:04" },
-  { slug: "shine-as-lights", title: "Shine as Lights", youtubeId: "teYt1H5k2xg", speaker: "P. William", series: "Sunday Message", passage: "Philippians 2:12-18", dateFor: "2025-08-31", description: "Paul calls believers to work out their salvation and shine as lights.", rawTranscript: "<p>Therefore, my dear friends.</p>", liveTranscript: "<p>[Auto-generated] Good morning everyone.</p>", duration: "1:18:58" },
-]
+// --- Messages (260 entries from legacy videolist) ---
+type MessageSeed = {
+  legacyId: number;
+  slug: string;
+  title: string;
+  youtubeId: string | null;
+  thumbnailUrl: string | null;
+  speaker: string;
+  series: string;
+  passage: string;
+  dateFor: string;
+};
 
-// --- Bible Studies ---
-const BIBLE_STUDIES = [
-  {
-    slug: "more-than-conquerors",
-    title: "More Than Conquerors",
-    book: "Romans",
-    passage: "Romans 8:31-39",
-    datePosted: "2026-02-06",
-    dateFor: "2026-02-08",
-    series: "Sunday Message",
-    messenger: "P. William Larsen",
-    keyVerseRef: "Romans 8:37",
-    keyVerseText: "No, in all these things we are more than conquerors through him who loved us.",
-    hasQuestions: true,
-    hasAnswers: true,
-    hasTranscript: true,
-    bibleText: `<p>31 What then shall we say to these things? If God is for us, who can be against us? 32 He who did not spare his own Son but gave him up for us all, how will he not also with him graciously give us all things? 33 Who shall bring any charge against God\u2019s elect? It is God who justifies. 34 Who is to condemn? Christ Jesus is the one who died\u2014more than that, who was raised\u2014who is at the right hand of God, who indeed is interceding for us.</p>
-<p>35 Who shall separate us from the love of Christ? Shall tribulation, or distress, or persecution, or famine, or nakedness, or danger, or sword? 36 As it is written, \u201CFor your sake we are being killed all the day long; we are regarded as sheep to be slaughtered.\u201D</p>
-<p>37 No, in all these things we are more than conquerors through him who loved us. 38 For I am sure that neither death nor life, nor angels nor rulers, nor things present nor things to come, nor powers, 39 nor height nor depth, nor anything else in all creation, will be able to separate us from the love of God in Christ Jesus our Lord.</p>`,
-    questions: `<h3>Look at verses 31-34</h3>
-<ul>
-<li>What does Paul mean by \u201CIf God is for us, who can be against us?\u201D</li>
-<li>How does God\u2019s giving of his own Son prove his love?</li>
-<li>Who can bring a charge against us or condemn us? Why?</li>
-</ul>
-<h3>Look at verses 35-39</h3>
-<ul>
-<li>What are the things that cannot separate us from the love of Christ?</li>
-<li>What does it mean to be \u201Cmore than conquerors\u201D?</li>
-<li>How comprehensive is the list in verses 38-39?</li>
-</ul>`,
-    answers: `<h3>Verses 31-34</h3>
-<p>\u201CIf God is for us, who can be against us?\u201D is not saying no one will oppose us, but that no opposition can ultimately prevail against us. God proved he is for us by not sparing his own Son. Since God gave us the greatest gift (Jesus), we can trust him to provide everything else we need. No one can bring a charge against us because God himself has justified us. No one can condemn us because Christ died for us, was raised, and now intercedes for us at God\u2019s right hand.</p>
-<h3>Verses 35-39</h3>
-<p>Paul lists seven forms of suffering that might seem to separate us from Christ\u2019s love, but none of them can. \u201CMore than conquerors\u201D means we don\u2019t just barely survive \u2014 we triumph overwhelmingly through Christ\u2019s love. The list in verses 38-39 covers every possible category: death and life, supernatural powers, time (present and future), space (height and depth), and \u201Canything else in all creation.\u201D Nothing in all existence can separate us from God\u2019s love in Christ Jesus.</p>`,
-    transcript: `<p><strong>More than conquerors through him who loved us.</strong></p>
-<p>Romans 8 is the pinnacle of Paul\u2019s letter to the Romans. After explaining the problem of sin and the solution of grace, Paul reaches a triumphant conclusion.</p>
-<p><strong>First, God is for us (31-34).</strong></p>
-<p>Paul asks a series of rhetorical questions. If God is for us, who can be against us? God proved he is for us by giving his own Son. This is the ultimate proof of God\u2019s love. And since he gave us the greatest gift, he will surely give us all things. No one can accuse us because God has declared us righteous. No one can condemn us because Christ died, rose, and intercedes for us.</p>
-<p><strong>Second, nothing can separate us from God\u2019s love (35-39).</strong></p>
-<p>Paul lists every possible hardship \u2014 tribulation, distress, persecution, famine, nakedness, danger, sword. None of them can separate us from Christ\u2019s love. In fact, in all these things we are more than conquerors. We don\u2019t just survive; we triumph. Paul concludes with one of the most comprehensive statements in all of Scripture: neither death nor life, nor angels nor rulers, nor present nor future, nor powers, nor height nor depth, nor anything in all creation can separate us from the love of God in Christ Jesus our Lord.</p>`,
-    attachments: [
-      { name: "Romans 8 Study Guide.pdf", url: "/files/bible-studies/romans-8-study-guide.pdf", type: "PDF" },
-      { name: "Romans 8 Study Guide.docx", url: "/files/bible-studies/romans-8-study-guide.docx", type: "DOCX" },
-      { name: "Romans 8 Message Transcript.docx", url: "/files/bible-studies/romans-8-transcript.docx", type: "DOCX" },
-    ],
-  },
-  {
-    slug: "remain-in-my-love",
-    title: "Remain in My Love",
-    book: "John",
-    passage: "John 15:9-17",
-    datePosted: "2026-01-30",
-    dateFor: "2026-02-01",
-    series: "Sunday Message",
-    messenger: "P. Kevin Albright",
-    keyVerseRef: "John 15:12",
-    keyVerseText: "My command is this: Love each other as I have loved you.",
-    hasQuestions: true,
-    hasAnswers: true,
-    hasTranscript: true,
-    bibleText: `<p>9 As the Father has loved me, so have I loved you. Abide in my love. 10 If you keep my commandments, you will abide in my love, just as I have kept my Father\u2019s commandments and abide in his love. 11 These things I have spoken to you, that my joy may be in you, and that your joy may be full.</p>
-<p>12 \u201CThis is my commandment, that you love one another as I have loved you. 13 Greater love has no one than this, that someone lay down his life for his friends. 14 You are my friends if you do what I command you. 15 No longer do I call you servants, for the servant does not know what his master is doing; but I have called you friends, for all that I have heard from my Father I have made known to you.</p>
-<p>16 You did not choose me, but I chose you and appointed you that you should go and bear fruit and that your fruit should abide, so that whatever you ask the Father in my name, he may give it to you. 17 These things I command you, so that you will love one another.\u201D</p>`,
-    questions: `<h3>Look at verses 9-11</h3>
-<ul>
-<li>How has Jesus loved us?</li>
-<li>What is the condition for remaining in his love?</li>
-<li>Why did Jesus tell us these things?</li>
-</ul>
-<h3>Look at verses 12-17</h3>
-<ul>
-<li>What is Jesus\u2019 command?</li>
-<li>What is the greatest love?</li>
-<li>What does Jesus call us and why?</li>
-</ul>`,
-    answers: `<h3>Verses 9-11</h3>
-<p>Jesus loved us as the Father loved him \u2014 unconditionally and sacrificially. We remain in his love by keeping his commands. This is not earning his love, but living in the awareness and experience of it. Jesus told us these things so that his joy would be in us and our joy would be full. True joy comes from abiding in Christ\u2019s love.</p>
-<h3>Verses 12-17</h3>
-<p>Jesus\u2019 command is to love one another as he has loved us. The greatest expression of love is laying down one\u2019s life for friends. Jesus elevated his disciples from servants to friends \u2014 servants don\u2019t know the master\u2019s plans, but friends are trusted with the master\u2019s heart. We did not choose Jesus; he chose us. He appointed us to bear lasting fruit and to love one another.</p>`,
-    transcript: `<p><strong>Remain in my love.</strong></p>
-<p>In John 15, Jesus uses the imagery of the vine and branches. Here in verses 9-17, he focuses on the theme of love \u2014 his love for us, and our love for one another.</p>
-<p><strong>First, abide in my love (9-11).</strong></p>
-<p>Jesus says, \u201CAs the Father has loved me, so have I loved you.\u201D The love of God flows from Father to Son to us. We are invited to abide in this love. The condition is keeping his commandments \u2014 not as a burden, but as a natural response to being loved. The purpose is joy: \u201Cthat my joy may be in you, and that your joy may be full.\u201D</p>
-<p><strong>Second, love one another (12-15).</strong></p>
-<p>The command is clear: love each other as Jesus loved us. The measure of love is self-sacrifice \u2014 \u201Cgreater love has no one than this, that someone lay down his life for his friends.\u201D Jesus calls us friends, not servants. He has shared everything with us from the Father.</p>
-<p><strong>Third, chosen to bear fruit (16-17).</strong></p>
-<p>We did not choose Jesus; he chose us and appointed us to bear fruit that lasts. The foundation and goal of everything is love for one another.</p>`,
-    attachments: [
-      { name: "John 15 Study Guide.pdf", url: "/files/bible-studies/john-15-study-guide.pdf", type: "PDF" },
-      { name: "John 15 Study Guide.docx", url: "/files/bible-studies/john-15-study-guide.docx", type: "DOCX" },
-    ],
-  },
-  {
-    slug: "the-call-of-abram",
-    title: "The Call of Abram",
-    book: "Genesis",
-    passage: "Genesis 12:1-9",
-    datePosted: "2026-01-23",
-    dateFor: "2026-01-25",
-    series: "Sunday Message",
-    messenger: "P. Abraham Kim",
-    keyVerseRef: "Genesis 12:2",
-    keyVerseText: "I will make you into a great nation, and I will bless you; I will make your name great, and you will be a blessing.",
-    hasQuestions: true,
-    hasAnswers: true,
-    hasTranscript: true,
-    bibleText: `<p>1 Now the Lord said to Abram, \u201CGo from your country and your kindred and your father\u2019s house to the land that I will show you. 2 And I will make of you a great nation, and I will bless you and make your name great, so that you will be a blessing. 3 I will bless those who bless you, and him who dishonors you I will curse, and in you all the families of the earth shall be blessed.\u201D</p>
-<p>4 So Abram went, as the Lord had told him, and Lot went with him. Abram was seventy-five years old when he departed from Haran. 5 And Abram took Sarai his wife, and Lot his brother\u2019s son, and all their possessions that they had gathered, and the people that they had acquired in Haran, and they set out to go to the land of Canaan. When they came to the land of Canaan, 6 Abram passed through the land to the place at Shechem, to the oak of Moreh. At that time the Canaanites were in the land.</p>
-<p>7 Then the Lord appeared to Abram and said, \u201CTo your offspring I will give this land.\u201D So he built there an altar to the Lord, who had appeared to him. 8 From there he moved to the hill country on the east of Bethel and pitched his tent, with Bethel on the west and Ai on the east. And there he built an altar to the Lord and called upon the name of the Lord. 9 And Abram journeyed on, still going toward the Negeb.</p>`,
-    questions: `<h3>Look at verses 1-3</h3>
-<ul>
-<li>What did God command Abram to do?</li>
-<li>What promises did God make to Abram?</li>
-<li>What is the significance of \u201CAll peoples on earth will be blessed through you\u201D?</li>
-</ul>
-<h3>Look at verses 4-9</h3>
-<ul>
-<li>How did Abram respond to God\u2019s call?</li>
-<li>What did Abram do when he arrived in Canaan?</li>
-</ul>`,
-    answers: `<h3>Verses 1-3</h3>
-<p>God commanded Abram to leave his country, his people, and his father\u2019s household. This was a call to leave behind everything familiar and secure. God made seven promises: a great nation, blessing, a great name, being a blessing, blessing those who bless him, cursing those who dishonor him, and all peoples being blessed through him. The promise that all families of the earth would be blessed through Abram points to the coming of Jesus Christ, through whom salvation comes to all nations.</p>
-<h3>Verses 4-9</h3>
-<p>Abram obeyed. At 75 years old, he left Haran and went to Canaan as God directed. When he arrived, God appeared again and promised the land to his offspring. Abram\u2019s response was to build altars and call on the name of the Lord. Building altars was an act of worship and a declaration of faith. Abram lived as a pilgrim, journeying through the land, trusting God\u2019s promise even though the Canaanites still occupied the land.</p>`,
-    transcript: `<p><strong>The call of Abram.</strong></p>
-<p>Genesis 12 marks a turning point in the Bible. After the stories of creation, the fall, the flood, and the tower of Babel, God now calls one man, Abram, through whom he will work to bless all nations.</p>
-<p><strong>First, God\u2019s command and promise (1-3).</strong></p>
-<p>God told Abram to leave everything \u2014 his country, his kindred, his father\u2019s house. This was not easy. But with the command came an extraordinary promise: God would make him a great nation, bless him, make his name great, and through him bless all families of the earth. The promise of blessing to all nations finds its ultimate fulfillment in Jesus Christ.</p>
-<p><strong>Second, Abram\u2019s obedience (4-9).</strong></p>
-<p>The response was simple and beautiful: \u201CSo Abram went, as the Lord had told him.\u201D At seventy-five years old, he left everything behind and set out for an unknown land. When he arrived in Canaan, he built altars to the Lord. His life became a journey of faith, worship, and obedience. He teaches us that faith is not understanding everything but trusting God enough to obey.</p>`,
-    attachments: [
-      { name: "Genesis 12 Study Guide.pdf", url: "/files/bible-studies/genesis-12-study-guide.pdf", type: "PDF" },
-      { name: "Genesis 12 Study Guide.docx", url: "/files/bible-studies/genesis-12-study-guide.docx", type: "DOCX" },
-    ],
-  },
-  {
-    slug: "the-day-of-pentecost",
-    title: "The Day of Pentecost",
-    book: "Acts",
-    passage: "Acts 2:1-21",
-    datePosted: "2026-01-16",
-    dateFor: "2026-01-18",
-    series: "Sunday Message",
-    messenger: "P. Samuel Lee",
-    keyVerseRef: "Acts 2:17",
-    keyVerseText: "In the last days, God says, I will pour out my Spirit on all people. Your sons and daughters will prophesy, your young men will see visions, your old men will dream dreams.",
-    hasQuestions: true,
-    hasAnswers: true,
-    hasTranscript: true,
-    bibleText: `<p>1 When the day of Pentecost arrived, they were all together in one place. 2 And suddenly there came from heaven a sound like a mighty rushing wind, and it filled the entire house where they were sitting. 3 And divided tongues as of fire appeared to them and rested on each one of them. 4 And they were all filled with the Holy Spirit and began to speak in other tongues as the Spirit gave them utterance.</p>
-<p>5 Now there were dwelling in Jerusalem Jews, devout men from every nation under heaven. 6 And at this sound the multitude came together, and they were bewildered, because each one was hearing them speak in his own language. 7 And they were amazed and astonished, saying, \u201CAre not all these who are speaking Galileans? 8 And how is it that we hear, each of us in his own native language? 9 Parthians and Medes and Elamites and residents of Mesopotamia, Judea and Cappadocia, Pontus and Asia, 10 Phrygia and Pamphylia, Egypt and the parts of Libya belonging to Cyrene, and visitors from Rome, 11 both Jews and proselytes, Cretans and Arabians\u2014we hear them telling in our own tongues the mighty works of God.\u201D 12 And all were amazed and perplexed, saying to one another, \u201CWhat does this mean?\u201D 13 But others mocking said, \u201CThey are filled with new wine.\u201D</p>
-<p>14 But Peter, standing with the eleven, lifted up his voice and addressed them: \u201CMen of Judea and all who dwell in Jerusalem, let this be known to you, and give ear to my words. 15 For these people are not drunk, as you suppose, since it is only the third hour of the day. 16 But this is what was uttered through the prophet Joel:</p>
-<p>17 \u201CAnd in the last days it shall be, God declares, that I will pour out my Spirit on all flesh, and your sons and your daughters shall prophesy, and your young men shall see visions, and your old men shall dream dreams; 18 even on my male servants and female servants in those days I will pour out my Spirit, and they shall prophesy. 19 And I will show wonders in the heavens above and signs on the earth below, blood, and fire, and vapor of smoke; 20 the sun shall be turned to darkness and the moon to blood, before the day of the Lord comes, the great and magnificent day. 21 And it shall come to pass that everyone who calls upon the name of the Lord shall be saved.\u201D</p>`,
-    questions: `<h3>Look at verses 1-4</h3>
-<ul>
-<li>What happened on the day of Pentecost?</li>
-<li>What were the signs of the Holy Spirit\u2019s coming?</li>
-</ul>
-<h3>Look at verses 5-13</h3>
-<ul>
-<li>Who was present and how did they react?</li>
-<li>What did the crowd think was happening?</li>
-</ul>
-<h3>Look at verses 14-21</h3>
-<ul>
-<li>How did Peter explain the event?</li>
-<li>What Old Testament prophecy did he quote?</li>
-</ul>`,
-    answers: `<h3>Verses 1-4</h3>
-<p>The Holy Spirit came with the sound of a mighty rushing wind and tongues of fire resting on each person. They were all filled with the Holy Spirit and began to speak in other tongues. The wind symbolizes the Spirit\u2019s power; the fire symbolizes purification and God\u2019s presence. Speaking in tongues enabled the disciples to proclaim God\u2019s works to people of every language.</p>
-<h3>Verses 5-13</h3>
-<p>Devout Jews from every nation were in Jerusalem for the feast. They were amazed to hear Galileans speaking in their native languages about God\u2019s mighty works. Some were perplexed; others mocked, saying the disciples were drunk. The list of nations shows the universal scope of God\u2019s work.</p>
-<h3>Verses 14-21</h3>
-<p>Peter stood up and explained that this was the fulfillment of Joel\u2019s prophecy. God was pouring out his Spirit on all people \u2014 sons and daughters, young and old, servants and free. The prophecy concludes with the promise that \u201Ceveryone who calls on the name of the Lord shall be saved.\u201D This is the birth of the church and the beginning of God\u2019s mission to all nations.</p>`,
-    transcript: `<p><strong>The Day of Pentecost.</strong></p>
-<p>Acts 2 describes the birth of the church. The Holy Spirit came upon the disciples, empowering them to be witnesses.</p>
-<p><strong>First, the coming of the Holy Spirit (1-4).</strong></p>
-<p>On the day of Pentecost, the disciples were together in one place. Suddenly a sound like a mighty wind filled the house, and tongues of fire rested on each of them. They were filled with the Holy Spirit and began to speak in other languages. This was the fulfillment of Jesus\u2019 promise that the Spirit would come and empower them.</p>
-<p><strong>Second, the crowd\u2019s reaction (5-13).</strong></p>
-<p>Jews from every nation heard the disciples speaking in their own languages. They were amazed and bewildered. Some asked sincerely, \u201CWhat does this mean?\u201D Others mocked. This is always the response to the work of the Spirit \u2014 some are drawn and some resist.</p>
-<p><strong>Third, Peter\u2019s explanation (14-21).</strong></p>
-<p>Peter stood up boldly \u2014 this was the same Peter who had denied Jesus three times. Now filled with the Spirit, he proclaimed that this was the fulfillment of Joel\u2019s prophecy. God is pouring out his Spirit on all people. And the great promise is this: everyone who calls on the name of the Lord shall be saved.</p>`,
-    attachments: [
-      { name: "Acts 2 Study Guide.pdf", url: "/files/bible-studies/acts-2-study-guide.pdf", type: "PDF" },
-      { name: "Acts 2 Message Transcript.docx", url: "/files/bible-studies/acts-2-transcript.docx", type: "DOCX" },
-    ],
-  },
-  {
-    slug: "saved-by-grace-through-faith",
-    title: "Saved by Grace Through Faith",
-    book: "Ephesians",
-    passage: "Ephesians 2:1-10",
-    datePosted: "2026-01-09",
-    dateFor: "2026-01-11",
-    series: "Sunday Message",
-    messenger: "P. David Kim",
-    keyVerseRef: "Ephesians 2:8-9",
-    keyVerseText: "For it is by grace you have been saved, through faith\u2014and this is not from yourselves, it is the gift of God\u2014not by works, so that no one can boast.",
-    hasQuestions: true,
-    hasAnswers: true,
-    hasTranscript: true,
-    bibleText: `<p>1 And you were dead in the trespasses and sins 2 in which you once walked, following the course of this world, following the prince of the power of the air, the spirit that is now at work in the sons of disobedience\u2014 3 among whom we all once lived in the passions of our flesh, carrying out the desires of the body and the mind, and were by nature children of wrath, like the rest of mankind.</p>
-<p>4 But God, being rich in mercy, because of the great love with which he loved us, 5 even when we were dead in our trespasses, made us alive together with Christ\u2014by grace you have been saved\u2014 6 and raised us up with him and seated us with him in the heavenly places in Christ Jesus, 7 so that in the coming ages he might show the immeasurable riches of his grace in kindness toward us in Christ Jesus.</p>
-<p>8 For by grace you have been saved through faith. And this is not your own doing; it is the gift of God, 9 not a result of works, so that no one may boast. 10 For we are his workmanship, created in Christ Jesus for good works, which God prepared beforehand, that we should walk in them.</p>`,
-    questions: `<h3>Look at verses 1-3</h3>
-<ul>
-<li>How does Paul describe our former condition?</li>
-<li>What does it mean to be \u201Cdead in transgressions\u201D?</li>
-</ul>
-<h3>Look at verses 4-7</h3>
-<ul>
-<li>What motivated God to save us?</li>
-<li>What did God do for us through Christ?</li>
-</ul>
-<h3>Look at verses 8-10</h3>
-<ul>
-<li>How are we saved?</li>
-<li>What is the purpose of our salvation?</li>
-</ul>`,
-    answers: `<h3>Verses 1-3</h3>
-<p>Paul describes our former condition as spiritual death. We were dead in trespasses and sins, following the ways of the world, the devil, and our own sinful nature. \u201CDead in transgressions\u201D means we were completely unable to save ourselves, just as a dead person cannot make themselves alive. We were by nature children of wrath \u2014 this applied to everyone without exception.</p>
-<h3>Verses 4-7</h3>
-<p>\u201CBut God\u201D \u2014 these two words change everything. What motivated God was his rich mercy and great love. Even when we were dead in sin, God made us alive with Christ, raised us up, and seated us with Christ in heavenly places. This is entirely by grace. God did this to display the immeasurable riches of his grace for all ages to come.</p>
-<h3>Verses 8-10</h3>
-<p>We are saved by grace through faith, not by works. Salvation is God\u2019s gift so no one can boast. Yet we are created for good works \u2014 works God prepared in advance. Grace and works are not opposed: grace saves us, and grace empowers us to do the good works God planned for us.</p>`,
-    transcript: `<p><strong>Saved by grace through faith.</strong></p>
-<p>Ephesians 2 contains the clearest summary of the gospel in Paul\u2019s letters. By grace you have been saved through faith \u2014 and this is not from yourselves, it is the gift of God.</p>
-<p><strong>First, our hopeless condition (1-3).</strong></p>
-<p>Paul paints a dark picture of our former state. We were dead in trespasses and sins. Not sick, not struggling \u2014 dead. We followed the world, the devil, and our own sinful desires. We were objects of wrath. This is the bad news that makes the good news so good.</p>
-<p><strong>Second, God\u2019s rich mercy (4-7).</strong></p>
-<p>\u201CBut God\u201D \u2014 the most important two words in the Bible. Rich in mercy, great in love, God made us alive with Christ even when we were dead. He raised us up and seated us with Christ. This is past, present, and future grace all at once. And God did this to show the coming ages the incredible riches of his grace.</p>
-<p><strong>Third, saved for a purpose (8-10).</strong></p>
-<p>By grace, through faith, not by works. This is God\u2019s gift. But verse 10 shows the other side: we are God\u2019s masterpiece, created in Christ Jesus for good works that God prepared beforehand. We are saved not by good works but for good works. Grace is both the foundation and the fuel of the Christian life.</p>`,
-    attachments: [
-      { name: "Ephesians 2 Study Guide.pdf", url: "/files/bible-studies/ephesians-2-study-guide.pdf", type: "PDF" },
-      { name: "Ephesians 2 Study Guide.docx", url: "/files/bible-studies/ephesians-2-study-guide.docx", type: "DOCX" },
-      { name: "Ephesians 2 Message Transcript.docx", url: "/files/bible-studies/ephesians-2-transcript.docx", type: "DOCX" },
-    ],
-  },
-  {
-    slug: "not-of-the-world",
-    title: "Not Of The World",
-    book: "John",
-    passage: "John 17:14-26",
-    datePosted: "2026-01-02",
-    dateFor: "2026-01-04",
-    series: "Sunday Message",
-    messenger: "P. William Larsen",
-    keyVerseRef: "John 17:14",
-    keyVerseText: "I have given them your word, and the world has hated them because they are not of the world, just as I am not of the world.",
-    hasQuestions: true,
-    hasAnswers: true,
-    hasTranscript: true,
-    bibleText: `<p>14 I have given them your word, and the world has hated them because they are not of the world, just as I am not of the world. 15 I do not ask that you take them out of the world, but that you keep them from the evil one. 16 They are not of the world, just as I am not of the world. 17 Sanctify them in the truth; your word is truth. 18 As you sent me into the world, so I have sent them into the world. 19 And for their sake I consecrate myself, that they also may be sanctified in truth.</p>
-<p>20 I do not ask for these only, but also for those who will believe in me through their word, 21 that they may all be one, just as you, Father, are in me, and I in you, that they also may be in us, so that the world may believe that you have sent me. 22 The glory that you have given me I have given to them, that they may be one even as we are one, 23 I in them and you in me, that they may become perfectly one, so that the world may know that you sent me and loved them even as you loved me.</p>
-<p>24 Father, I desire that they also, whom you have given me, may be with me where I am, to see my glory that you have given me because you loved me before the foundation of the world. 25 O righteous Father, even though the world does not know you, I know you, and these know that you have sent me. 26 I made known to them your name, and I will continue to make it known, that the love with which you have loved me may be in them, and I in them.\u201D</p>`,
-    questions: `<h3>V14-19</h3>
-<ul>
-<li>What has Jesus given us? How does the world treat those who follow Jesus\u2019s words and why?</li>
-<li>What did Jesus not ask God for? Instead, what did he ask God to do for his disciples and why?</li>
-<li>What purpose does Jesus have for sending us into the world?</li>
-</ul>
-<h3>V20-23</h3>
-<ul>
-<li>For whom did Jesus also ask God for these things?</li>
-<li>Why does Jesus want all believers to be united as one?</li>
-</ul>
-<h3>V24-26</h3>
-<ul>
-<li>What does Jesus desire and why?</li>
-<li>What did Jesus make known to his disciples, and why does he continue to make it known?</li>
-</ul>`,
-    answers: `<h3>Verses 14-19</h3>
-<p>Jesus gave them God\u2019s word. The world hates them because they are not of the world \u2014 their values, priorities, and allegiance have changed. Jesus does not pray to take them out of the world but to protect them from the evil one. He wants them sanctified \u2014 set apart \u2014 in truth, which is God\u2019s word. Just as the Father sent Jesus into the world, Jesus sends us into the world with a mission: to be agents of truth and grace.</p>
-<h3>Verses 20-23</h3>
-<p>Jesus prays not only for his immediate disciples but for all future believers \u2014 including us. He prays that we may be one, just as the Father and Son are one. The purpose of our unity is so that the world may believe and know that God sent Jesus. Our oneness is a powerful witness to the world. The glory Jesus received from the Father, he gave to us, so we might be perfectly united.</p>
-<h3>Verses 24-26</h3>
-<p>Jesus\u2019 deepest desire is that we be with him and see his glory. He wants us to know the Father\u2019s love and to have that same love dwelling in us. Jesus has made the Father\u2019s name known and will continue to do so, so that God\u2019s love fills us and Christ himself is in us.</p>`,
-    transcript: `<p><strong>Not of the world.</strong></p>
-<p>John 17 is Jesus\u2019 high priestly prayer. In this portion, Jesus prays for his disciples and all future believers.</p>
-<p><strong>First, protection and sanctification (14-19).</strong></p>
-<p>Jesus has given us God\u2019s word, and because of this, the world hates us. But Jesus does not ask God to take us out of the world. Instead, he asks for protection from the evil one and sanctification through truth. God\u2019s word is truth, and it sets us apart. We are sent into the world with a purpose \u2014 not to escape it but to be God\u2019s witnesses in it.</p>
-<p><strong>Second, unity for witness (20-23).</strong></p>
-<p>Jesus prays for all who will believe through the disciples\u2019 testimony \u2014 that includes us today. His prayer is for unity. Not organizational unity, but the deep spiritual oneness that mirrors the unity between Father and Son. This unity is the most powerful witness to the world that God sent Jesus.</p>
-<p><strong>Third, the ultimate desire (24-26).</strong></p>
-<p>Jesus\u2019 greatest desire is that we be with him and see his glory. He wants the Father\u2019s love to be in us and he himself to dwell in us. This is the goal of redemption: to bring us into the eternal love relationship between Father and Son.</p>`,
-    attachments: [
-      { name: "John 17 Study Guide.pdf", url: "/files/bible-studies/john-17-study-guide.pdf", type: "PDF" },
-      { name: "John 17 Study Guide.docx", url: "/files/bible-studies/john-17-study-guide.docx", type: "DOCX" },
-    ],
-  },
-]
+const videolistMod = await import('../scripts/parsed-videolist.ts')
+const MESSAGES_RAW: MessageSeed[] = videolistMod.default
+
+// Handle 3 duplicate video slugs: append year for second occurrence
+const DUPLICATE_SLUGS = new Set(['what-is-your-name', 'you-give-them-something-to-eat', 'i-am-with-you'])
+const seenSlugs = new Set<string>()
+const MESSAGES: MessageSeed[] = MESSAGES_RAW.map(msg => {
+  if (DUPLICATE_SLUGS.has(msg.slug) && seenSlugs.has(msg.slug)) {
+    const year = msg.dateFor.split('-')[0]
+    return { ...msg, slug: `${msg.slug}-${year}` }
+  }
+  seenSlugs.add(msg.slug)
+  return msg
+})
+
+// --- Bible Studies (1180 entries from legacy laubfmaterial) ---
+type BibleStudySeed = {
+  legacyId: number;
+  slug: string;
+  title: string;
+  book: string | null;
+  passage: string;
+  dateFor: string;
+  series: string;
+  attachments: { name: string; url: string; type: string }[];
+};
+
+const materialMod = await import('../scripts/parsed-laubfmaterial.ts')
+const BIBLE_STUDIES_RAW: BibleStudySeed[] = materialMod.default
+
+// Filter out entries with null book (BibleBook is required)
+const BIBLE_STUDIES: BibleStudySeed[] = BIBLE_STUDIES_RAW.filter(bs => bs.book !== null)
+
+// --- Bible Study Content (extracted from DOCX/DOC files) ---
+import { readFileSync } from 'fs'
+const bibleStudyContent: Record<string, { questions?: string; answers?: string; transcript?: string }> =
+  JSON.parse(readFileSync('scripts/bible-study-content.json', 'utf-8'))
 
 // --- Videos ---
 const VIDEOS = [
@@ -653,7 +378,6 @@ async function main() {
   console.log('Creating speakers...')
   const speakerNames = new Set<string>()
   for (const m of MESSAGES) speakerNames.add(m.speaker)
-  for (const b of BIBLE_STUDIES) speakerNames.add(b.messenger)
 
   const speakerMap = new Map<string, string>() // name -> id
   for (const name of speakerNames) {
@@ -673,6 +397,8 @@ async function main() {
   const seriesNames = new Set<string>()
   for (const m of MESSAGES) seriesNames.add(m.series)
   for (const b of BIBLE_STUDIES) seriesNames.add(b.series)
+  // Also ensure "Events" series exists (some messages use it)
+  seriesNames.add('Events')
 
   const seriesMap = new Map<string, string>() // name -> id
   for (const name of seriesNames) {
@@ -721,50 +447,84 @@ async function main() {
   // ── 6. Create Bible Studies (before Messages, for relatedStudyId) ─
   console.log('Creating bible studies...')
   const bibleStudyMap = new Map<string, string>() // slug -> id
+  const bsSeenSlugs = new Set<string>()
   for (const bs of BIBLE_STUDIES) {
+    // Handle duplicate slugs
+    let bsSlug = bs.slug
+    if (bsSeenSlugs.has(bsSlug)) {
+      const year = bs.dateFor.split('-')[0]
+      bsSlug = `${bsSlug}-${year}`
+      if (bsSeenSlugs.has(bsSlug)) bsSlug = `${bs.slug}-${bs.legacyId}`
+    }
+    bsSeenSlugs.add(bsSlug)
+
+    // Look up extracted content for this entry
+    const content = bibleStudyContent[String(bs.legacyId)]
+    const questions = content?.questions || null
+    const answers = content?.answers || null
+    const transcript = content?.transcript || null
+
     const study = await prisma.bibleStudy.create({
       data: {
         churchId,
-        slug: bs.slug,
+        legacyId: bs.legacyId,
+        slug: bsSlug,
         title: bs.title,
-        book: toBibleBookEnum(bs.book) as any,
+        book: bs.book as any,
         passage: bs.passage,
-        datePosted: new Date(bs.datePosted),
+        datePosted: new Date(bs.dateFor),
         dateFor: new Date(bs.dateFor),
         seriesId: seriesMap.get(bs.series) || null,
-        speakerId: speakerMap.get(bs.messenger) || null,
-        keyVerseRef: bs.keyVerseRef,
-        keyVerseText: bs.keyVerseText,
-        questions: bs.questions || null,
-        answers: bs.answers || null,
-        transcript: bs.transcript || null,
-        bibleText: bs.bibleText || null,
-        hasQuestions: bs.hasQuestions,
-        hasAnswers: bs.hasAnswers,
-        hasTranscript: bs.hasTranscript,
+        speakerId: null,
+        keyVerseRef: null,
+        keyVerseText: null,
+        questions,
+        answers,
+        transcript,
+        bibleText: null,
+        hasQuestions: !!questions,
+        hasAnswers: !!answers,
+        hasTranscript: !!transcript,
         status: 'PUBLISHED',
-        publishedAt: new Date(bs.datePosted),
+        publishedAt: new Date(bs.dateFor),
       },
     })
-    bibleStudyMap.set(bs.slug, study.id)
+    bibleStudyMap.set(bsSlug, study.id)
+    // Also map original slug for message matching
+    if (bsSlug !== bs.slug && !bibleStudyMap.has(bs.slug)) {
+      bibleStudyMap.set(bs.slug, study.id)
+    }
   }
-  console.log(`  Created ${bibleStudyMap.size} bible studies`)
+  console.log(`  Created ${bsSeenSlugs.size} bible studies`)
 
   // ── 6b. Create Bible Study Attachments ─────────────────────
   console.log('Creating bible study attachments...')
   let attachmentCount = 0
+  // Build legacyId -> study.id map for attachment lookup
+  const legacyIdToStudyId = new Map<number, string>()
   for (const bs of BIBLE_STUDIES) {
-    const studyId = bibleStudyMap.get(bs.slug)
-    if (!studyId || !bs.attachments) continue
+    const sid = bibleStudyMap.get(bs.slug)
+    if (sid) legacyIdToStudyId.set(bs.legacyId, sid)
+  }
+  for (const bs of BIBLE_STUDIES) {
+    const studyId = legacyIdToStudyId.get(bs.legacyId)
+    if (!studyId || !bs.attachments || bs.attachments.length === 0) continue
     for (let i = 0; i < bs.attachments.length; i++) {
       const att = bs.attachments[i]
+      // Rewrite legacy URLs: /documentation/bible/X.docx -> /legacy-files/{slug}/X.docx
+      const filename = att.url.split('/').pop() || att.name
+      const url = `/legacy-files/${bs.slug}/${filename}`
+      // Derive attachment type from actual file extension
+      const ext = filename.split('.').pop()?.toLowerCase() || ''
+      const attType = ext === 'docx' ? 'DOCX' : ext === 'doc' ? 'DOC' : ext === 'rtf' ? 'RTF' : ext === 'pdf' ? 'PDF' : ext === 'ppt' || ext === 'pptx' ? 'OTHER' : 'DOC'
+      const estSize = attType === 'PDF' ? 245000 : attType === 'DOCX' ? 185000 : attType === 'DOC' ? 150000 : attType === 'RTF' ? 120000 : 150000
       await prisma.bibleStudyAttachment.create({
         data: {
           bibleStudyId: studyId,
           name: att.name,
-          url: att.url,
-          type: att.type as any,
-          fileSize: att.type === 'PDF' ? 245000 : att.type === 'DOCX' ? 185000 : att.type === 'IMAGE' ? 520000 : 150000,
+          url,
+          type: attType as any,
+          fileSize: estSize,
           sortOrder: i,
         },
       })
@@ -777,31 +537,27 @@ async function main() {
   console.log('Creating messages...')
   let messageCount = 0
   for (const msg of MESSAGES) {
-    const relatedStudyId = msg.relatedStudySlug
-      ? bibleStudyMap.get(msg.relatedStudySlug) || null
-      : null
+    // Match with bible study by slug
+    const relatedStudyId = bibleStudyMap.get(msg.slug) || null
 
     const hasVideo = !!msg.youtubeId
-    const thumbnailUrl = msg.youtubeId
+    const thumbnailUrl = msg.thumbnailUrl || (msg.youtubeId
       ? `https://img.youtube.com/vi/${msg.youtubeId}/maxresdefault.jpg`
-      : null
+      : null)
 
-    await prisma.message.create({
+    const created = await prisma.message.create({
       data: {
         churchId,
+        legacyId: msg.legacyId,
         slug: msg.slug,
         title: msg.title,
         passage: msg.passage,
         bibleVersion: 'ESV',
         speakerId: speakerMap.get(msg.speaker) || null,
         dateFor: new Date(msg.dateFor),
-        videoDescription: msg.description,
         videoUrl: msg.youtubeId ? `https://www.youtube.com/watch?v=${msg.youtubeId}` : null,
         youtubeId: msg.youtubeId,
         thumbnailUrl,
-        duration: msg.duration,
-        rawTranscript: msg.rawTranscript,
-        liveTranscript: msg.liveTranscript || null,
         hasVideo,
         hasStudy: !!relatedStudyId,
         relatedStudyId,
@@ -812,23 +568,83 @@ async function main() {
     // Create MessageSeries join record
     const seriesId = seriesMap.get(msg.series)
     if (seriesId) {
-      const createdMsg = await prisma.message.findUnique({
-        where: { churchId_slug: { churchId, slug: msg.slug } },
+      await prisma.messageSeries.create({
+        data: {
+          messageId: created.id,
+          seriesId,
+          sortOrder: messageCount,
+        },
       })
-      if (createdMsg) {
-        await prisma.messageSeries.create({
-          data: {
-            messageId: createdMsg.id,
-            seriesId,
-            sortOrder: messageCount,
-          },
-        })
-      }
     }
 
     messageCount++
   }
   console.log(`  Created ${messageCount} messages`)
+
+  // ── 7b. Create Messages for Bible Studies without Videos ──
+  // Bible studies after the last video (June 2024) have no Message record.
+  // Create study-only Message entries so they appear in the CMS.
+  console.log('Creating study-only messages (no video)...')
+  const existingMessageSlugs = new Set(MESSAGES.map(m => m.slug))
+  let studyOnlyCount = 0
+  for (const bs of BIBLE_STUDIES) {
+    // Skip if a message already exists for this slug
+    if (existingMessageSlugs.has(bs.slug)) continue
+    // Skip if no bible study was created (e.g. null book filtered out)
+    const relatedStudyId = bibleStudyMap.get(bs.slug)
+    if (!relatedStudyId) continue
+
+    // Handle duplicate slugs with video messages
+    let msgSlug = bs.slug
+    const bsYear = bs.dateFor.split('-')[0]
+    // Check if slug is taken by a video message (different legacyId)
+    const existingMsg = await prisma.message.findUnique({
+      where: { churchId_slug: { churchId, slug: msgSlug } },
+      select: { id: true },
+    })
+    if (existingMsg) {
+      msgSlug = `${bs.slug}-${bsYear}`
+      // Check again
+      const existingMsg2 = await prisma.message.findUnique({
+        where: { churchId_slug: { churchId, slug: msgSlug } },
+        select: { id: true },
+      })
+      if (existingMsg2) {
+        msgSlug = `${bs.slug}-study-${bs.legacyId}`
+      }
+    }
+
+    const created = await prisma.message.create({
+      data: {
+        churchId,
+        slug: msgSlug,
+        title: bs.title,
+        passage: bs.passage,
+        bibleVersion: 'ESV',
+        speakerId: null,
+        dateFor: new Date(bs.dateFor),
+        hasVideo: false,
+        hasStudy: true,
+        relatedStudyId,
+        publishedAt: new Date(bs.dateFor),
+      },
+    })
+
+    // Add to Sunday Service series
+    const sundaySeriesId = seriesMap.get('Sunday Service')
+    if (sundaySeriesId) {
+      await prisma.messageSeries.create({
+        data: {
+          messageId: created.id,
+          seriesId: sundaySeriesId,
+          sortOrder: messageCount + studyOnlyCount,
+        },
+      })
+    }
+
+    studyOnlyCount++
+  }
+  console.log(`  Created ${studyOnlyCount} study-only messages`)
 
   // ── 8. Create Events ──────────────────────────────────────
   console.log('Creating events...')
@@ -3801,9 +3617,13 @@ async function main() {
   // --- Create Person records for existing Speakers and assign Speaker role ---
   // Map speaker names to their existing Person records or create new ones
   const speakerPersonData: { name: string; slug: string; title?: string; bio?: string }[] = [
-    { name: 'P. William', slug: 'p-william', title: 'Senior Pastor', bio: 'Pastor William has served as the senior shepherd of LA UBF since its founding. He leads the Sunday worship service and weekly Bible study.' },
-    { name: 'P. Kevin Albright', slug: 'p-kevin-albright', title: 'Campus Pastor', bio: 'Pastor Kevin Albright serves as a campus missionary and Bible teacher, reaching college students across the LA area.' },
-    { name: 'P. Abraham Kim', slug: 'p-abraham-kim', title: 'Associate Pastor', bio: 'Pastor Abraham Kim is an associate pastor who frequently speaks at conferences and special events.' },
+    { name: 'William Larsen', slug: 'william-larsen', title: 'Senior Pastor', bio: 'Pastor William Larsen has served as the senior shepherd of LA UBF since its founding. He leads the Sunday worship service and weekly Bible study.' },
+    { name: 'John Kwon', slug: 'john-kwon', title: 'Associate Pastor' },
+    { name: 'David Park', slug: 'david-park', title: 'Associate Pastor' },
+    { name: 'Robert Fishman', slug: 'robert-fishman', title: 'Campus Minister' },
+    { name: 'Ron Ward', slug: 'ron-ward', title: 'Bible Teacher' },
+    { name: 'Troy Segale', slug: 'troy-segale', title: 'Campus Minister' },
+    { name: 'Frank Holman', slug: 'frank-holman', title: 'Bible Teacher' },
     { name: 'Msn. Daniel Park', slug: 'msn-daniel-park', title: 'Missionary' },
     { name: 'Msn. Sarah Kim', slug: 'msn-sarah-kim', title: 'Missionary' },
     { name: 'Msn. Joshua Lee', slug: 'msn-joshua-lee', title: 'Missionary' },
@@ -3858,17 +3678,16 @@ async function main() {
   console.log('  Created speaker Person records and assigned Speaker role')
 
   // --- Assign Pastor role ---
-  // P. William is a pastor — find or use the person record
-  const pWilliam = personRecords['p-william']
+  const pWilliam = personRecords['william-larsen']
   if (pWilliam) {
     await prisma.personRoleAssignment.create({
       data: { personId: pWilliam, roleId: pastorRole.id, title: 'Senior Pastor' },
     })
   }
-  const pKevin = personRecords['p-kevin-albright']
-  if (pKevin) {
+  const pJohnKwon = personRecords['john-kwon']
+  if (pJohnKwon) {
     await prisma.personRoleAssignment.create({
-      data: { personId: pKevin, roleId: pastorRole.id, title: 'Campus Pastor' },
+      data: { personId: pJohnKwon, roleId: pastorRole.id, title: 'Associate Pastor' },
     })
   }
   console.log('  Assigned Pastor role to 2 people')

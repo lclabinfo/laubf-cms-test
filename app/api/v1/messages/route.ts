@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
           hasStudy: message.hasStudy,
           publishedAt: message.publishedAt,
           studySections: message.studySections as { id: string; title: string; content: string }[],
+          attachments: message.attachments as { id: string; name: string; url?: string; type?: string }[] | null,
           bibleVersion: message.bibleVersion,
           existingStudyId: null,
         })

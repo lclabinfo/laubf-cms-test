@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import { ContentStatus, type BibleBook } from '@/lib/generated/prisma/client'
+import { ContentStatus, type AttachmentType, type BibleBook } from '@/lib/generated/prisma/client'
 // ContentStatus still used for BibleStudy model (which retains its own status column)
 import { tiptapJsonToHtml } from '@/lib/tiptap'
 import { fetchBibleText } from '@/lib/bible-api'
@@ -93,6 +93,14 @@ interface StudySection {
   content: string
 }
 
+interface SyncAttachment {
+  id: string
+  name: string
+  url?: string
+  type?: string
+  size?: string
+}
+
 interface SyncParams {
   messageId: string
   churchId: string
@@ -107,6 +115,7 @@ interface SyncParams {
   hasStudy: boolean
   publishedAt?: Date | string | null
   studySections?: StudySection[] | null
+  attachments?: SyncAttachment[] | null
   bibleVersion?: string | null
   /** Existing relatedStudyId on the Message (if updating) */
   existingStudyId?: string | null
@@ -131,6 +140,7 @@ export async function syncMessageStudy(params: SyncParams): Promise<string> {
     hasStudy,
     publishedAt,
     studySections,
+    attachments,
     bibleVersion,
     existingStudyId,
   } = params
@@ -209,13 +219,15 @@ export async function syncMessageStudy(params: SyncParams): Promise<string> {
     hasTranscript: !!transcript,
   }
 
+  let studyId: string
+
   if (existingStudyId) {
     // Update existing linked BibleStudy
     await prisma.bibleStudy.update({
       where: { id: existingStudyId },
       data: studyData,
     })
-    return existingStudyId
+    studyId = existingStudyId
   } else {
     // Create new BibleStudy and link it to the Message
     const study = await prisma.bibleStudy.create({
@@ -228,7 +240,78 @@ export async function syncMessageStudy(params: SyncParams): Promise<string> {
       data: { relatedStudyId: study.id },
     })
 
-    return study.id
+    studyId = study.id
+  }
+
+  // Sync attachments to BibleStudyAttachment table if provided
+  if (attachments !== undefined) {
+    await syncStudyAttachments(studyId, attachments || [])
+  }
+
+  return studyId
+}
+
+/**
+ * Map file extension or MIME type string to AttachmentType enum.
+ */
+function resolveAttachmentType(typeStr?: string, name?: string): AttachmentType {
+  const t = (typeStr || '').toUpperCase()
+  if (t === 'DOCX' || t === 'DOC' || t === 'PDF' || t === 'RTF' || t === 'IMAGE' || t === 'OTHER') {
+    return t as AttachmentType
+  }
+  // Try to infer from file extension
+  const ext = (name || '').split('.').pop()?.toLowerCase()
+  if (ext === 'docx') return 'DOCX'
+  if (ext === 'doc') return 'DOC'
+  if (ext === 'pdf') return 'PDF'
+  if (ext === 'rtf') return 'RTF'
+  if (ext && ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) return 'IMAGE'
+  return 'OTHER'
+}
+
+/**
+ * Sync attachments: replace all BibleStudyAttachment records for a study
+ * with the provided list. Uses upsert-by-id for existing records and
+ * deletes any that are no longer in the list.
+ */
+async function syncStudyAttachments(studyId: string, attachments: SyncAttachment[]) {
+  // Get existing attachment IDs
+  const existing = await prisma.bibleStudyAttachment.findMany({
+    where: { bibleStudyId: studyId },
+    select: { id: true },
+  })
+  const existingIds = new Set(existing.map(a => a.id))
+  const incomingIds = new Set(attachments.map(a => a.id))
+
+  // Delete removed attachments
+  const toDelete = Array.from(existingIds).filter(id => !incomingIds.has(id))
+  if (toDelete.length > 0) {
+    await prisma.bibleStudyAttachment.deleteMany({
+      where: { id: { in: toDelete } },
+    })
+  }
+
+  // Upsert each attachment
+  for (let i = 0; i < attachments.length; i++) {
+    const att = attachments[i]
+    const attType = resolveAttachmentType(att.type, att.name)
+    await prisma.bibleStudyAttachment.upsert({
+      where: { id: att.id },
+      update: {
+        name: att.name,
+        url: att.url || '',
+        type: attType,
+        sortOrder: i,
+      },
+      create: {
+        id: att.id,
+        bibleStudyId: studyId,
+        name: att.name,
+        url: att.url || '',
+        type: attType,
+        sortOrder: i,
+      },
+    })
   }
 }
 

@@ -76,6 +76,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
             ? existing.messageSeries[0].seriesId
             : null)
 
+        const effectiveAttachments = 'attachments' in body
+          ? body.attachments
+          : (existing.attachments as { id: string; name: string; url?: string; type?: string }[] | null)
+
         await syncMessageStudy({
           messageId: updated.id,
           churchId,
@@ -88,6 +92,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           hasStudy: updated.hasStudy,
           publishedAt: updated.publishedAt,
           studySections: effectiveStudySections,
+          attachments: effectiveAttachments,
           bibleVersion: updated.bibleVersion,
           existingStudyId: updated.relatedStudyId,
         })

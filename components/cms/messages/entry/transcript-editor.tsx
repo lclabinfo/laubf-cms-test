@@ -293,7 +293,7 @@ export function TranscriptEditor({
           <TabsTrigger value="raw" className="rounded-md px-3 text-xs h-7 data-[state=active]:bg-background data-[state=active]:shadow-sm">
             Message Transcript
           </TabsTrigger>
-          <TabsTrigger value="synced" className="rounded-md px-3 text-xs h-7 data-[state=active]:bg-background data-[state=active]:shadow-sm">
+          <TabsTrigger value="synced" disabled className="rounded-md px-3 text-xs h-7 opacity-40 cursor-not-allowed data-[state=active]:bg-background data-[state=active]:shadow-sm">
             Live Captions
           </TabsTrigger>
         </TabsList>
@@ -322,56 +322,41 @@ export function TranscriptEditor({
                   <span className="text-muted-foreground text-[11px] font-normal">.txt, .doc, .md — imported as full text</span>
                 </div>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleUploadCaption}>
+              <DropdownMenuItem disabled className="opacity-40">
                 <FileText />
                 <div className="flex flex-col">
                   <span>Upload Caption File (.SRT/.VTT)</span>
-                  <span className="text-muted-foreground text-[11px] font-normal">Timestamped captions parsed into segments</span>
+                  <span className="text-muted-foreground text-[11px] font-normal">Coming soon</span>
                 </div>
               </DropdownMenuItem>
             </DropdownMenuGroup>
 
             <DropdownMenuSeparator />
 
-            <DropdownMenuLabel>AI-Powered</DropdownMenuLabel>
+            <DropdownMenuLabel className="opacity-40">AI-Powered</DropdownMenuLabel>
             <DropdownMenuGroup>
-              <DropdownMenuItem
-                onClick={handleAiAlignment}
-                disabled={!rawTranscript.trim()}
-              >
+              <DropdownMenuItem disabled className="opacity-40">
                 <Sparkles />
                 <div className="flex flex-col">
                   <span>AI Auto-Align to Timestamps</span>
-                  <span className="text-muted-foreground text-[11px] font-normal">
-                    {!rawTranscript.trim()
-                      ? "Requires full text — paste text in Message Transcript tab first"
-                      : "Distributes your text into live caption segments"}
-                  </span>
+                  <span className="text-muted-foreground text-[11px] font-normal">Coming soon</span>
                 </div>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleYouTubeImport} disabled={!hasVideoUrl}>
+              <DropdownMenuItem disabled className="opacity-40">
                 <Youtube />
                 <div className="flex flex-col">
                   <span>Import YouTube Captions</span>
-                  <span className="text-muted-foreground text-[11px] font-normal">
-                    {!hasVideoUrl
-                      ? "Requires a YouTube video URL — set it in the Video URL field above"
-                      : "Fetches auto-generated or manual captions"}
-                  </span>
+                  <span className="text-muted-foreground text-[11px] font-normal">Coming soon</span>
                 </div>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleYouTubeAiCleanup} disabled={!hasVideoUrl}>
+              <DropdownMenuItem disabled className="opacity-40">
                 <Youtube />
                 <div className="flex flex-col">
                   <div className="flex items-center gap-1.5">
                     <span>Import YouTube + AI Cleanup</span>
                     <Badge variant="secondary" className="text-[9px] px-1 py-0 h-3.5">Best</Badge>
                   </div>
-                  <span className="text-muted-foreground text-[11px] font-normal">
-                    {!hasVideoUrl
-                      ? "Requires a YouTube video URL — set it in the Video URL field above"
-                      : "YouTube captions cleaned by AI for readability"}
-                  </span>
+                  <span className="text-muted-foreground text-[11px] font-normal">Coming soon</span>
                 </div>
               </DropdownMenuItem>
             </DropdownMenuGroup>
@@ -496,14 +481,7 @@ export function TranscriptEditor({
             placeholder="Paste or type the full transcript text here..."
             minHeight="200px"
           />
-          {rawTranscript.trim() && segments.length === 0 && (
-            <div className="flex items-start gap-2 rounded-lg border border-warning/20 bg-warning/5 px-3 py-2 text-sm text-warning-foreground dark:border-warning/30 dark:bg-warning/10 dark:text-warning">
-              <AlertCircle className="size-4 mt-0.5 shrink-0" />
-              <span>
-                Full text entered. Use <strong>AI Auto-Align</strong> from the Import / Generate menu to create timestamp segments.
-              </span>
-            </div>
-          )}
+          {/* AI auto-align hint hidden while Live Captions is disabled */}
         </div>
       </TabsContent>
     </Tabs>

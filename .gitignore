@@ -56,9 +56,10 @@ CLAUDE.md
 /public/fonts
 /public/pics-temp
 /public/logo
+/public/legacy-files
 
 # Temporary old db file
 00_old_laubf_db_dump
 digital-church-platform-docs
 docx:html test
-laubf-test
+laubf-testlegacy-files/

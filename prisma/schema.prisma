@@ -446,6 +446,9 @@ model Message {
   // Relationship to Bible Study
   relatedStudyId   String?       @unique @db.Uuid
 
+  // Legacy
+  legacyId         Int?
+
   // Metadata
   viewCount        Int           @default(0)
   createdAt        DateTime      @default(now())
@@ -663,6 +666,9 @@ model BibleStudy {
 
   // Relationship to Message
   relatedMessage   Message?      @relation("MessageStudy")
+
+  // Legacy
+  legacyId         Int?
 
   // Publishing
   status           ContentStatus @default(DRAFT)

@@ -809,6 +809,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
           />
         </div>
       </div>
+      </div>
 
       {/* Save confirmation dialog — shows what will be published */}
       <AlertDialog open={saveConfirmOpen} onOpenChange={setSaveConfirmOpen}>

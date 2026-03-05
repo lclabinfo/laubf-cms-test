@@ -20,12 +20,20 @@ const messageListInclude = {
     include: { series: true },
     orderBy: { sortOrder: 'asc' as const },
   },
-  relatedStudy: true,
+  relatedStudy: {
+    include: {
+      attachments: { orderBy: { sortOrder: 'asc' as const } },
+    },
+  },
 } satisfies Prisma.MessageInclude
 
 const messageDetailInclude = {
   ...messageListInclude,
-  relatedStudy: true,
+  relatedStudy: {
+    include: {
+      attachments: { orderBy: { sortOrder: 'asc' as const } },
+    },
+  },
 } satisfies Prisma.MessageInclude
 
 export type MessageFilters = {
