@@ -11,6 +11,8 @@ import {
   IconChevronRight,
   IconExternalLink,
   IconLink,
+  IconUser,
+  IconVideo,
 } from "@/components/website/shared/icons"
 
 interface PageProps {
@@ -99,7 +101,18 @@ export default async function EventDetailPage({ params }: PageProps) {
   const locationLabel =
     event.locationType === "ONLINE"
       ? "Online Event"
-      : event.location || "Location TBD"
+      : event.locationType === "HYBRID"
+        ? event.location || "Hybrid Event"
+        : event.location || "Location TBD"
+
+  // Parse contacts JSON field
+  const contacts = Array.isArray(event.contacts)
+    ? (event.contacts as { name: string; label?: string }[])
+    : []
+
+  // Meeting type label for online button
+  const onlineButtonLabel =
+    event.type === "MEETING" ? "Join Meeting" : "Join Online Meeting"
 
   return (
     <div className="bg-white-1 pt-8 pb-20">
@@ -147,10 +160,22 @@ export default async function EventDetailPage({ params }: PageProps) {
                 </div>
               </div>
             )}
-            {/* Type badge */}
-            <span className="absolute top-4 left-4 bg-black-1/80 text-white-0 text-[12px] tracking-wider font-medium px-4 py-1.5 rounded-full uppercase">
-              {typeBadge}
-            </span>
+            {/* Type badge + custom badge */}
+            <div className="absolute top-4 left-4 flex items-center gap-2">
+              <span className="bg-black-1/80 text-white-0 text-[12px] tracking-wider font-medium px-4 py-1.5 rounded-full uppercase">
+                {typeBadge}
+              </span>
+              {event.badge && (
+                <span className="bg-brand-1/90 text-white-0 text-[12px] tracking-wider font-medium px-4 py-1.5 rounded-full uppercase">
+                  {event.badge}
+                </span>
+              )}
+              {event.allDay && (
+                <span className="bg-accent-green/90 text-white-0 text-[12px] tracking-wider font-medium px-4 py-1.5 rounded-full uppercase">
+                  All Day
+                </span>
+              )}
+            </div>
             {/* Featured badge */}
             {event.isFeatured && (
               <span className="absolute top-4 right-4 bg-accent-blue/90 text-white-0 text-[12px] tracking-wider font-medium px-4 py-1.5 rounded-full uppercase">
@@ -188,16 +213,30 @@ export default async function EventDetailPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* Footer note */}
-          <div className="mt-10 pt-6 border-t border-white-2">
-            <p className="text-body-3 text-black-3 italic">
-              For questions about this event, please{" "}
-              <Link href="/website/contact" className="text-accent-blue hover:underline">
-                contact us
-              </Link>
-              .
-            </p>
-          </div>
+          {/* Contacts */}
+          {contacts.length > 0 && (
+            <div className="mt-10 pt-6 border-t border-white-2">
+              <h3 className="text-overline text-black-3 uppercase mb-4">Contacts</h3>
+              <div className="flex flex-wrap gap-3">
+                {contacts.map((c, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2 bg-white-0 border border-white-2-5 rounded-lg px-4 py-2.5"
+                  >
+                    <IconUser className="size-4 text-black-3" />
+                    <div className="flex flex-col">
+                      <span className="text-[14px] font-medium text-black-1">
+                        {c.name}
+                      </span>
+                      {c.label && (
+                        <span className="text-[12px] text-black-3">{c.label}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </article>
 
         {/* Right column — sidebar card */}
@@ -243,6 +282,15 @@ export default async function EventDetailPage({ params }: PageProps) {
               value={locationLabel}
             />
 
+            {/* Hybrid badge */}
+            {event.locationType === "HYBRID" && (
+              <div className="flex items-center gap-2 -mt-2 mb-4 ml-[52px]">
+                <span className="bg-accent-blue/10 text-accent-blue text-[12px] font-medium px-3 py-1 rounded-full">
+                  In-Person + Online
+                </span>
+              </div>
+            )}
+
             {/* Address (if different from location name) */}
             {event.address && event.address !== event.location && (
               <p className="text-body-3 text-black-3 -mt-2 mb-4 ml-[52px]">
@@ -282,6 +330,56 @@ export default async function EventDetailPage({ params }: PageProps) {
               </div>
             )}
 
+            {/* Cost & Registration info */}
+            {(event.costType || event.registrationRequired || event.maxParticipants || event.registrationDeadline) && (
+              <>
+                <hr className="border-white-2 my-5" />
+                <div className="space-y-2 mb-4">
+                  {/* Cost badge */}
+                  {event.costType === "FREE" && (
+                    <span className="inline-block bg-accent-green/10 text-accent-green text-[12px] font-medium px-3 py-1 rounded-full">
+                      Free
+                    </span>
+                  )}
+                  {event.costType === "PAID" && (
+                    <div className="flex items-center gap-2">
+                      <span className="inline-block bg-accent-blue/10 text-accent-blue text-[12px] font-medium px-3 py-1 rounded-full">
+                        {event.costAmount || "Paid"}
+                      </span>
+                    </div>
+                  )}
+                  {event.costType === "DONATION" && (
+                    <div className="flex items-center gap-2">
+                      <span className="inline-block bg-brand-1/10 text-brand-1 text-[12px] font-medium px-3 py-1 rounded-full">
+                        Suggested Donation{event.costAmount ? `: ${event.costAmount}` : ""}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Registration Required badge */}
+                  {event.registrationRequired && (
+                    <span className="inline-block bg-accent-blue/10 text-accent-blue text-[12px] font-medium px-3 py-1 rounded-full">
+                      Registration Required
+                    </span>
+                  )}
+
+                  {/* Max Participants */}
+                  {event.maxParticipants && (
+                    <p className="text-body-3 text-black-3">
+                      Max Participants: {event.maxParticipants}
+                    </p>
+                  )}
+
+                  {/* Registration Deadline */}
+                  {event.registrationDeadline && (
+                    <p className="text-body-3 text-black-3">
+                      Register by: {new Date(event.registrationDeadline).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
+
             <hr className="border-white-2 my-5" />
 
             {/* Registration button */}
@@ -304,8 +402,8 @@ export default async function EventDetailPage({ params }: PageProps) {
                 rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 w-full rounded-full border border-accent-blue/30 text-accent-blue py-4 text-button-1 transition-colors hover:bg-accent-blue/5 mb-3"
               >
-                <IconLink className="size-4" />
-                Join Online Meeting
+                <IconVideo className="size-4" />
+                {onlineButtonLabel}
               </a>
             )}
 

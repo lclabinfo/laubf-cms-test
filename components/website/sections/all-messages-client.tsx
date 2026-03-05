@@ -21,6 +21,7 @@ interface SimpleMessage {
   thumbnailUrl: string
   duration: string
   hasVideo: boolean
+  description?: string
   rawTranscript?: string | null
   liveTranscript?: string | null
 }

@@ -307,7 +307,6 @@ function CardView({ events }: { events: SimpleEvent[] }) {
             location: event.location,
             thumbnailUrl: event.thumbnailUrl || undefined,
             isFeatured: event.isFeatured,
-            tags: [event.ministry, event.campus].filter(Boolean),
           }}
         />
       ))}

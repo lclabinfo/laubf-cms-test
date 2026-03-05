@@ -5,8 +5,6 @@ import Link from "next/link"
 import { resolveHref } from "@/lib/website/resolve-href"
 import { IconClock, IconMapPin } from "@/components/website/shared/icons"
 
-const MAX_VISIBLE_TAGS = 3
-
 interface EventGridCardEvent {
   slug: string
   title: string
@@ -16,7 +14,6 @@ interface EventGridCardEvent {
   location: string
   thumbnailUrl?: string
   isFeatured: boolean
-  tags?: string[]
   image?: { src: string; alt: string; objectPosition?: string }
 }
 
@@ -27,9 +24,6 @@ function getEventBadge(event: EventGridCardEvent): string | null {
 
 export default function EventGridCard({ event }: { event: EventGridCardEvent }) {
   const badge = getEventBadge(event)
-  const tags = event.tags ?? []
-  const visibleTags = tags.slice(0, MAX_VISIBLE_TAGS)
-  const overflowCount = tags.length - MAX_VISIBLE_TAGS
 
   const imageSrc = event.image?.src ?? event.thumbnailUrl
   const imageAlt = event.image?.alt ?? event.title
@@ -100,26 +94,6 @@ export default function EventGridCard({ event }: { event: EventGridCardEvent }) 
           </div>
         </div>
 
-        {/* Tags */}
-        {tags.length > 0 && (
-          <div className="flex items-center justify-between mt-auto pt-1">
-            <div className="flex gap-2 items-center overflow-clip flex-1 min-w-0">
-              {visibleTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="shrink-0 bg-white-2 text-black-3 text-[12px] tracking-[0.24px] font-medium leading-none text-center px-2 py-1.5 rounded-lg"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-            {overflowCount > 0 && (
-              <span className="shrink-0 bg-white-2 text-black-3 text-[12px] tracking-[0.24px] font-medium leading-none text-center px-2 py-1.5 rounded-lg ml-2">
-                +{overflowCount}
-              </span>
-            )}
-          </div>
-        )}
       </div>
     </Link>
   )

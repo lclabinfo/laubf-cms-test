@@ -23,7 +23,7 @@ interface Message {
   series: string
   passage: string
   dateFor: string
-  description: string
+  description?: string
   rawTranscript?: string | null
   liveTranscript?: string | null
   relatedStudyId?: string

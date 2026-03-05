@@ -17,7 +17,6 @@ interface Event {
   location: string
   thumbnailUrl?: string
   isFeatured: boolean
-  tags?: string[]
   image?: { src: string; alt: string; objectPosition?: string }
 }
 
