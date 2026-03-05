@@ -684,6 +684,65 @@ async function main() {
   }
   console.log(`  Merged ${mergedCount} studies into video messages, created ${studyOnlyCount} study-only messages`)
 
+  // ── 7c. Merge remaining duplicates by date+passage ──────────
+  // Some entries couldn't be merged in 7b because:
+  // - Video already had a study linked by slug, but a different study exists for same date+passage
+  // - Two study-only entries exist for same date+passage
+  // Do a final pass to merge any remaining duplicates.
+  console.log('Merging remaining date+passage duplicates...')
+  const allMsgs = await prisma.message.findMany({
+    where: { churchId, deletedAt: null },
+    include: { messageSeries: true },
+    orderBy: { dateFor: 'desc' },
+  })
+  const dpGroups = new Map<string, typeof allMsgs>()
+  for (const m of allMsgs) {
+    const key = m.dateFor.toISOString().slice(0, 10) + '|' + (m.passage || '')
+    const arr = dpGroups.get(key) || []
+    arr.push(m)
+    dpGroups.set(key, arr)
+  }
+  let dedupeCount = 0
+  for (const [, items] of dpGroups) {
+    if (items.length < 2) continue
+    // Sort: prefer entries with video, then with study, then with speaker
+    items.sort((a, b) => {
+      if (a.hasVideo !== b.hasVideo) return a.hasVideo ? -1 : 1
+      if (a.hasStudy !== b.hasStudy) return a.hasStudy ? -1 : 1
+      if (a.speakerId !== b.speakerId) return a.speakerId ? -1 : 1
+      return 0
+    })
+    const keep = items[0]
+    for (let i = 1; i < items.length; i++) {
+      const remove = items[i]
+      // Both have video = genuinely different entries (e.g. Part 1/Part 2)
+      if (keep.hasVideo && remove.hasVideo) continue
+      // Transfer speaker if keep doesn't have one
+      const updates: Record<string, any> = {}
+      if (!keep.speakerId && remove.speakerId) updates.speakerId = remove.speakerId
+      if (Object.keys(updates).length > 0) {
+        await prisma.message.update({ where: { id: keep.id }, data: updates })
+      }
+      // Transfer series
+      for (const ms of remove.messageSeries) {
+        const exists = keep.messageSeries.some(k => k.seriesId === ms.seriesId)
+        if (!exists) {
+          await prisma.messageSeries.create({
+            data: { messageId: keep.id, seriesId: ms.seriesId, sortOrder: ms.sortOrder },
+          })
+        }
+      }
+      // Clean up remove
+      await prisma.messageSeries.deleteMany({ where: { messageId: remove.id } })
+      if (remove.relatedStudyId) {
+        await prisma.message.update({ where: { id: remove.id }, data: { relatedStudyId: null, hasStudy: false } })
+      }
+      await prisma.message.update({ where: { id: remove.id }, data: { deletedAt: new Date() } })
+      dedupeCount++
+    }
+  }
+  console.log(`  Deduplicated ${dedupeCount} remaining entries`)
+
   // ── 8. Create Events ──────────────────────────────────────
   console.log('Creating events...')
   let eventCount = 0
