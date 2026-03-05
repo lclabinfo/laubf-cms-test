@@ -52,42 +52,73 @@ const Indent = Extension.create({
 })
 
 /**
- * Custom extension that adds spacing control to paragraphs and headings.
- * Controls line-height per block. Paragraph gaps are handled by editor CSS.
+ * Custom extension: per-paragraph line-height and paragraph spacing (before/after).
+ * Similar to Google Docs' "Line & paragraph spacing" controls.
  *
- * | Setting          | line-height |
- * |------------------|-------------|
- * | Tight            | 1.4         |
- * | Normal (default) | 1.6         |
- * | Relaxed          | 1.8         |
+ * lineHeight: CSS line-height value (e.g. "1", "1.15", "1.5", "2"). Default uses editor CSS.
+ * spacingBefore: margin-top in rem (e.g. "0", "0.5", "1"). Null = editor default.
+ * spacingAfter: margin-bottom in rem (e.g. "0", "0.5", "1"). Null = editor default.
+ *
+ * Parses from inline styles for DOCX import round-trip.
  */
-const SPACING_LINE_HEIGHTS: Record<string, string> = {
-  tight:   "1.4",
-  normal:  "1.6",
-  relaxed: "1.8",
-}
-
-const Spacing = Extension.create({
-  name: "spacing",
+const LineSpacing = Extension.create({
+  name: "lineSpacing",
   addGlobalAttributes() {
     return [
       {
         types: ["paragraph", "heading"],
         attributes: {
-          spacing: {
+          lineHeight: {
             default: null,
             parseHTML: (element) => {
               const lh = element.style.lineHeight
               if (!lh) return null
               const val = parseFloat(lh)
-              if (val <= 1.4) return "tight"
-              if (val >= 1.8) return "relaxed"
-              return null // normal is the default, no need to store
+              if (isNaN(val)) return null
+              // Round to 2 decimal places for clean storage
+              return String(Math.round(val * 100) / 100)
             },
             renderHTML: (attributes) => {
-              const key = attributes.spacing as string | null
-              if (!key || !SPACING_LINE_HEIGHTS[key]) return {}
-              return { style: `line-height: ${SPACING_LINE_HEIGHTS[key]}` }
+              if (!attributes.lineHeight) return {}
+              return { style: `line-height: ${attributes.lineHeight}` }
+            },
+          },
+          spacingBefore: {
+            default: null,
+            parseHTML: (element) => {
+              const mt = element.style.marginTop
+              if (!mt) return null
+              const val = parseFloat(mt)
+              if (isNaN(val)) return null
+              // "0" is valid — used by DOCX import to override CSS > * + * gap
+              if (val === 0) return "0"
+              // Convert px to rem (assume 16px base)
+              if (mt.endsWith("px")) return String(Math.round((val / 16) * 100) / 100)
+              if (mt.endsWith("rem")) return String(val)
+              if (mt.endsWith("pt")) return String(Math.round((val / 12) * 100) / 100)
+              return null
+            },
+            renderHTML: (attributes) => {
+              if (attributes.spacingBefore == null) return {}
+              return { style: `margin-top: ${attributes.spacingBefore}rem` }
+            },
+          },
+          spacingAfter: {
+            default: null,
+            parseHTML: (element) => {
+              const mb = element.style.marginBottom
+              if (!mb) return null
+              const val = parseFloat(mb)
+              if (isNaN(val)) return null
+              if (val === 0) return "0"
+              if (mb.endsWith("px")) return String(Math.round((val / 16) * 100) / 100)
+              if (mb.endsWith("rem")) return String(val)
+              if (mb.endsWith("pt")) return String(Math.round((val / 12) * 100) / 100)
+              return null
+            },
+            renderHTML: (attributes) => {
+              if (attributes.spacingAfter == null) return {}
+              return { style: `margin-bottom: ${attributes.spacingAfter}rem` }
             },
           },
         },
@@ -131,7 +162,7 @@ export function getExtensions(placeholder?: string): Extensions {
     FontFamily,
     Color,
     Highlight.configure({ multicolor: true }),
-    Spacing,
+    LineSpacing,
     ...(placeholder
       ? [Placeholder.configure({ placeholder })]
       : []),

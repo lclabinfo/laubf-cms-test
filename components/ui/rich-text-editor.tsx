@@ -3,6 +3,11 @@
 import { useEffect, useCallback, useState } from "react"
 import { useEditor, useEditorState, EditorContent } from "@tiptap/react"
 import { getExtensions, plainTextToTiptapJson } from "@/lib/tiptap"
+import { ImageUpload, registerImageUploadComponent } from "@/lib/tiptap-image-upload"
+import { ImageUploadNodeView } from "@/components/ui/image-upload-node"
+
+// Register the React component for the ImageUpload extension
+registerImageUploadComponent(ImageUploadNodeView)
 import { cn } from "@/lib/utils"
 import { Toggle } from "@/components/ui/toggle"
 import { Button } from "@/components/ui/button"
@@ -61,13 +66,28 @@ import {
   Columns3,
   ToggleLeft,
   Type,
-  WrapText,
   Pilcrow,
   Heading1,
   Heading2,
   Heading3,
   Heading4,
 } from "lucide-react"
+
+/** Custom icon: horizontal lines with vertical double-arrow (line/paragraph spacing) */
+function LineSpacingIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+      {/* Three horizontal lines */}
+      <line x1="6" y1="3" x2="14" y2="3" />
+      <line x1="6" y1="8" x2="14" y2="8" />
+      <line x1="6" y1="13" x2="14" y2="13" />
+      {/* Vertical double-headed arrow */}
+      <line x1="3" y1="4" x2="3" y2="12" />
+      <polyline points="1.5,6 3,4 4.5,6" />
+      <polyline points="1.5,10 3,12 4.5,10" />
+    </svg>
+  )
+}
 
 interface RichTextEditorProps {
   content: string
@@ -97,7 +117,7 @@ export function RichTextEditor({
   maxHeight = "70vh",
 }: RichTextEditorProps) {
   const editor = useEditor({
-    extensions: getExtensions(placeholder),
+    extensions: [...getExtensions(placeholder), ImageUpload],
     content: parseContent(content),
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
@@ -315,27 +335,6 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
     editor.chain().focus().unsetLink().run()
   }, [editor])
 
-  const addImageFromFile = useCallback(() => {
-    if (!editor) return
-    const input = document.createElement("input")
-    input.type = "file"
-    input.accept = "image/*"
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]
-      if (!file) return
-      const reader = new FileReader()
-      reader.onload = () => {
-        editor
-          .chain()
-          .focus()
-          .setImage({ src: reader.result as string })
-          .run()
-      }
-      reader.readAsDataURL(file)
-    }
-    input.click()
-  }, [editor])
-
   if (!editor) return null
 
   // Determine current block type label + icon for the dropdown trigger
@@ -348,7 +347,7 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
 
   return (
     <div className="flex flex-wrap items-center gap-0.5 p-1.5">
-      {/* Undo / Redo */}
+      {/* ── 1. Undo / Redo ── */}
       <ToolbarTooltip label="Undo" shortcut="⌘Z">
         <Button
           variant="ghost"
@@ -372,7 +371,38 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
 
       <Separator orientation="vertical" className="mx-1 h-6" />
 
-      {/* Block type dropdown */}
+      {/* ── 2. Font family ── */}
+      <Select
+        value={
+          editor.isActive("textStyle", { fontFamily: /serif/i })
+            ? "serif"
+            : "sans"
+        }
+        onValueChange={(value) => {
+          if (value === "serif") {
+            editor
+              .chain()
+              .focus()
+              .setFontFamily('"Times New Roman", Georgia, serif')
+              .run()
+          } else {
+            editor.chain().focus().unsetFontFamily().run()
+          }
+        }}
+      >
+        <ToolbarTooltip label="Font Family">
+          <SelectTrigger className="h-7 w-[82px] text-xs gap-1 px-2 border-0 bg-transparent hover:bg-muted focus:ring-0 focus:ring-offset-0">
+            <Type className="size-3.5 shrink-0 opacity-60" />
+            <SelectValue />
+          </SelectTrigger>
+        </ToolbarTooltip>
+        <SelectContent>
+          <SelectItem value="sans">Sans</SelectItem>
+          <SelectItem value="serif">Serif</SelectItem>
+        </SelectContent>
+      </Select>
+
+      {/* ── 3. Block type (heading) dropdown ── */}
       <DropdownMenu>
         <ToolbarTooltip label="Block Type">
           <DropdownMenuTrigger asChild>
@@ -412,7 +442,7 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
 
       <Separator orientation="vertical" className="mx-1 h-6" />
 
-      {/* Inline formatting */}
+      {/* ── 4. Inline formatting + color ── */}
       <ToolbarTooltip label="Bold" shortcut="⌘B">
         <Toggle
           size="sm"
@@ -450,7 +480,6 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         </Toggle>
       </ToolbarTooltip>
 
-      {/* Text color */}
       <Popover>
         <ToolbarTooltip label="Text Color">
           <PopoverTrigger asChild>
@@ -474,7 +503,6 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         </PopoverContent>
       </Popover>
 
-      {/* Highlight */}
       <Popover>
         <ToolbarTooltip label="Highlight">
           <PopoverTrigger asChild>
@@ -497,180 +525,6 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
           />
         </PopoverContent>
       </Popover>
-
-      <Separator orientation="vertical" className="mx-1 h-6" />
-
-      {/* Alignment */}
-      <ToolbarTooltip label="Align Left" shortcut="⌘⇧L">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive({ textAlign: "left" })}
-          onPressedChange={() =>
-            editor.chain().focus().setTextAlign("left").run()
-          }
-        >
-          <AlignLeft className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-      <ToolbarTooltip label="Align Center" shortcut="⌘⇧E">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive({ textAlign: "center" })}
-          onPressedChange={() =>
-            editor.chain().focus().setTextAlign("center").run()
-          }
-        >
-          <AlignCenter className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-      <ToolbarTooltip label="Align Right" shortcut="⌘⇧R">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive({ textAlign: "right" })}
-          onPressedChange={() =>
-            editor.chain().focus().setTextAlign("right").run()
-          }
-        >
-          <AlignRight className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-      <ToolbarTooltip label="Justify" shortcut="⌘⇧J">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive({ textAlign: "justify" })}
-          onPressedChange={() =>
-            editor.chain().focus().setTextAlign("justify").run()
-          }
-        >
-          <AlignJustify className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-
-      <Separator orientation="vertical" className="mx-1 h-6" />
-
-      {/* Font family */}
-      <Select
-        value={
-          editor.isActive("textStyle", { fontFamily: /serif/i })
-            ? "serif"
-            : "sans"
-        }
-        onValueChange={(value) => {
-          if (value === "serif") {
-            editor
-              .chain()
-              .focus()
-              .setFontFamily('"Times New Roman", Georgia, serif')
-              .run()
-          } else {
-            editor.chain().focus().unsetFontFamily().run()
-          }
-        }}
-      >
-        <ToolbarTooltip label="Font Family">
-          <SelectTrigger className="h-7 w-[82px] text-xs gap-1 px-2 border-0 bg-transparent hover:bg-muted focus:ring-0 focus:ring-offset-0">
-            <Type className="size-3.5 shrink-0 opacity-60" />
-            <SelectValue />
-          </SelectTrigger>
-        </ToolbarTooltip>
-        <SelectContent>
-          <SelectItem value="sans">Sans</SelectItem>
-          <SelectItem value="serif">Serif</SelectItem>
-        </SelectContent>
-      </Select>
-
-      {/* Spacing (line-height) — applies to all paragraphs/headings in the doc */}
-      <Select
-        value={(() => {
-          // Read from first paragraph/heading in doc to determine current setting
-          let found: string | null = null
-          editor.state.doc.descendants((node) => {
-            if (found !== null) return false
-            if (node.type.name === "paragraph" || node.type.name === "heading") {
-              found = (node.attrs.spacing as string) || "normal"
-              return false
-            }
-          })
-          return found || "normal"
-        })()}
-        onValueChange={(value) => {
-          const spacing = value === "normal" ? null : value
-          // Apply to every paragraph and heading in the document
-          const { tr } = editor.state
-          editor.state.doc.descendants((node, pos) => {
-            if (node.type.name === "paragraph" || node.type.name === "heading") {
-              tr.setNodeMarkup(pos, undefined, { ...node.attrs, spacing })
-            }
-          })
-          editor.view.dispatch(tr)
-        }}
-      >
-        <ToolbarTooltip label="Spacing">
-          <SelectTrigger className="h-7 w-[6.5rem] text-xs gap-1 px-2 border-0 bg-transparent hover:bg-muted focus:ring-0 focus:ring-offset-0">
-            <WrapText className="size-3.5 shrink-0 opacity-60" />
-            <SelectValue />
-          </SelectTrigger>
-        </ToolbarTooltip>
-        <SelectContent>
-          <SelectItem value="tight">Tight</SelectItem>
-          <SelectItem value="normal">Normal</SelectItem>
-          <SelectItem value="relaxed">Relaxed</SelectItem>
-        </SelectContent>
-      </Select>
-
-      <Separator orientation="vertical" className="mx-1 h-6" />
-
-      {/* Lists */}
-      <ToolbarTooltip label="Bullet List" shortcut="⌘⇧8">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("bulletList")}
-          onPressedChange={() =>
-            editor.chain().focus().toggleBulletList().run()
-          }
-        >
-          <List className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-      <ToolbarTooltip label="Ordered List" shortcut="⌘⇧7">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("orderedList")}
-          onPressedChange={() =>
-            editor.chain().focus().toggleOrderedList().run()
-          }
-        >
-          <ListOrdered className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-
-      {/* Blockquote */}
-      <ToolbarTooltip label="Blockquote" shortcut="⌘⇧B">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("blockquote")}
-          onPressedChange={() =>
-            editor.chain().focus().toggleBlockquote().run()
-          }
-        >
-          <Quote className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-
-      {/* Code block */}
-      <ToolbarTooltip label="Code Block" shortcut="⌘⌥C">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("codeBlock")}
-          onPressedChange={() =>
-            editor.chain().focus().toggleCodeBlock().run()
-          }
-        >
-          <Code className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-
-      <Separator orientation="vertical" className="mx-1 h-6" />
 
       {/* Link */}
       <Popover open={linkOpen} onOpenChange={setLinkOpen}>
@@ -729,14 +583,120 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         </PopoverContent>
       </Popover>
 
-      {/* Image — direct file upload on click */}
+      <Separator orientation="vertical" className="mx-1 h-6" />
+
+      {/* ── 5. Alignment + Spacing ── */}
+      <ToolbarTooltip label="Align Left" shortcut="⌘⇧L">
+        <Toggle
+          size="sm"
+          pressed={editor.isActive({ textAlign: "left" })}
+          onPressedChange={() =>
+            editor.chain().focus().setTextAlign("left").run()
+          }
+        >
+          <AlignLeft className="size-4" />
+        </Toggle>
+      </ToolbarTooltip>
+      <ToolbarTooltip label="Align Center" shortcut="⌘⇧E">
+        <Toggle
+          size="sm"
+          pressed={editor.isActive({ textAlign: "center" })}
+          onPressedChange={() =>
+            editor.chain().focus().setTextAlign("center").run()
+          }
+        >
+          <AlignCenter className="size-4" />
+        </Toggle>
+      </ToolbarTooltip>
+      <ToolbarTooltip label="Align Right" shortcut="⌘⇧R">
+        <Toggle
+          size="sm"
+          pressed={editor.isActive({ textAlign: "right" })}
+          onPressedChange={() =>
+            editor.chain().focus().setTextAlign("right").run()
+          }
+        >
+          <AlignRight className="size-4" />
+        </Toggle>
+      </ToolbarTooltip>
+      <ToolbarTooltip label="Justify" shortcut="⌘⇧J">
+        <Toggle
+          size="sm"
+          pressed={editor.isActive({ textAlign: "justify" })}
+          onPressedChange={() =>
+            editor.chain().focus().setTextAlign("justify").run()
+          }
+        >
+          <AlignJustify className="size-4" />
+        </Toggle>
+      </ToolbarTooltip>
+
+      <LineSpacingPopover editor={editor} />
+
+      <Separator orientation="vertical" className="mx-1 h-6" />
+
+      {/* ── 6. Lists + Structure ── */}
+      <ToolbarTooltip label="Bullet List" shortcut="⌘⇧8">
+        <Toggle
+          size="sm"
+          pressed={editor.isActive("bulletList")}
+          onPressedChange={() =>
+            editor.chain().focus().toggleBulletList().run()
+          }
+        >
+          <List className="size-4" />
+        </Toggle>
+      </ToolbarTooltip>
+      <ToolbarTooltip label="Ordered List" shortcut="⌘⇧7">
+        <Toggle
+          size="sm"
+          pressed={editor.isActive("orderedList")}
+          onPressedChange={() =>
+            editor.chain().focus().toggleOrderedList().run()
+          }
+        >
+          <ListOrdered className="size-4" />
+        </Toggle>
+      </ToolbarTooltip>
+      <ToolbarTooltip label="Blockquote" shortcut="⌘⇧B">
+        <Toggle
+          size="sm"
+          pressed={editor.isActive("blockquote")}
+          onPressedChange={() =>
+            editor.chain().focus().toggleBlockquote().run()
+          }
+        >
+          <Quote className="size-4" />
+        </Toggle>
+      </ToolbarTooltip>
+      <ToolbarTooltip label="Code Block" shortcut="⌘⌥C">
+        <Toggle
+          size="sm"
+          pressed={editor.isActive("codeBlock")}
+          onPressedChange={() =>
+            editor.chain().focus().toggleCodeBlock().run()
+          }
+        >
+          <Code className="size-4" />
+        </Toggle>
+      </ToolbarTooltip>
+
+      <Separator orientation="vertical" className="mx-1 h-6" />
+
+      {/* ── 7. Insert: Image, Table, HR ── */}
       <ToolbarTooltip label="Insert Image">
-        <Button variant="ghost" size="icon-sm" onClick={addImageFromFile}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ;(editor as any).chain().focus().setImageUpload().run()
+          }}
+        >
           <ImageIcon className="size-4" />
         </Button>
       </ToolbarTooltip>
 
-      {/* Table */}
       <Popover open={tableOpen} onOpenChange={setTableOpen}>
         <ToolbarTooltip label="Insert Table">
           <PopoverTrigger asChild>
@@ -763,118 +723,6 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
         </PopoverContent>
       </Popover>
 
-      {editor.isActive("table") && (
-        <>
-          <ToolbarTooltip label="Add Row Above">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() =>
-                editor.chain().focus().addRowBefore().run()
-              }
-            >
-              <div className="relative">
-                <Rows3 className="size-4" />
-                <Plus className="size-2 absolute -top-0.5 -right-0.5" />
-              </div>
-            </Button>
-          </ToolbarTooltip>
-          <ToolbarTooltip label="Add Row Below">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() =>
-                editor.chain().focus().addRowAfter().run()
-              }
-            >
-              <div className="relative">
-                <Rows3 className="size-4" />
-                <Plus className="size-2 absolute -bottom-0.5 -right-0.5" />
-              </div>
-            </Button>
-          </ToolbarTooltip>
-          <ToolbarTooltip label="Add Column Before">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() =>
-                editor.chain().focus().addColumnBefore().run()
-              }
-            >
-              <div className="relative">
-                <Columns3 className="size-4" />
-                <Plus className="size-2 absolute -top-0.5 -left-0.5" />
-              </div>
-            </Button>
-          </ToolbarTooltip>
-          <ToolbarTooltip label="Add Column After">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() =>
-                editor.chain().focus().addColumnAfter().run()
-              }
-            >
-              <div className="relative">
-                <Columns3 className="size-4" />
-                <Plus className="size-2 absolute -top-0.5 -right-0.5" />
-              </div>
-            </Button>
-          </ToolbarTooltip>
-          <ToolbarTooltip label="Delete Row">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() =>
-                editor.chain().focus().deleteRow().run()
-              }
-            >
-              <div className="relative">
-                <Rows3 className="size-4" />
-                <Trash2 className="size-2 absolute -bottom-0.5 -right-0.5 text-destructive" />
-              </div>
-            </Button>
-          </ToolbarTooltip>
-          <ToolbarTooltip label="Delete Column">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() =>
-                editor.chain().focus().deleteColumn().run()
-              }
-            >
-              <div className="relative">
-                <Columns3 className="size-4" />
-                <Trash2 className="size-2 absolute -bottom-0.5 -right-0.5 text-destructive" />
-              </div>
-            </Button>
-          </ToolbarTooltip>
-          <ToolbarTooltip label="Toggle Header Row">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() =>
-                editor.chain().focus().toggleHeaderRow().run()
-              }
-            >
-              <ToggleLeft className="size-4" />
-            </Button>
-          </ToolbarTooltip>
-          <ToolbarTooltip label="Delete Table">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={() =>
-                editor.chain().focus().deleteTable().run()
-              }
-            >
-              <Trash2 className="size-4 text-destructive" />
-            </Button>
-          </ToolbarTooltip>
-        </>
-      )}
-
-      {/* Horizontal rule */}
       <ToolbarTooltip label="Horizontal Rule">
         <Button
           variant="ghost"
@@ -884,6 +732,194 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
           <Minus className="size-4" />
         </Button>
       </ToolbarTooltip>
+
+      {/* ── Table editing controls (shown only when inside a table) ── */}
+      {editor.isActive("table") && (
+        <>
+          <Separator orientation="vertical" className="mx-1 h-6" />
+          <ToolbarTooltip label="Add Row Above">
+            <Button variant="ghost" size="icon-sm" onClick={() => editor.chain().focus().addRowBefore().run()}>
+              <div className="relative"><Rows3 className="size-4" /><Plus className="size-2 absolute -top-0.5 -right-0.5" /></div>
+            </Button>
+          </ToolbarTooltip>
+          <ToolbarTooltip label="Add Row Below">
+            <Button variant="ghost" size="icon-sm" onClick={() => editor.chain().focus().addRowAfter().run()}>
+              <div className="relative"><Rows3 className="size-4" /><Plus className="size-2 absolute -bottom-0.5 -right-0.5" /></div>
+            </Button>
+          </ToolbarTooltip>
+          <ToolbarTooltip label="Add Column Before">
+            <Button variant="ghost" size="icon-sm" onClick={() => editor.chain().focus().addColumnBefore().run()}>
+              <div className="relative"><Columns3 className="size-4" /><Plus className="size-2 absolute -top-0.5 -left-0.5" /></div>
+            </Button>
+          </ToolbarTooltip>
+          <ToolbarTooltip label="Add Column After">
+            <Button variant="ghost" size="icon-sm" onClick={() => editor.chain().focus().addColumnAfter().run()}>
+              <div className="relative"><Columns3 className="size-4" /><Plus className="size-2 absolute -top-0.5 -right-0.5" /></div>
+            </Button>
+          </ToolbarTooltip>
+          <ToolbarTooltip label="Delete Row">
+            <Button variant="ghost" size="icon-sm" onClick={() => editor.chain().focus().deleteRow().run()}>
+              <div className="relative"><Rows3 className="size-4" /><Trash2 className="size-2 absolute -bottom-0.5 -right-0.5 text-destructive" /></div>
+            </Button>
+          </ToolbarTooltip>
+          <ToolbarTooltip label="Delete Column">
+            <Button variant="ghost" size="icon-sm" onClick={() => editor.chain().focus().deleteColumn().run()}>
+              <div className="relative"><Columns3 className="size-4" /><Trash2 className="size-2 absolute -bottom-0.5 -right-0.5 text-destructive" /></div>
+            </Button>
+          </ToolbarTooltip>
+          <ToolbarTooltip label="Toggle Header Row">
+            <Button variant="ghost" size="icon-sm" onClick={() => editor.chain().focus().toggleHeaderRow().run()}>
+              <ToggleLeft className="size-4" />
+            </Button>
+          </ToolbarTooltip>
+          <ToolbarTooltip label="Delete Table">
+            <Button variant="ghost" size="icon-sm" onClick={() => editor.chain().focus().deleteTable().run()}>
+              <Trash2 className="size-4 text-destructive" />
+            </Button>
+          </ToolbarTooltip>
+        </>
+      )}
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Line & Paragraph Spacing Popover (Google Docs style)
+// ---------------------------------------------------------------------------
+
+const LINE_HEIGHT_OPTIONS = [
+  { label: "Single", value: "1" },
+  { label: "1.15", value: "1.15" },
+  { label: "1.35", value: "1.35" },
+  { label: "1.5", value: "1.5" },
+  { label: "Double", value: "2" },
+]
+
+const PARAGRAPH_SPACING_OPTIONS = [
+  { label: "None", value: "0" },
+  { label: "Small", value: "0.5" },
+  { label: "Medium", value: "1" },
+  { label: "Large", value: "1.5" },
+]
+
+function LineSpacingPopover({
+  editor,
+}: {
+  editor: ReturnType<typeof useEditor>
+}) {
+  if (!editor) return null
+
+  // Read current node's attributes
+  const { $from } = editor.state.selection
+  const node = $from.parent
+  const currentLineHeight = (node.attrs.lineHeight as string) || null
+  const currentSpacingBefore = (node.attrs.spacingBefore as string) || null
+  const currentSpacingAfter = (node.attrs.spacingAfter as string) || null
+
+  function setNodeSpacing(attr: string, value: string | null) {
+    const { $from } = editor!.state.selection
+    const pos = $from.before($from.depth)
+    const node = $from.parent
+    editor!.view.dispatch(
+      editor!.state.tr.setNodeMarkup(pos, undefined, {
+        ...node.attrs,
+        [attr]: value,
+      })
+    )
+  }
+
+  return (
+    <Popover>
+      <ToolbarTooltip label="Line & Paragraph Spacing">
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon-sm">
+            <LineSpacingIcon className="size-4" />
+          </Button>
+        </PopoverTrigger>
+      </ToolbarTooltip>
+      <PopoverContent className="w-56 p-0" align="start">
+        <div className="p-3 space-y-3">
+          {/* Line height */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">Line height</p>
+            <div className="grid grid-cols-4 gap-1">
+              {LINE_HEIGHT_OPTIONS.map((opt) => {
+                const isActive = currentLineHeight === opt.value ||
+                  (!currentLineHeight && opt.value === "1.5") // 1.5 ≈ editor default 1.6
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={cn(
+                      "rounded-md px-2 py-1 text-xs transition-colors",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
+                    )}
+                    onClick={() => setNodeSpacing("lineHeight", opt.value === "1.5" ? null : opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* Space before paragraph */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">Space before</p>
+            <div className="grid grid-cols-4 gap-1">
+              {PARAGRAPH_SPACING_OPTIONS.map((opt) => {
+                const isActive = currentSpacingBefore === opt.value ||
+                  (!currentSpacingBefore && opt.value === "0")
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={cn(
+                      "rounded-md px-2 py-1 text-xs transition-colors",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
+                    )}
+                    onClick={() => setNodeSpacing("spacingBefore", opt.value === "0" ? null : opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Space after paragraph */}
+          <div>
+            <p className="text-xs font-medium text-muted-foreground mb-1.5">Space after</p>
+            <div className="grid grid-cols-4 gap-1">
+              {PARAGRAPH_SPACING_OPTIONS.map((opt) => {
+                const isActive = currentSpacingAfter === opt.value ||
+                  (!currentSpacingAfter && opt.value === "0")
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    className={cn(
+                      "rounded-md px-2 py-1 text-xs transition-colors",
+                      isActive
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted"
+                    )}
+                    onClick={() => setNodeSpacing("spacingAfter", opt.value === "0" ? null : opt.value)}
+                  >
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
