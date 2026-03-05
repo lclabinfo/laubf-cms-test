@@ -72,36 +72,140 @@ export function StudyTab({ sections, onSectionsChange, bibleVersionSlot }: Study
 
           const SERIF_FONTS = ["times new roman", "georgia", "garamond", "palatino", "cambria", "book antiqua", "palatino linotype"]
 
-          // ── 1. Extract per-paragraph data from raw DOCX XML ──
-          // mammoth doesn't expose line-height or spacing, so we read it directly.
+          // ── 1. Extract per-paragraph data + numbering + style spacing from raw DOCX XML ──
+          // mammoth doesn't expose line-height, spacing, or list start numbers, so we read directly.
           interface DocxParaData {
+            tag: "p" | "h"  // whether this becomes a <p> or <h1-4>
             lineHeight: number | null  // CSS line-height (w:line / 240)
             spacingBefore: number | null // points (w:before in twips / 20)
             spacingAfter: number | null  // points (w:after in twips / 20)
           }
           const nonListXmlParaData: DocxParaData[] = []
+          // Ordered list start numbers: map from sequential <ol> index to start value
+          const olStartNumbers: number[] = []
+          // Style-level spacing defaults (from styles.xml)
+          const styleSpacing = new Map<string, { before: number | null; after: number | null }>()
           try {
             const zip = await JSZip.loadAsync(arrayBuffer)
             const docXml = await zip.file("word/document.xml")?.async("string")
+
+            // Parse styles.xml for heading spacing defaults
+            const stylesXml = await zip.file("word/styles.xml")?.async("string")
+            if (stylesXml) {
+              const styleParser = new DOMParser()
+              const stylesDoc = styleParser.parseFromString(stylesXml, "application/xml")
+              const ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+              const styles = stylesDoc.getElementsByTagNameNS(ns, "style")
+              for (let i = 0; i < styles.length; i++) {
+                const style = styles[i]
+                const styleId = style.getAttribute("w:styleId")
+                const type = style.getAttribute("w:type")
+                if (type === "paragraph" && styleId) {
+                  const pPr = style.getElementsByTagNameNS(ns, "pPr")[0]
+                  const spacing = pPr?.getElementsByTagNameNS(ns, "spacing")[0]
+                  if (spacing) {
+                    const before = spacing.getAttribute("w:before")
+                    const after = spacing.getAttribute("w:after")
+                    styleSpacing.set(styleId, {
+                      before: before ? parseFloat(before) / 20 : null,
+                      after: after ? parseFloat(after) / 20 : null,
+                    })
+                  }
+                }
+              }
+            }
+
+            // Parse numbering.xml for ordered list start numbers
+            const numberingXml = await zip.file("word/numbering.xml")?.async("string")
+            // Map: abstractNumId → start value for ilvl 0
+            const abstractNumStarts = new Map<string, number>()
+            // Map: numId → abstractNumId
+            const numIdToAbstract = new Map<string, string>()
+            if (numberingXml) {
+              const numParser = new DOMParser()
+              const numDoc = numParser.parseFromString(numberingXml, "application/xml")
+              const ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+              // Parse abstractNum entries
+              const abstractNums = numDoc.getElementsByTagNameNS(ns, "abstractNum")
+              for (let i = 0; i < abstractNums.length; i++) {
+                const abstractNum = abstractNums[i]
+                const abstractNumId = abstractNum.getAttribute("w:abstractNumId")
+                if (!abstractNumId) continue
+                const lvls = abstractNum.getElementsByTagNameNS(ns, "lvl")
+                for (let j = 0; j < lvls.length; j++) {
+                  if (lvls[j].getAttribute("w:ilvl") === "0") {
+                    const startEl = lvls[j].getElementsByTagNameNS(ns, "start")[0]
+                    const startVal = startEl?.getAttribute("w:val")
+                    if (startVal) abstractNumStarts.set(abstractNumId, parseInt(startVal, 10))
+                    break
+                  }
+                }
+              }
+              // Parse num entries (numId → abstractNumId mapping)
+              const nums = numDoc.getElementsByTagNameNS(ns, "num")
+              for (let i = 0; i < nums.length; i++) {
+                const num = nums[i]
+                const numId = num.getAttribute("w:numId")
+                const abstractRef = num.getElementsByTagNameNS(ns, "abstractNumId")[0]
+                const abstractId = abstractRef?.getAttribute("w:val")
+                if (numId && abstractId) numIdToAbstract.set(numId, abstractId)
+              }
+            }
+
             if (docXml) {
               const parser = new DOMParser()
               const xmlDoc = parser.parseFromString(docXml, "application/xml")
               const ns = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
               const paragraphs = xmlDoc.getElementsByTagNameNS(ns, "p")
+              // Track which numIds we've seen to build ordered list start numbers
+              // Mammoth creates a new <ol> when a different numId is encountered
+              let lastNumId: string | null = null
               for (let i = 0; i < paragraphs.length; i++) {
                 const pPr = paragraphs[i].getElementsByTagNameNS(ns, "pPr")[0]
-                // Skip list item paragraphs — they become <li>, not <p>/<h>
                 const numPr = pPr?.getElementsByTagNameNS(ns, "numPr")[0]
-                if (numPr) continue
+                if (numPr) {
+                  // This is a list paragraph — track for start number
+                  const numIdEl = numPr.getElementsByTagNameNS(ns, "numId")[0]
+                  const numId = numIdEl?.getAttribute("w:val")
+                  const ilvlEl = numPr.getElementsByTagNameNS(ns, "ilvl")[0]
+                  const ilvl = ilvlEl?.getAttribute("w:val") || "0"
+                  // Each distinct numId at ilvl 0 produces a new <ol> in mammoth
+                  if (numId && ilvl === "0" && numId !== lastNumId) {
+                    const abstractId = numIdToAbstract.get(numId)
+                    const startNum = abstractId ? abstractNumStarts.get(abstractId) : undefined
+                    olStartNumbers.push(startNum ?? 1)
+                  }
+                  lastNumId = numId
+                  continue
+                }
+                lastNumId = null
+
+                // Non-list paragraph — collect spacing data
+                const pStyle = pPr?.getElementsByTagNameNS(ns, "pStyle")[0]
+                const styleId = pStyle?.getAttribute("w:val")
+                const isHeading = styleId?.startsWith("Heading")
 
                 const spacing = pPr?.getElementsByTagNameNS(ns, "spacing")[0]
                 const wLine = spacing?.getAttribute("w:line")
                 const wBefore = spacing?.getAttribute("w:before")
                 const wAfter = spacing?.getAttribute("w:after")
+
+                // For headings without explicit spacing, use style defaults
+                let spacingBefore = wBefore ? parseFloat(wBefore) / 20 : null
+                let spacingAfter = wAfter ? parseFloat(wAfter) / 20 : null
+                if (isHeading && styleId) {
+                  const styleDef = styleSpacing.get(styleId)
+                  if (styleDef) {
+                    if (spacingBefore === null) spacingBefore = styleDef.before
+                    if (spacingAfter === null) spacingAfter = styleDef.after
+                  }
+                }
+
                 nonListXmlParaData.push({
+                  tag: isHeading ? "h" : "p",
                   lineHeight: wLine ? parseFloat(wLine) / 240 : null,
-                  spacingBefore: wBefore ? parseFloat(wBefore) / 20 : null, // twips to points
-                  spacingAfter: wAfter ? parseFloat(wAfter) / 20 : null,
+                  spacingBefore,
+                  spacingAfter,
                 })
               }
             }
@@ -222,6 +326,21 @@ export function StudyTab({ sections, onSectionsChange, bibleVersionSlot }: Study
           html = html.replace(/\t/g, "\u2003\u2003")
           // Preserve consecutive spaces
           html = html.replace(/ {2,}/g, (match) => "\u00A0".repeat(match.length - 1) + " ")
+          // Apply ordered list start numbers from DOCX numbering.xml
+          {
+            let olIdx = 0
+            html = html.replace(/<ol>/g, () => {
+              const start = olStartNumbers[olIdx++] ?? 1
+              return start !== 1 ? `<ol start="${start}">` : "<ol>"
+            })
+          }
+          // For serif documents, set font-family on list containers so list markers
+          // (numbers/bullets) also render in serif, not just the text spans inside.
+          if (isSerifDoc) {
+            const serifFont = `"${allFonts.find(f => f.toLowerCase() === dominantFont) || "Times New Roman"}", Georgia, serif`
+            html = html.replace(/<ol/g, `<ol style="font-family: ${serifFont}"`)
+            html = html.replace(/<ul/g, `<ul style="font-family: ${serifFont}"`)
+          }
 
           // ── 5. Apply alignment and per-paragraph spacing ──
           // nonListXmlParaData and paragraphAlignments both map 1:1 with HTML <p>/<h> tags.
@@ -235,24 +354,25 @@ export function StudyTab({ sections, onSectionsChange, bibleVersionSlot }: Study
             if (align) styles.push(`text-align: ${align}`)
 
             // Per-paragraph spacing from XML (already filtered to non-list only).
-            // Always set margin-top/bottom to override CSS > * + * gap in editor.
             if (htmlPIdx < nonListXmlParaData.length) {
               const data = nonListXmlParaData[htmlPIdx]
               if (data.lineHeight !== null) {
                 const lh = Math.round(data.lineHeight * 100) / 100
                 styles.push(`line-height: ${lh}`)
               }
-              // Always emit margin to override editor CSS gap (> * + *)
+              // For <p> tags: always emit margin to override CSS > * + * gap.
+              // For headings: only set margin if DOCX specifies spacing (from paragraph or style).
+              const isHeading = data.tag === "h"
               if (data.spacingBefore !== null && data.spacingBefore > 0) {
                 const rem = Math.round((data.spacingBefore * 1.333 / 16) * 100) / 100
                 styles.push(`margin-top: ${rem}rem`)
-              } else {
+              } else if (!isHeading) {
                 styles.push(`margin-top: 0rem`)
               }
               if (data.spacingAfter !== null && data.spacingAfter > 0) {
                 const rem = Math.round((data.spacingAfter * 1.333 / 16) * 100) / 100
                 styles.push(`margin-bottom: ${rem}rem`)
-              } else {
+              } else if (!isHeading) {
                 styles.push(`margin-bottom: 0rem`)
               }
             }

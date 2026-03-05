@@ -807,6 +807,8 @@ function LineSpacingPopover({
 }: {
   editor: ReturnType<typeof useEditor>
 }) {
+  const [customLineHeight, setCustomLineHeight] = useState("")
+
   if (!editor) return null
 
   // Read current node's attributes
@@ -816,10 +818,15 @@ function LineSpacingPopover({
   const currentSpacingBefore = (node.attrs.spacingBefore as string) || null
   const currentSpacingAfter = (node.attrs.spacingAfter as string) || null
 
+  // Derive displayed custom input value from current state
+  const displayLineHeight = customLineHeight || currentLineHeight || "1.5"
+
   function setNodeSpacing(attr: string, value: string | null) {
     const { $from } = editor!.state.selection
-    const pos = $from.before($from.depth)
-    const node = $from.parent
+    const depth = Math.max(1, $from.depth)
+    const pos = $from.before(depth)
+    const resolved = editor!.state.doc.resolve(pos)
+    const node = resolved.nodeAfter ?? $from.parent
     editor!.view.dispatch(
       editor!.state.tr.setNodeMarkup(pos, undefined, {
         ...node.attrs,
@@ -837,15 +844,17 @@ function LineSpacingPopover({
           </Button>
         </PopoverTrigger>
       </ToolbarTooltip>
-      <PopoverContent className="w-56 p-0" align="start">
+      <PopoverContent className="w-64 p-0" align="start">
         <div className="p-3 space-y-3">
           {/* Line height */}
           <div>
             <p className="text-xs font-medium text-muted-foreground mb-1.5">Line height</p>
-            <div className="grid grid-cols-4 gap-1">
+            <div className="grid grid-cols-5 gap-1">
               {LINE_HEIGHT_OPTIONS.map((opt) => {
-                const isActive = currentLineHeight === opt.value ||
+                const isActive = !customLineHeight && (
+                  currentLineHeight === opt.value ||
                   (!currentLineHeight && opt.value === "1.5") // 1.5 ≈ editor default 1.6
+                )
                 return (
                   <button
                     key={opt.value}
@@ -856,12 +865,34 @@ function LineSpacingPopover({
                         ? "bg-primary text-primary-foreground"
                         : "hover:bg-muted"
                     )}
-                    onClick={() => setNodeSpacing("lineHeight", opt.value === "1.5" ? null : opt.value)}
+                    onClick={() => {
+                      setCustomLineHeight("")
+                      setNodeSpacing("lineHeight", opt.value === "1.5" ? null : opt.value)
+                    }}
                   >
                     {opt.label}
                   </button>
                 )
               })}
+            </div>
+            <div className="flex items-center gap-2 mt-1.5">
+              <label className="text-xs text-muted-foreground shrink-0">Custom</label>
+              <Input
+                type="number"
+                step={0.05}
+                min={0.5}
+                max={4}
+                value={displayLineHeight}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setCustomLineHeight(val)
+                  const num = parseFloat(val)
+                  if (!isNaN(num) && num >= 0.5 && num <= 4) {
+                    setNodeSpacing("lineHeight", val === "1.5" ? null : val)
+                  }
+                }}
+                className="h-7 text-xs w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
             </div>
           </div>
 
