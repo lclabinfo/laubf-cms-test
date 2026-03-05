@@ -129,10 +129,12 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, bibleVer
   }
 
   function handleAddQuestionsAndAnswers() {
+    const questionsId = `ss-${Date.now()}-q`
     onSectionsChange([
-      { id: `ss-${Date.now()}-q`, title: "Questions", content: "" },
+      { id: questionsId, title: "Questions", content: "" },
       { id: `ss-${Date.now()}-a`, title: "Answers", content: "" },
     ])
+    setActiveSection(questionsId)
   }
 
   if (sections.length === 0) {
