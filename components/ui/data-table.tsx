@@ -52,17 +52,7 @@ export function DataTable<TData, TValue>({
   return (
     <div className="space-y-4">
       <div className="rounded-lg border overflow-x-auto">
-        <Table>
-          <colgroup>
-            {table.getHeaderGroups()[0]?.headers.map((header) => {
-              const totalSize = table.getHeaderGroups()[0].headers.reduce(
-                (sum, h) => sum + h.getSize(),
-                0
-              )
-              const pct = (header.getSize() / totalSize) * 100
-              return <col key={header.id} style={{ width: `${pct}%` }} />
-            })}
-          </colgroup>
+        <Table className="min-w-[750px]">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>

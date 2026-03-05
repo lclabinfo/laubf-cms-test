@@ -22,7 +22,7 @@ export function SortableHeader<TData>({
     <Button
       variant="ghost"
       size="sm"
-      className={cn("-ml-2 h-8 group/sort", className)}
+      className={cn("-ml-2 h-8 whitespace-nowrap group/sort", className)}
       onClick={() => column.toggleSorting(sorted === "asc")}
     >
       {children}

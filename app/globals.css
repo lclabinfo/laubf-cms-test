@@ -225,8 +225,8 @@
   --warning-foreground: oklch(0.25 0.05 65);
   --info: oklch(0.65 0.2 255);
   --info-foreground: oklch(0.93 0 0);
-  --border: oklch(0.93 0 0 / 10%);
-  --input: oklch(0.93 0 0 / 15%);
+  --border: oklch(0.40 0 0 / 40%);
+  --input: oklch(0.40 0 0 / 40%);
   --ring: oklch(0.556 0 0);
   --chart-1: oklch(0.809 0.105 251.813);
   --chart-2: oklch(0.623 0.214 259.815);
@@ -239,7 +239,7 @@
   --sidebar-primary-foreground: oklch(0.93 0 0);
   --sidebar-accent: oklch(0.30 0 0);
   --sidebar-accent-foreground: oklch(0.93 0 0);
-  --sidebar-border: oklch(0.93 0 0 / 10%);
+  --sidebar-border: oklch(0.40 0 0 / 40%);
   --sidebar-ring: oklch(0.556 0 0);
 }
 
@@ -358,7 +358,7 @@
   outline: none;
   font-size: 1rem;
   line-height: 1.6;
-  background: white;
+  background: #f8f8f8;
   color: #111;
 
   /* Force light-mode CSS variable values inside the editor canvas.
@@ -408,7 +408,6 @@
 /* Paragraphs */
 .tiptap-wrapper .tiptap p {
   margin: 0;
-  font-weight: 500;
 }
 
 .tiptap-wrapper .tiptap p.is-editor-empty:first-child::before {
