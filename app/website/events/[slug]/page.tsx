@@ -250,6 +250,13 @@ export default async function EventDetailPage({ params }: PageProps) {
               </p>
             )}
 
+            {/* Location instructions */}
+            {event.locationInstructions && (
+              <p className="text-body-3 text-black-3 -mt-2 mb-4 ml-[52px] italic">
+                {event.locationInstructions}
+              </p>
+            )}
+
             {/* Recurrence info */}
             {recurrenceLabel && (
               <div className="flex items-center gap-2 mb-4 ml-[52px]">

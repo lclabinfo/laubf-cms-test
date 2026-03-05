@@ -57,7 +57,6 @@ export async function getMessages(
       OR: [
         { title: { contains: filters.search, mode: 'insensitive' as const } },
         { passage: { contains: filters.search, mode: 'insensitive' as const } },
-        { description: { contains: filters.search, mode: 'insensitive' as const } },
         { speaker: { name: { contains: filters.search, mode: 'insensitive' as const } } },
         { videoDescription: { contains: filters.search, mode: 'insensitive' as const } },
       ],
@@ -128,9 +127,12 @@ export async function ensureUniqueSlug(churchId: string, baseSlug: string, exclu
  * Fields that are NOT columns on the Message model and must be stripped
  * before passing data to Prisma create/update.
  */
-const NON_MESSAGE_FIELDS = ['seriesId'] as const
+const NON_MESSAGE_FIELDS = [
+  'seriesId',
+  'description', // removed from schema — strip for safety
+] as const
 
-function stripNonMessageFields<T extends Record<string, unknown>>(data: T): Omit<T, 'seriesId'> {
+function stripNonMessageFields<T extends Record<string, unknown>>(data: T): Omit<T, 'seriesId' | 'description'> {
   const cleaned = { ...data }
   for (const key of NON_MESSAGE_FIELDS) {
     delete (cleaned as Record<string, unknown>)[key]
@@ -210,9 +212,11 @@ export async function updateMessage(
     }
   }
 
-  // If slug is being updated, ensure uniqueness
-  if (messageData.slug) {
+  // If slug is being updated, ensure uniqueness; drop empty slugs to avoid constraint violations
+  if (messageData.slug && typeof messageData.slug === 'string' && messageData.slug.trim()) {
     messageData.slug = await ensureUniqueSlug(churchId, messageData.slug as string, id)
+  } else if (messageData.slug === '') {
+    delete (messageData as Record<string, unknown>).slug
   }
 
   const message = await prisma.message.update({

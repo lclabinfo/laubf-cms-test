@@ -7,7 +7,6 @@ import Link from "next/link"
 import {
   ArrowLeft,
   CalendarIcon,
-  CalendarPlus,
   ExternalLink,
   FileText,
   Globe,
@@ -156,9 +155,6 @@ export function EventForm({ mode, event }: EventFormProps) {
   const [endDate, setEndDate] = useState(event?.endDate ?? today)
   const [startTime, setStartTime] = useState(event?.startTime ?? "10:00")
   const [endTime, setEndTime] = useState(event?.endTime ?? "11:00")
-  const [showEndDate, setShowEndDate] = useState(
-    event ? event.endDate !== event.date : false
-  )
   const [recurrence, setRecurrence] = useState<Recurrence>(event?.recurrence ?? "none")
   const [recurrenceDays, setRecurrenceDays] = useState<DayOfWeek[]>(event?.recurrenceDays ?? [])
   const [recurrenceEndType, setRecurrenceEndType] = useState<RecurrenceEndType>(event?.recurrenceEndType ?? "never")
@@ -175,6 +171,7 @@ export function EventForm({ mode, event }: EventFormProps) {
   const [locationType, setLocationType] = useState<LocationType>(event?.locationType ?? "in-person")
   const [location, setLocation] = useState(event?.location ?? "")
   const [address, setAddress] = useState(event?.address ?? "")
+  const [locationInstructions, setLocationInstructions] = useState(event?.locationInstructions ?? "")
   const [meetingUrl, setMeetingUrl] = useState(event?.meetingUrl ?? "")
   const [meetingUrlError, setMeetingUrlError] = useState<string | null>(null)
 
@@ -263,15 +260,6 @@ export function EventForm({ mode, event }: EventFormProps) {
     if (value > endDate) setEndDate(value)
   }
 
-  function handleShowEndDate() {
-    setShowEndDate(true)
-  }
-
-  function handleRemoveEndDate() {
-    setShowEndDate(false)
-    setEndDate(startDate)
-  }
-
   function handleMeetingUrlChange(value: string) {
     setMeetingUrl(value)
     if (value.trim() && !URL_REGEX.test(value.trim())) {
@@ -355,7 +343,7 @@ export function EventForm({ mode, event }: EventFormProps) {
       title: title.trim(),
       type: eventType,
       date: startDate,
-      endDate: showEndDate ? endDate : startDate,
+      endDate,
       startTime,
       endTime,
       recurrence,
@@ -366,6 +354,7 @@ export function EventForm({ mode, event }: EventFormProps) {
       locationType,
       location: location.trim(),
       address: address.trim() || undefined,
+      locationInstructions: locationInstructions.trim() || undefined,
       meetingUrl: meetingUrl.trim() || undefined,
       monthlyType: recurrence === "monthly" ? monthlyType : undefined,
       ministry,
@@ -464,84 +453,36 @@ export function EventForm({ mode, event }: EventFormProps) {
               <h2 className="text-sm font-semibold">Schedule</h2>
             </div>
             <div className="p-5 space-y-4">
-              {/* Start Date + Start Time */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Start Date <span className="text-destructive">*</span></Label>
-                  <DatePicker
-                    value={startDate}
-                    onChange={handleStartDateChange}
-                    placeholder="Select start date"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="start-time">Start Time <span className="text-destructive">*</span></Label>
-                  <Input
-                    id="start-time"
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
-                  />
-                </div>
+              {/* Start row */}
+              <div className="grid grid-cols-[4rem_1fr_1fr] items-center gap-3">
+                <Label className="text-sm text-muted-foreground">Start</Label>
+                <DatePicker
+                  value={startDate}
+                  onChange={handleStartDateChange}
+                  placeholder="Select date"
+                />
+                <Input
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => setStartTime(e.target.value)}
+                />
               </div>
 
-              {/* End Date + End Time */}
-              {showEndDate ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label>End Date</Label>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 text-xs text-muted-foreground hover:text-foreground -mr-2"
-                        onClick={handleRemoveEndDate}
-                      >
-                        <X className="size-3" />
-                        Remove
-                      </Button>
-                    </div>
-                    <DatePicker
-                      value={endDate}
-                      onChange={setEndDate}
-                      min={startDate}
-                      placeholder="Select end date"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="end-time">End Time <span className="text-destructive">*</span></Label>
-                    <Input
-                      id="end-time"
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                    />
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="flex items-end">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground hover:text-foreground -ml-2"
-                      onClick={handleShowEndDate}
-                    >
-                      <CalendarPlus className="size-3.5" />
-                      Add end date
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="end-time">End Time <span className="text-destructive">*</span></Label>
-                    <Input
-                      id="end-time"
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                    />
-                  </div>
-                </div>
-              )}
+              {/* End row */}
+              <div className="grid grid-cols-[4rem_1fr_1fr] items-center gap-3">
+                <Label className="text-sm text-muted-foreground">End</Label>
+                <DatePicker
+                  value={endDate}
+                  onChange={setEndDate}
+                  min={startDate}
+                  placeholder="Select date"
+                />
+                <Input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                />
+              </div>
 
               {/* Recurrence */}
               <div className="space-y-3">
@@ -706,10 +647,9 @@ export function EventForm({ mode, event }: EventFormProps) {
                 </div>
               </div>
 
-              {/* Getting There — in-person: address with auto Google Maps link */}
+              {/* Address + instructions — in-person only */}
               {locationType === "in-person" && (
-                <div className="space-y-3 rounded-lg bg-muted/40 px-4 py-3">
-                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Getting There</p>
+                <>
                   <div className="space-y-2">
                     <Label htmlFor="address-input">Address</Label>
                     <AddressAutocomplete
@@ -728,7 +668,21 @@ export function EventForm({ mode, event }: EventFormProps) {
                       </p>
                     )}
                   </div>
-                </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="location-instructions">Additional Instructions</Label>
+                    <Textarea
+                      id="location-instructions"
+                      value={locationInstructions}
+                      onChange={(e) => setLocationInstructions(e.target.value)}
+                      placeholder="e.g. Enter through the side gate, parking in Lot B"
+                      rows={3}
+                      maxLength={1000}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      {locationInstructions.length}/1000 characters
+                    </p>
+                  </div>
+                </>
               )}
 
               {/* Join Details — online: meeting link */}

@@ -20,17 +20,9 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { DatePicker } from "@/components/ui/date-picker"
 import {
   Collapsible,
@@ -60,7 +52,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { BIBLE_VERSIONS, DEFAULT_BIBLE_VERSION } from "@/lib/bible-versions"
+import { DEFAULT_BIBLE_VERSION } from "@/lib/bible-versions"
+import { useBibleVersionConfig } from "@/components/cms/church-profile/bible-version-settings"
 import { toast } from "sonner"
 import { generateSlug } from "@/lib/utils"
 import { useMessages } from "@/lib/messages-context"
@@ -90,6 +83,9 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const pathname = usePathname()
   const { series, messages: allMessages, addSeries, addMessage, updateMessage } = useMessages()
 
+  // Church-wide Bible version config
+  const bibleVersionConfig = useBibleVersionConfig()
+
   // Shared metadata
   const [title, setTitle] = useState(message?.title ?? "")
   const [date, setDate] = useState(message?.date ?? new Date().toISOString().slice(0, 10))
@@ -100,9 +96,6 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const [bibleVersion, setBibleVersion] = useState(message?.bibleVersion ?? DEFAULT_BIBLE_VERSION.code)
   const [attachments, setAttachments] = useState<Attachment[]>(message?.attachments ?? [])
   const [publishedAt, setPublishedAt] = useState(message?.publishedAt ?? "")
-
-  // Description
-  const [description, setDescription] = useState(message?.description ?? "")
 
   // Video tab state
   const [videoUrl, setVideoUrl] = useState(message?.videoUrl ?? "")
@@ -254,7 +247,6 @@ export function EntryForm({ mode, message }: EntryFormProps) {
       slug: generateSlug(title.trim()),
       passage: passage.trim(),
       bibleVersion,
-      description: description.trim() || undefined,
       speaker: speaker.trim(),
       speakerId,
       seriesId,
@@ -390,7 +382,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
   // Dirty tracking — snapshot must use the exact same defaults as state initializers above
   const snapshotFields = useCallback(() => ({
-    title, description, speaker, speakerId: speakerId ?? null, seriesId, passage, bibleVersion,
+    title, speaker, speakerId: speakerId ?? null, seriesId, passage, bibleVersion,
     date, publishedAt, videoUrl, videoDescription: videoDescription ?? "", duration, audioUrl,
     rawTranscript, liveTranscript,
     transcriptSegments: JSON.stringify(transcriptSegments),
@@ -398,7 +390,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     attachments: JSON.stringify(attachments),
     videoPublished, studyPublished,
   }), [
-    title, description, speaker, speakerId, seriesId, passage, bibleVersion,
+    title, speaker, speakerId, seriesId, passage, bibleVersion,
     date, publishedAt, videoUrl, videoDescription, duration, audioUrl,
     rawTranscript, liveTranscript, transcriptSegments, studySections, attachments,
     videoPublished, studyPublished,
@@ -496,7 +488,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
         </div>
 
         {/* Details Tab */}
-        <TabsContent value="details" className="px-6 pt-4 pb-5">
+        <TabsContent value="details" className="px-6 pt-4 pb-16">
           <div className="max-w-3xl mx-auto space-y-6">
             {/* Info banner for create mode */}
             {mode === "create" && (
@@ -539,23 +531,9 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                 </div>
               </div>
 
-              {/* Description */}
-              <div className="space-y-1.5">
-                <Label htmlFor="message-description" className="text-sm text-muted-foreground">
-                  Description
-                </Label>
-                <Textarea
-                  id="message-description"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="A brief summary of this message (shown on the detail page and in search results)..."
-                  className="min-h-[72px] resize-none"
-                />
-              </div>
-
               {/* Message Date */}
               <div id="field-date" className="space-y-2">
-                <Label>Message Date <span className="text-destructive">*</span></Label>
+                <Label className="text-sm text-muted-foreground">Message Date <span className="text-destructive">*</span></Label>
                 <DatePicker
                   value={date}
                   onChange={setDate}
@@ -566,7 +544,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
               {/* Series + Scripture Passage */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Series</Label>
+                  <Label className="text-sm text-muted-foreground">Series</Label>
                   <SeriesSelect
                     series={series}
                     selectedId={seriesId}
@@ -575,11 +553,22 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                   />
                 </div>
                 <div id="field-passage" className="space-y-2">
-                  <Label>Scripture Passage</Label>
+                  <Label className="text-sm text-muted-foreground">Scripture Passage</Label>
                   <BiblePassageInput
                     value={passage}
                     onChange={(passageStr) => setPassage(passageStr)}
                   />
+                  <p className="text-xs text-muted-foreground">
+                    {bibleVersionConfig?.defaultVersion
+                      ? `${bibleVersionConfig.defaultVersion} displays first on the website.`
+                      : "Default version shown on the website."}{" "}
+                    <a
+                      href="/cms/church-profile#bible-versions"
+                      className="text-primary underline underline-offset-2 hover:text-primary/80"
+                    >
+                      Adjust in church settings
+                    </a>
+                  </p>
                 </div>
               </div>
 
@@ -642,11 +631,23 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                 </button>
               </div>
             </div>
+
+            {/* Speaker */}
+            <div id="field-speaker" className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Speaker</Label>
+              <SpeakerSelect
+                value={speaker}
+                onChange={(name, id) => {
+                  setSpeaker(name)
+                  setSpeakerId(id)
+                }}
+              />
+            </div>
           </div>
         </TabsContent>
 
         {/* Video Tab */}
-        <TabsContent value="video" className="px-6 pt-4 pb-5">
+        <TabsContent value="video" className="px-6 pt-4 pb-16">
           <div className="max-w-3xl mx-auto space-y-5">
             {/* Inline publish toggle */}
             <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
@@ -709,7 +710,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
         </TabsContent>
 
         {/* Bible Study Tab */}
-        <TabsContent value="study" className="px-6 pt-4 pb-5">
+        <TabsContent value="study" className="px-6 pt-4 pb-16">
           <div className="max-w-3xl mx-auto space-y-5">
             {/* Inline publish toggle */}
             <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
@@ -749,30 +750,13 @@ export function EntryForm({ mode, message }: EntryFormProps) {
             <StudyTab
               sections={studySections}
               onSectionsChange={setStudySections}
-              bibleVersionSlot={
-                <div className="space-y-2">
-                  <Label htmlFor="bible-version">Bible Version</Label>
-                  <Select value={bibleVersion} onValueChange={setBibleVersion}>
-                    <SelectTrigger id="bible-version">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {BIBLE_VERSIONS.map((v) => (
-                        <SelectItem key={v.code} value={v.code}>
-                          {v.abbreviation} - {v.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              }
             />
           </div>
         </TabsContent>
       </Tabs>
 
       {/* Shared Attachments Panel */}
-      <div className="max-w-3xl mx-auto w-full mt-4 px-6 pb-5">
+      <div className="max-w-3xl mx-auto w-full mt-4 px-6 pb-16">
         <Collapsible defaultOpen={attachments.length > 0}>
           <div className="rounded-xl border border-dashed">
             <CollapsibleTrigger className="flex items-center w-full px-4 py-3 gap-3 hover:bg-muted/50 rounded-t-xl transition-colors group">

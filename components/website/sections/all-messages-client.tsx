@@ -16,7 +16,6 @@ interface SimpleMessage {
   speaker: string
   series: string
   dateFor: string
-  description: string
   youtubeId: string
   videoUrl: string
   thumbnailUrl: string

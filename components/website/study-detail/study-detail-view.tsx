@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { API_AVAILABLE_VERSIONS } from "@/lib/bible-versions"
+import BibleCopyright from "@/components/website/shared/bible-copyright"
 import type { BibleStudyDetail } from "@/lib/types/bible-study"
 
 /* ── Types ── */
@@ -384,17 +385,6 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                         {v.abbreviation} - {v.name}
                       </button>
                     ))}
-                    <div className="border-t border-white-2 mt-1 pt-1">
-                      <a
-                        href={getBibleGatewayUrl(study.passage)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="w-full text-left px-3 py-2 text-xs text-black-3 hover:text-brand-1 hover:bg-white-1-5 transition-colors flex items-center gap-1.5"
-                      >
-                        <ExternalLink className="w-3 h-3" />
-                        More versions on BibleGateway
-                      </a>
-                    </div>
                   </div>
                 </SimpleDropdown>
                 <a
@@ -426,7 +416,8 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                 Bible text not available for this passage.
               </div>
             )}
-            <div className="mt-8 pt-8 border-t border-white-2 text-center">
+            <div className="mt-8 pt-8 border-t border-white-2 flex flex-col items-center gap-4">
+              <BibleCopyright versionCode={bibleVersion} className="text-center" />
               <a
                 href={getBibleGatewayUrl(study.passage)}
                 target="_blank"

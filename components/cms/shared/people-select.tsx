@@ -93,20 +93,37 @@ export function PeopleSelect(props: PeopleSelectProps) {
   const [creating, setCreating] = useState(false)
 
   const refreshOptions = useCallback(() => {
-    if (!roleSlug) return
-    fetch(`/api/v1/people/by-role/${roleSlug}`)
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.success && json.data) {
-          setOptions(
-            json.data.map((p: { id: string; name: string }) => ({
-              id: p.id,
-              name: p.name,
-            }))
-          )
-        }
-      })
-      .catch(console.error)
+    if (roleSlug) {
+      fetch(`/api/v1/people/by-role/${roleSlug}`)
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.success && json.data) {
+            setOptions(
+              json.data.map((p: { id: string; name: string }) => ({
+                id: p.id,
+                name: p.name,
+              }))
+            )
+          }
+        })
+        .catch(console.error)
+    } else {
+      fetch(`/api/v1/people?pageSize=200`)
+        .then((res) => res.json())
+        .then((json) => {
+          if (json.success && json.data) {
+            setOptions(
+              json.data.map((p: Member) => ({
+                id: p.id,
+                name: p.preferredName
+                  ? `${p.preferredName} ${p.lastName}`
+                  : `${p.firstName} ${p.lastName}`,
+              }))
+            )
+          }
+        })
+        .catch(console.error)
+    }
   }, [roleSlug])
 
   useEffect(() => {

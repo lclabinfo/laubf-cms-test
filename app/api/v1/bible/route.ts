@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { fetchBibleText, LOCAL_VERSIONS } from '@/lib/bible-api'
+import { getBibleCopyright } from '@/lib/bible-versions'
 
 export async function GET(request: NextRequest) {
   try {
@@ -32,7 +33,8 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({ success: true, data: { ...result, version } })
+    const copyright = getBibleCopyright(version)
+    return NextResponse.json({ success: true, data: { ...result, version, copyright: copyright.fullNotice } })
   } catch (error) {
     console.error('GET /api/v1/bible error:', error)
     return NextResponse.json(

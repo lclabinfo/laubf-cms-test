@@ -48,7 +48,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   return {
     title: `${message.title} | Messages`,
-    description: message.description || `Listen to ${message.title}`,
+    description: `Listen to ${message.title}`,
   }
 }
 
@@ -159,15 +159,6 @@ export default async function MessageDetailPage({ params }: PageProps) {
               </p>
             )}
           </div>
-
-          {/* Description */}
-          {message.description && (
-            <div className="mt-8">
-              <p className="text-[16px] text-black-2 leading-[1.5] tracking-[-0.31px]">
-                {message.description}
-              </p>
-            </div>
-          )}
 
           {/* Duration */}
           {message.duration && (

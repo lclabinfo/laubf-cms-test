@@ -22,17 +22,16 @@ import { SeriesTab } from "@/components/cms/messages/series/tab"
 import { useMessages } from "@/lib/messages-context"
 
 function globalFilterFn(
-  row: { original: { title: string; speaker: string; passage: string; description?: string; date: string; seriesId?: string | null } },
+  row: { original: { title: string; speaker: string; passage: string; date: string; seriesId?: string | null } },
   _columnId: string,
   filterValue: string
 ) {
   const search = filterValue.toLowerCase()
-  const { title, speaker, passage, description, date } = row.original
+  const { title, speaker, passage, date } = row.original
   return (
     title.toLowerCase().includes(search) ||
     speaker.toLowerCase().includes(search) ||
     passage.toLowerCase().includes(search) ||
-    !!(description && description.toLowerCase().includes(search)) ||
     !!(date && date.includes(search))
   )
 }
@@ -63,7 +62,7 @@ function MessagesPageContent() {
     { id: "date", desc: true },
   ])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({ status: false, publishedAt: false })
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({ status: false, publishedAt: false, speaker: false })
   const [rowSelection, setRowSelection] = useState({})
   const [globalFilter, setGlobalFilter] = useState("")
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 50 })

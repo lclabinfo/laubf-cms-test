@@ -25,7 +25,6 @@ export type Message = {
   title: string
   passage: string
   bibleVersion?: string
-  description?: string
   speaker: string
   speakerId?: string
   seriesId: string | null

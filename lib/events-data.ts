@@ -66,6 +66,7 @@ export type ChurchEvent = {
   locationType: LocationType
   location: string
   address?: string
+  locationInstructions?: string
   meetingUrl?: string
   monthlyType?: MonthlyRecurrenceType
   ministry: MinistryTag

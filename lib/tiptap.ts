@@ -8,6 +8,8 @@ import Image from "@tiptap/extension-image"
 import Placeholder from "@tiptap/extension-placeholder"
 import { TextStyle } from "@tiptap/extension-text-style"
 import Color from "@tiptap/extension-color"
+import FontFamily from "@tiptap/extension-font-family"
+import Highlight from "@tiptap/extension-highlight"
 import { Table } from "@tiptap/extension-table"
 import { TableRow } from "@tiptap/extension-table-row"
 import { TableHeader } from "@tiptap/extension-table-header"
@@ -50,6 +52,51 @@ const Indent = Extension.create({
 })
 
 /**
+ * Custom extension that adds spacing control to paragraphs and headings.
+ * Controls line-height per block. Paragraph gaps are handled by editor CSS.
+ *
+ * | Setting          | line-height |
+ * |------------------|-------------|
+ * | Tight            | 1.4         |
+ * | Normal (default) | 1.6         |
+ * | Relaxed          | 1.8         |
+ */
+const SPACING_LINE_HEIGHTS: Record<string, string> = {
+  tight:   "1.4",
+  normal:  "1.6",
+  relaxed: "1.8",
+}
+
+const Spacing = Extension.create({
+  name: "spacing",
+  addGlobalAttributes() {
+    return [
+      {
+        types: ["paragraph", "heading"],
+        attributes: {
+          spacing: {
+            default: null,
+            parseHTML: (element) => {
+              const lh = element.style.lineHeight
+              if (!lh) return null
+              const val = parseFloat(lh)
+              if (val <= 1.4) return "tight"
+              if (val >= 1.8) return "relaxed"
+              return null // normal is the default, no need to store
+            },
+            renderHTML: (attributes) => {
+              const key = attributes.spacing as string | null
+              if (!key || !SPACING_LINE_HEIGHTS[key]) return {}
+              return { style: `line-height: ${SPACING_LINE_HEIGHTS[key]}` }
+            },
+          },
+        },
+      },
+    ]
+  },
+})
+
+/**
  * Shared TipTap extension configuration.
  * Used by both the editor component and HTML generation to ensure parity.
  */
@@ -81,7 +128,10 @@ export function getExtensions(placeholder?: string): Extensions {
     TableHeader,
     TableCell,
     TextStyle,
+    FontFamily,
     Color,
+    Highlight.configure({ multicolor: true }),
+    Spacing,
     ...(placeholder
       ? [Placeholder.configure({ placeholder })]
       : []),

@@ -120,6 +120,7 @@ function apiEventToCms(apiEvt: any): ChurchEvent {
     status: statusFromApi[apiEvt.status] ?? "draft",
     isFeatured: apiEvt.isFeatured ?? false,
     address: apiEvt.address ?? undefined,
+    locationInstructions: apiEvt.locationInstructions ?? undefined,
     monthlyType: apiEvt.monthlyRecurrenceType === "DAY_OF_WEEK" ? "day-of-week" : apiEvt.monthlyRecurrenceType === "DAY_OF_MONTH" ? "day-of-month" : undefined,
     shortDescription: apiEvt.shortDescription ?? undefined,
     description: apiEvt.description ?? undefined,
@@ -156,6 +157,7 @@ function cmsEventToApiCreate(data: Omit<ChurchEvent, "id">) {
     imageAlt: data.imageAlt || null,
     isFeatured: data.isFeatured ?? false,
     address: data.address || null,
+    locationInstructions: data.locationInstructions || null,
     monthlyRecurrenceType: data.monthlyType || undefined,
     isRecurring: data.recurrence !== "none",
     recurrence: recurrenceToApi[data.recurrence] ?? "NONE",
@@ -280,6 +282,7 @@ export function EventsProvider({ children }: { children: ReactNode }) {
       if (data.imageAlt !== undefined) payload.imageAlt = data.imageAlt || null
       if (data.isFeatured !== undefined) payload.isFeatured = data.isFeatured
       if (data.address !== undefined) payload.address = data.address || null
+      if (data.locationInstructions !== undefined) payload.locationInstructions = data.locationInstructions || null
       if (data.monthlyType !== undefined) payload.monthlyRecurrenceType = data.monthlyType || null
       if (data.recurrence !== undefined) {
         payload.recurrence = recurrenceToApi[data.recurrence] ?? "NONE"

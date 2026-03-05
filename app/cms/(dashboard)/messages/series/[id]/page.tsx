@@ -331,12 +331,6 @@ export default function SeriesDetailPage({ params }: { params: Promise<{ id: str
                   </div>
                 </div>
 
-                {detailMessage.description && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Description</p>
-                    <p className="text-sm text-muted-foreground">{detailMessage.description}</p>
-                  </div>
-                )}
               </div>
 
               <DialogFooter>

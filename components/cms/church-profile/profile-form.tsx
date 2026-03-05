@@ -30,6 +30,7 @@ import {
   dayOptions,
   socialPlatformOptions,
 } from "@/lib/church-profile-data"
+import { BibleVersionSettings } from "./bible-version-settings"
 
 // ─── Section names ───────────────────────────────────────────────
 type SectionKey = "identity" | "location" | "contact" | "worship" | "social"
@@ -936,6 +937,9 @@ export function ProfileForm({ initialData, onSave }: ProfileFormProps) {
               )}
             </div>
           </section>
+
+          {/* ── 6. Bible Versions ── */}
+          <BibleVersionSettings />
         </div>
       </div>
 

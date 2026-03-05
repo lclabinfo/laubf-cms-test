@@ -418,7 +418,6 @@ model Message {
   bibleVersion     String?       @default("ESV")
   speakerId        String?       @db.Uuid
   dateFor          DateTime      @db.Date
-  description      String?       @db.Text
 
   // Video
   videoUrl         String?
@@ -510,6 +509,7 @@ model Event {
   locationType       LocationType  @default(IN_PERSON)
   location           String?
   address            String?
+  locationInstructions String?  @db.Text
   directionsUrl      String?
   latitude           Decimal?      @db.Decimal(10, 8)
   longitude          Decimal?      @db.Decimal(11, 8)

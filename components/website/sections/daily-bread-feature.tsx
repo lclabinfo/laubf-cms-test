@@ -28,6 +28,7 @@ import {
 import DOMPurify from "isomorphic-dompurify"
 import { cn } from "@/lib/utils"
 import SectionContainer from "@/components/website/shared/section-container"
+import BibleCopyright from "@/components/website/shared/bible-copyright"
 import { themeTokens, type SectionTheme, type ThemeTokens } from "@/components/website/shared/theme-tokens"
 
 /* ── Types ── */
@@ -359,6 +360,9 @@ export default function DailyBreadFeatureSection({
                           __html: sanitizedBibleText,
                         }}
                       />
+                      <div className="mt-6 pt-4 border-t border-white-2">
+                        <BibleCopyright versionCode="ESV" className={t.textMuted} />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -530,6 +534,9 @@ export default function DailyBreadFeatureSection({
                             __html: sanitizedBibleText,
                           }}
                         />
+                        <div className={cn("mt-4 pt-3 border-t", t.borderColor)}>
+                          <BibleCopyright versionCode="ESV" className={t.textMuted} />
+                        </div>
                       </div>
                     </div>
                   </div>

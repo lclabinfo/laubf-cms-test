@@ -356,42 +356,59 @@
   flex: 1;
   padding: 1rem;
   outline: none;
-  font-size: 0.875rem;
-  line-height: 1.625;
+  font-size: 1rem;
+  line-height: 1.6;
+  background: white;
+  color: #111;
+
+  /* Force light-mode CSS variable values inside the editor canvas.
+     The editor is always white, so dark-mode variable overrides must not leak in. */
+  --border: oklch(0.915 0 0);
+  --input: oklch(0.915 0 0);
+  --muted: oklch(0.96 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.98 0 0);
+  --foreground: oklch(0.18 0 0);
+  --background: oklch(0.985 0 0);
+  --accent: oklch(0.96 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --ring: oklch(0.708 0 0);
 }
 
 .tiptap-wrapper .tiptap > * + * {
-  margin-top: 0.5em;
+  margin-top: 0.5rem;
 }
 
 /* Headings */
 .tiptap-wrapper .tiptap h1 {
-  font-size: 1.5rem;
+  font-size: 1.875rem;
   font-weight: 700;
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
 .tiptap-wrapper .tiptap h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.tiptap-wrapper .tiptap h3 {
   font-size: 1.25rem;
   font-weight: 600;
   line-height: 1.35;
 }
 
-.tiptap-wrapper .tiptap h3 {
-  font-size: 1.1rem;
+.tiptap-wrapper .tiptap h4 {
+  font-size: 1.125rem;
   font-weight: 600;
   line-height: 1.4;
-}
-
-.tiptap-wrapper .tiptap h4 {
-  font-size: 1rem;
-  font-weight: 600;
-  line-height: 1.45;
 }
 
 /* Paragraphs */
 .tiptap-wrapper .tiptap p {
   margin: 0;
+  font-weight: 500;
 }
 
 .tiptap-wrapper .tiptap p.is-editor-empty:first-child::before {
@@ -454,7 +471,7 @@
 
 /* Links */
 .tiptap-wrapper .tiptap a {
-  color: var(--primary);
+  color: #2563eb;
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
@@ -770,6 +787,15 @@
     .container-nav { width: 90%; padding-inline: 0; }
   }
 
+  /* ---- Truncation Utilities ---- */
+  .truncate-fade {
+    overflow: hidden;
+    text-overflow: clip;
+    white-space: nowrap;
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+    mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+  }
+
   /* ---- Scrollbar Utilities ---- */
   .scrollbar-hide {
     -ms-overflow-style: none;
@@ -865,13 +891,15 @@
 @layer utilities {
   .study-content {
     font-family: var(--font-sans);
-    color: var(--color-black-2);
-    line-height: 1.75;
+    color: var(--color-black-1);
+    font-size: 1rem;
+    line-height: 1.6;
   }
   .study-content h1 {
     color: var(--color-black-1);
     font-weight: 700;
-    font-size: 1.5rem;
+    font-size: 1.875rem;
+    line-height: 1.25;
     margin-top: 2rem;
     margin-bottom: 0.75rem;
     letter-spacing: -0.02em;
@@ -879,7 +907,8 @@
   .study-content h2 {
     color: var(--color-black-1);
     font-weight: 600;
-    font-size: 1.25rem;
+    font-size: 1.5rem;
+    line-height: 1.3;
     margin-top: 1.875rem;
     margin-bottom: 0.75rem;
     letter-spacing: -0.02em;
@@ -887,7 +916,8 @@
   .study-content h3 {
     color: var(--color-black-1);
     font-weight: 600;
-    font-size: 1.125rem;
+    font-size: 1.25rem;
+    line-height: 1.35;
     margin-top: 1.75rem;
     margin-bottom: 0.625rem;
     letter-spacing: -0.02em;
@@ -895,12 +925,13 @@
   .study-content h4 {
     color: var(--color-black-1);
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 1.125rem;
+    line-height: 1.4;
     margin-top: 1.5rem;
     margin-bottom: 0.5rem;
   }
   .study-content p {
-    margin-bottom: 0.875rem;
+    margin-bottom: 0.5rem;
   }
   .study-content p:empty {
     min-height: 1lh;
@@ -916,7 +947,6 @@
     margin-bottom: 0.5rem;
   }
   .study-content strong {
-    color: var(--color-black-1);
     font-weight: 600;
   }
   .study-content a {
@@ -947,8 +977,9 @@
 
   .study-bible-text {
     font-family: var(--font-sans);
-    color: var(--color-black-2);
-    line-height: 1.75;
+    color: var(--color-black-1);
+    font-size: 1rem;
+    line-height: 1.6;
   }
   .study-bible-text h4 {
     font-family: var(--font-sans);
@@ -956,7 +987,7 @@
     font-weight: 600;
     font-size: 1rem;
     margin-bottom: 0.75rem;
-    color: var(--color-black-2);
+    color: var(--color-black-1);
   }
   .study-bible-text p {
     margin-bottom: 1rem;

@@ -133,12 +133,12 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
       <SortableHeader column={column}>Title</SortableHeader>
     ),
     cell: ({ row }) => (
-      <div className="min-w-0">
-        <div className="font-medium truncate">{row.getValue("title")}</div>
-        <div className="text-muted-foreground text-xs truncate min-h-[1lh]">{row.original.passage || "\u00A0"}</div>
+      <div className="min-w-0 relative">
+        <div className="font-medium truncate-fade">{row.getValue("title")}</div>
+        <div className="text-muted-foreground text-xs truncate-fade min-h-[1lh]">{row.original.passage || "\u00A0"}</div>
       </div>
     ),
-    size: 220,
+    size: 180,
   },
   {
     accessorKey: "speaker",
@@ -149,17 +149,17 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
     filterFn: (row, id, value: string[]) => {
       return value.includes(row.getValue(id))
     },
-    size: 110,
+    size: 100,
   },
   {
     accessorKey: "seriesId",
-    header: "Series",
+    header: () => <span className="whitespace-nowrap">Series</span>,
     cell: ({ row }) => {
       const seriesId = row.original.seriesId
       const matched = seriesId ? series.find((s) => s.id === seriesId) : null
       if (!matched) return null
       return (
-        <Badge variant="outline" className="text-xs font-normal">
+        <Badge variant="outline" className="text-xs font-normal max-w-full truncate">
           {matched.name}
         </Badge>
       )
@@ -170,7 +170,7 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
       return value.includes(seriesId)
     },
     enableSorting: false,
-    size: 120,
+    size: 100,
   },
   {
     accessorKey: "date",
@@ -178,13 +178,13 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
       <SortableHeader column={column}>Message Date</SortableHeader>
     ),
     cell: ({ row }) => (
-      <span className="text-sm">{formatDate(row.getValue("date"))}</span>
+      <span className="text-sm whitespace-nowrap">{formatDate(row.getValue("date"))}</span>
     ),
-    size: 110,
+    size: 100,
   },
   {
     id: "video",
-    header: "Video",
+    header: () => <span className="whitespace-nowrap">Video</span>,
     cell: ({ row }) => {
       const hasVideo = row.original.hasVideo
       const isLive = row.original.videoPublished
@@ -200,7 +200,7 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
           <Button
             variant="ghost"
             size="icon-sm"
-            className="size-7"
+            className="size-7 hidden xl:inline-flex"
             asChild
             onClick={(e) => e.stopPropagation()}
           >
@@ -212,11 +212,11 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
       )
     },
     enableSorting: false,
-    size: 110,
+    size: 90,
   },
   {
     id: "study",
-    header: "Study",
+    header: () => <span className="whitespace-nowrap">Study</span>,
     cell: ({ row }) => {
       const hasStudy = row.original.hasStudy
       const isLive = row.original.studyPublished
@@ -232,7 +232,7 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
           <Button
             variant="ghost"
             size="icon-sm"
-            className="size-7"
+            className="size-7 hidden xl:inline-flex"
             asChild
             onClick={(e) => e.stopPropagation()}
           >
@@ -244,7 +244,7 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
       )
     },
     enableSorting: false,
-    size: 110,
+    size: 90,
   },
   {
     id: "actions",

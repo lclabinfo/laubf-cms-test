@@ -71,7 +71,6 @@ function apiMessageToCms(apiMsg: any): Message {
     title: apiMsg.title,
     passage: apiMsg.passage ?? "",
     bibleVersion: apiMsg.bibleVersion ?? "ESV",
-    description: apiMsg.description ?? undefined,
     speaker: apiMsg.speaker?.name ?? "",
     speakerId: apiMsg.speaker?.id ?? undefined,
     seriesId: (apiMsg.messageSeries ?? []).length > 0 ? apiMsg.messageSeries[0].series.id : null,
@@ -116,7 +115,6 @@ function cmsMessageToApiCreate(data: Omit<Message, "id">) {
     slug: generateSlug(data.title),
     passage: data.passage || null,
     bibleVersion: data.bibleVersion || "ESV",
-    description: data.description || null,
     dateFor: data.date ? new Date(data.date + "T00:00:00").toISOString() : new Date().toISOString(),
     hasVideo: data.videoPublished,
     hasStudy: data.studyPublished,
@@ -144,21 +142,10 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
   if (data.slug !== undefined) payload.slug = data.slug
   if (data.passage !== undefined) payload.passage = data.passage || null
   if (data.bibleVersion !== undefined) payload.bibleVersion = data.bibleVersion || "ESV"
-  if (data.description !== undefined) payload.description = data.description || null
   if (data.date !== undefined) payload.dateFor = new Date(data.date + "T00:00:00").toISOString()
   if (data.hasVideo !== undefined) payload.hasVideo = data.hasVideo
   if (data.hasStudy !== undefined) payload.hasStudy = data.hasStudy
-  // Map per-content publish state to the DB fields:
-  // hasVideo/hasStudy = content is published (what the DB actually stores)
-  // Also derive the wrapper status from per-content publish state
-  // Guard: hasVideo can only be true if a videoUrl or youtubeId exists
-  if (data.videoPublished !== undefined || data.studyPublished !== undefined) {
-    const hasVideoSource = !!(data.videoUrl ?? payload.videoUrl ?? payload.youtubeId)
-    const vp = (data.videoPublished ?? false) && hasVideoSource
-    const sp = data.studyPublished ?? false
-    payload.hasVideo = vp
-    payload.hasStudy = sp
-  }
+  // Process videoUrl first so publish state check can see the extracted youtubeId
   if (data.videoUrl !== undefined) {
     payload.videoUrl = data.videoUrl || null
     // Auto-extract youtubeId and thumbnailUrl from video URL
@@ -167,6 +154,16 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
       payload.youtubeId = ytId
       payload.thumbnailUrl = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
     }
+  }
+  // Map per-content publish state to the DB fields:
+  // hasVideo/hasStudy = content is published (what the DB actually stores)
+  // Guard: hasVideo can only be true if a videoUrl or youtubeId exists
+  if (data.videoPublished !== undefined || data.studyPublished !== undefined) {
+    const hasVideoSource = !!(data.videoUrl ?? payload.videoUrl ?? payload.youtubeId)
+    const vp = (data.videoPublished ?? false) && hasVideoSource
+    const sp = data.studyPublished ?? false
+    payload.hasVideo = vp
+    payload.hasStudy = sp
   }
   if (data.videoDescription !== undefined) payload.videoDescription = data.videoDescription || null
   if (data.duration !== undefined) payload.duration = data.duration || null

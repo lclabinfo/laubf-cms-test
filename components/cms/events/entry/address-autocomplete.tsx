@@ -5,11 +5,48 @@ import { MapPin, Loader2 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 
+interface NominatimAddress {
+  house_number?: string
+  road?: string
+  city?: string
+  town?: string
+  village?: string
+  state?: string
+  postcode?: string
+  country?: string
+  county?: string
+}
+
 interface NominatimResult {
   place_id: number
   display_name: string
   lat: string
   lon: string
+  address?: NominatimAddress
+}
+
+function formatAddress(result: NominatimResult): string {
+  const a = result.address
+  if (!a) return result.display_name
+
+  const city = a.city || a.town || a.village
+  const parts: string[] = []
+
+  if (a.house_number && a.road) {
+    parts.push(`${a.house_number} ${a.road}`)
+  } else if (a.road) {
+    parts.push(a.road)
+  }
+
+  if (city) parts.push(city)
+
+  if (a.state && a.postcode) {
+    parts.push(`${a.state} ${a.postcode}`)
+  } else if (a.state) {
+    parts.push(a.state)
+  }
+
+  return parts.length > 0 ? parts.join(", ") : result.display_name
 }
 
 interface AddressAutocompleteProps {
@@ -43,7 +80,7 @@ export function AddressAutocomplete({
     }
     setLoading(true)
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=0`
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`
       const res = await fetch(url, {
         headers: { "Accept-Language": "en" },
       })
@@ -64,11 +101,11 @@ export function AddressAutocomplete({
     setActiveIndex(-1)
 
     if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => fetchSuggestions(val), 400)
+    debounceRef.current = setTimeout(() => fetchSuggestions(val), 200)
   }
 
-  function handleSelect(displayName: string) {
-    onChange(displayName)
+  function handleSelect(result: NominatimResult) {
+    onChange(formatAddress(result))
     setSuggestions([])
     setOpen(false)
     setActiveIndex(-1)
@@ -85,7 +122,7 @@ export function AddressAutocomplete({
       setActiveIndex((i) => Math.max(i - 1, -1))
     } else if (e.key === "Enter" && activeIndex >= 0) {
       e.preventDefault()
-      handleSelect(suggestions[activeIndex].display_name)
+      handleSelect(suggestions[activeIndex])
     } else if (e.key === "Escape") {
       setOpen(false)
       setActiveIndex(-1)
@@ -145,12 +182,12 @@ export function AddressAutocomplete({
               )}
               onMouseDown={(e) => {
                 e.preventDefault()
-                handleSelect(s.display_name)
+                handleSelect(s)
               }}
               onMouseEnter={() => setActiveIndex(i)}
             >
               <MapPin className="size-3.5 mt-0.5 shrink-0 text-muted-foreground" />
-              <span className="leading-snug">{s.display_name}</span>
+              <span className="leading-snug">{formatAddress(s)}</span>
             </li>
           ))}
         </ul>

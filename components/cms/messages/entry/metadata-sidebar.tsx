@@ -14,13 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+
 import { DatePicker } from "@/components/ui/date-picker"
 import { SeriesSelect } from "./series-select"
 import { SpeakerSelect } from "./speaker-select"
 import type { Series, Attachment } from "@/lib/messages-data"
 
 type MessageStatus = "published" | "draft" | "scheduled" | "archived"
-import { BIBLE_VERSIONS } from "@/lib/bible-versions"
+import { useBibleVersionConfig } from "@/components/cms/church-profile/bible-version-settings"
 import { statusDisplay } from "@/lib/status"
 
 interface MetadataSidebarProps {
@@ -35,8 +36,6 @@ interface MetadataSidebarProps {
   onSeriesIdChange: (id: string | null) => void
   passage: string
   onPassageChange: (passage: string) => void
-  bibleVersion: string
-  onBibleVersionChange: (version: string) => void
   attachments: Attachment[]
   onAttachmentsChange: (attachments: Attachment[]) => void
   allSeries: Series[]
@@ -57,14 +56,13 @@ export function MetadataSidebar({
   onSeriesIdChange,
   passage,
   onPassageChange,
-  bibleVersion,
-  onBibleVersionChange,
   attachments,
   onAttachmentsChange,
   allSeries,
   publishedAt,
   onPublishedAtChange,
 }: MetadataSidebarProps) {
+  const bibleVersionConfig = useBibleVersionConfig()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Parse publishedAt into date and time parts
@@ -205,25 +203,16 @@ export function MetadataSidebar({
               value={passage}
               onChange={(passageStr) => onPassageChange(passageStr)}
             />
-          </div>
-
-          {/* Bible Version */}
-          <div className="space-y-2">
-            <Label htmlFor="bible-version">Bible Version</Label>
-            <Select value={bibleVersion} onValueChange={onBibleVersionChange}>
-              <SelectTrigger id="bible-version">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {BIBLE_VERSIONS.map((v) => (
-                  <SelectItem key={v.code} value={v.code}>
-                    {v.abbreviation} - {v.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
             <p className="text-xs text-muted-foreground">
-              Version for scripture text display
+              {bibleVersionConfig?.defaultVersion
+                ? `${bibleVersionConfig.defaultVersion} displays first on the website.`
+                : "Default version shown on the website."}{" "}
+              <a
+                href="/cms/church-profile#bible-versions"
+                className="text-primary underline underline-offset-2 hover:text-primary/80"
+              >
+                Adjust in church settings
+              </a>
             </p>
           </div>
         </div>

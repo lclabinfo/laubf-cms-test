@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
     if (body.locationType !== undefined) data.locationType = body.locationType
     if (body.location !== undefined) data.location = body.location
     if (body.address !== undefined) data.address = body.address
+    if (body.locationInstructions !== undefined) data.locationInstructions = body.locationInstructions
     if (body.directionsUrl !== undefined) data.directionsUrl = body.directionsUrl
     if (body.meetingUrl !== undefined) data.meetingUrl = body.meetingUrl
     if (body.shortDescription !== undefined) data.shortDescription = body.shortDescription
