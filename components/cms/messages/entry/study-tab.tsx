@@ -16,7 +16,7 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { plainTextToTiptapJson, isTiptapContentEmpty } from "@/lib/tiptap"
+import { plainTextToTiptapJson, isTiptapContentEmpty, getExtensions } from "@/lib/tiptap"
 import type { StudySection } from "@/lib/messages-data"
 
 interface StudyTabProps {
@@ -62,16 +62,24 @@ export function StudyTab({ sections, onSectionsChange, bibleVersionSlot }: Study
         }
         reader.readAsText(file)
       } else {
-        // .docx — use mammoth to convert to HTML, then pass to editor
+        // .docx — use mammoth to convert to HTML, then to TipTap JSON
         try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const mammoth = await import("mammoth") as any
           const JSZip = (await import("jszip")).default
+          const { generateJSON } = await import("@tiptap/html")
           const arrayBuffer = await file.arrayBuffer()
 
-          // Extract w:spacing line-height per paragraph from raw DOCX XML.
-          // mammoth doesn't expose this, so we read it directly.
-          const paragraphLineHeights: (number | null)[] = []
+          const SERIF_FONTS = ["times new roman", "georgia", "garamond", "palatino", "cambria", "book antiqua", "palatino linotype"]
+
+          // ── 1. Extract per-paragraph data from raw DOCX XML ──
+          // mammoth doesn't expose line-height or spacing, so we read it directly.
+          interface DocxParaData {
+            lineHeight: number | null  // CSS line-height (w:line / 240)
+            spacingBefore: number | null // points (w:before in twips / 20)
+            spacingAfter: number | null  // points (w:after in twips / 20)
+          }
+          const nonListXmlParaData: DocxParaData[] = []
           try {
             const zip = await JSZip.loadAsync(arrayBuffer)
             const docXml = await zip.file("word/document.xml")?.async("string")
@@ -82,54 +90,54 @@ export function StudyTab({ sections, onSectionsChange, bibleVersionSlot }: Study
               const paragraphs = xmlDoc.getElementsByTagNameNS(ns, "p")
               for (let i = 0; i < paragraphs.length; i++) {
                 const pPr = paragraphs[i].getElementsByTagNameNS(ns, "pPr")[0]
+                // Skip list item paragraphs — they become <li>, not <p>/<h>
+                const numPr = pPr?.getElementsByTagNameNS(ns, "numPr")[0]
+                if (numPr) continue
+
                 const spacing = pPr?.getElementsByTagNameNS(ns, "spacing")[0]
                 const wLine = spacing?.getAttribute("w:line")
-                if (wLine) {
-                  // OOXML w:line is in 240ths of a line (when lineRule=auto)
-                  paragraphLineHeights.push(parseFloat(wLine) / 240)
-                } else {
-                  paragraphLineHeights.push(null)
-                }
+                const wBefore = spacing?.getAttribute("w:before")
+                const wAfter = spacing?.getAttribute("w:after")
+                nonListXmlParaData.push({
+                  lineHeight: wLine ? parseFloat(wLine) / 240 : null,
+                  spacingBefore: wBefore ? parseFloat(wBefore) / 20 : null, // twips to points
+                  spacingAfter: wAfter ? parseFloat(wAfter) / 20 : null,
+                })
               }
             }
           } catch {
-            // If XML parsing fails, continue without line-height detection
+            // XML parsing failed — continue without spacing data
           }
 
-          // Collect alignment and font info per paragraph during the transform pass.
+          // ── 2. Collect alignment + font from mammoth transform ──
+          const allFonts: string[] = []
           const paragraphAlignments: (string | null)[] = []
-          const paragraphFonts: (string | null)[] = []
 
-          const SERIF_FONTS = ["times new roman", "georgia", "garamond", "palatino", "cambria", "book antiqua", "palatino linotype"]
-
-          // Transform paragraphs to preserve empty lines and detect indentation.
-          // mammoth drops empty paragraphs and strips w:ind — we fix both here.
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const transformParagraph = mammoth.transforms.paragraph(function (paragraph: any) {
-            // Collect alignment (mammoth exposes paragraph.alignment from w:jc).
-            const align = paragraph.alignment
-            if (align && align !== "left") {
-              // mammoth uses "both" for justify
-              paragraphAlignments.push(align === "both" ? "justify" : align)
-            } else {
-              paragraphAlignments.push(null)
+            const isListItem = !!paragraph.numbering
+
+            // Collect alignment only for non-list paragraphs (maps 1:1 with HTML <p>/<h>)
+            if (!isListItem) {
+              const align = paragraph.alignment
+              if (align && align !== "left") {
+                paragraphAlignments.push(align === "both" ? "justify" : align)
+              } else {
+                paragraphAlignments.push(null)
+              }
             }
 
-            // Collect dominant font from runs.
-            let detectedFont: string | null = null
+            // Collect ALL fonts for dominant detection
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             function findFont(children: any[]) {
               for (const c of children) {
-                if (c.font && !detectedFont) { detectedFont = c.font; return }
+                if (c.font) allFonts.push(c.font)
                 if (c.children) findFont(c.children)
               }
             }
             findFont(paragraph.children)
-            paragraphFonts.push(detectedFont)
 
-            // 1. Preserve empty/whitespace-only paragraphs (blank lines in the document).
-            //    mammoth drops paragraphs with no text content — inject a non-breaking space
-            //    so they survive HTML generation. We normalize these in post-processing.
+            // Preserve empty/whitespace-only paragraphs
             let hasText = false
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             function checkText(children: any[]) {
@@ -152,11 +160,10 @@ export function StudyTab({ sections, onSectionsChange, bibleVersionSlot }: Study
               }
             }
 
-            // 2. Detect paragraph-level indentation (w:ind).
-            //    Skip list items (they have their own indentation via numbering).
+            // Detect paragraph-level indentation
             const indentStart = parseInt(paragraph.indent?.start || "0", 10)
             if (indentStart > 0 && !paragraph.numbering && !paragraph.styleName?.startsWith("Heading")) {
-              const level = Math.round(indentStart / 720) // 720 twips = 0.5 inch
+              const level = Math.round(indentStart / 720)
               if (level > 0) {
                 return {
                   ...paragraph,
@@ -172,12 +179,10 @@ export function StudyTab({ sections, onSectionsChange, bibleVersionSlot }: Study
             {
               transformDocument: transformParagraph,
               styleMap: [
-                // Map common Word heading styles to HTML headings
                 "p[style-name='Heading 1'] => h1:fresh",
                 "p[style-name='Heading 2'] => h2:fresh",
                 "p[style-name='Heading 3'] => h3:fresh",
                 "p[style-name='Heading 4'] => h4:fresh",
-                // Map indent levels to classes (max 4 levels)
                 "p[style-name='indent-1'] => p.indent-1:fresh",
                 "p[style-name='indent-2'] => p.indent-2:fresh",
                 "p[style-name='indent-3'] => p.indent-3:fresh",
@@ -186,59 +191,72 @@ export function StudyTab({ sections, onSectionsChange, bibleVersionSlot }: Study
             },
           )
 
-          // Post-process HTML
+          // ── 3. Determine dominant font ──
+          let dominantFont: string | null = null
+          const fontCounts = new Map<string, number>()
+          for (const f of allFonts) {
+            const key = f.toLowerCase()
+            fontCounts.set(key, (fontCounts.get(key) || 0) + 1)
+          }
+          let maxFontCount = 0
+          for (const [font, count] of fontCounts) {
+            if (count > maxFontCount) {
+              dominantFont = font
+              maxFontCount = count
+            }
+          }
+          const isSerifDoc = dominantFont !== null && SERIF_FONTS.includes(dominantFont)
+
+          // ── 4. Post-process HTML ──
           let html: string = result.value
-          // Normalize whitespace-only paragraphs to empty <p></p> for Tiptap blank lines.
-          // Matches <p> containing only whitespace and/or empty inline formatting tags.
+          // Normalize whitespace-only paragraphs
           html = html.replace(/<p>(.*?)<\/p>/g, (match, inner) => {
             const text = inner.replace(/<[^>]+>/g, "").trim()
             if (!text || text === "\u00A0") return "<p></p>"
             return match
           })
-          // Convert indent classes to inline margin-left (Tiptap Indent extension parses this)
+          // Convert indent classes to inline margin-left
           html = html.replace(/<p class="indent-(\d+)">/g, (_, level) =>
             `<p style="margin-left: ${parseInt(level) * 40}px">`)
-          // Convert tab characters to em-spaces (HTML collapses \t to single space)
+          // Convert tab characters to em-spaces
           html = html.replace(/\t/g, "\u2003\u2003")
-          // Preserve consecutive spaces (Word often uses multiple spaces for alignment)
+          // Preserve consecutive spaces
           html = html.replace(/ {2,}/g, (match) => "\u00A0".repeat(match.length - 1) + " ")
 
-          // Determine dominant line-height from DOCX to apply as document-wide spacing.
-          // Most documents use a single consistent spacing, so we detect the most common value.
-          let docSpacingStyle = ""
-          const validLhs = paragraphLineHeights.filter((v): v is number => v !== null)
-          if (validLhs.length > 0) {
-            // Find most common line-height (rounded to 1 decimal)
-            const counts = new Map<string, number>()
-            for (const v of validLhs) {
-              const key = v.toFixed(1)
-              counts.set(key, (counts.get(key) || 0) + 1)
-            }
-            let dominantLh = "1.6"
-            let maxCount = 0
-            for (const [key, count] of counts) {
-              if (count > maxCount) { dominantLh = key; maxCount = count }
-            }
-            const lhNum = parseFloat(dominantLh)
-            // Only emit if it differs meaningfully from the editor default (1.6)
-            if (Math.abs(lhNum - 1.6) > 0.05) {
-              docSpacingStyle = `line-height: ${dominantLh}`
-            }
-          }
+          // ── 5. Apply alignment and per-paragraph spacing ──
+          // nonListXmlParaData and paragraphAlignments both map 1:1 with HTML <p>/<h> tags.
+          let htmlPIdx = 0
 
-          // Apply text-align, line-height, and font-family from DOCX paragraph data.
-          // Alignment + line-height go on the block element; font-family must go on a
-          // <span> wrapping the content so TipTap's FontFamily mark (TextStyle) picks it up.
-          let pIdx = 0
-          html = html.replace(/<(p|h[1-4])([^>]*?)>([\s\S]*?)<\/\1>/g, (match, tag: string, attrs: string, inner: string) => {
-            const align = paragraphAlignments[pIdx]
-            const font = paragraphFonts[pIdx]
-            pIdx++
+          html = html.replace(/<(p|h[1-4])([^>]*?)>([\s\S]*?)<\/\1>/g, (_match, tag: string, attrs: string, inner: string) => {
+            const align = paragraphAlignments[htmlPIdx]
 
-            // Build inline styles for the block element
+            // Build inline styles
             const styles: string[] = []
             if (align) styles.push(`text-align: ${align}`)
-            if (docSpacingStyle) styles.push(docSpacingStyle)
+
+            // Per-paragraph spacing from XML (already filtered to non-list only).
+            // Always set margin-top/bottom to override CSS > * + * gap in editor.
+            if (htmlPIdx < nonListXmlParaData.length) {
+              const data = nonListXmlParaData[htmlPIdx]
+              if (data.lineHeight !== null) {
+                const lh = Math.round(data.lineHeight * 100) / 100
+                styles.push(`line-height: ${lh}`)
+              }
+              // Always emit margin to override editor CSS gap (> * + *)
+              if (data.spacingBefore !== null && data.spacingBefore > 0) {
+                const rem = Math.round((data.spacingBefore * 1.333 / 16) * 100) / 100
+                styles.push(`margin-top: ${rem}rem`)
+              } else {
+                styles.push(`margin-top: 0rem`)
+              }
+              if (data.spacingAfter !== null && data.spacingAfter > 0) {
+                const rem = Math.round((data.spacingAfter * 1.333 / 16) * 100) / 100
+                styles.push(`margin-bottom: ${rem}rem`)
+              } else {
+                styles.push(`margin-bottom: 0rem`)
+              }
+            }
+            htmlPIdx++
 
             let openTag: string
             if (styles.length > 0) {
@@ -252,17 +270,41 @@ export function StudyTab({ sections, onSectionsChange, bibleVersionSlot }: Study
               openTag = `<${tag}${attrs}>`
             }
 
-            // Wrap content in <span style="font-family: ..."> for serif fonts
-            // so TipTap's FontFamily mark (TextStyle) picks it up
-            let content = inner
-            if (font && SERIF_FONTS.includes(font.toLowerCase())) {
-              content = `<span style="font-family: '${font}', Georgia, serif">${inner}</span>`
-            }
-
-            return `${openTag}${content}</${tag}>`
+            return `${openTag}${inner}</${tag}>`
           })
 
-          handleContentChange(sectionId, html)
+          // ── 6. Convert HTML to TipTap JSON and inject font marks ──
+          // Using generateJSON ensures reliable parsing of alignment/spacing.
+          // Font is applied programmatically to the JSON tree to avoid CSS parsing issues.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const json = generateJSON(html, getExtensions()) as any
+
+          if (isSerifDoc) {
+            // Build font-family value matching the toolbar format
+            const fontFamily = `"${allFonts.find(f => f.toLowerCase() === dominantFont) || "Times New Roman"}", Georgia, serif`
+            // Walk JSON tree and add textStyle mark with fontFamily to all text nodes
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            function addFontToTextNodes(node: any): void {
+              if (node.type === "text") {
+                const marks = node.marks || []
+                const existing = marks.find((m: { type: string }) => m.type === "textStyle")
+                if (existing) {
+                  existing.attrs = { ...existing.attrs, fontFamily }
+                } else {
+                  marks.push({ type: "textStyle", attrs: { fontFamily } })
+                }
+                node.marks = marks
+              }
+              if (node.content) {
+                for (const child of node.content) {
+                  addFontToTextNodes(child)
+                }
+              }
+            }
+            addFontToTextNodes(json)
+          }
+
+          handleContentChange(sectionId, JSON.stringify(json))
         } catch (err) {
           console.error("Failed to import DOCX:", err)
         }

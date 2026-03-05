@@ -7,7 +7,7 @@ import {
   ChevronRightIcon,
   ChurchIcon,
   LayoutDashboardIcon,
-  MessageSquareIcon,
+  BookOpenIcon,
   CalendarIcon,
   ImageIcon,
   GlobeIcon,
@@ -87,7 +87,7 @@ const navGroups: NavGroup[] = [
       {
         title: "Bible Studies",
         href: "/cms/messages",
-        icon: MessageSquareIcon,
+        icon: BookOpenIcon,
       },
       {
         title: "Events",

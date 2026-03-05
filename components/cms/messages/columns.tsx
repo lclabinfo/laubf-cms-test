@@ -159,7 +159,7 @@ export function createColumns(seriesOrOptions: Series[] | CreateColumnsOptions):
       const matched = seriesId ? series.find((s) => s.id === seriesId) : null
       if (!matched) return null
       return (
-        <Badge variant="outline" className="text-xs font-normal max-w-full truncate">
+        <Badge variant="outline" className="text-xs font-normal max-w-full truncate-fade inline-block text-left">
           {matched.name}
         </Badge>
       )
