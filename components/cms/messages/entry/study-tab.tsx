@@ -99,13 +99,6 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, bibleVer
           })
         } catch (err) {
           console.error(`Failed to upload ${file.name} to R2:`, err)
-          // Still add attachment without URL as fallback
-          onAttachmentAdd({
-            id: crypto.randomUUID(),
-            name: file.name,
-            size: formatBytes(file.size),
-            type,
-          })
         }
       }
 

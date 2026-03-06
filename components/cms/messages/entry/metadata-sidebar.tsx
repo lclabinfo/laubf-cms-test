@@ -5,6 +5,7 @@ import { Upload, X, FileText, Clock, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { toast } from "sonner"
 import { BiblePassageInput } from "./bible-passage-input"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -90,7 +91,12 @@ export function MetadataSidebar({
     if (!files || files.length === 0) return
     setUploading(true)
     const newAttachments: Attachment[] = []
+    const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
     for (const file of Array.from(files)) {
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`${file.name} exceeds the 50 MB limit`)
+        continue
+      }
       try {
         // 1. Get presigned upload URL from API
         const res = await fetch("/api/v1/upload-url", {

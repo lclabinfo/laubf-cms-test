@@ -372,7 +372,12 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     if (!files || files.length === 0) return
     setUploading(true)
     const newAttachments: Attachment[] = []
+    const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
     for (const file of Array.from(files)) {
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`${file.name} exceeds the 50 MB limit`)
+        continue
+      }
       try {
         const res = await fetch("/api/v1/upload-url", {
           method: "POST",

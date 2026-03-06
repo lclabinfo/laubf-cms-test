@@ -14,7 +14,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 const ACCOUNT_ID = process.env.R2_ACCOUNT_ID!;
 
 export const ATTACHMENTS_BUCKET = process.env.R2_ATTACHMENTS_BUCKET_NAME!;
-export const PUBLIC_URL = process.env.R2_ATTACHMENTS_PUBLIC_URL || process.env.R2_PUBLIC_URL!;
+export const PUBLIC_URL = (process.env.R2_ATTACHMENTS_PUBLIC_URL || process.env.R2_PUBLIC_URL || "").replace(/\/+$/, "");
 
 // ---------------------------------------------------------------------------
 // S3-compatible client (singleton)

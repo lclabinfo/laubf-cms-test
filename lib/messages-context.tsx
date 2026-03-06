@@ -68,6 +68,7 @@ function synthesizeAttachments(relatedStudy: any): Attachment[] | undefined {
     size: att.fileSize ? formatFileSize(att.fileSize) : "",
     type: att.type ?? "",
     url: att.url ?? undefined,
+    fileSize: att.fileSize ?? undefined,
   }))
 }
 
