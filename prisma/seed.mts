@@ -499,6 +499,7 @@ async function main() {
 
   // ── 6b. Create Bible Study Attachments ─────────────────────
   console.log('Creating bible study attachments...')
+  const R2_BASE = process.env.R2_PUBLIC_URL || 'https://pub-59a92027daa648c8a02f226cb5873645.r2.dev'
   let attachmentCount = 0
   // Build legacyId -> study.id map for attachment lookup
   const legacyIdToStudyId = new Map<number, string>()
@@ -511,9 +512,9 @@ async function main() {
     if (!studyId || !bs.attachments || bs.attachments.length === 0) continue
     for (let i = 0; i < bs.attachments.length; i++) {
       const att = bs.attachments[i]
-      // Rewrite legacy URLs: /documentation/bible/X.docx -> /legacy-files/{slug}/X.docx
+      // Rewrite legacy URLs to R2 storage
       const filename = att.url.split('/').pop() || att.name
-      const url = `/legacy-files/${bs.slug}/${filename}`
+      const url = `${R2_BASE}/la-ubf/${bs.slug}/${filename}`
       // Derive attachment type from actual file extension
       const ext = filename.split('.').pop()?.toLowerCase() || ''
       const attType = ext === 'docx' ? 'DOCX' : ext === 'doc' ? 'DOC' : ext === 'rtf' ? 'RTF' : ext === 'pdf' ? 'PDF' : ext === 'ppt' || ext === 'pptx' ? 'OTHER' : 'DOC'
