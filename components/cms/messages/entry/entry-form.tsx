@@ -1051,7 +1051,13 @@ export function EntryForm({ mode, message }: EntryFormProps) {
             <DialogTitle className="truncate">{previewAttachment?.name}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 min-h-0 overflow-auto">
-            {previewAttachment?.url && previewAttachment.name.toLowerCase().endsWith(".pdf") ? (
+            {previewAttachment?.url && /\.(docx?|pptx?|xlsx?)$/i.test(previewAttachment.name) ? (
+              <iframe
+                src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewAttachment.url)}`}
+                className="w-full h-[70vh] rounded-md border"
+                title={previewAttachment.name}
+              />
+            ) : previewAttachment?.url && previewAttachment.name.toLowerCase().endsWith(".pdf") ? (
               <iframe
                 src={previewAttachment.url}
                 className="w-full h-[70vh] rounded-md border"
