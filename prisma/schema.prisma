@@ -773,7 +773,6 @@ model BibleStudyAttachment {
   type            AttachmentType
   fileSize        Int?
   sortOrder       Int            @default(0)
-  legacySourceId  Int?           /// TEMPORARY: maps to laubfmaterial.no for file migration second-pass. Remove after files are migrated to cloud storage.
 
   createdAt       DateTime       @default(now())
 

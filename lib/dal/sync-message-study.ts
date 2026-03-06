@@ -3,6 +3,7 @@ import { ContentStatus, type AttachmentType, type BibleBook } from '@/lib/genera
 // ContentStatus still used for BibleStudy model (which retains its own status column)
 import { tiptapJsonToHtml } from '@/lib/tiptap'
 import { fetchBibleText } from '@/lib/bible-api'
+import { deleteObject, PUBLIC_URL } from '@/lib/storage/r2'
 
 /**
  * Maps passage strings like "John 3:16", "1 Corinthians 13:1-8", "Genesis 12"
@@ -283,9 +284,27 @@ async function syncStudyAttachments(studyId: string, attachments: SyncAttachment
   const existingIds = new Set(existing.map(a => a.id))
   const incomingIds = new Set(attachments.map(a => a.id))
 
-  // Delete removed attachments
+  // Delete removed attachments (R2 files first, then DB records)
   const toDelete = Array.from(existingIds).filter(id => !incomingIds.has(id))
   if (toDelete.length > 0) {
+    // Fetch full records to get URLs for R2 cleanup
+    const attachmentsToDelete = await prisma.bibleStudyAttachment.findMany({
+      where: { id: { in: toDelete } },
+      select: { id: true, url: true },
+    })
+
+    // Delete files from R2 (best-effort — don't block DB deletion on failure)
+    for (const att of attachmentsToDelete) {
+      if (att.url && att.url.startsWith(PUBLIC_URL)) {
+        const key = att.url.slice(PUBLIC_URL.length + 1) // +1 for the trailing "/"
+        try {
+          await deleteObject(key)
+        } catch (err) {
+          console.error(`[syncStudyAttachments] Failed to delete R2 object "${key}":`, err)
+        }
+      }
+    }
+
     await prisma.bibleStudyAttachment.deleteMany({
       where: { id: { in: toDelete } },
     })

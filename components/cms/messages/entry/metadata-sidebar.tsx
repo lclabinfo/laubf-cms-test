@@ -1,7 +1,7 @@
 "use client"
 
-import { useRef } from "react"
-import { Upload, X, FileText, Clock } from "lucide-react"
+import { useRef, useState } from "react"
+import { Upload, X, FileText, Clock, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -64,6 +64,7 @@ export function MetadataSidebar({
 }: MetadataSidebarProps) {
   const bibleVersionConfig = useBibleVersionConfig()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
 
   // Parse publishedAt into date and time parts
   const publishDate = publishedAt ? publishedAt.split("T")[0] : ""
@@ -84,16 +85,53 @@ export function MetadataSidebar({
     fileInputRef.current?.click()
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files
-    if (!files) return
-    const newAttachments: Attachment[] = Array.from(files).map((file) => ({
-      id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-      name: file.name,
-      size: formatFileSize(file.size),
-      type: file.type,
-    }))
-    onAttachmentsChange([...attachments, ...newAttachments])
+    if (!files || files.length === 0) return
+    setUploading(true)
+    const newAttachments: Attachment[] = []
+    for (const file of Array.from(files)) {
+      try {
+        // 1. Get presigned upload URL from API
+        const res = await fetch("/api/v1/upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: file.name,
+            contentType: file.type,
+            fileSize: file.size,
+            context: "attachment",
+          }),
+        })
+        if (!res.ok) throw new Error(`Failed to get upload URL: ${res.status}`)
+        const { uploadUrl, key, publicUrl } = await res.json()
+
+        // 2. Upload file directly to R2
+        const putRes = await fetch(uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type },
+        })
+        if (!putRes.ok) throw new Error(`R2 upload failed: ${putRes.status}`)
+
+        // 3. Create attachment with R2 URL
+        newAttachments.push({
+          id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          name: file.name,
+          size: formatFileSize(file.size),
+          type: file.type,
+          url: publicUrl,
+          r2Key: key,
+          fileSize: file.size,
+        })
+      } catch (err) {
+        console.error(`Failed to upload ${file.name}:`, err)
+      }
+    }
+    if (newAttachments.length > 0) {
+      onAttachmentsChange([...attachments, ...newAttachments])
+    }
+    setUploading(false)
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
@@ -222,9 +260,9 @@ export function MetadataSidebar({
       <div className="rounded-xl border bg-card">
         <div className="px-4 py-3 border-b flex items-center justify-between">
           <h3 className="text-sm font-semibold">Attachments</h3>
-          <Button variant="ghost" size="sm" onClick={handleUploadAttachment}>
-            <Upload className="size-3.5" />
-            Upload
+          <Button variant="ghost" size="sm" onClick={handleUploadAttachment} disabled={uploading}>
+            {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+            {uploading ? "Uploading…" : "Upload"}
           </Button>
           <input
             ref={fileInputRef}

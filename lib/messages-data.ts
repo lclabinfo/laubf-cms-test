@@ -14,9 +14,11 @@ export type StudySection = {
 export type Attachment = {
   id: string
   name: string
-  size: string
+  size: string       // formatted display string
   type: string
-  url?: string
+  url?: string       // R2 public URL (set after upload)
+  r2Key?: string     // R2 object key (for deletion)
+  fileSize?: number  // raw bytes (for quota tracking)
 }
 
 export type Message = {

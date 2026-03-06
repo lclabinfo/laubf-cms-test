@@ -62,16 +62,50 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, bibleVer
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
 
-      // Add imported file to attachment list
+      // Add imported file to attachment list (upload to R2 first)
       if (onAttachmentAdd && !file.name.endsWith(".txt")) {
         const ext = file.name.split(".").pop()?.toLowerCase() || ""
         const type = ext === "docx" ? "DOCX" : ext === "doc" ? "DOC" : "OTHER"
-        onAttachmentAdd({
-          id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-          name: file.name,
-          size: formatBytes(file.size),
-          type,
-        })
+        try {
+          const res = await fetch("/api/v1/upload-url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              filename: file.name,
+              contentType: file.type || "application/octet-stream",
+              fileSize: file.size,
+              context: "bible-study",
+            }),
+          })
+          if (!res.ok) throw new Error(`Failed to get upload URL: ${res.status}`)
+          const { uploadUrl, key, publicUrl } = await res.json()
+
+          const putRes = await fetch(uploadUrl, {
+            method: "PUT",
+            body: file,
+            headers: { "Content-Type": file.type || "application/octet-stream" },
+          })
+          if (!putRes.ok) throw new Error(`R2 upload failed: ${putRes.status}`)
+
+          onAttachmentAdd({
+            id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            name: file.name,
+            size: formatBytes(file.size),
+            type,
+            url: publicUrl,
+            r2Key: key,
+            fileSize: file.size,
+          })
+        } catch (err) {
+          console.error(`Failed to upload ${file.name} to R2:`, err)
+          // Still add attachment without URL as fallback
+          onAttachmentAdd({
+            id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            name: file.name,
+            size: formatBytes(file.size),
+            type,
+          })
+        }
       }
 
       if (file.name.endsWith(".txt")) {

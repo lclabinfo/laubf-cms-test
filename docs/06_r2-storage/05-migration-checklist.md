@@ -1,5 +1,20 @@
 # R2 Migration Checklist — Bible Study Attachments
 
+## Migration Results
+
+| Field | Value |
+|---|---|
+| **Date** | March 5, 2026 |
+| **Files migrated** | 2,727 / 2,731 |
+| **Failures** | 0 |
+| **Missing source files** | 4 (files never existed on disk) |
+| **Total data** | 188.7 MB |
+| **R2 bucket** | file-attachments |
+| **Key prefix** | la-ubf/ |
+| **Public URL** | https://pub-59a92027daa648c8a02f226cb5873645.r2.dev |
+
+---
+
 End-to-end task list for migrating Bible study attachment files from local `legacy-files/` directories to Cloudflare R2, integrating R2 uploads into the CMS, and cleaning up legacy artifacts.
 
 **Scope:** 2,731 `BibleStudyAttachment` records currently pointing to `/legacy-files/{slug}/{filename}` paths. 193 MB in `public/legacy-files/`, 246 MB in `legacy-files/` (original source). Target: all files served from R2 via CDN URL.
@@ -29,7 +44,7 @@ End-to-end task list for migrating Bible study attachment files from local `lega
 
 ### 1.2 Presigned URL API Endpoint
 
-- [ ] **Create upload URL endpoint**
+- [x] **Create upload URL endpoint**
   - File: `app/api/v1/upload-url/route.ts` (NEW)
   - What: `POST /api/v1/upload-url` accepting `{ filename, contentType, fileSize, context }`. Returns `{ uploadUrl, key, publicUrl }`. Must:
     - Authenticate the request
@@ -41,7 +56,7 @@ End-to-end task list for migrating Bible study attachment files from local `lega
 
 ### 1.3 Next.js Image Config
 
-- [ ] **Add R2 domain to remote patterns**
+- [x] **Add R2 domain to remote patterns**
   - File: `next.config.ts`
   - What: Add `{ protocol: "https", hostname: "pub-59a92027daa648c8a02f226cb5873645.r2.dev" }` to `images.remotePatterns` so `<Image>` can load R2-hosted files (needed for image-type attachments)
 
@@ -51,7 +66,7 @@ End-to-end task list for migrating Bible study attachment files from local `lega
 
 ### 2.1 Migration Script
 
-- [ ] **Create migration script**
+- [x] **Create migration script**
   - File: `scripts/migrate-attachments-to-r2.mts` (NEW)
   - What: Script that:
     1. Reads all `BibleStudyAttachment` records where `url` starts with `/legacy-files/`
@@ -65,30 +80,33 @@ End-to-end task list for migrating Bible study attachment files from local `lega
 
 ### 2.2 Run Migration
 
-- [ ] **Execute migration (dry run)**
+- [x] **Execute migration (dry run)**
   - Command: `npx tsx scripts/migrate-attachments-to-r2.mts --dry-run`
   - What: Verify all 2,731 attachment files can be found locally and would upload successfully
 
-- [ ] **Execute migration (live)**
+- [x] **Execute migration (live)**
   - Command: `npx tsx scripts/migrate-attachments-to-r2.mts`
   - What: Upload all files to R2 and update DB URLs
+  - Results: 2,727 files uploaded (188.7 MB), 0 failures, 4 missing source files (never existed on disk)
 
 ### 2.3 Verify Migration
 
-- [ ] **Verify upload counts**
+- [x] **Verify upload counts**
   - What: Confirm R2 bucket object count matches expected (2,731 or close — some files may be missing)
   - Method: Use `listObjects()` from `lib/storage/r2.ts` or Cloudflare dashboard
+  - Result: 2,727 objects in bucket (4 source files were missing on disk)
 
-- [ ] **Verify DB URLs updated**
+- [x] **Verify DB URLs updated**
   - What: Query `SELECT count(*) FROM "BibleStudyAttachment" WHERE url LIKE '/legacy-files/%'` — should return 0
   - What: Query `SELECT count(*) FROM "BibleStudyAttachment" WHERE url LIKE 'https://%'` — should match total count
+  - Result: All 2,731 records updated (4 missing files still got R2 URL pattern in DB)
 
-- [ ] **Spot-check file accessibility**
+- [x] **Spot-check file accessibility**
   - What: Open 5-10 random R2 URLs in browser to confirm files download correctly and content matches originals
 
 ---
 
-## Phase 3: CMS Integration (Upload, Delete, Save Flows)
+## Phase 3: CMS Integration (Upload, Delete, Save Flows) — IN PROGRESS
 
 ### 3.1 Attachment Type Update
 
@@ -146,13 +164,10 @@ End-to-end task list for migrating Bible study attachment files from local `lega
 
 ## Phase 4: Seed Update (R2 URLs Instead of Legacy Paths)
 
-- [ ] **Update seed to generate R2 URLs**
+- [x] **Update seed to generate R2 URLs**
   - File: `/prisma/seed.mts` (lines 500-534)
-  - What: Currently generates URLs like `/legacy-files/${bs.slug}/${filename}`. After migration, change to generate R2 CDN URLs: `${R2_PUBLIC_URL}/${churchId}/{year}/${filename}` matching the key structure used by the migration script.
-  - Note: The seed must work in environments without R2 access (e.g., CI). Options:
-    - Use `process.env.R2_PUBLIC_URL` with fallback to `/legacy-files/...` path
-    - Or always generate the CDN URL pattern (files may 404 in dev if not uploaded, but DB is consistent)
-  - Decision: Document chosen approach here when implemented.
+  - What: Updated to generate R2 CDN URLs: `${R2_PUBLIC_URL}/${churchId}/{year}/${filename}` matching the key structure used by the migration script.
+  - Decision: Always generates R2 CDN URL pattern (files may 404 in dev if not uploaded, but DB is consistent with production).
 
 - [ ] **Update estimated file sizes in seed**
   - File: `/prisma/seed.mts` (line 520)
@@ -160,7 +175,7 @@ End-to-end task list for migrating Bible study attachment files from local `lega
 
 ---
 
-## Phase 5: Cleanup (Remove Legacy Files + Schema Artifacts)
+## Phase 5: Cleanup (Remove Legacy Files + Schema Artifacts) — IN PROGRESS
 
 ### 5.1 Remove Legacy File Directories
 
@@ -266,13 +281,13 @@ End-to-end task list for migrating Bible study attachment files from local `lega
 
 | Phase | Tasks | Status |
 |---|---|---|
-| 1. Infrastructure | 4 done, 2 pending | Partial |
-| 2. Migration | 0 done, 5 pending | Not started |
-| 3. CMS Integration | 0 done, 6 pending | Not started |
-| 4. Seed Update | 0 done, 2 pending | Not started |
-| 5. Cleanup | 0 done, 6 pending | Not started |
+| 1. Infrastructure | 6 done, 0 pending | **Done** |
+| 2. Migration | 5 done, 0 pending | **Done** |
+| 3. CMS Integration | 0 done, 6 pending | **In progress** |
+| 4. Seed Update | 1 done, 1 pending | Partial |
+| 5. Cleanup | 0 done, 6 pending | **In progress** |
 | 6. Verification | 0 done, 9 pending | Not started |
-| **Total** | **4 done, 30 pending** | |
+| **Total** | **12 done, 22 pending** | |
 
 ---
 
