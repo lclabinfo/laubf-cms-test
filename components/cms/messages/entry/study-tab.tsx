@@ -88,7 +88,7 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, bibleVer
           if (!putRes.ok) throw new Error(`R2 upload failed: ${putRes.status}`)
 
           onAttachmentAdd({
-            id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            id: crypto.randomUUID(),
             name: file.name,
             size: formatBytes(file.size),
             type,
@@ -100,7 +100,7 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, bibleVer
           console.error(`Failed to upload ${file.name} to R2:`, err)
           // Still add attachment without URL as fallback
           onAttachmentAdd({
-            id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            id: crypto.randomUUID(),
             name: file.name,
             size: formatBytes(file.size),
             type,

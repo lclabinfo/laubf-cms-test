@@ -359,7 +359,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     const files = e.target.files
     if (!files) return
     const newAttachments: Attachment[] = Array.from(files).map((file) => ({
-      id: `att-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: crypto.randomUUID(),
       name: file.name,
       size: formatFileSize(file.size),
       type: file.type,
