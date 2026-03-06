@@ -104,7 +104,8 @@ export function MetadataSidebar({
           }),
         })
         if (!res.ok) throw new Error(`Failed to get upload URL: ${res.status}`)
-        const { uploadUrl, key, publicUrl } = await res.json()
+        const { data } = await res.json()
+        const { uploadUrl, key, publicUrl } = data
 
         // 2. Upload file directly to R2
         const putRes = await fetch(uploadUrl, {

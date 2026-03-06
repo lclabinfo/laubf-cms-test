@@ -15,6 +15,7 @@ import {
   ArrowRight,
   Paperclip,
   ExternalLink,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -118,7 +119,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false)
   const [validationOpen, setValidationOpen] = useState(false)
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([])
-
+  const [uploading, setUploading] = useState(false)
 
   // Attachment file input
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -355,16 +356,51 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     fileInputRef.current?.click()
   }
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files
-    if (!files) return
-    const newAttachments: Attachment[] = Array.from(files).map((file) => ({
-      id: crypto.randomUUID(),
-      name: file.name,
-      size: formatFileSize(file.size),
-      type: file.type,
-    }))
-    setAttachments([...attachments, ...newAttachments])
+    if (!files || files.length === 0) return
+    setUploading(true)
+    const newAttachments: Attachment[] = []
+    for (const file of Array.from(files)) {
+      try {
+        const res = await fetch("/api/v1/upload-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            filename: file.name,
+            contentType: file.type,
+            fileSize: file.size,
+            context: "bible-study",
+          }),
+        })
+        if (!res.ok) throw new Error(`Failed to get upload URL: ${res.status}`)
+        const { data } = await res.json()
+        const { uploadUrl, key, publicUrl } = data
+
+        const putRes = await fetch(uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: { "Content-Type": file.type },
+        })
+        if (!putRes.ok) throw new Error(`R2 upload failed: ${putRes.status}`)
+
+        newAttachments.push({
+          id: crypto.randomUUID(),
+          name: file.name,
+          size: formatFileSize(file.size),
+          type: file.type,
+          url: publicUrl,
+          r2Key: key,
+          fileSize: file.size,
+        })
+      } catch (err) {
+        console.error(`Failed to upload ${file.name}:`, err)
+      }
+    }
+    if (newAttachments.length > 0) {
+      setAttachments([...attachments, ...newAttachments])
+    }
+    setUploading(false)
     if (fileInputRef.current) fileInputRef.current.value = ""
   }
 
@@ -779,9 +815,9 @@ export function EntryForm({ mode, message }: EntryFormProps) {
             <div className="flex flex-col items-center py-4 text-center">
               <Paperclip className="size-8 text-muted-foreground/40 mb-2" />
               <p className="text-sm text-muted-foreground">No attachments yet.</p>
-              <Button variant="outline" size="sm" className="mt-3" onClick={handleUploadAttachment}>
-                <Upload className="size-3.5" />
-                Upload Files
+              <Button variant="outline" size="sm" className="mt-3" onClick={handleUploadAttachment} disabled={uploading}>
+                {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+                {uploading ? "Uploading…" : "Upload Files"}
               </Button>
             </div>
           ) : (
@@ -814,9 +850,9 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                   </div>
                 ))}
               </div>
-              <Button variant="outline" size="sm" onClick={handleUploadAttachment}>
-                <Upload className="size-3.5" />
-                Upload Files
+              <Button variant="outline" size="sm" onClick={handleUploadAttachment} disabled={uploading}>
+                {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+                {uploading ? "Uploading…" : "Upload Files"}
               </Button>
             </>
           )}

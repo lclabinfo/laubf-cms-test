@@ -78,7 +78,8 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, bibleVer
             }),
           })
           if (!res.ok) throw new Error(`Failed to get upload URL: ${res.status}`)
-          const { uploadUrl, key, publicUrl } = await res.json()
+          const json = await res.json()
+          const { uploadUrl, key, publicUrl } = json.data
 
           const putRes = await fetch(uploadUrl, {
             method: "PUT",
