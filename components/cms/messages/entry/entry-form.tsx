@@ -16,6 +16,9 @@ import {
   Paperclip,
   ExternalLink,
   Loader2,
+  Download,
+  Eye,
+  Trash2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -34,6 +37,12 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { VideoTab } from "./video-tab"
 import { StudyTab } from "./study-tab"
 import { SpeakerSelect } from "./speaker-select"
@@ -120,6 +129,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const [validationOpen, setValidationOpen] = useState(false)
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([])
   const [uploading, setUploading] = useState(false)
+  const [deleteAttachmentId, setDeleteAttachmentId] = useState<string | null>(null)
+  const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null)
 
   // Attachment file input
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -834,18 +845,25 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                       <p className="text-xs text-muted-foreground">{att.size || att.type || ""}</p>
                     </div>
                     {att.url && (
+                      <Button variant="ghost" size="icon-sm" onClick={() => setPreviewAttachment(att)} title="Preview">
+                        <Eye className="size-3.5" />
+                      </Button>
+                    )}
+                    {att.url && (
                       <Button variant="ghost" size="icon-sm" asChild>
-                        <a href={att.url} target="_blank" rel="noopener noreferrer" title="Open file">
-                          <ExternalLink className="size-3.5" />
+                        <a href={att.url} download={att.name} title="Download">
+                          <Download className="size-3.5" />
                         </a>
                       </Button>
                     )}
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      onClick={() => handleRemoveAttachment(att.id)}
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={() => setDeleteAttachmentId(att.id)}
+                      title="Remove"
                     >
-                      <X className="size-3.5" />
+                      <Trash2 className="size-3.5" />
                     </Button>
                   </div>
                 ))}
@@ -993,6 +1011,73 @@ export function EntryForm({ mode, message }: EntryFormProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Delete attachment confirmation */}
+      <AlertDialog open={!!deleteAttachmentId} onOpenChange={(open) => !open && setDeleteAttachmentId(null)}>
+        <AlertDialogContent className="sm:max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10">
+              <Trash2 className="text-destructive" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Remove attachment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove <span className="font-medium">{attachments.find(a => a.id === deleteAttachmentId)?.name}</span> from this message. The file will be deleted when you save.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (deleteAttachmentId) handleRemoveAttachment(deleteAttachmentId)
+                setDeleteAttachmentId(null)
+              }}
+            >
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Attachment preview modal */}
+      <Dialog open={!!previewAttachment} onOpenChange={(open) => !open && setPreviewAttachment(null)}>
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="truncate">{previewAttachment?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 overflow-auto">
+            {previewAttachment?.url && previewAttachment.name.toLowerCase().endsWith(".pdf") ? (
+              <iframe
+                src={previewAttachment.url}
+                className="w-full h-[70vh] rounded-md border"
+                title={previewAttachment.name}
+              />
+            ) : previewAttachment?.url && /\.(jpe?g|png|gif|webp)$/i.test(previewAttachment.name) ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={previewAttachment.url}
+                alt={previewAttachment.name}
+                className="max-w-full max-h-[70vh] mx-auto rounded-md"
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <FileText className="size-12 text-muted-foreground/40 mb-3" />
+                <p className="text-sm text-muted-foreground mb-4">
+                  Preview not available for this file type.
+                </p>
+                {previewAttachment?.url && (
+                  <Button variant="outline" size="sm" asChild>
+                    <a href={previewAttachment.url} download={previewAttachment.name}>
+                      <Download className="size-3.5" />
+                      Download to view
+                    </a>
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
