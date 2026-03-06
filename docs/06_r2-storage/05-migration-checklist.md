@@ -31,8 +31,8 @@ End-to-end task list for migrating Bible study attachment files from local `lega
 
 - [x] **Create R2 storage client**
   - File: `/lib/storage/r2.ts`
-  - What: S3-compatible client singleton with helpers — `getUploadUrl()`, `deleteObject()`, `getPublicUrl()`, `uploadFile()`, `listObjects()`
-  - Note: Currently uses `R2_PUBLIC_URL` env var (single URL). The env setup doc (`01-r2-env-setup.md`) specifies separate `R2_ATTACHMENTS_PUBLIC_URL` and `R2_MEDIA_PUBLIC_URL`. Reconcile when adding media bucket support.
+  - What: S3-compatible client singleton with helpers — `getUploadUrl()`, `deleteObject()`, `moveObject()`, `getPublicUrl()`, `isStagingKey()`, `keyFromUrl()`, `uploadFile()`, `listObjects()`
+  - Uses `R2_ATTACHMENTS_PUBLIC_URL` env var (resolved with fallback to `R2_PUBLIC_URL`). Media bucket support will add `R2_MEDIA_PUBLIC_URL` when implemented.
 
 - [x] **Add R2 env vars to `.env.example`**
   - File: `.env.example`

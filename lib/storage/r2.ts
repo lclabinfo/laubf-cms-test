@@ -2,6 +2,7 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  CopyObjectCommand,
   ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -70,6 +71,47 @@ export async function deleteObject(
  */
 export function getPublicUrl(key: string): string {
   return `${PUBLIC_URL}/${key}`;
+}
+
+/**
+ * Move (copy + delete) an object within a bucket.
+ * Used to promote files from staging/ to their permanent key.
+ */
+export async function moveObject(
+  srcKey: string,
+  destKey: string,
+  bucket = ATTACHMENTS_BUCKET,
+): Promise<void> {
+  await client.send(
+    new CopyObjectCommand({
+      Bucket: bucket,
+      CopySource: `${bucket}/${srcKey}`,
+      Key: destKey,
+    }),
+  );
+  await client.send(
+    new DeleteObjectCommand({
+      Bucket: bucket,
+      Key: srcKey,
+    }),
+  );
+}
+
+/**
+ * Check if an R2 key is in the staging prefix.
+ */
+export function isStagingKey(key: string): boolean {
+  // Key format: {churchSlug}/staging/{uuid}-{filename}
+  return /^[^/]+\/staging\//.test(key);
+}
+
+/**
+ * Derive the R2 object key from a full public URL.
+ * Returns null if the URL doesn't match the public URL prefix.
+ */
+export function keyFromUrl(url: string): string | null {
+  if (!PUBLIC_URL || !url.startsWith(PUBLIC_URL)) return null;
+  return url.slice(PUBLIC_URL.length + 1); // +1 for trailing "/"
 }
 
 /**

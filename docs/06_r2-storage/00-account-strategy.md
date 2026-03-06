@@ -146,4 +146,5 @@ When consolidating from per-church accounts to lclab.io:
 - R2 buckets: `file-attachments` and `file-media` created
 - DNS: `laubf.org` managed by Cloudflare, proxied to Azure VM
 - App hosting: Azure VM (unchanged — no migration needed)
-- R2 integration in app code: **not yet implemented** (see 03/04 plans)
+- R2 integration: **bible study attachments fully implemented** (storage client, presigned upload, staging→permanent move, deletion)
+- Media library: **not yet implemented** (schema exists, UI placeholder, no R2 integration — see `04-media-library-plan.md`)

@@ -102,23 +102,28 @@ See `docs/06_r2-storage/01-r2-env-setup.md` for env vars and rationale.
 
 ## Multi-Tenant Key Structure
 
-Both buckets use the same key pattern — `churchId` prefix for tenant isolation.
+Both buckets use the same key pattern — `churchSlug` prefix for tenant isolation (e.g. `la-ubf/`).
 
-**Phase 1 (account-per-church):** The `churchId` prefix is technically redundant since each church has its own buckets, but we include it from day one so that keys don't need to change during Phase 2 migration.
+**Phase 1 (account-per-church):** The `churchSlug` prefix is technically redundant since each church has its own buckets, but we include it from day one so that keys don't need to change during Phase 2 migration.
 
-**Phase 2 (shared buckets):** The `churchId` prefix becomes essential for isolation.
+**Phase 2 (shared buckets):** The `churchSlug` prefix becomes essential for isolation.
 
 **`file-attachments` bucket:**
 ```
-{churchId}/
-  {year}/
-    {uuid}-{sanitized-filename}.pdf
+{churchSlug}/
+  staging/                              ← temporary uploads (lifecycle: auto-delete after 24h)
     {uuid}-{sanitized-filename}.docx
+  {year}/
+    {entry-slug}/                       ← permanent location (moved from staging on save)
+      {uuid}-{sanitized-filename}.pdf
+      {uuid}-{sanitized-filename}.docx
 ```
 
 **`file-media` bucket:**
 ```
-{churchId}/
+{churchSlug}/
+  staging/
+    {uuid}-{sanitized-filename}.jpg
   images/
     {year}/
       {uuid}-{sanitized-filename}.jpg
@@ -127,24 +132,32 @@ Both buckets use the same key pattern — `churchId` prefix for tenant isolation
       {uuid}-{sanitized-filename}.mp3
 ```
 
-- `churchId` prefix provides tenant isolation
+- `churchSlug` prefix provides tenant isolation (uses slug, not UUID, for readability)
+- `staging/` prefix for uploads that haven't been saved yet — lifecycle rule auto-cleans orphans after 24h
+- On save, files are moved from `staging/` to `{year}/{entry-slug}/` (permanent key)
 - `year` sub-prefix keeps listings fast and enables lifecycle rules
+- `entry-slug` sub-prefix groups all files for one entry together (human-readable in R2 dashboard)
 - `uuid` prefix prevents filename collisions
 - Original filename preserved (sanitized) for human readability
+- Permanent URLs are stored in the DB — slug changes don't require file moves
 
 ## Lifecycle Rules
 
-Configure per-bucket in Cloudflare dashboard:
+Configure per-bucket in Cloudflare dashboard. The staging prefix includes the church slug (e.g. `la-ubf/staging/`).
 
 **`file-attachments` bucket:**
 
 | Prefix | Rule | Purpose |
 |---|---|---|
-| `staging/` | Delete after 24 hours | Orphan upload cleanup |
+| `*/staging/` (or per-church: `la-ubf/staging/`) | Delete after 24 hours | Orphan upload cleanup |
 | (all) | Transition to IA after 90 days | Cost optimization for old study materials |
 
 **`file-media` bucket:**
 
 | Prefix | Rule | Purpose |
 |---|---|---|
-| `staging/` | Delete after 24 hours | Orphan upload cleanup |
+| `*/staging/` (or per-church: `la-ubf/staging/`) | Delete after 24 hours | Orphan upload cleanup |
+
+**Note:** R2 lifecycle rules use prefix matching. For Phase 1 (single church), use the specific church prefix. For Phase 2 (multi-tenant), use a wildcard or add per-church rules.
+
+**Status:** Lifecycle rules are NOT yet configured in Cloudflare — staging files currently persist indefinitely. This is safe because the move-on-save logic promotes files to permanent keys, so only orphaned uploads (user cancels before saving) accumulate in staging. Configure the rule when cleanup becomes needed.

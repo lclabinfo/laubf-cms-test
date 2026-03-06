@@ -3,7 +3,7 @@ import { ContentStatus, type AttachmentType, type BibleBook } from '@/lib/genera
 // ContentStatus still used for BibleStudy model (which retains its own status column)
 import { tiptapJsonToHtml } from '@/lib/tiptap'
 import { fetchBibleText } from '@/lib/bible-api'
-import { deleteObject, PUBLIC_URL } from '@/lib/storage/r2'
+import { deleteObject, moveObject, isStagingKey, keyFromUrl, getPublicUrl, PUBLIC_URL } from '@/lib/storage/r2'
 
 /**
  * Maps passage strings like "John 3:16", "1 Corinthians 13:1-8", "Genesis 12"
@@ -247,7 +247,12 @@ export async function syncMessageStudy(params: SyncParams): Promise<string> {
 
   // Sync attachments to BibleStudyAttachment table if provided
   if (attachments !== undefined) {
-    await syncStudyAttachments(studyId, attachments || [])
+    const churchSlug = process.env.CHURCH_SLUG || 'la-ubf'
+    await syncStudyAttachments(studyId, attachments || [], {
+      churchSlug,
+      studySlug: studySlug,
+      year: dateForValue.getFullYear().toString(),
+    })
   }
 
   return studyId
@@ -271,12 +276,52 @@ function resolveAttachmentType(typeStr?: string, name?: string): AttachmentType 
   return 'OTHER'
 }
 
+interface SyncAttachmentContext {
+  churchSlug: string
+  studySlug: string
+  year: string
+}
+
+/**
+ * Move a file from staging/ to its permanent key.
+ * Returns the new public URL, or the original URL if no move was needed.
+ *
+ * Permanent key: {churchSlug}/{year}/{studySlug}/{uuid}-{filename}
+ * Staging key:   {churchSlug}/staging/{uuid}-{filename}
+ */
+async function promoteFromStaging(
+  url: string,
+  ctx: SyncAttachmentContext,
+): Promise<string> {
+  const srcKey = keyFromUrl(url)
+  if (!srcKey || !isStagingKey(srcKey)) return url
+
+  // Extract the {uuid}-{filename} portion after "staging/"
+  const uuidFilename = srcKey.replace(/^[^/]+\/staging\//, '')
+  const destKey = `${ctx.churchSlug}/${ctx.year}/${ctx.studySlug}/${uuidFilename}`
+
+  try {
+    await moveObject(srcKey, destKey)
+    return getPublicUrl(destKey)
+  } catch (err) {
+    console.error(`[syncStudyAttachments] Failed to move "${srcKey}" → "${destKey}":`, err)
+    return url // keep staging URL as fallback
+  }
+}
+
 /**
  * Sync attachments: replace all BibleStudyAttachment records for a study
  * with the provided list. Uses upsert-by-id for existing records and
  * deletes any that are no longer in the list.
+ *
+ * New uploads arrive with staging/ URLs — these are moved to permanent
+ * keys ({churchSlug}/{year}/{studySlug}/{uuid}-{filename}) before saving.
  */
-async function syncStudyAttachments(studyId: string, attachments: SyncAttachment[]) {
+async function syncStudyAttachments(
+  studyId: string,
+  attachments: SyncAttachment[],
+  ctx: SyncAttachmentContext,
+) {
   // Get existing attachment IDs
   const existing = await prisma.bibleStudyAttachment.findMany({
     where: { bibleStudyId: studyId },
@@ -296,8 +341,8 @@ async function syncStudyAttachments(studyId: string, attachments: SyncAttachment
 
     // Delete files from R2 (best-effort — don't block DB deletion on failure)
     for (const att of attachmentsToDelete) {
-      if (att.url && att.url.startsWith(PUBLIC_URL)) {
-        const key = att.url.slice(PUBLIC_URL.length + 1) // +1 for the trailing "/"
+      const key = keyFromUrl(att.url)
+      if (key) {
         try {
           await deleteObject(key)
         } catch (err) {
@@ -311,15 +356,16 @@ async function syncStudyAttachments(studyId: string, attachments: SyncAttachment
     })
   }
 
-  // Upsert each attachment
+  // Upsert each attachment — promote staging files to permanent keys
   for (let i = 0; i < attachments.length; i++) {
     const att = attachments[i]
     const attType = resolveAttachmentType(att.type, att.name)
+    const url = att.url ? await promoteFromStaging(att.url, ctx) : ''
     await prisma.bibleStudyAttachment.upsert({
       where: { id: att.id },
       update: {
         name: att.name,
-        url: att.url || '',
+        url,
         type: attType,
         fileSize: att.fileSize ?? undefined,
         sortOrder: i,
@@ -328,7 +374,7 @@ async function syncStudyAttachments(studyId: string, attachments: SyncAttachment
         id: att.id,
         bibleStudyId: studyId,
         name: att.name,
-        url: att.url || '',
+        url,
         type: attType,
         fileSize: att.fileSize ?? undefined,
         sortOrder: i,

@@ -1,19 +1,14 @@
-# Bible Study Attachments — R2 Migration Plan
+# Bible Study Attachments — R2 Integration
 
-## Current State
+## Current State (March 2026) — IMPLEMENTED
 
-- `BibleStudyAttachment` model exists in Prisma schema with `url`, `name`, `type`, `fileSize`, `sortOrder`
-- DAL (`lib/dal/bible-studies.ts`) includes attachments in queries
-- API routes support CRUD on bible studies
-- **No actual file upload** — attachment URLs point to legacy source or are not yet populated
-- CMS metadata sidebar has file picker UI but files only live in memory (lost on navigation)
-
-## Target State
-
-- Files uploaded to the **`file-attachments`** R2 bucket via presigned URLs
-- `BibleStudyAttachment.url` stores the CDN URL (e.g., `https://{R2_ATTACHMENTS_PUBLIC_URL}/{churchId}/2026/{uuid}-handout.pdf`)
-- Upload, replace, and delete operations all keep R2 and DB in sync
-- Orphan files auto-cleaned via staging prefix + lifecycle rule
+- `BibleStudyAttachment` model in schema: `url`, `name`, `type` (enum), `fileSize`, `sortOrder`
+- 2,731 attachments migrated to R2, 188.7 MB total (see `05-migration-checklist.md`)
+- Full upload flow: presigned URL → staging → move-on-save → permanent key
+- Full delete flow: derive R2 key from URL → delete R2 object → delete DB record
+- CMS upload from 3 entry points: metadata sidebar, study tab DOCX import, entry form upload button
+- `BibleStudyAttachment.url` stores the full CDN URL (e.g., `https://pub-XXX.r2.dev/la-ubf/2026/study-slug/{uuid}-handout.pdf`)
+- Orphan uploads auto-cleaned via staging prefix + lifecycle rule (when configured)
 
 ---
 
@@ -33,85 +28,88 @@
 Create a thin wrapper around the S3 client:
 
 ```ts
-// lib/storage/r2.ts
-export async function getUploadUrl(bucket: string, key: string, contentType: string, maxSize: number): Promise<string>
-export async function deleteObject(bucket: string, key: string): Promise<void>
-export async function moveObject(bucket: string, srcKey: string, destKey: string): Promise<void>
-export function getPublicUrl(bucket: "attachments" | "media", key: string): string
+// lib/storage/r2.ts — IMPLEMENTED
+export async function getUploadUrl(key: string, contentType: string, expiresIn?: number): Promise<string>
+export async function deleteObject(key: string, bucket?: string): Promise<void>
+export async function moveObject(srcKey: string, destKey: string, bucket?: string): Promise<void>
+export function getPublicUrl(key: string): string
+export function isStagingKey(key: string): boolean
+export function keyFromUrl(url: string): string | null
 ```
 
-- `getUploadUrl` — generates presigned PUT URL (5-minute expiry) for the specified bucket
-- `deleteObject` — removes file from the specified bucket
-- `moveObject` — copies from staging to permanent key within the same bucket, then deletes staging
-- `getPublicUrl` — returns `${R2_ATTACHMENTS_PUBLIC_URL}/${key}` or `${R2_MEDIA_PUBLIC_URL}/${key}`
+- `getUploadUrl` — generates presigned PUT URL (1-hour expiry) for direct browser uploads
+- `deleteObject` — removes file from R2
+- `moveObject` — copies from staging to permanent key, then deletes staging original
+- `getPublicUrl` — returns `${R2_ATTACHMENTS_PUBLIC_URL}/${key}`
+- `isStagingKey` — checks if a key is in the staging/ prefix
+- `keyFromUrl` — derives R2 key from a full public URL
 
-All functions accept a `bucket` param — the shared S3 client handles both buckets.
+Default bucket is `ATTACHMENTS_BUCKET`. Bucket param available for future `file-media` bucket.
 
-### Phase 3: Upload API Route (`app/api/v1/upload-url/route.ts`)
+### Phase 3: Upload API Route (`app/api/v1/upload-url/route.ts`) — IMPLEMENTED
 
 ```
 POST /api/v1/upload-url
 Body: { filename, contentType, fileSize, context: "bible-study" | "media" }
-Response: { uploadUrl, key, publicUrl }
+Response: { success, data: { uploadUrl, key, publicUrl } }
 ```
 
 Server-side logic:
-1. Authenticate user
+1. Resolve church context via `getChurchId()`
 2. Validate file type (PDF, DOCX, DOC, RTF, IMAGE for bible study)
 3. Validate file size (max 50 MB per file)
-4. Check church storage quota (sum of existing files < 10 GB)
-5. Generate staging key: `staging/{churchId}/{uuid}-{filename}` in the `file-attachments` bucket
-6. Return presigned PUT URL + final public URL
+4. Generate staging key: `{churchSlug}/staging/{uuid}-{sanitized-filename}`
+5. Return presigned PUT URL + staging public URL
 
-### Phase 4: Client Upload Flow
+### Phase 4: Client Upload + Server Move-on-Save — IMPLEMENTED
 
 **Upload sequence:**
 
-1. User clicks "Upload" in the study editor sidebar
-2. File picker opens, user selects file(s)
-3. For each file:
-   a. Call `POST /api/v1/upload-url` to get presigned URL
-   b. `PUT` file directly to R2 via presigned URL (with progress tracking)
-   c. Add attachment to local state with the returned `publicUrl`
-4. User continues editing (files are in `staging/` prefix on R2)
-5. On **Save**:
-   a. API receives attachment list with keys
-   b. Server moves each file from `staging/` to permanent key
-   c. Creates/updates `BibleStudyAttachment` records in DB
-6. On **Cancel/Navigate away**:
+1. User uploads file (via sidebar, import, or drag-drop)
+2. Client calls `POST /api/v1/upload-url` → gets presigned URL
+3. Client `PUT`s file directly to R2 staging via presigned URL
+4. Attachment added to local state with staging `publicUrl`
+5. User continues editing (files sit in `staging/` prefix on R2)
+6. On **Save**:
+   a. API receives attachment list (with staging URLs)
+   b. `syncStudyAttachments()` detects staging URLs via `isStagingKey()`
+   c. Moves each staging file to permanent key: `{churchSlug}/{year}/{studySlug}/{uuid}-{filename}`
+   d. Saves permanent URL to `BibleStudyAttachment.url`
+7. On **Cancel/Navigate away**:
    a. Staged files remain in `staging/` prefix
    b. R2 lifecycle rule auto-deletes after 24 hours — no cleanup code needed
 
 **Delete sequence:**
 
-1. User clicks remove on an existing attachment
+1. User removes an attachment in the editor
 2. Attachment removed from local state
 3. On **Save**:
-   a. API compares submitted attachments vs DB records
-   b. For removed attachments: delete from R2 + delete DB record
-   c. For new attachments: move from staging + create DB record
+   a. `syncStudyAttachments()` compares incoming vs DB records
+   b. For removed attachments: derives R2 key from stored URL → deletes from R2 → deletes DB record
+   c. For new attachments: moves from staging → creates DB record with permanent URL
 
-### Phase 5: Wire Up CMS UI
+### Phase 5: Wire Up CMS UI — IMPLEMENTED
 
-**Files to modify:**
+All three CMS upload entry points are wired to R2:
 
-| File | Change |
+| File | What was done |
 |---|---|
-| `components/cms/messages/entry/metadata-sidebar.tsx` | Replace in-memory file handling with presigned URL upload |
-| `components/cms/messages/entry/entry-form.tsx` | Pass R2 keys in save payload; handle attachment diffing |
-| `app/api/v1/messages/[id]/route.ts` | Accept attachment keys, move from staging, sync DB |
-| `lib/dal/bible-studies.ts` | Add `syncAttachments(studyId, attachments)` function |
+| `components/cms/messages/entry/metadata-sidebar.tsx` | Presigned URL upload on file select, `r2Key` tracked on attachment |
+| `components/cms/messages/entry/entry-form.tsx` | Upload button calls `POST /api/v1/upload-url`, attachments include `url` in save payload |
+| `components/cms/messages/entry/study-tab.tsx` | DOCX import uploads file to R2 before adding to attachment list |
+| `lib/dal/sync-message-study.ts` | `syncStudyAttachments()` moves staging → permanent, deletes R2 on removal |
+| `app/api/v1/messages/[slug]/route.ts` | PATCH handler passes attachments through to `syncMessageStudy()` |
 
-### Phase 6: Quota Enforcement
+### Phase 6: Quota Enforcement — NOT IMPLEMENTED
 
-Add a DAL function:
+Planned DAL function (not yet built):
 
 ```ts
 // lib/dal/storage.ts
 export async function getChurchStorageUsage(churchId: string): Promise<number>
 ```
 
-Query: `SUM(fileSize)` across `BibleStudyAttachment` + `MediaAsset` where `churchId` matches. Return bytes. Compare against 10 GB limit before allowing uploads.
+Query: `SUM(fileSize)` across `BibleStudyAttachment` + `MediaAsset` where `churchId` matches. Return bytes. Compare against 10 GB limit before allowing uploads. Enforce at `POST /api/v1/upload-url`.
 
 ---
 

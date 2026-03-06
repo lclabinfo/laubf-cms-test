@@ -44,15 +44,16 @@ https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com
 npm install @aws-sdk/client-s3 @aws-sdk/s3-request-presigner
 ```
 
-## S3Client Configuration
+## S3Client Configuration — Implemented
 
-One shared client — the bucket is specified per-operation, not per-client:
+One shared S3-compatible client in `lib/storage/r2.ts`:
 
 ```ts
-// lib/storage/r2.ts
-import { S3Client } from "@aws-sdk/client-s3"
+// lib/storage/r2.ts (actual implementation)
+import { S3Client, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3"
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 
-export const r2 = new S3Client({
+const client = new S3Client({
   region: "auto",
   endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
   credentials: {
@@ -61,26 +62,31 @@ export const r2 = new S3Client({
   },
 })
 
-// Bucket names resolved from env
 export const ATTACHMENTS_BUCKET = process.env.R2_ATTACHMENTS_BUCKET_NAME!
-export const MEDIA_BUCKET = process.env.R2_MEDIA_BUCKET_NAME!
-
-// Public URLs for constructing CDN links
-export const ATTACHMENTS_URL = process.env.R2_ATTACHMENTS_PUBLIC_URL!
-export const MEDIA_URL = process.env.R2_MEDIA_PUBLIC_URL!
+export const PUBLIC_URL = process.env.R2_ATTACHMENTS_PUBLIC_URL!
 ```
 
-Usage example — bucket is passed to each command:
+**Exported helpers:**
+
+| Function | Purpose |
+|---|---|
+| `getUploadUrl(key, contentType)` | Presigned PUT URL for browser uploads (1h expiry) |
+| `deleteObject(key)` | Delete an R2 object |
+| `moveObject(srcKey, destKey)` | Copy + delete (staging → permanent) |
+| `getPublicUrl(key)` | Full CDN URL from key |
+| `isStagingKey(key)` | Check if key is in `staging/` prefix |
+| `keyFromUrl(url)` | Derive R2 key from full public URL |
+| `uploadFile(key, body, contentType)` | Server-side upload (scripts/migration) |
+| `listObjects(prefix)` | Paginated listing under a prefix |
+
+Usage example:
 
 ```ts
-import { PutObjectCommand } from "@aws-sdk/client-s3"
-import { r2, ATTACHMENTS_BUCKET } from "@/lib/storage/r2"
+import { getUploadUrl, getPublicUrl } from "@/lib/storage/r2"
 
-await r2.send(new PutObjectCommand({
-  Bucket: ATTACHMENTS_BUCKET,  // or MEDIA_BUCKET
-  Key: `${churchId}/2026/${uuid}-handout.pdf`,
-  // ...
-}))
+const key = `la-ubf/staging/${uuid}-handout.pdf`
+const uploadUrl = await getUploadUrl(key, "application/pdf")
+const publicUrl = getPublicUrl(key) // https://pub-XXX.r2.dev/la-ubf/staging/{uuid}-handout.pdf
 ```
 
 ## R2 Bucket CORS Configuration
