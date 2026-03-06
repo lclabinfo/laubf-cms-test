@@ -499,7 +499,7 @@ async function main() {
 
   // ── 6b. Create Bible Study Attachments ─────────────────────
   console.log('Creating bible study attachments...')
-  const R2_BASE = process.env.R2_PUBLIC_URL || 'https://pub-59a92027daa648c8a02f226cb5873645.r2.dev'
+  const R2_BASE = process.env.R2_ATTACHMENTS_PUBLIC_URL || process.env.R2_PUBLIC_URL || 'https://pub-59a92027daa648c8a02f226cb5873645.r2.dev'
   let attachmentCount = 0
   // Build legacyId -> study.id map for attachment lookup
   const legacyIdToStudyId = new Map<number, string>()

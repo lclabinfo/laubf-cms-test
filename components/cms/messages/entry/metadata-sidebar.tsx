@@ -100,7 +100,7 @@ export function MetadataSidebar({
             filename: file.name,
             contentType: file.type,
             fileSize: file.size,
-            context: "attachment",
+            context: "bible-study",
           }),
         })
         if (!res.ok) throw new Error(`Failed to get upload URL: ${res.status}`)

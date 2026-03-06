@@ -100,6 +100,7 @@ interface SyncAttachment {
   url?: string
   type?: string
   size?: string
+  fileSize?: number
 }
 
 interface SyncParams {
@@ -320,6 +321,7 @@ async function syncStudyAttachments(studyId: string, attachments: SyncAttachment
         name: att.name,
         url: att.url || '',
         type: attType,
+        fileSize: att.fileSize ?? undefined,
         sortOrder: i,
       },
       create: {
@@ -328,6 +330,7 @@ async function syncStudyAttachments(studyId: string, attachments: SyncAttachment
         name: att.name,
         url: att.url || '',
         type: attType,
+        fileSize: att.fileSize ?? undefined,
         sortOrder: i,
       },
     })
