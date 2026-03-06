@@ -11,7 +11,8 @@
 ## Target State
 
 - Full media library: upload, browse, search, edit metadata, delete
-- Files stored in the **`file-media`** R2 bucket at `{churchId}/{type}/{year}/{uuid}-{filename}`
+- Files stored in the **`file-media`** R2 bucket at `{churchSlug}/{type}/{year}/{uuid}-{filename}`
+- Same staging→permanent key pattern as bible study attachments (see `03-bible-study-attachments-plan.md`)
 - Reusable media selector for embedding images in bible studies, messages, events, etc.
 - Shared storage quota with bible study attachments (10 GB combined per church)
 
@@ -19,9 +20,9 @@
 
 ## Implementation Phases
 
-### Phase 1: R2 Infrastructure
+### Phase 1: R2 Infrastructure — DONE (shared)
 
-**Shared with Bible Study plan** — same Cloudflare account, same S3 client, same upload URL endpoint. The `context` param in `POST /api/v1/upload-url` routes to the correct bucket (`file-media` for media, `file-attachments` for bible study materials).
+**Shared with Bible Study implementation** — same Cloudflare account, same S3 client (`lib/storage/r2.ts`), same upload URL endpoint (`POST /api/v1/upload-url`). The `context` param routes to the correct validation allowlist (`media` vs `bible-study`). Currently both contexts use the `file-attachments` bucket — will need to add `file-media` bucket support when implementing media uploads (add `R2_MEDIA_BUCKET_NAME` and `R2_MEDIA_PUBLIC_URL` env vars, and route by context in the upload endpoint).
 
 ### Phase 2: Media DAL (`lib/dal/media.ts`)
 
@@ -48,22 +49,17 @@ export async function getMediaByFolder(churchId: string, folder: string)
 
 ### Phase 4: Upload Flow
 
-**Same presigned URL pattern as bible study attachments:**
+**Same presigned URL + staging pattern as bible study attachments:**
 
 1. User opens upload dialog in media library
 2. Selects files (images, audio, documents)
 3. For each file:
-   a. `POST /api/v1/upload-url` with `context: "media"`
+   a. `POST /api/v1/upload-url` with `context: "media"` → file goes to `{churchSlug}/staging/{uuid}-{filename}`
    b. Direct PUT to R2 via presigned URL
-   c. On success: `POST /api/v1/media` to create DB record with R2 URL
+   c. On success: `POST /api/v1/media` moves from staging to permanent key and creates DB record
 4. Grid refreshes to show new assets
 
-**Key difference from bible study flow:** Media uploads are committed immediately (no staging prefix needed). Each upload creates a DB record right away — there's no "save form" step to wait for.
-
-However, if the upload succeeds but the `POST /api/v1/media` call fails (network error), the file becomes orphaned. To handle this:
-- Upload to `staging/` prefix first
-- `POST /api/v1/media` moves to permanent key and creates record
-- Lifecycle rule cleans up staging orphans
+**Uses same staging→permanent pattern:** Upload to `staging/` prefix first, then `POST /api/v1/media` moves to permanent key (`{churchSlug}/images/{year}/{uuid}-{filename}`) and creates the DB record. Lifecycle rule cleans up orphaned staging files. This reuses the `moveObject()` and `isStagingKey()` helpers from `lib/storage/r2.ts`.
 
 ### Phase 5: Wire Up CMS UI
 

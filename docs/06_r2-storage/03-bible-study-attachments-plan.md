@@ -131,3 +131,73 @@ Query: `SUM(fileSize)` across `BibleStudyAttachment` + `MediaAsset` where `churc
 | User cancels before save | Staging files auto-deleted by lifecycle rule (24h) |
 | R2 unreachable | Show error toast, allow retry, do not save partial state |
 | Storage quota exceeded | Reject at `POST /api/v1/upload-url` with 413 + message |
+
+---
+
+## Lessons Learned / Implementation Notes
+
+Critical bugs and edge cases discovered during implementation. **Read this section before extending the R2 integration to new content types (e.g., media assets).**
+
+### 1. API Response Parsing — Destructure from `data`
+
+The upload-url API returns `{ success: true, data: { uploadUrl, key, publicUrl } }`. Client code must destructure from `response.data`, not the top level:
+
+```ts
+// WRONG — uploadUrl will be undefined
+const { uploadUrl, key, publicUrl } = await res.json()
+
+// CORRECT
+const { data } = await res.json()
+const { uploadUrl, key, publicUrl } = data
+```
+
+### 2. UUID Requirement for Attachment IDs
+
+`BibleStudyAttachment.id` is `@db.Uuid` in the Prisma schema. Client-generated IDs **must** use `crypto.randomUUID()`. Custom formats like `att-${Date.now()}-${Math.random()}` cause silent Postgres cast errors on upsert — the query fails with no clear error message.
+
+### 3. CORS Is Required for Browser Uploads
+
+Presigned URL PUTs from the browser require CORS rules on the R2 bucket. Server-side uploads (migration scripts using `uploadFile()`) bypass CORS entirely. **CORS must be configured before any browser upload will work.** Additionally, origins in the CORS config must NOT have trailing slashes — Cloudflare silently rejects them. See `01-r2-env-setup.md` for the CORS config.
+
+### 4. All Upload Paths Must Use Presigned URL Flow
+
+The entry-form upload button (`entry-form.tsx`) originally had its own `handleFileChange` that created attachment records with empty URLs without uploading to R2. Every upload entry point — metadata sidebar, study tab DOCX import, and entry form upload button — must go through the `POST /api/v1/upload-url` presigned URL flow. Verify all paths when adding new upload entry points.
+
+### 5. Next.js Cache Must Be Cleared After Prisma Schema Changes
+
+After running `prisma generate`, the Next.js dev server caches the old Prisma client in `.next/`. You must delete `.next/` and restart the dev server, or you will get stale type definitions and runtime errors:
+
+```bash
+rm -rf .next && npm run dev
+```
+
+### 6. Staging Promotion — moveObject Helper
+
+Files uploaded via presigned URLs go to the `staging/` prefix. On save, they must be moved to permanent keys using the `moveObject()` helper (copy + delete). Permanent key format: `{churchSlug}/{year}/{studySlug}/{uuid}-{filename}`. If you skip the move step, files will be auto-deleted by the staging lifecycle rule.
+
+### 7. R2 Lifecycle Rule for Staging Cleanup
+
+An auto-delete lifecycle rule should be configured on the R2 bucket for the `staging/` prefix with a 24-hour TTL. This cleans up orphaned uploads from cancelled editing sessions without requiring any server-side cleanup code. **This rule must be set up in the Cloudflare dashboard** — it is not configured via the S3 API.
+
+### 8. PUBLIC_URL Trailing Slash
+
+The `R2_ATTACHMENTS_PUBLIC_URL` env var must NOT have a trailing slash. The `keyFromUrl()` helper strips the public URL prefix to derive the R2 key — a trailing slash causes an off-by-one error where the derived key starts with `/`, which does not match the actual R2 object key. The `r2.ts` client should defensively strip trailing slashes:
+
+```ts
+export const PUBLIC_URL = process.env.R2_ATTACHMENTS_PUBLIC_URL!.replace(/\/+$/, "")
+```
+
+### 9. Client-Side File Size Validation
+
+The server validates the 50 MB limit at `POST /api/v1/upload-url`, but the client should check file size **before** requesting the presigned URL. This avoids an unnecessary round trip and gives the user immediate feedback. All upload entry points should include:
+
+```ts
+if (file.size > 50 * 1024 * 1024) {
+  toast.error("File exceeds 50 MB limit")
+  return
+}
+```
+
+### 10. fileSize Round-Trip Preservation
+
+`synthesizeAttachments()` (in `lib/messages-data.ts`) must preserve the raw `fileSize` (number of bytes) when loading attachments from the API — not just the formatted display string (e.g., `"2.4 MB"`). The raw byte value is needed for quota tracking and accurate display after reload. Both `size` (formatted string) and `fileSize` (raw bytes) must be carried through the full round trip: API response -> client state -> save payload -> DB.

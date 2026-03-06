@@ -63,7 +63,8 @@ const client = new S3Client({
 })
 
 export const ATTACHMENTS_BUCKET = process.env.R2_ATTACHMENTS_BUCKET_NAME!
-export const PUBLIC_URL = process.env.R2_ATTACHMENTS_PUBLIC_URL!
+// Strip trailing slash — keyFromUrl() relies on exact prefix matching
+export const PUBLIC_URL = process.env.R2_ATTACHMENTS_PUBLIC_URL!.replace(/\/+$/, "")
 ```
 
 **Exported helpers:**
@@ -91,6 +92,8 @@ const publicUrl = getPublicUrl(key) // https://pub-XXX.r2.dev/la-ubf/staging/{uu
 
 ## R2 Bucket CORS Configuration
 
+**CORS is REQUIRED for browser uploads.** Presigned URL PUTs from the browser will fail silently without CORS rules. Server-side uploads (migration scripts using `uploadFile()`) bypass CORS entirely, so this issue only surfaces when testing the CMS upload UI.
+
 Apply to **both** buckets in Cloudflare dashboard > R2 > Bucket > Settings > CORS:
 
 ```json
@@ -103,6 +106,8 @@ Apply to **both** buckets in Cloudflare dashboard > R2 > Bucket > Settings > COR
   }
 ]
 ```
+
+**Critical: Origins must NOT have trailing slashes.** Cloudflare silently rejects CORS rules with trailing slashes on origins. For example, `"http://localhost:3000/"` will not work — use `"http://localhost:3000"` (no trailing slash). This is a Cloudflare-specific requirement that produces no error message; browser uploads will simply fail with opaque CORS errors.
 
 ## Next.js Config
 
@@ -121,3 +126,19 @@ images: {
 ```
 
 **Note:** R2 dev URLs (`pub-XXX.r2.dev`) work out of the box. Custom domains (e.g., `media.laubf.org`) require adding a CNAME record in the same Cloudflare account's DNS — since `laubf.org` is already on Cloudflare, this is a one-click setup.
+
+## R2 Bucket Lifecycle Rules
+
+Configure in Cloudflare dashboard > R2 > Bucket > Settings > Object lifecycle rules:
+
+| Rule | Prefix | Action | TTL |
+|---|---|---|---|
+| Auto-delete staging uploads | `staging/` | Delete | 24 hours |
+
+This cleans up orphaned uploads from cancelled editing sessions. Files are uploaded to `staging/` via presigned URLs, then moved to permanent keys on save. If the user cancels or navigates away, the staging files are automatically cleaned up — no server-side cleanup code needed.
+
+## Important Configuration Notes
+
+- **`R2_ATTACHMENTS_PUBLIC_URL` must NOT have a trailing slash.** The `keyFromUrl()` helper strips the public URL prefix to derive the R2 key. A trailing slash causes an off-by-one error where the derived key starts with `/`, which does not match the actual R2 object key.
+- **CORS must be configured before browser uploads work.** Server-side uploads (migration scripts) bypass CORS, so this issue only surfaces in the CMS UI. See the CORS section above.
+- **After Prisma schema changes, delete `.next/` and restart the dev server.** The Next.js dev server caches the old Prisma client, leading to stale types and runtime errors.
