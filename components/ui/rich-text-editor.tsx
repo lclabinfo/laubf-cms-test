@@ -134,12 +134,12 @@ export function RichTextEditor({
         const parsed = JSON.parse(content)
         // Only update if it's valid JSON and actually different
         if (JSON.stringify(parsed) !== JSON.stringify(editor.getJSON())) {
-          editor.commands.setContent(parsed)
+          editor.commands.setContent(parsed, { emitUpdate: false })
         }
       } catch {
         // If content is HTML (from DOCX import), set it as HTML
         if (content.includes("<") && content.includes(">")) {
-          editor.commands.setContent(content)
+          editor.commands.setContent(content, { emitUpdate: false })
         }
       }
     }

@@ -36,11 +36,11 @@ export function GoogleAlbumsTable({ albums, onDelete }: GoogleAlbumsTableProps) 
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead style={{ width: 64 }}>Cover</TableHead>
+            <TableHead className="w-16">Cover</TableHead>
             <TableHead>Album Name</TableHead>
-            <TableHead style={{ width: 80 }}>Photos</TableHead>
-            <TableHead style={{ width: 120 }}>Status</TableHead>
-            <TableHead style={{ width: 100 }}>Actions</TableHead>
+            <TableHead className="w-20">Photos</TableHead>
+            <TableHead className="w-[120px]">Status</TableHead>
+            <TableHead className="w-[100px]">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>

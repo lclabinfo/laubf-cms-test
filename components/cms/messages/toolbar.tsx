@@ -37,28 +37,28 @@ interface ToolbarProps {
   dateTo?: string
   onDateFromChange?: (value: string) => void
   onDateToChange?: (value: string) => void
+  seriesFilter?: string
+  onSeriesFilterChange?: (seriesId: string | undefined) => void
 }
 
-export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateFrom, dateTo, onDateFromChange, onDateToChange }: ToolbarProps) {
+export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateFrom, dateTo, onDateFromChange, onDateToChange, seriesFilter, onSeriesFilterChange }: ToolbarProps) {
   const selectedCount = table.getFilteredSelectedRowModel().rows.length
-  const seriesFilter = (table.getColumn("seriesId")?.getFilterValue() as string[]) ?? []
 
   function toggleSeries(seriesId: string) {
-    const current = seriesFilter
-    const next = current.includes(seriesId)
-      ? current.filter((s) => s !== seriesId)
-      : [...current, seriesId]
-    table.getColumn("seriesId")?.setFilterValue(next.length ? next : undefined)
+    if (onSeriesFilterChange) {
+      onSeriesFilterChange(seriesFilter === seriesId ? undefined : seriesId)
+    }
   }
 
   function clearFilters() {
-    table.getColumn("seriesId")?.setFilterValue(undefined)
+    onSeriesFilterChange?.(undefined)
     onDateFromChange?.("")
     onDateToChange?.("")
   }
 
   const hasDateFilter = !!(dateFrom || dateTo)
-  const filterCount = seriesFilter.length + (hasDateFilter ? 1 : 0)
+  const hasSeriesFilter = !!seriesFilter
+  const filterCount = (hasSeriesFilter ? 1 : 0) + (hasDateFilter ? 1 : 0)
   const hasFilters = filterCount > 0
 
   return (
@@ -107,7 +107,7 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
                     {allSeries.map((s) => (
                       <Badge
                         key={s.id}
-                        variant={seriesFilter.includes(s.id) ? "default" : "outline"}
+                        variant={seriesFilter === s.id ? "default" : "outline"}
                         className="cursor-pointer"
                         onClick={() => toggleSeries(s.id)}
                       >

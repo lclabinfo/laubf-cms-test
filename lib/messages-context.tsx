@@ -1,6 +1,7 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from "react"
+import { useSessionState } from "@/lib/hooks/use-session-state"
 import type {
   Series,
   Message,
@@ -9,11 +10,39 @@ import type {
 } from "./messages-data"
 import { generateSlug } from "@/lib/utils"
 
+interface PaginationInfo {
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export type SortBy = 'dateFor' | 'title' | 'speaker'
+export type SortDir = 'asc' | 'desc'
+
 interface MessagesContextValue {
   series: Series[]
   messages: Message[]
   loading: boolean
+  /** True when refetching with existing data (filter/page change). Use for subtle loading indicators instead of skeletons. */
+  reloading: boolean
   error: string | null
+  pagination: PaginationInfo
+  search: string
+  dateFrom: string
+  dateTo: string
+  seriesFilter: string | undefined
+  sortBy: SortBy
+  sortDir: SortDir
+  setPage: (page: number) => void
+  setPageSize: (pageSize: number) => void
+  setSearch: (search: string) => void
+  setDateFrom: (dateFrom: string) => void
+  setDateTo: (dateTo: string) => void
+  setSeriesFilter: (seriesId: string | undefined) => void
+  setSort: (sortBy: SortBy, sortDir: SortDir) => void
+  refetch: () => void
+  fetchMessageById: (id: string) => Promise<Message | null>
   addSeries: (data: { name: string; imageUrl?: string }) => Series
   updateSeries: (id: string, data: { name: string; imageUrl?: string }) => void
   deleteSeries: (id: string) => void
@@ -32,7 +61,6 @@ const MessagesContext = createContext<MessagesContextValue | null>(null)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function synthesizeStudySections(relatedStudy: any): StudySection[] | undefined {
   if (!relatedStudy) return undefined
-  // Always include Questions & Answers pair so users can add content even if empty
   const hasAnyContent = relatedStudy.questions || relatedStudy.answers || relatedStudy.transcript
   if (!hasAnyContent) return undefined
   const sections: StudySection[] = [
@@ -80,8 +108,6 @@ function formatFileSize(bytes: number): string {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function apiMessageToCms(apiMsg: any): Message {
-  // Reconstruct a full video URL for the CMS form if only youtubeId is stored
-  // (common for migrated records that stored youtubeId but not videoUrl)
   let videoUrl: string | undefined = apiMsg.videoUrl ?? undefined
   if (!videoUrl && apiMsg.youtubeId) {
     videoUrl = `https://www.youtube.com/watch?v=${apiMsg.youtubeId}`
@@ -170,19 +196,14 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
   if (data.date !== undefined) payload.dateFor = new Date(data.date + "T00:00:00").toISOString()
   if (data.hasVideo !== undefined) payload.hasVideo = data.hasVideo
   if (data.hasStudy !== undefined) payload.hasStudy = data.hasStudy
-  // Process videoUrl first so publish state check can see the extracted youtubeId
   if (data.videoUrl !== undefined) {
     payload.videoUrl = data.videoUrl || null
-    // Auto-extract youtubeId and thumbnailUrl from video URL
     const ytId = data.videoUrl ? extractYouTubeId(data.videoUrl) : null
     if (ytId) {
       payload.youtubeId = ytId
       payload.thumbnailUrl = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
     }
   }
-  // Map per-content publish state to the DB fields:
-  // hasVideo/hasStudy = content is published (what the DB actually stores)
-  // Guard: hasVideo can only be true if a videoUrl or youtubeId exists
   if (data.videoPublished !== undefined || data.studyPublished !== undefined) {
     const hasVideoSource = !!(data.videoUrl ?? payload.videoUrl ?? payload.youtubeId)
     const vp = (data.videoPublished ?? false) && hasVideoSource
@@ -204,50 +225,185 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
   return payload
 }
 
+const DEFAULT_PAGE_SIZE = 50
+
 export function MessagesProvider({ children }: { children: ReactNode }) {
   const [series, setSeries] = useState<Series[]>([])
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(true)
+  const [reloading, setReloading] = useState(false)
+  const hasLoadedRef = useRef(false)
   const [error, setError] = useState<string | null>(null)
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    total: 0,
+    page: 1,
+    pageSize: DEFAULT_PAGE_SIZE,
+    totalPages: 0,
+  })
+  const [search, setSearchState] = useSessionState("cms:messages:search", "")
+  const [dateFrom, setDateFromState] = useSessionState("cms:messages:dateFrom", "")
+  const [dateTo, setDateToState] = useSessionState("cms:messages:dateTo", "")
+  const [seriesFilter, setSeriesFilterState] = useSessionState<string | undefined>("cms:messages:seriesFilter", undefined)
+  const [sortBy, setSortByState] = useSessionState<SortBy>("cms:messages:sortBy", "dateFor")
+  const [sortDir, setSortDirState] = useSessionState<SortDir>("cms:messages:sortDir", "desc")
 
-  // Fetch messages and series from API on mount
-  useEffect(() => {
-    let cancelled = false
+  // Debounce timer for search
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(null)
+  // Track current fetch to avoid stale responses
+  const fetchIdRef = useRef(0)
 
-    async function fetchData() {
-      try {
+  const fetchMessages = useCallback(async (params: {
+    page: number
+    pageSize: number
+    search?: string
+    dateFrom?: string
+    dateTo?: string
+    seriesId?: string
+    sortBy?: string
+    sortDir?: string
+  }) => {
+    const fetchId = ++fetchIdRef.current
+    try {
+      // First load: show skeleton. Subsequent loads: keep stale data visible with reloading flag.
+      if (!hasLoadedRef.current) {
         setLoading(true)
-        setError(null)
+      } else {
+        setReloading(true)
+      }
+      setError(null)
 
-        const [messagesRes, seriesRes] = await Promise.all([
-          fetch("/api/v1/messages?pageSize=10000"),
-          fetch("/api/v1/series"),
-        ])
+      const qs = new URLSearchParams()
+      qs.set("page", String(params.page))
+      qs.set("pageSize", String(params.pageSize))
+      if (params.search) qs.set("search", params.search)
+      if (params.dateFrom) qs.set("dateFrom", params.dateFrom)
+      if (params.dateTo) qs.set("dateTo", params.dateTo)
+      if (params.seriesId) qs.set("seriesId", params.seriesId)
+      if (params.sortBy) qs.set("sortBy", params.sortBy)
+      if (params.sortDir) qs.set("sortDir", params.sortDir)
 
-        if (!messagesRes.ok || !seriesRes.ok) {
-          throw new Error("Failed to fetch data")
-        }
+      const res = await fetch(`/api/v1/messages?${qs.toString()}`)
+      if (!res.ok) throw new Error("Failed to fetch messages")
 
-        const messagesJson = await messagesRes.json()
-        const seriesJson = await seriesRes.json()
+      const json = await res.json()
+      if (fetchId !== fetchIdRef.current) return // stale
 
-        if (cancelled) return
-
-        setMessages((messagesJson.data ?? []).map(apiMessageToCms))
-        setSeries((seriesJson.data ?? []).map(apiSeriesToCms))
-      } catch (err) {
-        if (!cancelled) {
-          console.error("MessagesProvider fetch error:", err)
-          setError(err instanceof Error ? err.message : "Failed to load messages")
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
+      setMessages((json.data ?? []).map(apiMessageToCms))
+      setPagination(json.pagination ?? {
+        total: 0,
+        page: params.page,
+        pageSize: params.pageSize,
+        totalPages: 0,
+      })
+      hasLoadedRef.current = true
+    } catch (err) {
+      if (fetchId !== fetchIdRef.current) return
+      console.error("MessagesProvider fetch error:", err)
+      setError(err instanceof Error ? err.message : "Failed to load messages")
+    } finally {
+      if (fetchId === fetchIdRef.current) {
+        setLoading(false)
+        setReloading(false)
       }
     }
-
-    fetchData()
-    return () => { cancelled = true }
   }, [])
+
+  // Fetch series once on mount
+  useEffect(() => {
+    fetch("/api/v1/series")
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch series")
+        return res.json()
+      })
+      .then((json) => {
+        setSeries((json.data ?? []).map(apiSeriesToCms))
+      })
+      .catch((err) => {
+        console.error("Series fetch error:", err)
+      })
+  }, [])
+
+  // Fetch messages when page/filters/sort change
+  useEffect(() => {
+    fetchMessages({
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      search,
+      dateFrom,
+      dateTo,
+      seriesId: seriesFilter,
+      sortBy,
+      sortDir,
+    })
+  }, [fetchMessages, pagination.page, pagination.pageSize, search, dateFrom, dateTo, seriesFilter, sortBy, sortDir])
+
+  const setPage = useCallback((page: number) => {
+    setPagination((prev) => ({ ...prev, page }))
+  }, [])
+
+  const setPageSize = useCallback((pageSize: number) => {
+    setPagination((prev) => ({ ...prev, page: 1, pageSize }))
+  }, [])
+
+  const setSearch = useCallback((value: string) => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(() => {
+      setSearchState(value)
+      setPagination((prev) => ({ ...prev, page: 1 }))
+    }, 300)
+  }, [setSearchState])
+
+  const setDateFrom = useCallback((value: string) => {
+    setDateFromState(value)
+    setPagination((prev) => ({ ...prev, page: 1 }))
+  }, [setDateFromState])
+
+  const setDateTo = useCallback((value: string) => {
+    setDateToState(value)
+    setPagination((prev) => ({ ...prev, page: 1 }))
+  }, [setDateToState])
+
+  const setSeriesFilterCb = useCallback((seriesId: string | undefined) => {
+    setSeriesFilterState(seriesId)
+    setPagination((prev) => ({ ...prev, page: 1 }))
+  }, [setSeriesFilterState])
+
+  const setSort = useCallback((newSortBy: SortBy, newSortDir: SortDir) => {
+    setSortByState(newSortBy)
+    setSortDirState(newSortDir)
+    setPagination((prev) => ({ ...prev, page: 1 }))
+  }, [setSortByState, setSortDirState])
+
+  const refetch = useCallback(() => {
+    fetchMessages({
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      search,
+      dateFrom,
+      dateTo,
+      seriesId: seriesFilter,
+      sortBy,
+      sortDir,
+    })
+  }, [fetchMessages, pagination.page, pagination.pageSize, search, dateFrom, dateTo, seriesFilter, sortBy, sortDir])
+
+  const fetchMessageById = useCallback(async (id: string): Promise<Message | null> => {
+    // Check local state first
+    const local = messages.find((m) => m.id === id)
+    if (local) return local
+
+    try {
+      const res = await fetch(`/api/v1/messages/${id}`)
+      if (!res.ok) return null
+      const json = await res.json()
+      if (json.success && json.data) {
+        return apiMessageToCms(json.data)
+      }
+      return null
+    } catch {
+      return null
+    }
+  }, [messages])
 
   const addSeries = useCallback((data: { name: string; imageUrl?: string }) => {
     const tempSeries: Series = {
@@ -257,7 +413,6 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
     }
     setSeries((prev) => [...prev, tempSeries])
 
-    // Fire API call in background
     fetch("/api/v1/series", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -280,7 +435,6 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       })
       .catch((err) => {
         console.error("addSeries error:", err)
-        // Rollback: remove temp series
         setSeries((prev) => prev.filter((s) => s.id !== tempSeries.id))
       })
 
@@ -288,7 +442,6 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateSeries = useCallback((id: string, data: { name: string; imageUrl?: string }) => {
-    // Capture snapshot for rollback
     let snapshot: Series | undefined
     setSeries((prev) => {
       snapshot = prev.find((s) => s.id === id)
@@ -337,22 +490,13 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       })
       .catch((err) => {
         console.error("deleteSeries error:", err)
-        // Rollback: re-add series and restore message associations
         if (deletedSeries) {
           setSeries((prev) => [...prev, deletedSeries!])
-          setMessages((prev) =>
-            prev.map((m) => {
-              // We can't perfectly restore which messages were in the series,
-              // but optimistic UI already cleared them
-              return m
-            })
-          )
         }
       })
   }, [])
 
   const setSeriesMessages = useCallback((seriesId: string, messageIds: string[]) => {
-    // Capture snapshot for rollback
     let snapshot: Message[] = []
     setMessages((prev) => {
       snapshot = prev
@@ -379,7 +523,6 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       })
       .catch((err) => {
         console.error("setSeriesMessages error:", err)
-        // Rollback to snapshot
         setMessages(snapshot)
       })
   }, [])
@@ -392,8 +535,8 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       slug,
     }
     setMessages((prev) => [tempMessage, ...prev])
+    setPagination((prev) => ({ ...prev, total: prev.total + 1 }))
 
-    // Fire API call in background
     fetch("/api/v1/messages", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -412,22 +555,20 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       })
       .catch((err) => {
         console.error("addMessage error:", err)
-        // Rollback: remove temp message
         setMessages((prev) => prev.filter((m) => m.id !== tempMessage.id))
+        setPagination((prev) => ({ ...prev, total: prev.total - 1 }))
       })
 
     return tempMessage
   }, [])
 
   const updateMessage = useCallback((id: string, data: Partial<Omit<Message, "id">>) => {
-    // Capture pre-update snapshot (including original slug) for rollback + API call
     let snapshot: Message | undefined
     setMessages((prev) => {
       snapshot = prev.find((m) => m.id === id)
       return prev.map((m) => (m.id === id ? { ...m, ...data } : m))
     })
 
-    // Use the original slug (before optimistic update) for the API call
     const originalSlug = snapshot?.slug
     if (!originalSlug) return
 
@@ -449,7 +590,6 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       })
       .catch((err) => {
         console.error("updateMessage error:", err)
-        // Rollback to snapshot
         if (snapshot) {
           setMessages((p) => p.map((m) => (m.id === id ? snapshot! : m)))
         }
@@ -462,6 +602,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       deleted = prev.find((m) => m.id === id)
       return prev.filter((m) => m.id !== id)
     })
+    setPagination((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }))
 
     if (deleted?.slug) {
       fetch(`/api/v1/messages/${deleted.slug}`, { method: "DELETE" })
@@ -470,9 +611,9 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
         })
         .catch((err) => {
           console.error("deleteMessage error:", err)
-          // Rollback: re-add deleted message
           if (deleted) {
             setMessages((prev) => [deleted!, ...prev])
+            setPagination((prev) => ({ ...prev, total: prev.total + 1 }))
           }
         })
     }
@@ -483,7 +624,24 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       series,
       messages,
       loading,
+      reloading,
       error,
+      pagination,
+      search,
+      dateFrom,
+      dateTo,
+      seriesFilter,
+      sortBy,
+      sortDir,
+      setPage,
+      setPageSize,
+      setSearch,
+      setDateFrom,
+      setDateTo,
+      setSeriesFilter: setSeriesFilterCb,
+      setSort,
+      refetch,
+      fetchMessageById,
       addSeries,
       updateSeries,
       deleteSeries,
@@ -492,7 +650,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       updateMessage,
       deleteMessage,
     }),
-    [series, messages, loading, error, addSeries, updateSeries, deleteSeries, setSeriesMessages, addMessage, updateMessage, deleteMessage]
+    [series, messages, loading, reloading, error, pagination, search, dateFrom, dateTo, seriesFilter, sortBy, sortDir, setPage, setPageSize, setSearch, setDateFrom, setDateTo, setSeriesFilterCb, setSort, refetch, fetchMessageById, addSeries, updateSeries, deleteSeries, setSeriesMessages, addMessage, updateMessage, deleteMessage]
   )
 
   return <MessagesContext value={value}>{children}</MessagesContext>

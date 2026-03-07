@@ -42,6 +42,8 @@ interface DataTableProps<TData, TValue> {
   renderSubComponent?: (props: { row: Row<TData> }) => React.ReactNode
   /** Use table-layout:fixed so column sizes are respected regardless of content. */
   fixedLayout?: boolean
+  /** Hide the built-in pagination (useful when providing custom server-side pagination). */
+  hidePagination?: boolean
 }
 
 export function DataTable<TData, TValue>({
@@ -51,6 +53,7 @@ export function DataTable<TData, TValue>({
   activeRowId,
   renderSubComponent,
   fixedLayout,
+  hidePagination,
 }: DataTableProps<TData, TValue>) {
   return (
     <div className="space-y-4">
@@ -131,7 +134,7 @@ export function DataTable<TData, TValue>({
         </Table>
       </div>
 
-      <DataTablePagination table={table} />
+      {!hidePagination && <DataTablePagination table={table} />}
     </div>
   )
 }

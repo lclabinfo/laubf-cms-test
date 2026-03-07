@@ -11,6 +11,8 @@ export async function GET(request: NextRequest) {
     const churchId = await getChurchId()
     const { searchParams } = request.nextUrl
 
+    const sortByParam = searchParams.get('sortBy')
+    const sortDirParam = searchParams.get('sortDir')
     const filters: MessageFilters & { page?: number; pageSize?: number } = {
       page: searchParams.get('page') ? Number(searchParams.get('page')) : undefined,
       pageSize: searchParams.get('pageSize') ? Number(searchParams.get('pageSize')) : undefined,
@@ -18,6 +20,10 @@ export async function GET(request: NextRequest) {
       seriesId: searchParams.get('seriesId') ?? undefined,
       search: searchParams.get('search') ?? undefined,
       publishedOnly: searchParams.get('publishedOnly') === 'true',
+      dateFrom: searchParams.get('dateFrom') ?? undefined,
+      dateTo: searchParams.get('dateTo') ?? undefined,
+      sortBy: sortByParam && ['dateFor', 'title', 'speaker'].includes(sortByParam) ? sortByParam as 'dateFor' | 'title' | 'speaker' : undefined,
+      sortDir: sortDirParam && ['asc', 'desc'].includes(sortDirParam) ? sortDirParam as 'asc' | 'desc' : undefined,
     }
 
     const result = await getMessages(churchId, filters)

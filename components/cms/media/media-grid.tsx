@@ -1,6 +1,7 @@
 "use client"
 
 import { Play, MoreHorizontal, ImageIcon, Pencil, FolderInput, Trash2, Folder } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -157,9 +158,9 @@ export function MediaGrid({
                 </DropdownMenu>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium ${config.color}`}>
+                <Badge variant={config.variant} className="text-[10px] h-4 px-1.5">
                   {config.label}
-                </span>
+                </Badge>
                 <span className="text-muted-foreground text-xs">{item.size}</span>
               </div>
             </div>

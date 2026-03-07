@@ -25,7 +25,7 @@ export default async function BibleStudyListingPage() {
 
   // Fetch all published bible studies (paginated at 200 to match
   // the pattern used by resolve-section-data for all-bible-studies)
-  const result = await getBibleStudies(churchId, { pageSize: 200 })
+  const result = await getBibleStudies(churchId, { pageSize: 5000 })
 
   // Transform Prisma models into the shape expected by AllBibleStudiesSection
   const studies = result.data.map((s) => ({

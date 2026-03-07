@@ -148,7 +148,7 @@ export function Toolbar({
               <span className="hidden sm:inline">Add New</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="min-w-[200px]">
             <DropdownMenuItem onClick={onUploadPhotos}>
               <Upload />
               Upload Photos

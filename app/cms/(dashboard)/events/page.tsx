@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useMemo } from "react"
+import { useSessionState } from "@/lib/hooks/use-session-state"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
@@ -114,17 +115,17 @@ export default function EventsPage() {
 
   const columns = useMemo(() => createColumns({ onDelete: handleDelete }), [handleDelete])
 
-  const [sorting, setSorting] = useState<SortingState>([
+  const [sorting, setSorting] = useSessionState<SortingState>("cms:events:sorting", [
     { id: "date", desc: true },
   ])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [columnFilters, setColumnFilters] = useSessionState<ColumnFiltersState>("cms:events:columnFilters", [])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
   const [rowSelection, setRowSelection] = useState({})
-  const [globalFilter, setGlobalFilter] = useState("")
+  const [globalFilter, setGlobalFilter] = useSessionState("cms:events:search", "")
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 })
-  const [view, setView] = useState<"list" | "card">("list")
-  const [dateFrom, setDateFrom] = useState("")
-  const [dateTo, setDateTo] = useState("")
+  const [view, setView] = useSessionState<"list" | "card">("cms:events:view", "list")
+  const [dateFrom, setDateFrom] = useSessionState("cms:events:dateFrom", "")
+  const [dateTo, setDateTo] = useSessionState("cms:events:dateTo", "")
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date())
 

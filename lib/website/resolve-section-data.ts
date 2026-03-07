@@ -169,7 +169,7 @@ export async function resolveSectionData(
       }
 
       case 'all-messages': {
-        const messagesResult = await getMessages(churchId, { pageSize: 200 })
+        const messagesResult = await getMessages(churchId, { pageSize: 5000 })
         return {
           content,
           resolvedData: {
@@ -190,7 +190,7 @@ export async function resolveSectionData(
       }
 
       case 'all-events': {
-        const eventsResult = await getEvents(churchId, { pageSize: 200 })
+        const eventsResult = await getEvents(churchId, { pageSize: 5000 })
         return {
           content,
           resolvedData: {
@@ -217,7 +217,7 @@ export async function resolveSectionData(
       }
 
       case 'all-bible-studies': {
-        const result = await getBibleStudies(churchId, { pageSize: 200 })
+        const result = await getBibleStudies(churchId, { pageSize: 5000 })
         return {
           content,
           resolvedData: {
@@ -238,7 +238,7 @@ export async function resolveSectionData(
       }
 
       case 'all-videos': {
-        const result = await getVideos(churchId, { pageSize: 200 })
+        const result = await getVideos(churchId, { pageSize: 5000 })
         return {
           content,
           resolvedData: {

@@ -111,21 +111,22 @@ export function MediaSidebar({
               const Icon = filter.icon
               const count = filter.countKey ? mediaCounts[filter.countKey] : undefined
               return (
-                <button
+                <Button
                   key={filter.id}
+                  variant="ghost"
                   onClick={() => onSelectFolder(filter.id)}
-                  className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition-colors ${
+                  className={`w-full justify-start gap-2 h-8 px-2 font-medium ${
                     isActive
                       ? "bg-accent text-accent-foreground"
-                      : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
+                      : "text-muted-foreground"
                   }`}
                 >
                   <Icon className="size-4" />
                   {filter.label}
                   {count !== undefined && (
-                    <span className="ml-auto text-xs text-muted-foreground">{count}</span>
+                    <span className="ml-auto text-xs text-muted-foreground tabular-nums">{count}</span>
                   )}
-                </button>
+                </Button>
               )
             })}
           </nav>
@@ -140,7 +141,6 @@ export function MediaSidebar({
                 variant="ghost"
                 size="icon-sm"
                 onClick={onCreateFolder}
-                className="size-6"
               >
                 <FolderPlus className="size-3.5" />
                 <span className="sr-only">Create folder</span>
@@ -152,24 +152,26 @@ export function MediaSidebar({
                 const count = folderCounts.get(folder.id) ?? 0
                 return (
                   <div key={folder.id} className="group relative flex items-center">
-                    <button
+                    <Button
+                      variant="ghost"
                       onClick={() => onSelectFolder(folder.id)}
-                      className={`flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm font-medium transition-colors min-w-0 ${
+                      className={`flex-1 justify-start gap-2 h-8 px-2 pr-8 font-medium min-w-0 ${
                         isActive
                           ? "bg-accent text-accent-foreground"
-                          : "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground"
+                          : "text-muted-foreground"
                       }`}
                     >
                       <Folder className="size-4 shrink-0" />
                       <span className="truncate">{folder.name}</span>
-                      <span className="ml-auto text-xs text-muted-foreground shrink-0">{count}</span>
-                    </button>
+                    </Button>
+                    {/* Count / actions — share the same absolute position */}
+                    <span className="absolute right-2 text-xs text-muted-foreground tabular-nums group-hover:invisible pointer-events-none">{count}</span>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
                           size="icon-sm"
-                          className="absolute right-0 size-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute right-1 opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           <MoreHorizontal className="size-3.5" />
                           <span className="sr-only">Folder actions</span>

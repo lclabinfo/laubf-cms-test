@@ -326,7 +326,7 @@ export default function MediaPage() {
   const isGoogleAlbums = activeFolderId === "google-albums"
 
   return (
-    <div className="flex flex-col gap-4 flex-1 min-h-0">
+    <div className="flex flex-col gap-4 flex-1 min-h-0 pt-5">
       {/* Header */}
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Media</h1>

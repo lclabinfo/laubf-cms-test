@@ -2,6 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import { MoreHorizontal, Play, Pencil, FolderInput, Trash2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { SortableHeader } from "@/components/ui/sortable-header"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -92,9 +93,9 @@ export const columns: ColumnDef<MediaItem>[] = [
       const format = row.original.format
       const config = formatDisplay[format]
       return (
-        <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium ${config.color}`}>
+        <Badge variant={config.variant} className="text-[10px] h-4 px-1.5">
           {config.label}
-        </span>
+        </Badge>
       )
     },
     enableSorting: false,

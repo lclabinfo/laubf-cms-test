@@ -468,7 +468,11 @@ model Message {
   searchVector     Unsupported("tsvector")?
 
   @@unique([churchId, slug])
-  @@index([churchId, dateFor(sort: Desc)])
+  // Primary list query: WHERE churchId=X AND deletedAt IS NULL ORDER BY dateFor DESC
+  // deletedAt in the key lets Postgres seek directly to non-deleted rows
+  @@index([churchId, deletedAt, dateFor(sort: Desc)])
+  // Sort by title: WHERE churchId=X AND deletedAt IS NULL ORDER BY title
+  @@index([churchId, deletedAt, title])
   @@index([churchId, speakerId])
   @@index([churchId, hasVideo])
   @@index([churchId, hasStudy])

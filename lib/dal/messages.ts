@@ -3,7 +3,7 @@ import { Prisma } from '@/lib/generated/prisma/client'
 import { paginationArgs, paginatedResult, type PaginationParams, type PaginatedResult } from './types'
 
 type MessageWithRelations = Prisma.MessageGetPayload<{
-  include: { speaker: true; messageSeries: { include: { series: true } }; relatedStudy: true }
+  include: { speaker: true; messageSeries: { include: { series: true } } }
 }>
 
 type MessageDetail = Prisma.MessageGetPayload<{
@@ -14,16 +14,12 @@ type MessageDetail = Prisma.MessageGetPayload<{
   }
 }>
 
+// Lightweight include for list views — no relatedStudy to avoid loading heavy text columns
 const messageListInclude = {
   speaker: true,
   messageSeries: {
     include: { series: true },
     orderBy: { sortOrder: 'asc' as const },
-  },
-  relatedStudy: {
-    include: {
-      attachments: { orderBy: { sortOrder: 'asc' as const } },
-    },
   },
 } satisfies Prisma.MessageInclude
 
@@ -44,6 +40,14 @@ export type MessageFilters = {
   publishedOnly?: boolean
   /** When true, only return messages where video is published */
   videoPublished?: boolean
+  /** ISO date string (YYYY-MM-DD) — filter messages on or after this date */
+  dateFrom?: string
+  /** ISO date string (YYYY-MM-DD) — filter messages on or before this date */
+  dateTo?: string
+  /** Column to sort by (default: dateFor) */
+  sortBy?: 'dateFor' | 'title' | 'speaker'
+  /** Sort direction (default: desc) */
+  sortDir?: 'asc' | 'desc'
 }
 
 export async function getMessages(
@@ -69,13 +73,28 @@ export async function getMessages(
         { videoDescription: { contains: filters.search, mode: 'insensitive' as const } },
       ],
     }),
+    ...(filters?.dateFrom && { dateFor: { gte: new Date(filters.dateFrom + 'T00:00:00') } }),
+    ...(filters?.dateTo && {
+      dateFor: {
+        ...(filters?.dateFrom ? { gte: new Date(filters.dateFrom + 'T00:00:00') } : {}),
+        lte: new Date(filters.dateTo + 'T23:59:59'),
+      },
+    }),
   }
+
+  // Build orderBy from sort params
+  const sortBy = filters?.sortBy ?? 'dateFor'
+  const sortDir = filters?.sortDir ?? 'desc'
+  const orderBy: Prisma.MessageOrderByWithRelationInput =
+    sortBy === 'speaker'
+      ? { speaker: { name: sortDir } }
+      : { [sortBy]: sortDir }
 
   const [data, total] = await Promise.all([
     prisma.message.findMany({
       where,
       include: messageListInclude,
-      orderBy: { dateFor: 'desc' },
+      orderBy,
       skip,
       take,
     }),
@@ -97,6 +116,16 @@ export async function getMessageBySlug(
       deletedAt: null,
       ...(publishedOnly ? { hasVideo: true } : {}),
     },
+    include: messageDetailInclude,
+  })
+}
+
+export async function getMessageById(
+  churchId: string,
+  id: string,
+): Promise<MessageDetail | null> {
+  return prisma.message.findFirst({
+    where: { id, churchId, deletedAt: null },
     include: messageDetailInclude,
   })
 }

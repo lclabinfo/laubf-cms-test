@@ -41,7 +41,6 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { cn } from "@/lib/utils"
 import type { MediaItem, MediaFolder } from "@/lib/media-data"
 import { formatDisplay, mediaTypeDisplay } from "@/lib/media-data"
 
@@ -325,8 +324,8 @@ function PreviewContent({
                 label="Format"
                 value={
                   <Badge
-                    variant="secondary"
-                    className={cn("text-[10px] px-1.5 py-0", formatConfig.color)}
+                    variant={formatConfig.variant}
+                    className="text-[10px] px-1.5 py-0"
                   >
                     {formatConfig.label}
                   </Badge>

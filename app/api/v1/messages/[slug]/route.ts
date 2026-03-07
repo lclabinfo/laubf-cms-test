@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
-import { getMessageBySlug, updateMessage, deleteMessage } from '@/lib/dal/messages'
+import { getMessageBySlug, getMessageById, updateMessage, deleteMessage } from '@/lib/dal/messages'
 import { syncMessageStudy, unlinkMessageStudy } from '@/lib/dal/sync-message-study'
 import { requireApiAuth } from '@/lib/api/require-auth'
 
@@ -12,7 +12,11 @@ export async function GET(_request: NextRequest, { params }: Params) {
     const churchId = await getChurchId()
     const { slug } = await params
 
-    const message = await getMessageBySlug(churchId, slug)
+    // Support lookup by UUID (for detail pages that navigate by ID)
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug)
+    const message = isUuid
+      ? await getMessageById(churchId, slug)
+      : await getMessageBySlug(churchId, slug)
     if (!message) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Message not found' } },

@@ -43,32 +43,32 @@ export function MoveToDialog({
         </DialogHeader>
         <div className="space-y-1">
           {/* Remove from folder option */}
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
             onClick={() => handleSelect(null)}
             disabled={currentFolderId === null}
-            className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FolderX className="size-4 text-muted-foreground" />
-            <span>Remove from folder</span>
-          </button>
+            Remove from folder
+          </Button>
 
           {folders.map((folder) => {
             const isCurrent = folder.id === currentFolderId
             return (
-              <button
+              <Button
                 key={folder.id}
-                type="button"
+                variant="ghost"
+                className="w-full justify-start"
                 onClick={() => handleSelect(folder.id)}
                 disabled={isCurrent}
-                className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Folder className="size-4 text-muted-foreground" />
-                <span>{folder.name}</span>
+                <span className="truncate">{folder.name}</span>
                 {isCurrent && (
                   <span className="ml-auto text-xs text-muted-foreground">Current</span>
                 )}
-              </button>
+              </Button>
             )
           })}
         </div>
