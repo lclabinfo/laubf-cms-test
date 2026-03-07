@@ -3,14 +3,14 @@ import { ContentStatus, Prisma, type BibleBook } from '@/lib/generated/prisma/cl
 import { paginationArgs, paginatedResult, type PaginationParams, type PaginatedResult } from './types'
 
 type BibleStudyWithRelations = Prisma.BibleStudyGetPayload<{
-  include: { speaker: true; series: true; attachments: true; relatedMessage: { select: { bibleVersion: true } } }
+  include: { speaker: true; series: true; attachments: true; relatedMessage: { select: { bibleVersion: true; slug: true; videoUrl: true; youtubeId: true } } }
 }>
 
 const bibleStudyInclude = {
   speaker: true,
   series: true,
   attachments: { orderBy: { sortOrder: 'asc' as const } },
-  relatedMessage: { select: { bibleVersion: true } },
+  relatedMessage: { select: { bibleVersion: true, slug: true, videoUrl: true, youtubeId: true } },
 } satisfies Prisma.BibleStudyInclude
 
 export type BibleStudyFilters = {

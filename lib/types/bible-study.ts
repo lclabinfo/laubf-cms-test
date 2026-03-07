@@ -41,6 +41,9 @@ export interface BibleStudyDetail {
   /** Bible version used for scripture text (e.g. "ESV", "NIV") */
   bibleVersion?: string
 
+  /** Slug of the related message (if it has video) — used for "Watch Message" link */
+  messageSlug?: string
+
   /** File attachments */
   attachments: BibleStudyAttachment[]
 }

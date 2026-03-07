@@ -686,17 +686,16 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
 
         {/* Right: Actions */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {/* Watch Message - external link */}
-          <a
-            href="https://www.youtube.com/@LAUBF/streams"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="h-8 flex items-center justify-center rounded-md px-2 sm:px-3 text-xs font-medium uppercase tracking-wide gap-2 transition-all shadow-sm whitespace-nowrap bg-brand-1 text-white-0 hover:bg-brand-2"
-          >
-            <Video className="w-3.5 h-3.5" />
-            <span className="hidden lg:inline">Watch Message</span>
-            <ExternalLink className="w-3 h-3 ml-0.5 opacity-70 hidden lg:block" />
-          </a>
+          {/* Watch Message - link to related message page (only if video exists) */}
+          {study.messageSlug && (
+            <Link
+              href={`/website/messages/${study.messageSlug}`}
+              className="h-8 flex items-center justify-center rounded-md px-2 sm:px-3 text-xs font-medium uppercase tracking-wide gap-2 transition-all shadow-sm whitespace-nowrap bg-brand-1 text-white-0 hover:bg-brand-2"
+            >
+              <Video className="w-3.5 h-3.5" />
+              <span className="hidden lg:inline">Watch Message</span>
+            </Link>
+          )}
 
           {/* Attachments Dropdown */}
           {study.attachments && study.attachments.length > 0 && (
