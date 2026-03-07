@@ -24,6 +24,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -669,17 +677,7 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
           <Quote className="size-4" />
         </Toggle>
       </ToolbarTooltip>
-      <ToolbarTooltip label="Code Block" shortcut="⌘⌥C">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("codeBlock")}
-          onPressedChange={() =>
-            editor.chain().focus().toggleCodeBlock().run()
-          }
-        >
-          <Code className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
+      <SourceHtmlButton editor={editor} />
 
       <Separator orientation="vertical" className="mx-1 h-6" />
 
@@ -781,6 +779,95 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
       )}
     </div>
   )
+}
+
+// ---------------------------------------------------------------------------
+// Source HTML Editor
+// ---------------------------------------------------------------------------
+
+function SourceHtmlButton({ editor }: { editor: NonNullable<ReturnType<typeof useEditor>> }) {
+  const [open, setOpen] = useState(false)
+  const [html, setHtml] = useState("")
+  function handleOpen() {
+    // Pretty-print the HTML for readability
+    const raw = editor.getHTML()
+    setHtml(formatHtml(raw))
+    setOpen(true)
+  }
+
+  function handleApply() {
+    editor.commands.setContent(html, { emitUpdate: true })
+    setOpen(false)
+  }
+
+  return (
+    <>
+      <ToolbarTooltip label="Edit Source HTML">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={handleOpen}
+        >
+          <Code className="size-4" />
+        </Button>
+      </ToolbarTooltip>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Edit Source HTML</DialogTitle>
+            <DialogDescription>
+              View and edit the raw HTML. Changes will be applied to the editor when you click Apply.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <textarea
+              value={html}
+              onChange={(e) => setHtml(e.target.value)}
+              spellCheck={false}
+              className="w-full h-[60vh] resize-none rounded-md border bg-muted/50 p-3 font-mono text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleApply}>
+              Apply Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+/** Naive HTML formatter — adds newlines and indentation for readability */
+function formatHtml(html: string): string {
+  // Insert newlines before opening block-level tags and after closing ones
+  const blockTags = /(<\/?(?:div|p|h[1-6]|ul|ol|li|blockquote|table|thead|tbody|tr|th|td|hr|br|pre|figure|figcaption|img)[^>]*>)/gi
+  let formatted = html.replace(blockTags, "\n$1")
+
+  // Clean up multiple blank lines
+  formatted = formatted.replace(/\n{3,}/g, "\n\n")
+
+  // Simple indentation
+  const lines = formatted.split("\n")
+  let indent = 0
+  const result: string[] = []
+  const openTag = /^<(?!\/|br|hr|img)[a-z][^>]*>$/i
+  const closeTag = /^<\/[a-z][^>]*>$/i
+
+  for (const raw of lines) {
+    const line = raw.trim()
+    if (!line) continue
+
+    if (closeTag.test(line)) indent = Math.max(0, indent - 1)
+    result.push("  ".repeat(indent) + line)
+    if (openTag.test(line) && !line.includes("</")) indent++
+  }
+
+  return result.join("\n").trim()
 }
 
 // ---------------------------------------------------------------------------
