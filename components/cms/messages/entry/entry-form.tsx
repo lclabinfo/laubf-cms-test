@@ -117,9 +117,13 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     message?.studySections ?? []
   )
 
-  // Per-content publish state
-  const [videoPublished, setVideoPublished] = useState(message?.videoPublished ?? false)
-  const [studyPublished, setStudyPublished] = useState(message?.studyPublished ?? false)
+  // Per-content publish state — auto-correct at init if content is missing
+  // (prevents false isDirty from the auto-unpublish effect on first render)
+  const initVideoContentExists = !!(message?.videoUrl)
+  const initStudySections = message?.studySections ?? []
+  const initStudyContentExists = initStudySections.length > 0 && initStudySections.some((s) => !isTiptapContentEmpty(s.content))
+  const [videoPublished, setVideoPublished] = useState((message?.videoPublished ?? false) && initVideoContentExists)
+  const [studyPublished, setStudyPublished] = useState((message?.studyPublished ?? false) && initStudyContentExists)
 
   // Confirmation dialog state
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false)
