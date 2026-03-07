@@ -192,20 +192,20 @@ export function VideoTab({
               className="min-h-[100px]"
             />
           </div>
-
-          {/* Transcript (prepared message text) */}
-          <div className="space-y-2">
-            <Label>Transcript</Label>
-            <TranscriptEditor
-              rawTranscript={rawTranscript}
-              onRawTranscriptChange={onRawTranscriptChange}
-              segments={segments}
-              onSegmentsChange={onSegmentsChange}
-              videoUrl={videoUrl}
-            />
-          </div>
         </>
       )}
+
+      {/* Transcript — always visible, even without a video URL */}
+      <div className="space-y-2">
+        <Label>Transcript</Label>
+        <TranscriptEditor
+          rawTranscript={rawTranscript}
+          onRawTranscriptChange={onRawTranscriptChange}
+          segments={segments}
+          onSegmentsChange={onSegmentsChange}
+          videoUrl={videoUrl}
+        />
+      </div>
     </div>
   )
 }

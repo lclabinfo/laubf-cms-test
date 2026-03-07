@@ -4,8 +4,8 @@ import { useState, useMemo } from "react"
 import SectionContainer from "@/components/website/shared/section-container"
 import VideoCard from "@/components/website/shared/video-card"
 import VideoModal from "@/components/website/shared/video-modal"
+import FilterToolbar from "@/components/website/shared/filter-toolbar"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
-import { IconSearch } from "@/components/website/shared/icons"
 
 interface Video {
   id: string
@@ -40,7 +40,15 @@ export default function AllVideosSection({ content, enableAnimations, colorSchem
   const [search, setSearch] = useState("")
   const [displayCount, setDisplayCount] = useState(INITIAL_COUNT)
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
+  const [sortField, setSortField] = useState("date")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
+  const [filterCategory, setFilterCategory] = useState<string | undefined>()
+
+  const categoryOptions = useMemo(() => {
+    const cats = new Set<string>()
+    videos.forEach((v) => { if (v.category) cats.add(v.category) })
+    return Array.from(cats).sort().map((c) => ({ value: c, label: c }))
+  }, [videos])
 
   const filteredVideos = useMemo(() => {
     let result = videos
@@ -52,44 +60,71 @@ export default function AllVideosSection({ content, enableAnimations, colorSchem
           (v.category && v.category.toLowerCase().includes(q)),
       )
     }
+    if (filterCategory) {
+      result = result.filter((v) => v.category === filterCategory)
+    }
     return [...result].sort((a, b) => {
-      const cmp = a.datePublished.localeCompare(b.datePublished)
+      let cmp = 0
+      if (sortField === "date") {
+        cmp = a.datePublished.localeCompare(b.datePublished)
+      } else {
+        cmp = a.title.localeCompare(b.title)
+      }
       return sortDirection === "asc" ? cmp : -cmp
     })
-  }, [videos, search, sortDirection])
+  }, [videos, search, filterCategory, sortField, sortDirection])
 
   const visibleVideos = filteredVideos.slice(0, displayCount)
   const hasMore = displayCount < filteredVideos.length
 
   return (
     <SectionContainer colorScheme={colorScheme} paddingY="none" containerWidth={containerWidth} className="pb-24 lg:pb-30">
-      {/* Search bar */}
-      <div className="mb-8 flex flex-col gap-4">
-        <div className="relative max-w-md">
-          <IconSearch className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-black-3" />
-          <input
-            type="text"
-            placeholder="Search videos..."
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value)
+      {/* Filter toolbar — matches Messages and Bible Studies pages */}
+      <FilterToolbar
+        search={{
+          value: search,
+          onChange: (v) => {
+            setSearch(v)
+            setDisplayCount(INITIAL_COUNT)
+          },
+          placeholder: "Search videos...",
+        }}
+        filters={categoryOptions.length > 0 ? [
+          {
+            id: "category",
+            label: "Category",
+            value: filterCategory ?? "all",
+            options: [
+              { value: "all", label: "All Categories" },
+              ...categoryOptions,
+            ],
+            onChange: (v: string) => {
+              setFilterCategory(v === "all" ? undefined : v)
               setDisplayCount(INITIAL_COUNT)
-            }}
-            className="w-full pl-10 pr-4 py-3 bg-white-1-5 border border-white-2 rounded-lg text-body-2 text-black-1 placeholder:text-white-3 outline-none focus:border-brand-1 transition-colors"
-          />
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setSortDirection(sortDirection === "desc" ? "asc" : "desc")}
-            className="text-[13px] font-medium text-black-3 hover:text-black-1 transition-colors"
-          >
-            Date: {sortDirection === "desc" ? "Newest first" : "Oldest first"}
-          </button>
-          <span className="text-[13px] text-black-3">
-            {filteredVideos.length} {filteredVideos.length === 1 ? "video" : "videos"}
-          </span>
-        </div>
-      </div>
+            },
+          },
+        ] : undefined}
+        sort={{
+          options: [
+            { value: "date", label: "Date (Newest)", direction: "desc" },
+            { value: "date", label: "Date (Oldest)", direction: "asc" },
+            { value: "title", label: "Title (A-Z)", direction: "asc" },
+            { value: "title", label: "Title (Z-A)", direction: "desc" },
+          ],
+          active: sortField,
+          direction: sortDirection,
+          onChange: (value, dir) => {
+            setSortField(value)
+            setSortDirection(dir)
+          },
+        }}
+        onReset={() => {
+          setSearch("")
+          setFilterCategory(undefined)
+          setDisplayCount(INITIAL_COUNT)
+        }}
+        className="mb-8"
+      />
 
       {/* Videos grid */}
       {filteredVideos.length === 0 ? (
@@ -100,6 +135,7 @@ export default function AllVideosSection({ content, enableAnimations, colorSchem
           <button
             onClick={() => {
               setSearch("")
+              setFilterCategory(undefined)
               setDisplayCount(INITIAL_COUNT)
             }}
             className="mt-4 text-accent-blue text-[14px] font-medium hover:underline"

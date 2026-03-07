@@ -552,41 +552,22 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
       case "transcript":
         return (
           <div className="p-6 sm:p-8 max-w-3xl mx-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-5">
-              <div className="flex items-center gap-2.5">
-                <FileText className="w-5 h-5 text-brand-1" />
-                <h2 className="text-sm font-semibold text-black-1 uppercase tracking-widest">
-                  Transcript
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl sm:text-2xl font-medium text-black-1 uppercase leading-tight tracking-tight">
+                  Message Transcript
                 </h2>
                 {study.messenger && (
-                  <>
-                    <span className="w-1 h-1 rounded-full bg-white-2-5" />
-                    <span className="text-xs text-black-3">
-                      {study.messenger}
-                    </span>
-                  </>
+                  <p className="text-xs font-medium text-white-3 uppercase tracking-wider mt-1">
+                    {study.messenger}
+                  </p>
                 )}
               </div>
-            </div>
-
-            {/* Accent line */}
-            <div className="h-0.5 rounded-full bg-gradient-to-r from-brand-1 via-brand-1/60 to-transparent mb-6" />
-
-            {/* Transcript content */}
-            <div
-              style={{ fontSize: `${fontSize}%` }}
-              className="study-content transition-all duration-200"
-              dangerouslySetInnerHTML={{ __html: study.transcript! }}
-            />
-
-            {/* Download link */}
-            {study.attachments?.find(
-              (a) =>
-                a.type === "docx" &&
-                a.name.toLowerCase().includes("transcript")
-            ) && (
-              <div className="mt-8 pt-6 border-t border-white-2">
+              {study.attachments?.find(
+                (a) =>
+                  a.type === "docx" &&
+                  a.name.toLowerCase().includes("transcript")
+              ) && (
                 <a
                   href={
                     study.attachments.find(
@@ -597,11 +578,25 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                   }
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white-2 text-xs font-medium uppercase tracking-wide text-black-3 hover:text-brand-1 hover:bg-white-1-5 transition-all"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-white-2 text-xs font-medium uppercase tracking-wide text-black-3 hover:text-brand-1 hover:bg-white-1-5 transition-all"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  Download Transcript
+                  <FileText className="w-3.5 h-3.5" />
+                  Download DOCX
                 </a>
+              )}
+            </div>
+
+            {study.transcript ? (
+              <div
+                style={{ fontSize: `${fontSize}%` }}
+                className="study-content transition-all duration-200"
+                dangerouslySetInnerHTML={{ __html: study.transcript }}
+              />
+            ) : (
+              <div className="p-12 text-center bg-white-1-5 rounded-xl border border-dashed border-white-2">
+                <p className="text-black-3">
+                  Transcript not available for this study.
+                </p>
               </div>
             )}
           </div>

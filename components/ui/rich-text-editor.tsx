@@ -354,387 +354,395 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
   const CurrentBlockIcon = currentBlock.icon
 
   return (
-    <div className="flex flex-wrap items-center gap-0.5 p-1.5">
-      {/* ── 1. Undo / Redo ── */}
-      <ToolbarTooltip label="Undo" shortcut="⌘Z">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().undo()}
-        >
-          <Undo className="size-4" />
-        </Button>
-      </ToolbarTooltip>
-      <ToolbarTooltip label="Redo" shortcut="⌘⇧Z">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().redo()}
-        >
-          <Redo className="size-4" />
-        </Button>
-      </ToolbarTooltip>
-
-      <Separator orientation="vertical" className="mx-1 h-6" />
-
-      {/* ── 2. Font family ── */}
-      <Select
-        value={
-          editor.isActive("textStyle", { fontFamily: /serif/i })
-            ? "serif"
-            : "sans"
-        }
-        onValueChange={(value) => {
-          if (value === "serif") {
-            editor
-              .chain()
-              .focus()
-              .setFontFamily('"Times New Roman", Georgia, serif')
-              .run()
-          } else {
-            editor.chain().focus().unsetFontFamily().run()
-          }
-        }}
-      >
-        <ToolbarTooltip label="Font Family">
-          <SelectTrigger className="h-7 w-[82px] text-xs gap-1 px-2 border-0 bg-transparent hover:bg-muted focus:ring-0 focus:ring-offset-0">
-            <Type className="size-3.5 shrink-0 opacity-60" />
-            <SelectValue />
-          </SelectTrigger>
+    <div className="flex flex-wrap items-center gap-y-1 gap-x-0.5 p-1.5">
+      {/* ── 1. History ── */}
+      <div className="flex items-center gap-0.5 shrink-0">
+        <ToolbarTooltip label="Undo" shortcut="⌘Z">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => editor.chain().focus().undo().run()}
+            disabled={!editor.can().undo()}
+          >
+            <Undo className="size-4" />
+          </Button>
         </ToolbarTooltip>
-        <SelectContent>
-          <SelectItem value="sans">Sans</SelectItem>
-          <SelectItem value="serif">Serif</SelectItem>
-        </SelectContent>
-      </Select>
-
-      {/* ── 3. Block type (heading) dropdown ── */}
-      <DropdownMenu>
-        <ToolbarTooltip label="Block Type">
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 px-2">
-              <CurrentBlockIcon className="size-4" />
-              <span className="max-w-[60px] truncate">{currentBlock.label}</span>
-              <ChevronDown className="size-3 opacity-50" />
-            </Button>
-          </DropdownMenuTrigger>
+        <ToolbarTooltip label="Redo" shortcut="⌘⇧Z">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => editor.chain().focus().redo().run()}
+            disabled={!editor.can().redo()}
+          >
+            <Redo className="size-4" />
+          </Button>
         </ToolbarTooltip>
-        <DropdownMenuContent align="start" className="min-w-[160px]">
-          {BLOCK_TYPES.map((bt) => {
-            const Icon = bt.icon
-            const isActive =
-              bt.action === "heading"
-                ? editor.isActive("heading", { level: bt.level })
-                : editor.isActive("paragraph")
-            return (
-              <DropdownMenuItem
-                key={bt.label}
-                className={cn("gap-2", isActive && "bg-accent")}
-                onClick={() => {
-                  if (bt.action === "heading") {
-                    editor.chain().focus().toggleHeading({ level: bt.level! }).run()
-                  } else {
-                    editor.chain().focus().setParagraph().run()
-                  }
-                }}
-              >
-                <Icon className="size-4 opacity-60" />
-                {bt.label}
-              </DropdownMenuItem>
-            )
-          })}
-        </DropdownMenuContent>
-      </DropdownMenu>
+        <Separator orientation="vertical" className="mx-1 h-6" />
+      </div>
 
-      <Separator orientation="vertical" className="mx-1 h-6" />
-
-      {/* ── 4. Inline formatting + color ── */}
-      <ToolbarTooltip label="Bold" shortcut="⌘B">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("bold")}
-          onPressedChange={() => editor.chain().focus().toggleBold().run()}
-        >
-          <Bold className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-      <ToolbarTooltip label="Italic" shortcut="⌘I">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("italic")}
-          onPressedChange={() => editor.chain().focus().toggleItalic().run()}
-        >
-          <Italic className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-      <ToolbarTooltip label="Underline" shortcut="⌘U">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("underline")}
-          onPressedChange={() => editor.chain().focus().toggleUnderline().run()}
-        >
-          <Underline className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-      <ToolbarTooltip label="Strikethrough" shortcut="⌘⇧S">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("strike")}
-          onPressedChange={() => editor.chain().focus().toggleStrike().run()}
-        >
-          <Strikethrough className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-
-      <Popover>
-        <ToolbarTooltip label="Text Color">
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon-sm" className="relative">
-              <Baseline className="size-4" />
-              <span
-                className="absolute bottom-0.5 left-1/2 -translate-x-1/2 h-0.5 w-3 rounded-full"
-                style={{ backgroundColor: editor.getAttributes("textStyle").color || "currentColor" }}
-              />
-            </Button>
-          </PopoverTrigger>
-        </ToolbarTooltip>
-        <PopoverContent className="w-auto p-0" align="start">
-          <ColorSwatchGrid
-            colors={TEXT_COLORS}
-            activeColor={editor.getAttributes("textStyle").color}
-            onSelect={(color) => editor.chain().focus().setColor(color).run()}
-            onReset={() => editor.chain().focus().unsetColor().run()}
-            resetLabel="Default"
-          />
-        </PopoverContent>
-      </Popover>
-
-      <Popover>
-        <ToolbarTooltip label="Highlight">
-          <PopoverTrigger asChild>
-            <Button variant="ghost" size="icon-sm" className="relative">
-              <Highlighter className="size-4" />
-              <span
-                className="absolute bottom-0.5 left-1/2 -translate-x-1/2 h-0.5 w-3 rounded-full"
-                style={{ backgroundColor: editor.getAttributes("highlight").color || "transparent" }}
-              />
-            </Button>
-          </PopoverTrigger>
-        </ToolbarTooltip>
-        <PopoverContent className="w-auto p-0" align="start">
-          <ColorSwatchGrid
-            colors={HIGHLIGHT_COLORS}
-            activeColor={editor.getAttributes("highlight").color}
-            onSelect={(color) => editor.chain().focus().toggleHighlight({ color }).run()}
-            onReset={() => editor.chain().focus().unsetHighlight().run()}
-            resetLabel="No highlight"
-          />
-        </PopoverContent>
-      </Popover>
-
-      {/* Link */}
-      <Popover open={linkOpen} onOpenChange={setLinkOpen}>
-        <ToolbarTooltip label="Insert Link" shortcut="⌘K">
-          <PopoverTrigger asChild>
-            <Toggle
-              size="sm"
-              pressed={editor.isActive("link")}
-              onPressedChange={() => {
-                if (editor.isActive("link")) {
-                  removeLink()
-                } else {
-                  setLinkUrl(
-                    editor.getAttributes("link").href ?? ""
-                  )
-                  setLinkOpen(true)
-                }
-              }}
-            >
-              <Link className="size-4" />
-            </Toggle>
-          </PopoverTrigger>
-        </ToolbarTooltip>
-        <PopoverContent className="w-80 p-3" align="start">
-          <div className="flex items-center gap-2">
-            <Input
-              value={linkUrl}
-              onChange={(e) => setLinkUrl(e.target.value)}
-              placeholder="https://example.com"
-              className="h-8 text-sm"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  setLink()
-                }
-              }}
-            />
-            <Button size="sm" onClick={setLink}>
-              Apply
-            </Button>
-          </div>
-          {editor.isActive("link") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="mt-2 text-destructive"
-              onClick={() => {
-                removeLink()
-                setLinkOpen(false)
-              }}
-            >
-              <Unlink className="size-3.5 mr-1" />
-              Remove link
-            </Button>
-          )}
-        </PopoverContent>
-      </Popover>
-
-      <Separator orientation="vertical" className="mx-1 h-6" />
-
-      {/* ── 5. Alignment + Spacing ── */}
-      <ToolbarTooltip label="Align Left" shortcut="⌘⇧L">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive({ textAlign: "left" })}
-          onPressedChange={() =>
-            editor.chain().focus().setTextAlign("left").run()
+      {/* ── 2. Text style ── */}
+      <div className="flex items-center gap-0.5 shrink-0">
+        <Select
+          value={
+            editor.isActive("textStyle", { fontFamily: /serif/i })
+              ? "serif"
+              : "sans"
           }
-        >
-          <AlignLeft className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-      <ToolbarTooltip label="Align Center" shortcut="⌘⇧E">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive({ textAlign: "center" })}
-          onPressedChange={() =>
-            editor.chain().focus().setTextAlign("center").run()
-          }
-        >
-          <AlignCenter className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-      <ToolbarTooltip label="Align Right" shortcut="⌘⇧R">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive({ textAlign: "right" })}
-          onPressedChange={() =>
-            editor.chain().focus().setTextAlign("right").run()
-          }
-        >
-          <AlignRight className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-      <ToolbarTooltip label="Justify" shortcut="⌘⇧J">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive({ textAlign: "justify" })}
-          onPressedChange={() =>
-            editor.chain().focus().setTextAlign("justify").run()
-          }
-        >
-          <AlignJustify className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-
-      <LineSpacingPopover editor={editor} />
-
-      <Separator orientation="vertical" className="mx-1 h-6" />
-
-      {/* ── 6. Lists + Structure ── */}
-      <ToolbarTooltip label="Bullet List" shortcut="⌘⇧8">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("bulletList")}
-          onPressedChange={() =>
-            editor.chain().focus().toggleBulletList().run()
-          }
-        >
-          <List className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-      <ToolbarTooltip label="Ordered List" shortcut="⌘⇧7">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("orderedList")}
-          onPressedChange={() =>
-            editor.chain().focus().toggleOrderedList().run()
-          }
-        >
-          <ListOrdered className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-      <ToolbarTooltip label="Blockquote" shortcut="⌘⇧B">
-        <Toggle
-          size="sm"
-          pressed={editor.isActive("blockquote")}
-          onPressedChange={() =>
-            editor.chain().focus().toggleBlockquote().run()
-          }
-        >
-          <Quote className="size-4" />
-        </Toggle>
-      </ToolbarTooltip>
-      <SourceHtmlButton editor={editor} />
-
-      <Separator orientation="vertical" className="mx-1 h-6" />
-
-      {/* ── 7. Insert: Image, Table, HR ── */}
-      <ToolbarTooltip label="Insert Image">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ;(editor as any).chain().focus().setImageUpload().run()
-          }}
-        >
-          <ImageIcon className="size-4" />
-        </Button>
-      </ToolbarTooltip>
-
-      <Popover open={tableOpen} onOpenChange={setTableOpen}>
-        <ToolbarTooltip label="Insert Table">
-          <PopoverTrigger asChild>
-            <Toggle
-              size="sm"
-              pressed={editor.isActive("table")}
-              onPressedChange={() => setTableOpen(true)}
-            >
-              <Table className="size-4" />
-            </Toggle>
-          </PopoverTrigger>
-        </ToolbarTooltip>
-        <PopoverContent className="w-auto p-0" align="start">
-          <TableSizePicker
-            onSelect={(rows, cols) => {
+          onValueChange={(value) => {
+            if (value === "serif") {
               editor
                 .chain()
                 .focus()
-                .insertTable({ rows, cols, withHeaderRow: true })
+                .setFontFamily('"Times New Roman", Georgia, serif')
                 .run()
-              setTableOpen(false)
-            }}
-          />
-        </PopoverContent>
-      </Popover>
-
-      <ToolbarTooltip label="Horizontal Rule">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => editor.chain().focus().setHorizontalRule().run()}
+            } else {
+              editor.chain().focus().unsetFontFamily().run()
+            }
+          }}
         >
-          <Minus className="size-4" />
-        </Button>
-      </ToolbarTooltip>
+          <ToolbarTooltip label="Font Family">
+            <SelectTrigger className="h-7 w-[82px] text-xs gap-1 px-2 border-0 bg-transparent hover:bg-muted focus:ring-0 focus:ring-offset-0">
+              <Type className="size-3.5 shrink-0 opacity-60" />
+              <SelectValue />
+            </SelectTrigger>
+          </ToolbarTooltip>
+          <SelectContent>
+            <SelectItem value="sans">Sans</SelectItem>
+            <SelectItem value="serif">Serif</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <DropdownMenu>
+          <ToolbarTooltip label="Block Type">
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 px-2">
+                <CurrentBlockIcon className="size-4" />
+                <span className="max-w-[60px] truncate">{currentBlock.label}</span>
+                <ChevronDown className="size-3 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+          </ToolbarTooltip>
+          <DropdownMenuContent align="start" className="min-w-[160px]">
+            {BLOCK_TYPES.map((bt) => {
+              const Icon = bt.icon
+              const isActive =
+                bt.action === "heading"
+                  ? editor.isActive("heading", { level: bt.level })
+                  : editor.isActive("paragraph")
+              return (
+                <DropdownMenuItem
+                  key={bt.label}
+                  className={cn("gap-2", isActive && "bg-accent")}
+                  onClick={() => {
+                    if (bt.action === "heading") {
+                      editor.chain().focus().toggleHeading({ level: bt.level! }).run()
+                    } else {
+                      editor.chain().focus().setParagraph().run()
+                    }
+                  }}
+                >
+                  <Icon className="size-4 opacity-60" />
+                  {bt.label}
+                </DropdownMenuItem>
+              )
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Separator orientation="vertical" className="mx-1 h-6" />
+      </div>
+
+      {/* ── 3. Inline formatting ── */}
+      <div className="flex items-center gap-0.5 shrink-0">
+        <ToolbarTooltip label="Bold" shortcut="⌘B">
+          <Toggle
+            size="sm"
+            pressed={editor.isActive("bold")}
+            onPressedChange={() => editor.chain().focus().toggleBold().run()}
+          >
+            <Bold className="size-4" />
+          </Toggle>
+        </ToolbarTooltip>
+        <ToolbarTooltip label="Italic" shortcut="⌘I">
+          <Toggle
+            size="sm"
+            pressed={editor.isActive("italic")}
+            onPressedChange={() => editor.chain().focus().toggleItalic().run()}
+          >
+            <Italic className="size-4" />
+          </Toggle>
+        </ToolbarTooltip>
+        <ToolbarTooltip label="Underline" shortcut="⌘U">
+          <Toggle
+            size="sm"
+            pressed={editor.isActive("underline")}
+            onPressedChange={() => editor.chain().focus().toggleUnderline().run()}
+          >
+            <Underline className="size-4" />
+          </Toggle>
+        </ToolbarTooltip>
+        <ToolbarTooltip label="Strikethrough" shortcut="⌘⇧S">
+          <Toggle
+            size="sm"
+            pressed={editor.isActive("strike")}
+            onPressedChange={() => editor.chain().focus().toggleStrike().run()}
+          >
+            <Strikethrough className="size-4" />
+          </Toggle>
+        </ToolbarTooltip>
+
+        <Popover>
+          <ToolbarTooltip label="Text Color">
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon-sm" className="relative">
+                <Baseline className="size-4" />
+                <span
+                  className="absolute bottom-0.5 left-1/2 -translate-x-1/2 h-0.5 w-3 rounded-full"
+                  style={{ backgroundColor: editor.getAttributes("textStyle").color || "currentColor" }}
+                />
+              </Button>
+            </PopoverTrigger>
+          </ToolbarTooltip>
+          <PopoverContent className="w-auto p-0" align="start">
+            <ColorSwatchGrid
+              colors={TEXT_COLORS}
+              activeColor={editor.getAttributes("textStyle").color}
+              onSelect={(color) => editor.chain().focus().setColor(color).run()}
+              onReset={() => editor.chain().focus().unsetColor().run()}
+              resetLabel="Default"
+            />
+          </PopoverContent>
+        </Popover>
+
+        <Popover>
+          <ToolbarTooltip label="Highlight">
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon-sm" className="relative">
+                <Highlighter className="size-4" />
+                <span
+                  className="absolute bottom-0.5 left-1/2 -translate-x-1/2 h-0.5 w-3 rounded-full"
+                  style={{ backgroundColor: editor.getAttributes("highlight").color || "transparent" }}
+                />
+              </Button>
+            </PopoverTrigger>
+          </ToolbarTooltip>
+          <PopoverContent className="w-auto p-0" align="start">
+            <ColorSwatchGrid
+              colors={HIGHLIGHT_COLORS}
+              activeColor={editor.getAttributes("highlight").color}
+              onSelect={(color) => editor.chain().focus().toggleHighlight({ color }).run()}
+              onReset={() => editor.chain().focus().unsetHighlight().run()}
+              resetLabel="No highlight"
+            />
+          </PopoverContent>
+        </Popover>
+
+        <Popover open={linkOpen} onOpenChange={setLinkOpen}>
+          <ToolbarTooltip label="Insert Link" shortcut="⌘K">
+            <PopoverTrigger asChild>
+              <Toggle
+                size="sm"
+                pressed={editor.isActive("link")}
+                onPressedChange={() => {
+                  if (editor.isActive("link")) {
+                    removeLink()
+                  } else {
+                    setLinkUrl(
+                      editor.getAttributes("link").href ?? ""
+                    )
+                    setLinkOpen(true)
+                  }
+                }}
+              >
+                <Link className="size-4" />
+              </Toggle>
+            </PopoverTrigger>
+          </ToolbarTooltip>
+          <PopoverContent className="w-80 p-3" align="start">
+            <div className="flex items-center gap-2">
+              <Input
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                placeholder="https://example.com"
+                className="h-8 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault()
+                    setLink()
+                  }
+                }}
+              />
+              <Button size="sm" onClick={setLink}>
+                Apply
+              </Button>
+            </div>
+            {editor.isActive("link") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-2 text-destructive"
+                onClick={() => {
+                  removeLink()
+                  setLinkOpen(false)
+                }}
+              >
+                <Unlink className="size-3.5 mr-1" />
+                Remove link
+              </Button>
+            )}
+          </PopoverContent>
+        </Popover>
+        <Separator orientation="vertical" className="mx-1 h-6" />
+      </div>
+
+      {/* ── 4. Alignment + Spacing ── */}
+      <div className="flex items-center gap-0.5 shrink-0">
+        <ToolbarTooltip label="Align Left" shortcut="⌘⇧L">
+          <Toggle
+            size="sm"
+            pressed={editor.isActive({ textAlign: "left" })}
+            onPressedChange={() =>
+              editor.chain().focus().setTextAlign("left").run()
+            }
+          >
+            <AlignLeft className="size-4" />
+          </Toggle>
+        </ToolbarTooltip>
+        <ToolbarTooltip label="Align Center" shortcut="⌘⇧E">
+          <Toggle
+            size="sm"
+            pressed={editor.isActive({ textAlign: "center" })}
+            onPressedChange={() =>
+              editor.chain().focus().setTextAlign("center").run()
+            }
+          >
+            <AlignCenter className="size-4" />
+          </Toggle>
+        </ToolbarTooltip>
+        <ToolbarTooltip label="Align Right" shortcut="⌘⇧R">
+          <Toggle
+            size="sm"
+            pressed={editor.isActive({ textAlign: "right" })}
+            onPressedChange={() =>
+              editor.chain().focus().setTextAlign("right").run()
+            }
+          >
+            <AlignRight className="size-4" />
+          </Toggle>
+        </ToolbarTooltip>
+        <ToolbarTooltip label="Justify" shortcut="⌘⇧J">
+          <Toggle
+            size="sm"
+            pressed={editor.isActive({ textAlign: "justify" })}
+            onPressedChange={() =>
+              editor.chain().focus().setTextAlign("justify").run()
+            }
+          >
+            <AlignJustify className="size-4" />
+          </Toggle>
+        </ToolbarTooltip>
+        <LineSpacingPopover editor={editor} />
+        <Separator orientation="vertical" className="mx-1 h-6" />
+      </div>
+
+      {/* ── 5. Lists + Blockquote ── */}
+      <div className="flex items-center gap-0.5 shrink-0">
+        <ToolbarTooltip label="Bullet List" shortcut="⌘⇧8">
+          <Toggle
+            size="sm"
+            pressed={editor.isActive("bulletList")}
+            onPressedChange={() =>
+              editor.chain().focus().toggleBulletList().run()
+            }
+          >
+            <List className="size-4" />
+          </Toggle>
+        </ToolbarTooltip>
+        <ToolbarTooltip label="Ordered List" shortcut="⌘⇧7">
+          <Toggle
+            size="sm"
+            pressed={editor.isActive("orderedList")}
+            onPressedChange={() =>
+              editor.chain().focus().toggleOrderedList().run()
+            }
+          >
+            <ListOrdered className="size-4" />
+          </Toggle>
+        </ToolbarTooltip>
+        <ToolbarTooltip label="Blockquote" shortcut="⌘⇧B">
+          <Toggle
+            size="sm"
+            pressed={editor.isActive("blockquote")}
+            onPressedChange={() =>
+              editor.chain().focus().toggleBlockquote().run()
+            }
+          >
+            <Quote className="size-4" />
+          </Toggle>
+        </ToolbarTooltip>
+        <Separator orientation="vertical" className="mx-1 h-6" />
+      </div>
+
+      {/* ── 6. Insert: Image, Table, HR ── */}
+      <div className="flex items-center gap-0.5 shrink-0">
+        <ToolbarTooltip label="Insert Image">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              ;(editor as any).chain().focus().setImageUpload().run()
+            }}
+          >
+            <ImageIcon className="size-4" />
+          </Button>
+        </ToolbarTooltip>
+
+        <Popover open={tableOpen} onOpenChange={setTableOpen}>
+          <ToolbarTooltip label="Insert Table">
+            <PopoverTrigger asChild>
+              <Toggle
+                size="sm"
+                pressed={editor.isActive("table")}
+                onPressedChange={() => setTableOpen(true)}
+              >
+                <Table className="size-4" />
+              </Toggle>
+            </PopoverTrigger>
+          </ToolbarTooltip>
+          <PopoverContent className="w-auto p-0" align="start">
+            <TableSizePicker
+              onSelect={(rows, cols) => {
+                editor
+                  .chain()
+                  .focus()
+                  .insertTable({ rows, cols, withHeaderRow: true })
+                  .run()
+                setTableOpen(false)
+              }}
+            />
+          </PopoverContent>
+        </Popover>
+
+        <ToolbarTooltip label="Horizontal Rule">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => editor.chain().focus().setHorizontalRule().run()}
+          >
+            <Minus className="size-4" />
+          </Button>
+        </ToolbarTooltip>
+        <Separator orientation="vertical" className="mx-1 h-6" />
+      </div>
+
+      {/* ── 7. Source HTML ── */}
+      <div className="flex items-center shrink-0">
+        <SourceHtmlButton editor={editor} />
+      </div>
 
       {/* ── Table editing controls (shown only when inside a table) ── */}
       {editor.isActive("table") && (
-        <>
-          <Separator orientation="vertical" className="mx-1 h-6" />
+        <div className="flex items-center gap-0.5 shrink-0 basis-full pt-1 border-t mt-1">
           <ToolbarTooltip label="Add Row Above">
             <Button variant="ghost" size="icon-sm" onClick={() => editor.chain().focus().addRowBefore().run()}>
               <div className="relative"><Rows3 className="size-4" /><Plus className="size-2 absolute -top-0.5 -right-0.5" /></div>
@@ -755,6 +763,7 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
               <div className="relative"><Columns3 className="size-4" /><Plus className="size-2 absolute -top-0.5 -right-0.5" /></div>
             </Button>
           </ToolbarTooltip>
+          <Separator orientation="vertical" className="mx-1 h-6" />
           <ToolbarTooltip label="Delete Row">
             <Button variant="ghost" size="icon-sm" onClick={() => editor.chain().focus().deleteRow().run()}>
               <div className="relative"><Rows3 className="size-4" /><Trash2 className="size-2 absolute -bottom-0.5 -right-0.5 text-destructive" /></div>
@@ -775,7 +784,7 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
               <Trash2 className="size-4 text-destructive" />
             </Button>
           </ToolbarTooltip>
-        </>
+        </div>
       )}
     </div>
   )

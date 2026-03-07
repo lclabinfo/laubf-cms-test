@@ -61,9 +61,10 @@ const MessagesContext = createContext<MessagesContextValue | null>(null)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function synthesizeStudySections(relatedStudy: any): StudySection[] | undefined {
   if (!relatedStudy) return undefined
-  const hasAnyContent = relatedStudy.questions || relatedStudy.answers || relatedStudy.transcript
-  if (!hasAnyContent) return undefined
-  const sections: StudySection[] = [
+  // Only questions and answers belong in study sections — transcript goes to rawTranscript
+  const hasStudyContent = relatedStudy.questions || relatedStudy.answers
+  if (!hasStudyContent) return undefined
+  return [
     {
       id: `legacy-q-${relatedStudy.id}`,
       title: "Questions",
@@ -75,14 +76,6 @@ function synthesizeStudySections(relatedStudy: any): StudySection[] | undefined 
       content: relatedStudy.answers || "",
     },
   ]
-  if (relatedStudy.transcript) {
-    sections.push({
-      id: `legacy-t-${relatedStudy.id}`,
-      title: "Transcript",
-      content: relatedStudy.transcript,
-    })
-  }
-  return sections
 }
 
 // Synthesize attachments from BibleStudy.attachments when Message.attachments is null
@@ -135,7 +128,7 @@ function apiMessageToCms(apiMsg: any): Message {
     thumbnailUrl: apiMsg.thumbnailUrl ?? undefined,
     duration: apiMsg.duration ?? undefined,
     audioUrl: apiMsg.audioUrl ?? undefined,
-    rawTranscript: apiMsg.rawTranscript ?? undefined,
+    rawTranscript: apiMsg.rawTranscript ?? apiMsg.relatedStudy?.transcript ?? undefined,
     liveTranscript: apiMsg.liveTranscript ?? undefined,
     transcriptSegments: apiMsg.transcriptSegments ?? undefined,
     studySections: apiMsg.studySections ?? synthesizeStudySections(apiMsg.relatedStudy),

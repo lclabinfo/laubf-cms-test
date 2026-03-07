@@ -10,6 +10,7 @@ import {
   IconArrowRight,
   IconBookOpen,
   IconUser,
+  IconFileText,
 } from "@/components/website/shared/icons"
 import TranscriptPanel from "./transcript-panel"
 import ShareMessageButton from "./share-message-button"
@@ -47,8 +48,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!message) return { title: "Message Not Found" }
 
   return {
-    title: `${message.title} | Messages`,
-    description: `Listen to ${message.title}`,
+    title: `${message.videoTitle || message.title} | Messages`,
+    description: message.videoDescription || `Listen to ${message.title}`,
   }
 }
 
@@ -98,7 +99,7 @@ export default async function MessageDetailPage({ params }: PageProps) {
             <div className="aspect-video rounded-[24px] overflow-hidden bg-black-1 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]">
               <iframe
                 src={`https://www.youtube.com/embed/${message.youtubeId}`}
-                title={message.title}
+                title={message.videoTitle || message.title}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 className="w-full h-full"
@@ -108,7 +109,7 @@ export default async function MessageDetailPage({ params }: PageProps) {
             <div className="aspect-video rounded-[24px] overflow-hidden bg-black-1 shadow-[0px_25px_50px_-12px_rgba(0,0,0,0.25)]">
               <iframe
                 src={toEmbedUrl(message.videoUrl)}
-                title={message.title}
+                title={message.videoTitle || message.title}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
                 className="w-full h-full"
@@ -142,7 +143,7 @@ export default async function MessageDetailPage({ params }: PageProps) {
 
           {/* Title */}
           <h1 className="text-[36px] md:text-[48px] font-black leading-[1.15] tracking-[-0.85px] text-black-1 uppercase mt-4">
-            {message.title}
+            {message.videoTitle || message.title}
           </h1>
 
           {/* Passage + Speaker */}
@@ -165,6 +166,44 @@ export default async function MessageDetailPage({ params }: PageProps) {
             <p className="text-[14px] text-black-3 mt-4">
               Duration: {message.duration}
             </p>
+          )}
+
+          {/* Video Description */}
+          {message.videoDescription && (
+            <div className="mt-8">
+              <p className="text-[16px] text-black-2 leading-[1.5] tracking-[-0.31px]">
+                {message.videoDescription}
+              </p>
+            </div>
+          )}
+
+          {/* Attachments from related study */}
+          {message.relatedStudy?.attachments && message.relatedStudy.attachments.length > 0 && (
+            <div className="mt-8 pt-6 border-t border-white-2">
+              <h3 className="text-[12px] font-black text-black-3 uppercase tracking-[1.1px] mb-4">
+                Attachments
+              </h3>
+              <div className="flex flex-col gap-2">
+                {message.relatedStudy.attachments.map((att) => (
+                  <a
+                    key={att.id}
+                    href={att.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="flex items-center gap-3 rounded-[14px] bg-white-1-5 border border-white-2 px-4 py-3 hover:bg-white-2/60 transition-colors group"
+                  >
+                    <IconFileText className="size-5 text-accent-blue shrink-0" />
+                    <span className="text-[14px] font-medium text-black-1 truncate">
+                      {att.name}
+                    </span>
+                    <span className="ml-auto text-[12px] text-black-3 uppercase shrink-0">
+                      {att.type}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 

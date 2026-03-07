@@ -10,7 +10,11 @@ type MessageDetail = Prisma.MessageGetPayload<{
   include: {
     speaker: true
     messageSeries: { include: { series: true } }
-    relatedStudy: true
+    relatedStudy: {
+      include: {
+        attachments: true
+      }
+    }
   }
 }>
 
