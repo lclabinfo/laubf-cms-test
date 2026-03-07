@@ -266,26 +266,58 @@ export async function convertDocToHtml(
     bodyHtml = bodyMatch[1].trim()
 
     // Inline CSS class styles from <style> block into elements.
-    // textutil generates class-based styles (e.g., p.p1 { font: 12px 'Times New Roman' })
+    // textutil generates class-based styles (e.g., p.p1 { ... }, span.Apple-tab-span { ... })
     // that are lost when we strip the <style> block. Inline them so the HTML is self-contained.
     const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i)
     if (styleMatch) {
       const styleBlock = styleMatch[1]
-      // Parse CSS rules: "p.p1 { ... }" or ".p1 { ... }"
-      const ruleRegex = /(?:p\.)?(\w+)\s*\{([^}]+)\}/g
+      // Parse CSS rules: "p.p1 { ... }", "span.Apple-tab-span { ... }", ".cls { ... }"
+      const ruleRegex = /(?:\w+\.)?([A-Za-z][\w-]*)\s*\{([^}]+)\}/g
       let ruleMatch: RegExpExecArray | null
       const classStyles = new Map<string, string>()
       while ((ruleMatch = ruleRegex.exec(styleBlock)) !== null) {
         classStyles.set(ruleMatch[1], ruleMatch[2].trim())
       }
 
-      // Replace class references with inline styles
+      // Replace class references with inline styles on ALL element types
       for (const [cls, styles] of classStyles) {
-        // Match elements with class="cls" and add inline style
         const classRegex = new RegExp(`(<\\w+)\\s+class="${cls}"`, "g")
         bodyHtml = bodyHtml.replace(classRegex, `$1 style="${styles}"`)
       }
     }
+
+    // Convert Apple-tab-span tabs to em-spaces for consistent rendering.
+    // Raw \t with white-space:pre may not render in all contexts (e.g., TipTap editor).
+    bodyHtml = bodyHtml.replace(
+      /<span style="white-space:pre">\t<\/span>/g,
+      "\u2003\u2003"  // two em-spaces ≈ one tab stop
+    )
+
+    // Convert Apple-converted-space trailing spaces
+    bodyHtml = bodyHtml.replace(
+      /<span class="Apple-converted-space">\s*<\/span>/g,
+      ""
+    )
+
+    // Normalize hanging indent for numbered items.
+    // textutil sometimes formats numbered questions (e.g., "5. [tab] text") with
+    // p3 (no indent) instead of p4 (hanging indent). Detect the pattern and apply
+    // consistent hanging indent to paragraphs starting with "N. " that lack it.
+    bodyHtml = bodyHtml.replace(
+      /<p style="([^"]*)">((\d+\.\s*\u2003)[\s\S]*?)<\/p>/g,
+      (_match, style: string, inner: string) => {
+        // Only fix paragraphs that don't already have hanging indent
+        if (!style.includes("text-indent") &&
+            (!style.includes("margin-left") || style.includes("margin: 0.0px 0.0px 0.0px 0.0px"))) {
+          const newStyle = style
+            .replace(/margin:\s*[\d.]+px\s+[\d.]+px\s+[\d.]+px\s+0\.0px/, (m) =>
+              m.replace(/0\.0px$/, "39.8px"))
+            + "; text-indent: -39.8px"
+          return `<p style="${newStyle}">${inner}</p>`
+        }
+        return `<p style="${style}">${inner}</p>`
+      }
+    )
   } else {
     bodyHtml = html
   }
