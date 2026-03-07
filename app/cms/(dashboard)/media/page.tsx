@@ -21,11 +21,7 @@ import { AddVideoDialog } from "@/components/cms/media/add-video-dialog"
 import { ConnectAlbumDialog } from "@/components/cms/media/connect-album-dialog"
 import { MoveToDialog } from "@/components/cms/media/move-to-dialog"
 import { MediaPreviewDialog } from "@/components/cms/media/media-preview-dialog"
-import {
-  imageFormats,
-  videoFormats,
-  mediaAssetToItem,
-} from "@/lib/media-data"
+import { mediaAssetToItem } from "@/lib/media-data"
 import type { MediaItem, MediaFolder, GoogleAlbum } from "@/lib/media-data"
 
 // Hoist row model factories so they are stable references
@@ -40,12 +36,20 @@ function isRealFolder(id: ActiveFilterId): id is string {
   return typeof id === "string" && !VIRTUAL_FILTERS.has(id)
 }
 
+type ApiFolderItem = { id: string; name: string; count: number }
+
 export default function MediaPage() {
   // Data state
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([])
   const [folders, setFolders] = useState<MediaFolder[]>([])
+  const [folderCounts, setFolderCounts] = useState<Map<string, number>>(new Map())
   const [albums, setAlbums] = useState<GoogleAlbum[]>([])
   const [isLoading, setIsLoading] = useState(true)
+
+  // Storage usage
+  const [storageUsed, setStorageUsed] = useState<string | null>(null)
+  const [storageQuota, setStorageQuota] = useState<string | null>(null)
+  const [storagePercent, setStoragePercent] = useState(0)
 
   // Navigation
   const [activeFolderId, setActiveFolderId] = useState<ActiveFilterId>("all")
@@ -78,10 +82,14 @@ export default function MediaPage() {
         params.set("type", "image")
       } else if (activeFolderId === "videos") {
         params.set("type", "video")
+      } else if (activeFolderId === "all") {
+        // Root view: only show items not in any folder
+        params.set("folder", "/")
       } else if (isRealFolder(activeFolderId)) {
-        params.set("folder", activeFolderId)
+        // Find the folder name from our folders list
+        const folder = folders.find((f) => f.id === activeFolderId)
+        if (folder) params.set("folder", folder.name)
       }
-      // "all" sends no folder filter — API returns root items by default
 
       if (search) params.set("search", search)
 
@@ -108,20 +116,39 @@ export default function MediaPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [activeFolderId, search, sort])
+  }, [activeFolderId, search, sort, folders])
 
   const fetchFolders = useCallback(async () => {
     try {
       const res = await fetch("/api/v1/media/folders")
       const json = await res.json()
       if (json.success) {
-        const folderList: MediaFolder[] = (json.data as string[]).map(
-          (name) => ({ id: name, name })
-        )
-        setFolders(folderList)
+        const { folders: folderList, mediaCounts: counts } = json.data as {
+          folders: ApiFolderItem[]
+          mediaCounts: { all: number; photos: number; videos: number }
+        }
+        setFolders(folderList.map((f) => ({ id: f.id, name: f.name })))
+        const fCounts = new Map<string, number>()
+        for (const f of folderList) fCounts.set(f.id, f.count)
+        setFolderCounts(fCounts)
+        setMediaCounts(counts)
       }
     } catch {
       // Folders are non-critical; silently ignore
+    }
+  }, [])
+
+  const fetchStorageUsage = useCallback(async () => {
+    try {
+      const res = await fetch("/api/v1/storage")
+      const json = await res.json()
+      if (json.success) {
+        setStorageUsed(json.data.currentUsageFormatted)
+        setStorageQuota(json.data.quotaFormatted)
+        setStoragePercent(json.data.percentUsed)
+      }
+    } catch {
+      // Non-critical
     }
   }, [])
 
@@ -132,29 +159,14 @@ export default function MediaPage() {
     }
   }, [fetchMedia, activeFolderId])
 
-  // Fetch folders on mount
+  // Fetch folders and storage on mount
   useEffect(() => {
     fetchFolders()
-  }, [fetchFolders])
+    fetchStorageUsage()
+  }, [fetchFolders, fetchStorageUsage])
 
-  // ---------------------------------------------------------------------------
-  // Computed values
-  // ---------------------------------------------------------------------------
-  const mediaCounts = useMemo(() => ({
-    all: mediaItems.length,
-    photos: mediaItems.filter((i) => imageFormats.includes(i.format)).length,
-    videos: mediaItems.filter((i) => videoFormats.includes(i.format)).length,
-  }), [mediaItems])
-
-  const folderCounts = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const item of mediaItems) {
-      if (item.folderId) {
-        map.set(item.folderId, (map.get(item.folderId) ?? 0) + 1)
-      }
-    }
-    return map
-  }, [mediaItems])
+  // Server-side media counts (all/photos/videos)
+  const [mediaCounts, setMediaCounts] = useState({ all: 0, photos: 0, videos: 0 })
 
   // For list view, items are already fetched & filtered server-side,
   // but we still apply client-side sort for the table.
@@ -225,8 +237,11 @@ export default function MediaPage() {
       const body: Record<string, unknown> = {}
       if (updates.name !== undefined) body.filename = updates.name
       if (updates.altText !== undefined) body.alt = updates.altText
-      if (updates.folderId !== undefined)
-        body.folder = updates.folderId ?? "/"
+      if (updates.folderId !== undefined) {
+        // Map folderId (which is the folder DB id) to the folder name
+        const folder = folders.find((f) => f.id === updates.folderId)
+        body.folder = folder ? folder.name : "/"
+      }
 
       const res = await fetch(`/api/v1/media/${id}`, {
         method: "PATCH",
@@ -261,6 +276,7 @@ export default function MediaPage() {
           next.delete(id)
           return next
         })
+        fetchStorageUsage()
       } else {
         toast.error(json.error ?? "Failed to delete media")
       }
@@ -294,6 +310,7 @@ export default function MediaPage() {
         return next
       })
       toast.success(`Deleted ${successIds.size} item${successIds.size > 1 ? "s" : ""}`)
+      fetchStorageUsage()
     }
 
     const failCount = ids.length - successIds.size
@@ -333,23 +350,74 @@ export default function MediaPage() {
   })
 
   // ---------------------------------------------------------------------------
-  // Folder handlers (still local — folder CRUD API is future work)
+  // Folder handlers — wired to API
   // ---------------------------------------------------------------------------
-  function handleCreateFolder({ name }: { name: string }) {
-    setFolders((prev) => [...prev, { id: name, name }])
-    setActiveFolderId(name)
+  async function handleCreateFolder({ name }: { name: string }) {
+    try {
+      const res = await fetch("/api/v1/media/folders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        const f = json.data as ApiFolderItem
+        setFolders((prev) => [...prev, { id: f.id, name: f.name }])
+        setFolderCounts((prev) => {
+          const next = new Map(prev)
+          next.set(f.id, 0)
+          return next
+        })
+        setActiveFolderId(f.id)
+      } else {
+        toast.error(json.error?.message ?? "Failed to create folder")
+      }
+    } catch {
+      toast.error("Failed to create folder")
+    }
   }
 
-  function handleRenameFolder(id: string, name: string) {
-    setFolders((prev) => prev.map((f) => (f.id === id ? { ...f, name } : f)))
+  async function handleRenameFolder(id: string, name: string) {
+    try {
+      const res = await fetch(`/api/v1/media/folders/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        setFolders((prev) => prev.map((f) => (f.id === id ? { ...f, name } : f)))
+        toast.success("Folder renamed")
+      } else {
+        toast.error(json.error?.message ?? "Failed to rename folder")
+      }
+    } catch {
+      toast.error("Failed to rename folder")
+    }
   }
 
-  function handleDeleteFolder(id: string) {
-    setFolders((prev) => prev.filter((f) => f.id !== id))
-    setMediaItems((prev) =>
-      prev.map((i) => (i.folderId === id ? { ...i, folderId: null } : i))
-    )
-    if (activeFolderId === id) setActiveFolderId("all")
+  async function handleDeleteFolder(id: string) {
+    try {
+      const res = await fetch(`/api/v1/media/folders/${id}`, {
+        method: "DELETE",
+      })
+      const json = await res.json()
+      if (json.success) {
+        setFolders((prev) => prev.filter((f) => f.id !== id))
+        setFolderCounts((prev) => {
+          const next = new Map(prev)
+          next.delete(id)
+          return next
+        })
+        if (activeFolderId === id) setActiveFolderId("all")
+        // Refresh media since items were moved to root
+        fetchMedia()
+      } else {
+        toast.error(json.error?.message ?? "Failed to delete folder")
+      }
+    } catch {
+      toast.error("Failed to delete folder")
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -360,6 +428,7 @@ export default function MediaPage() {
     // Refetch to get accurate server state
     fetchMedia()
     fetchFolders()
+    fetchStorageUsage()
   }
 
   // ---------------------------------------------------------------------------
@@ -404,15 +473,28 @@ export default function MediaPage() {
   // Move / selection handlers
   // ---------------------------------------------------------------------------
   function handleMoveItems(folderId: string | null) {
+    // Find folder name for the target
+    const folder = folderId ? folders.find((f) => f.id === folderId) : null
+    const folderName = folder ? folder.name : "/"
+
     setMediaItems((prev) =>
       prev.map((i) => (movingIds.includes(i.id) ? { ...i, folderId } : i))
     )
-    // Also PATCH each item server-side
+    // PATCH each item server-side
     for (const id of movingIds) {
-      handleUpdateItem(id, { folderId })
+      fetch(`/api/v1/media/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder: folderName }),
+      }).catch(() => {
+        toast.error("Failed to move item")
+      })
     }
     setMovingIds([])
     setSelectedIds(new Set())
+    // Refresh to get accurate counts
+    fetchFolders()
+    fetchMedia()
   }
 
   function handleBulkMove() {
@@ -448,9 +530,9 @@ export default function MediaPage() {
     setSearch("")
   }
 
-  // Determine the current real folder for upload context
+  // Determine the current real folder name for upload context
   const currentUploadFolder = isRealFolder(activeFolderId)
-    ? activeFolderId
+    ? (folders.find((f) => f.id === activeFolderId)?.name ?? null)
     : null
 
   // Determine current folder ID for move dialog context
@@ -498,6 +580,9 @@ export default function MediaPage() {
           onDeleteFolder={handleDeleteFolder}
           mediaCounts={mediaCounts}
           folderCounts={folderCounts}
+          storageUsed={storageUsed}
+          storageQuota={storageQuota}
+          storagePercent={storagePercent}
         />
         <div className="flex-1 min-w-0 overflow-y-auto p-0.5 -m-0.5">
           {isGoogleAlbums ? (

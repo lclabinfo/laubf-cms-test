@@ -19,7 +19,7 @@ export async function listMedia(
     churchId,
     deletedAt: null,
   }
-  if (opts?.folder) where.folder = opts.folder
+  if (opts?.folder !== undefined) where.folder = opts.folder
   if (opts?.mimeTypePrefix) where.mimeType = { startsWith: opts.mimeTypePrefix }
   if (opts?.search) where.filename = { contains: opts.search, mode: 'insensitive' }
   if (opts?.cursor) where.createdAt = { lt: new Date(opts.cursor) }
@@ -141,12 +141,91 @@ export async function hardDeleteMediaAsset(churchId: string, id: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Folders (virtual — stored in MediaAsset.folder column)
+// Folders (persistent MediaFolder table)
 // ---------------------------------------------------------------------------
 
+export async function listFolders(churchId: string) {
+  return prisma.mediaFolder.findMany({
+    where: { churchId },
+    orderBy: { name: 'asc' },
+  })
+}
+
+export async function createFolder(churchId: string, name: string) {
+  return prisma.mediaFolder.create({
+    data: { churchId, name },
+  })
+}
+
+export async function renameFolder(churchId: string, id: string, name: string) {
+  const existing = await prisma.mediaFolder.findFirst({
+    where: { id, churchId },
+  })
+  if (!existing) return null
+
+  const oldName = existing.name
+
+  // Update the folder record and all media assets in that folder
+  const [folder] = await prisma.$transaction([
+    prisma.mediaFolder.update({
+      where: { id },
+      data: { name },
+    }),
+    prisma.mediaAsset.updateMany({
+      where: { churchId, folder: oldName, deletedAt: null },
+      data: { folder: name },
+    }),
+  ])
+
+  return folder
+}
+
+export async function deleteFolder(churchId: string, id: string) {
+  const existing = await prisma.mediaFolder.findFirst({
+    where: { id, churchId },
+  })
+  if (!existing) return null
+
+  // Move all items in this folder back to root, then delete the folder
+  await prisma.$transaction([
+    prisma.mediaAsset.updateMany({
+      where: { churchId, folder: existing.name, deletedAt: null },
+      data: { folder: '/' },
+    }),
+    prisma.mediaFolder.delete({ where: { id } }),
+  ])
+
+  return existing
+}
+
+/** Get item counts per folder name (non-deleted items only) */
+export async function getFolderCounts(churchId: string): Promise<Record<string, number>> {
+  const results = await prisma.mediaAsset.groupBy({
+    by: ['folder'],
+    where: { churchId, deletedAt: null, NOT: { folder: '/' } },
+    _count: { id: true },
+  })
+  const map: Record<string, number> = {}
+  for (const r of results) {
+    map[r.folder] = r._count.id
+  }
+  return map
+}
+
+/** Get total media counts (all, photos, videos) for sidebar */
+export async function getMediaCounts(churchId: string) {
+  const [all, photos, videos] = await Promise.all([
+    prisma.mediaAsset.count({ where: { churchId, deletedAt: null } }),
+    prisma.mediaAsset.count({ where: { churchId, deletedAt: null, mimeType: { startsWith: 'image/' } } }),
+    prisma.mediaAsset.count({ where: { churchId, deletedAt: null, mimeType: { startsWith: 'video/' } } }),
+  ])
+  return { all, photos, videos }
+}
+
+/** @deprecated Use listFolders() instead */
 export async function getDistinctFolders(churchId: string): Promise<string[]> {
   const results = await prisma.mediaAsset.findMany({
-    where: { churchId, deletedAt: null },
+    where: { churchId, deletedAt: null, NOT: { folder: '/' } },
     select: { folder: true },
     distinct: ['folder'],
     orderBy: { folder: 'asc' },

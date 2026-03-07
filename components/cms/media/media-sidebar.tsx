@@ -51,6 +51,9 @@ interface MediaSidebarProps {
   onDeleteFolder: (id: string) => void
   mediaCounts: { all: number; photos: number; videos: number }
   folderCounts: Map<string, number>
+  storageUsed: string | null
+  storageQuota: string | null
+  storagePercent: number
 }
 
 const smartFilters: {
@@ -74,6 +77,9 @@ export function MediaSidebar({
   onDeleteFolder,
   mediaCounts,
   folderCounts,
+  storageUsed,
+  storageQuota,
+  storagePercent,
 }: MediaSidebarProps) {
   const [renamingFolder, setRenamingFolder] = useState<{ id: string; name: string } | null>(null)
   const [renameValue, setRenameValue] = useState("")
@@ -208,10 +214,14 @@ export function MediaSidebar({
             <span className="text-sm font-medium">Storage</span>
           </div>
           <div className="h-1.5 rounded-full bg-muted overflow-hidden mb-1.5">
-            <div className="h-full rounded-full bg-primary" style={{ width: "42%" }} />
+            <div
+              className="h-full rounded-full bg-primary transition-all"
+              style={{ width: `${Math.min(storagePercent, 100)}%` }}
+            />
           </div>
           <p className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">4.2 GB</span> of 10 GB used
+            <span className="font-medium text-foreground">{storageUsed ?? "..."}</span>{" "}
+            of {storageQuota ?? "10.0 GB"} used
           </p>
         </div>
       </div>

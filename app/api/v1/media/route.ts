@@ -21,9 +21,16 @@ export async function GET(request: NextRequest) {
     const churchId = await getChurchId()
     const { searchParams } = new URL(request.url)
 
+    // Map type filter to MIME prefix (e.g. "image" → "image/")
+    const typeParam = searchParams.get('type')
+    const mimeTypePrefix = typeParam ? `${typeParam}/` : undefined
+
+    // folder param: "/" means root-only, a name means that folder, absent means all
+    const folderParam = searchParams.get('folder')
+
     const result = await listMedia(churchId, {
-      folder: searchParams.get('folder') || undefined,
-      mimeTypePrefix: searchParams.get('type') || undefined,
+      folder: folderParam ?? undefined,
+      mimeTypePrefix,
       search: searchParams.get('search') || undefined,
       cursor: searchParams.get('cursor') || undefined,
       limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!, 10) : undefined,

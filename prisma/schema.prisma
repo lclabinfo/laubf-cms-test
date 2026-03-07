@@ -69,6 +69,7 @@ model Church {
   videos             Video[]
   dailyBreads        DailyBread[]
   mediaAssets        MediaAsset[]
+  mediaFolders       MediaFolder[]
   tags               Tag[]
   announcements      Announcement[]
   contactSubmissions ContactSubmission[]
@@ -913,9 +914,21 @@ model MediaAsset {
 
   church       Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
 
-  @@index([churchId, folder])
-  @@index([churchId, mimeType])
-  @@index([churchId, createdAt(sort: Desc)])
+  @@index([churchId, deletedAt, folder])
+  @@index([churchId, deletedAt, mimeType])
+  @@index([churchId, deletedAt, createdAt(sort: Desc)])
+}
+
+model MediaFolder {
+  id        String   @id @default(uuid()) @db.Uuid
+  churchId  String   @db.Uuid
+  name      String
+  createdAt DateTime @default(now())
+
+  church    Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+
+  @@unique([churchId, name])
+  @@index([churchId])
 }
 
 model Announcement {
