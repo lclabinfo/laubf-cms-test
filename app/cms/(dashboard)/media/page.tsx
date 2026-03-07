@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -8,6 +8,7 @@ import {
   getSortedRowModel,
   type SortingState,
 } from "@tanstack/react-table"
+import { toast } from "sonner"
 import { DataTable } from "@/components/ui/data-table"
 import { columns, type MediaTableMeta } from "@/components/cms/media/columns"
 import { Toolbar, type SortOption } from "@/components/cms/media/toolbar"
@@ -23,6 +24,7 @@ import { MediaPreviewDialog } from "@/components/cms/media/media-preview-dialog"
 import {
   imageFormats,
   videoFormats,
+  mediaAssetToItem,
 } from "@/lib/media-data"
 import type { MediaItem, MediaFolder, GoogleAlbum } from "@/lib/media-data"
 
@@ -31,11 +33,19 @@ const coreRowModel = getCoreRowModel()
 const paginationRowModel = getPaginationRowModel()
 const sortedRowModel = getSortedRowModel()
 
+// Helpers for determining the active folder value to send to the API
+const VIRTUAL_FILTERS = new Set<string>(["all", "photos", "videos", "google-albums"])
+
+function isRealFolder(id: ActiveFilterId): id is string {
+  return typeof id === "string" && !VIRTUAL_FILTERS.has(id)
+}
+
 export default function MediaPage() {
-  // Data state (starts empty — media API integration is pending)
+  // Data state
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([])
   const [folders, setFolders] = useState<MediaFolder[]>([])
   const [albums, setAlbums] = useState<GoogleAlbum[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   // Navigation
   const [activeFolderId, setActiveFolderId] = useState<ActiveFilterId>("all")
@@ -55,7 +65,81 @@ export default function MediaPage() {
   const [movingIds, setMovingIds] = useState<string[]>([])
   const [previewItem, setPreviewItem] = useState<MediaItem | null>(null)
 
-  // Computed: counts for sidebar
+  // ---------------------------------------------------------------------------
+  // Data fetching
+  // ---------------------------------------------------------------------------
+  const fetchMedia = useCallback(async () => {
+    setIsLoading(true)
+    try {
+      const params = new URLSearchParams()
+
+      // Map sidebar filter to API query params
+      if (activeFolderId === "photos") {
+        params.set("type", "image")
+      } else if (activeFolderId === "videos") {
+        params.set("type", "video")
+      } else if (isRealFolder(activeFolderId)) {
+        params.set("folder", activeFolderId)
+      }
+      // "all" sends no folder filter — API returns root items by default
+
+      if (search) params.set("search", search)
+
+      // Map sort to API sort param
+      const sortMap: Record<SortOption, string> = {
+        newest: "newest",
+        oldest: "oldest",
+        "name-asc": "name-asc",
+        "name-desc": "name-desc",
+      }
+      params.set("sort", sortMap[sort])
+
+      const res = await fetch(`/api/v1/media?${params.toString()}`)
+      const json = await res.json()
+
+      if (json.success) {
+        const items: MediaItem[] = json.data.items.map(mediaAssetToItem)
+        setMediaItems(items)
+      } else {
+        toast.error("Failed to load media")
+      }
+    } catch {
+      toast.error("Failed to load media")
+    } finally {
+      setIsLoading(false)
+    }
+  }, [activeFolderId, search, sort])
+
+  const fetchFolders = useCallback(async () => {
+    try {
+      const res = await fetch("/api/v1/media/folders")
+      const json = await res.json()
+      if (json.success) {
+        const folderList: MediaFolder[] = (json.data as string[]).map(
+          (name) => ({ id: name, name })
+        )
+        setFolders(folderList)
+      }
+    } catch {
+      // Folders are non-critical; silently ignore
+    }
+  }, [])
+
+  // Fetch media whenever filter/search/sort changes
+  useEffect(() => {
+    if (activeFolderId !== "google-albums") {
+      fetchMedia()
+    }
+  }, [fetchMedia, activeFolderId])
+
+  // Fetch folders on mount
+  useEffect(() => {
+    fetchFolders()
+  }, [fetchFolders])
+
+  // ---------------------------------------------------------------------------
+  // Computed values
+  // ---------------------------------------------------------------------------
   const mediaCounts = useMemo(() => ({
     all: mediaItems.length,
     photos: mediaItems.filter((i) => imageFormats.includes(i.format)).length,
@@ -72,35 +156,13 @@ export default function MediaPage() {
     return map
   }, [mediaItems])
 
-  // Computed: filtered + sorted items
+  // For list view, items are already fetched & filtered server-side,
+  // but we still apply client-side sort for the table.
   const filteredItems = useMemo(() => {
-    let items: MediaItem[]
+    const items = [...mediaItems]
 
-    switch (activeFolderId) {
-      case "all":
-        items = mediaItems.filter((i) => i.folderId === null)
-        break
-      case "photos":
-        items = mediaItems.filter((i) => imageFormats.includes(i.format))
-        break
-      case "videos":
-        items = mediaItems.filter((i) => videoFormats.includes(i.format))
-        break
-      case "google-albums":
-        items = []
-        break
-      default:
-        items = mediaItems.filter((i) => i.folderId === activeFolderId)
-    }
-
-    // Apply search
-    if (search) {
-      const q = search.toLowerCase()
-      items = items.filter((i) => i.name.toLowerCase().includes(q))
-    }
-
-    // Apply sort
-    items = [...items].sort((a, b) => {
+    // Apply sort client-side (API may also sort, but keep consistent)
+    items.sort((a, b) => {
       switch (sort) {
         case "newest":
           return b.dateAdded.localeCompare(a.dateAdded)
@@ -116,9 +178,9 @@ export default function MediaPage() {
     })
 
     return items
-  }, [mediaItems, activeFolderId, search, sort])
+  }, [mediaItems, sort])
 
-  // TanStack Table sorting state (synced from our sort state)
+  // TanStack Table sorting state
   const tableSorting = useMemo<SortingState>(() => {
     switch (sort) {
       case "newest": return [{ id: "dateAdded", desc: true }]
@@ -152,10 +214,92 @@ export default function MediaPage() {
     [rowSelection, filteredItems]
   )
 
-  function handleUpdateItem(id: string, updates: Partial<Pick<MediaItem, "name" | "altText" | "folderId">>) {
-    setMediaItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, ...updates } : i))
+  // ---------------------------------------------------------------------------
+  // CRUD handlers
+  // ---------------------------------------------------------------------------
+  async function handleUpdateItem(
+    id: string,
+    updates: Partial<Pick<MediaItem, "name" | "altText" | "folderId">>
+  ) {
+    try {
+      const body: Record<string, unknown> = {}
+      if (updates.name !== undefined) body.filename = updates.name
+      if (updates.altText !== undefined) body.alt = updates.altText
+      if (updates.folderId !== undefined)
+        body.folder = updates.folderId ?? "/"
+
+      const res = await fetch(`/api/v1/media/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json()
+
+      if (json.success) {
+        // Update local state optimistically
+        setMediaItems((prev) =>
+          prev.map((i) => (i.id === id ? { ...i, ...updates } : i))
+        )
+        toast.success("Media updated")
+      } else {
+        toast.error(json.error ?? "Failed to update media")
+      }
+    } catch {
+      toast.error("Failed to update media")
+    }
+  }
+
+  async function handleDeleteItem(id: string) {
+    try {
+      const res = await fetch(`/api/v1/media/${id}`, { method: "DELETE" })
+      const json = await res.json()
+
+      if (json.success) {
+        setMediaItems((prev) => prev.filter((i) => i.id !== id))
+        setSelectedIds((prev) => {
+          const next = new Set(prev)
+          next.delete(id)
+          return next
+        })
+      } else {
+        toast.error(json.error ?? "Failed to delete media")
+      }
+    } catch {
+      toast.error("Failed to delete media")
+    }
+  }
+
+  async function handleBulkDelete() {
+    const ids = Array.from(selectedIds)
+    const results = await Promise.allSettled(
+      ids.map((id) =>
+        fetch(`/api/v1/media/${id}`, { method: "DELETE" }).then((r) =>
+          r.json()
+        )
+      )
     )
+
+    const successIds = new Set<string>()
+    results.forEach((result, idx) => {
+      if (result.status === "fulfilled" && result.value.success) {
+        successIds.add(ids[idx])
+      }
+    })
+
+    if (successIds.size > 0) {
+      setMediaItems((prev) => prev.filter((i) => !successIds.has(i.id)))
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        for (const id of successIds) next.delete(id)
+        return next
+      })
+      toast.success(`Deleted ${successIds.size} item${successIds.size > 1 ? "s" : ""}`)
+    }
+
+    const failCount = ids.length - successIds.size
+    if (failCount > 0) {
+      toast.error(`Failed to delete ${failCount} item${failCount > 1 ? "s" : ""}`)
+    }
   }
 
   const tableMeta: MediaTableMeta = useMemo(() => ({
@@ -168,12 +312,7 @@ export default function MediaPage() {
       setMoveDialogOpen(true)
     },
     onDelete: (id: string) => {
-      setMediaItems((prev) => prev.filter((i) => i.id !== id))
-      setSelectedIds((prev) => {
-        const next = new Set(prev)
-        next.delete(id)
-        return next
-      })
+      handleDeleteItem(id)
     },
   }), [mediaItems])
 
@@ -193,11 +332,12 @@ export default function MediaPage() {
     meta: tableMeta,
   })
 
-  // Handlers
+  // ---------------------------------------------------------------------------
+  // Folder handlers (still local — folder CRUD API is future work)
+  // ---------------------------------------------------------------------------
   function handleCreateFolder({ name }: { name: string }) {
-    const id = `f${Date.now()}`
-    setFolders((prev) => [...prev, { id, name }])
-    setActiveFolderId(id)
+    setFolders((prev) => [...prev, { id: name, name }])
+    setActiveFolderId(name)
   }
 
   function handleRenameFolder(id: string, name: string) {
@@ -206,42 +346,30 @@ export default function MediaPage() {
 
   function handleDeleteFolder(id: string) {
     setFolders((prev) => prev.filter((f) => f.id !== id))
-    // Move orphaned items to ungrouped
     setMediaItems((prev) =>
       prev.map((i) => (i.folderId === id ? { ...i, folderId: null } : i))
     )
     if (activeFolderId === id) setActiveFolderId("all")
   }
 
-  function handleUploadPhotos(files: File[]) {
-    const folderId = typeof activeFolderId === "string" && !["all", "photos", "videos", "google-albums"].includes(activeFolderId)
-      ? activeFolderId
-      : null
-    const newItems: MediaItem[] = files.map((file, i) => {
-      const ext = file.name.split(".").pop()?.toUpperCase() ?? "JPG"
-      const format = (["JPG", "PNG", "WEBP"].includes(ext) ? ext : "JPG") as MediaItem["format"]
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(1)
-      return {
-        id: `m${Date.now()}-${i}`,
-        name: file.name,
-        type: "image" as const,
-        format,
-        url: "", // No real URL for mock uploads
-        size: `${sizeMB} MB`,
-        folderId,
-        dateAdded: new Date().toISOString().slice(0, 10),
-      }
-    })
-    setMediaItems((prev) => [...newItems, ...prev])
+  // ---------------------------------------------------------------------------
+  // Upload handler — receives already-created MediaItems from the dialog
+  // ---------------------------------------------------------------------------
+  function handleUploadPhotos(items: MediaItem[]) {
+    setMediaItems((prev) => [...items, ...prev])
+    // Refetch to get accurate server state
+    fetchMedia()
+    fetchFolders()
   }
 
+  // ---------------------------------------------------------------------------
+  // Video / Album handlers (local-only for now — future features)
+  // ---------------------------------------------------------------------------
   function handleAddVideo({ url, name }: { url: string; name: string }) {
     const isYouTube = /youtube\.com|youtu\.be/i.test(url)
-    const folderId = typeof activeFolderId === "string" && !["all", "photos", "videos", "google-albums"].includes(activeFolderId)
-      ? activeFolderId
-      : null
+    const folderId = isRealFolder(activeFolderId) ? activeFolderId : null
     const newItem: MediaItem = {
-      id: `m${Date.now()}`,
+      id: crypto.randomUUID(),
       name,
       type: "video",
       format: isYouTube ? "YouTube" : "Vimeo",
@@ -272,10 +400,17 @@ export default function MediaPage() {
     setAlbums((prev) => prev.filter((a) => a.id !== id))
   }
 
+  // ---------------------------------------------------------------------------
+  // Move / selection handlers
+  // ---------------------------------------------------------------------------
   function handleMoveItems(folderId: string | null) {
     setMediaItems((prev) =>
       prev.map((i) => (movingIds.includes(i.id) ? { ...i, folderId } : i))
     )
+    // Also PATCH each item server-side
+    for (const id of movingIds) {
+      handleUpdateItem(id, { folderId })
+    }
     setMovingIds([])
     setSelectedIds(new Set())
   }
@@ -283,11 +418,6 @@ export default function MediaPage() {
   function handleBulkMove() {
     setMovingIds(Array.from(selectedIds))
     setMoveDialogOpen(true)
-  }
-
-  function handleBulkDelete() {
-    setMediaItems((prev) => prev.filter((i) => !selectedIds.has(i.id)))
-    setSelectedIds(new Set())
   }
 
   function handleToggleSelect(id: string) {
@@ -317,6 +447,11 @@ export default function MediaPage() {
     setSelectedIds(new Set())
     setSearch("")
   }
+
+  // Determine the current real folder for upload context
+  const currentUploadFolder = isRealFolder(activeFolderId)
+    ? activeFolderId
+    : null
 
   // Determine current folder ID for move dialog context
   const currentFolderIdForMove = movingIds.length === 1
@@ -367,6 +502,10 @@ export default function MediaPage() {
         <div className="flex-1 min-w-0 overflow-y-auto p-0.5 -m-0.5">
           {isGoogleAlbums ? (
             <GoogleAlbumsTable albums={albums} onDelete={handleDeleteAlbum} />
+          ) : isLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="text-muted-foreground text-sm">Loading media...</div>
+            </div>
           ) : viewMode === "grid" ? (
             <MediaGrid
               items={filteredItems}
@@ -384,14 +523,7 @@ export default function MediaPage() {
                 setMovingIds([id])
                 setMoveDialogOpen(true)
               }}
-              onDelete={(id) => {
-                setMediaItems((prev) => prev.filter((i) => i.id !== id))
-                setSelectedIds((prev) => {
-                  const next = new Set(prev)
-                  next.delete(id)
-                  return next
-                })
-              }}
+              onDelete={(id) => handleDeleteItem(id)}
             />
           ) : (
             <DataTable
@@ -413,6 +545,7 @@ export default function MediaPage() {
         open={uploadPhotoOpen}
         onOpenChange={setUploadPhotoOpen}
         onSubmit={handleUploadPhotos}
+        currentFolder={currentUploadFolder}
       />
       <AddVideoDialog
         open={addVideoOpen}

@@ -55,7 +55,7 @@ export function MediaSelectorDialog({
 
     // Create a synthetic MediaItem with the URL
     const item: MediaItem = {
-      id: `url-${Date.now()}`,
+      id: crypto.randomUUID(),
       name: extractFilename(trimmed),
       type: "image",
       format: "JPG",

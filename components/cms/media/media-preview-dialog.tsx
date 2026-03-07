@@ -120,6 +120,8 @@ function PreviewContent({
   const [altText, setAltText] = useState(item.altText ?? "")
   const [folderId, setFolderId] = useState<string | null>(item.folderId)
   const [folderOpen, setFolderOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const isImage = item.type === "image"
   const isVideo = item.type === "video"
@@ -137,9 +139,29 @@ function PreviewContent({
     altText !== (item.altText ?? "") ||
     folderId !== item.folderId
 
-  function handleSave() {
-    onUpdate(item.id, { name, altText: altText || undefined, folderId })
-    onClose()
+  async function handleSave() {
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const res = await fetch(`/api/v1/media/${item.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: name,
+          alt: altText || null,
+          folder: folderId || '/',
+        }),
+      })
+      const json = await res.json()
+      if (!json.success) throw new Error(json.error?.message || 'Failed to save')
+      onUpdate(item.id, { name, altText: altText || undefined, folderId })
+      onClose()
+    } catch (err) {
+      console.error('Failed to save media:', err)
+      setSaveError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setSaving(false)
+    }
   }
 
   function handleDownload() {
@@ -391,12 +413,15 @@ function PreviewContent({
             </Button>
           )}
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={onClose}>
+        <div className="flex items-center gap-2">
+          {saveError && (
+            <p className="text-sm text-destructive mr-2">{saveError}</p>
+          )}
+          <Button variant="outline" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} disabled={!hasChanges || !name.trim()}>
-            Save Changes
+          <Button onClick={handleSave} disabled={!hasChanges || !name.trim() || saving}>
+            {saving ? "Saving…" : "Save Changes"}
           </Button>
         </div>
       </DialogFooter>
