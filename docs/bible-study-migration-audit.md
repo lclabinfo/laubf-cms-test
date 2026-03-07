@@ -150,110 +150,110 @@ File directory: `00_old_laubf_db_dump/files/` (3262 files total on disk)
 
 ### Files Missing from Disk
 
-| legacyId | slug | Missing File |
-|----------|------|--------------|
-| 8862 | what-is-impossible-with-man-is-possible-with-god | `NewYear-2020(2)Inductive.docx` |
-| 8914 | jesus-a-horn-of-salvation | `XmasLK1-2020Q.docx` |
-| 8918 | the-lord-knows-how-to-rescue-the-godly | `2Pet2A-2020Q.docx` |
-| 8944 | rehoboam-and-jeroboam | `1ki12-2021P (3).pptx` |
+| legacyId | slug | passage | date | Missing File |
+|----------|------|---------|------|--------------|
+| 8862 | what-is-impossible-with-man-is-possible-with-god | Luke 18:18-30 | 2020-01-05 | `NewYear-2020(2)Inductive.docx` |
+| 8914 | jesus-a-horn-of-salvation | Luke 1:67-80 | 2020-12-13 | `XmasLK1-2020Q.docx` |
+| 8918 | the-lord-knows-how-to-rescue-the-godly | 2Peter 2:1-12 | 2021-01-10 | `2Pet2A-2020Q.docx` |
+| 8944 | rehoboam-and-jeroboam | 1Kings 12:1-33 | 2021-06-06 | `1ki12-2021P (3).pptx` |
 
 ### Entries with No Attachments
 
-| legacyId | slug | title | date |
-|----------|------|-------|------|
-| 9017 | the-book-of-ruth | The Book of Ruth | 2022-07-31 |
-| 9019 | the-book-of-jonah | The Book of Jonah | 2022-08-07 |
-| 9021 | have-this-mind-among-yourselves-which-is-yours-in-christ-jesus | Have this mind among yourselves, which is yours in Christ Jesus | 2022-08-14 |
-| 9061 | easter-spring-conference-open-your-eyes-and-see | Easter Spring Conference 'Open Your Eyes and See' | 2023-04-09 |
-| 9117 | 2024-spring-bible-conference-feed-my-sheep | 2024 Spring Bible Conference: Feed My Sheep | 2024-03-31 |
-| 9134 | 2024-summer-bible-conference-love-for-one-another | 2024 Summer Bible Conference: Love for one another | 2024-08-04 |
-| 9171 | 2025-spring-conference-calling-cross-glory | 2025 Spring Conference: Calling, Cross, Glory | 2025-04-20 |
-| 9186 | 2025-west-coast-summer-bible-conference | 2025 West Coast Summer Bible Conference | 2025-07-27 |
+| legacyId | slug | title | passage | date |
+|----------|------|-------|---------|------|
+| 9017 | the-book-of-ruth | The Book of Ruth | Ruth 1:1-4:22 | 2022-07-31 |
+| 9019 | the-book-of-jonah | The Book of Jonah | Jonah 1:1-4:26 | 2022-08-07 |
+| 9021 | have-this-mind-among-yourselves-which-is-yours-in-christ-jesus | Have this mind among yourselves, which is yours in Christ Jesus | Philippians 2:1-11 | 2022-08-14 |
+| 9061 | easter-spring-conference-open-your-eyes-and-see | Easter Spring Conference 'Open Your Eyes and See' | Luke 24:1-53 | 2023-04-09 |
+| 9117 | 2024-spring-bible-conference-feed-my-sheep | 2024 Spring Bible Conference: Feed My Sheep | John 18:1-21:25 | 2024-03-31 |
+| 9134 | 2024-summer-bible-conference-love-for-one-another | 2024 Summer Bible Conference: Love for one another | John 13:35 | 2024-08-04 |
+| 9171 | 2025-spring-conference-calling-cross-glory | 2025 Spring Conference: Calling, Cross, Glory | Luke 24:45-49 | 2025-04-20 |
+| 9186 | 2025-west-coast-summer-bible-conference | 2025 West Coast Summer Bible Conference | Mark 11:22 | 2025-07-27 |
 
 ### RTF File Inventory (80 files)
 
-| legacyId | slug | File | Type |
-|----------|------|------|------|
-| 7896 | god-s-handiwork | `Eph2_2013Q.rtf` | Q |
-| 7896 | god-s-handiwork | `Eph2_2013N.rtf` | N |
-| 8108 | but-because-you-say-so | `Lk5a_2010M.rtf` | M |
-| 8368 | precisely-as-it-had-happened | `Acts11_2009M.rtf` | M |
-| 8415 | treasures-in-heaven | `Mat6b2008M.rtf` | M |
-| 8415 | treasures-in-heaven | `Mat6b2008N.rtf` | N |
-| 8422 | be-perfect | `Mat5b2008Q.rtf` | Q |
-| 8431 | unless-someone-explains-it-to-me | `Acts8b2008Q.rtf` | Q |
-| 8431 | unless-someone-explains-it-to-me | `Acts8b2008N.rtf` | N |
-| 8446 | he-will-save-them-from-their-sins | `Mat1-2008Q.rtf` | Q |
-| 8446 | he-will-save-them-from-their-sins | `Mat1-2008M.rtf` | M |
-| 8446 | he-will-save-them-from-their-sins | `Mat1-2008N.rtf` | N |
-| 8494 | a-royal-priesthood-2 | `1Pe2a2008M.rtf` | M |
-| 8681 | under-his-wings | `Ru2a2004M.rtf` | M |
-| 8704 | the-world-was-not-worthy-of-them-2 | `Hb11c2004Q.rtf` | Q |
-| 8743 | jesus-high-priestly-prayer-i | `Jn17a2003Q.rtf` | Q |
-| 8744 | from-now-on-you-will-catch-men-3 | `Lk5a2003Q.rtf` | Q |
-| 8744 | from-now-on-you-will-catch-men-3 | `Lk5a2003N.rtf` | N |
-| 8745 | i-am-the-good-shepherd-3 | `Jn10a2003Q.rtf` | Q |
-| 8745 | i-am-the-good-shepherd-3 | `Jn10a2003N.rtf` | N |
-| 8746 | david-and-goliah | `1Sa15a2003Q.rtf` | Q |
-| 8748 | come-to-the-wedding-banquet | `Mt22a2003Q.rtf` | Q |
-| 8749 | o-lord-forgive-our-wickedness | `Ex32a2003Q.rtf` | Q |
-| 8750 | abraham-prays-for-lot | `Ge18a2003Q.rtf` | Q |
-| 8752 | the-secret-of-being-content-2 | `Php4b2003M.rtf` | M |
-| 8753 | the-god-of-peace | `Php4a2003Q.rtf` | Q |
-| 8754 | one-thing-i-do | `Php4a2003Q.rtf` | Q |
-| 8755 | i-want-to-know-christ-4 | `Php3a2003Q.rtf` | Q |
-| 8755 | i-want-to-know-christ-4 | `Php3a2003M.rtf` | M |
-| 8755 | i-want-to-know-christ-4 | `Php3a2003N.rtf` | N |
-| 8756 | shine-as-stars | `Php2b2003Q.rtf` | Q |
-| 8756 | shine-as-stars | `Php2b2003M.rtf` | M |
-| 8756 | shine-as-stars | `Php2b2003N.rtf` | N |
-| 8757 | christ-is-lord | `Php2a2003Q.rtf` | Q |
-| 8757 | christ-is-lord | `Php2a2003M.rtf` | M |
-| 8758 | living-for-christ | `Php1b2003Q.rtf` | Q |
-| 8758 | living-for-christ | `Php1b2003N.rtf` | N |
-| 8759 | this-is-my-prayer | `Php1a2003Q.rtf` | Q |
-| 8759 | this-is-my-prayer | `Php1a2003M.rtf` | M |
-| 8759 | this-is-my-prayer | `Php1a2003N.rtf` | N |
-| 8760 | our-father-in-heaven | `Mt6a2003Q.rtf` | Q |
-| 8760 | our-father-in-heaven | `Mt6a2003M.rtf` | M |
-| 8760 | our-father-in-heaven | `Mt6a2003N.rtf` | N |
-| 8761 | daniel-s-prayer | `Da6a2003Q.rtf` | Q |
-| 8761 | daniel-s-prayer | `Da6a2003M.rtf` | M |
-| 8761 | daniel-s-prayer | `Da6a2003N.rtf` | N |
-| 8762 | the-beatitues | `Mt5a2003Q.rtf` | Q |
-| 8762 | the-beatitues | `Mt5a2003N.rtf` | N |
-| 8764 | the-breath-of-his-mouth | `2Th2a2003Q.rtf` | Q |
-| 8764 | the-breath-of-his-mouth | `2Th2a2003M.rtf` | M |
-| 8764 | the-breath-of-his-mouth | `2Th2a2003N.rtf` | N |
-| 8765 | fear-the-lord-and-serve-him | `Js23a2003Q.rtf` | Q |
-| 8766 | the-lord-is-god | `Js22a2003M.rtf` | M |
-| 8766 | the-lord-is-god | `Js22a2003N.rtf` | N |
-| 8767 | the-towns-of-levites | `Js20a2003Q.rtf` | Q |
-| 8767 | the-towns-of-levites | `Js20a2003M.rtf` | M |
-| 8767 | the-towns-of-levites | `Js20a2003N.rtf` | N |
-| 8768 | how-long-will-you-wait | `Js13a2003M.rtf` | M |
-| 8769 | o-sun-stand-still | `Js10a2003Q.rtf` | Q |
-| 8769 | o-sun-stand-still | `Js10a2003M.rtf` | M |
-| 8769 | o-sun-stand-still | `Js10a2003N.rtf` | N |
-| 8771 | all-the-words-of-the-law | `Js8a2003Q.rtf` | Q |
-| 8771 | all-the-words-of-the-law | `Js8a2003M.rtf` | M |
-| 8771 | all-the-words-of-the-law | `Js8a2003N.rtf` | N |
-| 8772 | achan-s-sin-2 | `Js7a2003Q.rtf` | Q |
-| 8772 | achan-s-sin-2 | `Js7a2003M.rtf` | M |
-| 8772 | achan-s-sin-2 | `Js7a2003N.rtf` | N |
-| 8773 | the-fall-of-jericho | `Js5b2003M.rtf` | M |
-| 8773 | the-fall-of-jericho | `Js5b2003N.rtf` | N |
-| 8774 | circumcision-at-gilgal | `Js5a2003Q.rtf` | Q |
-| 8774 | circumcision-at-gilgal | `Js5a2003M.rtf` | M |
-| 8775 | armed-for-battle | `Js3a2003Q.rtf` | Q |
-| 8775 | armed-for-battle | `Js3a2003M.rtf` | M |
-| 8775 | armed-for-battle | `Js3a2003N.rtf` | N |
-| 8776 | scarlet-cord | `Js2a2003Q.rtf` | Q |
-| 8776 | scarlet-cord | `Js2a2003M.rtf` | M |
-| 8776 | scarlet-cord | `Js2a2003N.rtf` | N |
-| 8777 | be-strong | `Js1a2003M.rtf` | M |
-| 8777 | be-strong | `Js1a2003N.rtf` | N |
-| 8778 | a-very-small-thing | `Lk19a2003Q.rtf` | Q |
+| legacyId | slug | title | passage | date | File | Type |
+|----------|------|-------|---------|------|------|------|
+| 7896 | god-s-handiwork | God's Handiwork | Ephesians 2:1-10 | 2013-04-07 | `Eph2_2013Q.rtf` | Q |
+| 7896 | god-s-handiwork | God's Handiwork | Ephesians 2:1-10 | 2013-04-07 | `Eph2_2013N.rtf` | N |
+| 8108 | but-because-you-say-so | But Because You Say So | Luke 5:1-11 | 2010-08-29 | `Lk5a_2010M.rtf` | M |
+| 8368 | precisely-as-it-had-happened | Precisely as It had Happened | Acts 11:1-30 | 2009-02-01 | `Acts11_2009M.rtf` | M |
+| 8415 | treasures-in-heaven | Treasures in Heaven | Matthew 6:19-34 | 2008-11-02 | `Mat6b2008M.rtf` | M |
+| 8415 | treasures-in-heaven | Treasures in Heaven | Matthew 6:19-34 | 2008-11-02 | `Mat6b2008N.rtf` | N |
+| 8422 | be-perfect | Be Perfect | Matthew 5:17-48 | 2008-10-12 | `Mat5b2008Q.rtf` | Q |
+| 8431 | unless-someone-explains-it-to-me | Unless Someone Explains It To Me | Acts 8:26-40 | 2008-09-21 | `Acts8b2008Q.rtf` | Q |
+| 8431 | unless-someone-explains-it-to-me | Unless Someone Explains It To Me | Acts 8:26-40 | 2008-09-21 | `Acts8b2008N.rtf` | N |
+| 8446 | he-will-save-them-from-their-sins | He Will Save Them from Their Sins | Matthew 1:1-25 | 2008-08-10 | `Mat1-2008Q.rtf` | Q |
+| 8446 | he-will-save-them-from-their-sins | He Will Save Them from Their Sins | Matthew 1:1-25 | 2008-08-10 | `Mat1-2008M.rtf` | M |
+| 8446 | he-will-save-them-from-their-sins | He Will Save Them from Their Sins | Matthew 1:1-25 | 2008-08-10 | `Mat1-2008N.rtf` | N |
+| 8494 | a-royal-priesthood-2 | A Royal Priesthood | 1Peter 2:1-12 | 2008-02-17 | `1Pe2a2008M.rtf` | M |
+| 8681 | under-his-wings | Under His Wings | Ruth 2:1-23 | 2004-11-07 | `Ru2a2004M.rtf` | M |
+| 8704 | the-world-was-not-worthy-of-them-2 | The world was not worthy of them | Hebrews 11:32-40 | 2004-05-16 | `Hb11c2004Q.rtf` | Q |
+| 8743 | jesus-high-priestly-prayer-i | Jesus high priestly prayer I | John 17:1-5 | 2003-09-07 | `Jn17a2003Q.rtf` | Q |
+| 8744 | from-now-on-you-will-catch-men-3 | From now on you will catch men | Luke 5:1-10 | 2003-08-31 | `Lk5a2003Q.rtf` | Q |
+| 8744 | from-now-on-you-will-catch-men-3 | From now on you will catch men | Luke 5:1-10 | 2003-08-31 | `Lk5a2003N.rtf` | N |
+| 8745 | i-am-the-good-shepherd-3 | I am the good Shepherd | John 10:1-21 | 2003-08-24 | `Jn10a2003Q.rtf` | Q |
+| 8745 | i-am-the-good-shepherd-3 | I am the good Shepherd | John 10:1-21 | 2003-08-24 | `Jn10a2003N.rtf` | N |
+| 8746 | david-and-goliah | David and Goliah | 1Samuel 15:1-17:58 | 2003-08-17 | `1Sa15a2003Q.rtf` | Q |
+| 8748 | come-to-the-wedding-banquet | Come to the Wedding Banquet | Matthew 22:1-14 | 2003-08-03 | `Mt22a2003Q.rtf` | Q |
+| 8749 | o-lord-forgive-our-wickedness | O Lord, forgive our wickedness | Exodus 32:1-34:28 | 2003-07-27 | `Ex32a2003Q.rtf` | Q |
+| 8750 | abraham-prays-for-lot | Abraham prays for Lot | Genesis 18:1-19:38 | 2003-07-20 | `Ge18a2003Q.rtf` | Q |
+| 8752 | the-secret-of-being-content-2 | The Secret of Being Content | Philippians 4:10-23 | 2003-07-06 | `Php4b2003M.rtf` | M |
+| 8753 | the-god-of-peace | The God of Peace | Philippians 4:2-9 | 2003-06-29 | `Php4a2003Q.rtf` | Q |
+| 8754 | one-thing-i-do | One thing I do | Philippians 3:12-4:1 | 2003-06-22 | `Php4a2003Q.rtf` | Q |
+| 8755 | i-want-to-know-christ-4 | I want to know Christ | Philippians 3:1-11 | 2003-06-15 | `Php3a2003Q.rtf` | Q |
+| 8755 | i-want-to-know-christ-4 | I want to know Christ | Philippians 3:1-11 | 2003-06-15 | `Php3a2003M.rtf` | M |
+| 8755 | i-want-to-know-christ-4 | I want to know Christ | Philippians 3:1-11 | 2003-06-15 | `Php3a2003N.rtf` | N |
+| 8756 | shine-as-stars | Shine as stars | Philippians 2:12-30 | 2003-06-08 | `Php2b2003Q.rtf` | Q |
+| 8756 | shine-as-stars | Shine as stars | Philippians 2:12-30 | 2003-06-08 | `Php2b2003M.rtf` | M |
+| 8756 | shine-as-stars | Shine as stars | Philippians 2:12-30 | 2003-06-08 | `Php2b2003N.rtf` | N |
+| 8757 | christ-is-lord | Christ is Lord | Philippians 2:1-11 | 2003-06-01 | `Php2a2003Q.rtf` | Q |
+| 8757 | christ-is-lord | Christ is Lord | Philippians 2:1-11 | 2003-06-01 | `Php2a2003M.rtf` | M |
+| 8758 | living-for-christ | Living for Christ | Philippians 1:12-29 | 2003-05-25 | `Php1b2003Q.rtf` | Q |
+| 8758 | living-for-christ | Living for Christ | Philippians 1:12-29 | 2003-05-25 | `Php1b2003N.rtf` | N |
+| 8759 | this-is-my-prayer | This is my prayer | Philippians 1:1-11 | 2003-05-18 | `Php1a2003Q.rtf` | Q |
+| 8759 | this-is-my-prayer | This is my prayer | Philippians 1:1-11 | 2003-05-18 | `Php1a2003M.rtf` | M |
+| 8759 | this-is-my-prayer | This is my prayer | Philippians 1:1-11 | 2003-05-18 | `Php1a2003N.rtf` | N |
+| 8760 | our-father-in-heaven | Our Father in Heaven | Matthew 6:1-9 | 2003-05-11 | `Mt6a2003Q.rtf` | Q |
+| 8760 | our-father-in-heaven | Our Father in Heaven | Matthew 6:1-9 | 2003-05-11 | `Mt6a2003M.rtf` | M |
+| 8760 | our-father-in-heaven | Our Father in Heaven | Matthew 6:1-9 | 2003-05-11 | `Mt6a2003N.rtf` | N |
+| 8761 | daniel-s-prayer | Daniel's Prayer | Daniel 6:1-28 | 2003-05-04 | `Da6a2003Q.rtf` | Q |
+| 8761 | daniel-s-prayer | Daniel's Prayer | Daniel 6:1-28 | 2003-05-04 | `Da6a2003M.rtf` | M |
+| 8761 | daniel-s-prayer | Daniel's Prayer | Daniel 6:1-28 | 2003-05-04 | `Da6a2003N.rtf` | N |
+| 8762 | the-beatitues | The Beatitues | Matthew 5:1-12 | 2003-04-27 | `Mt5a2003Q.rtf` | Q |
+| 8762 | the-beatitues | The Beatitues | Matthew 5:1-12 | 2003-04-27 | `Mt5a2003N.rtf` | N |
+| 8764 | the-breath-of-his-mouth | The Breath of His Mouth | 2Thessalonians 2:1-3:18 | 2003-04-15 | `2Th2a2003Q.rtf` | Q |
+| 8764 | the-breath-of-his-mouth | The Breath of His Mouth | 2Thessalonians 2:1-3:18 | 2003-04-15 | `2Th2a2003M.rtf` | M |
+| 8764 | the-breath-of-his-mouth | The Breath of His Mouth | 2Thessalonians 2:1-3:18 | 2003-04-15 | `2Th2a2003N.rtf` | N |
+| 8765 | fear-the-lord-and-serve-him | Fear the Lord and Serve Him | Joshua 23:1-24:33 | 2003-04-06 | `Js23a2003Q.rtf` | Q |
+| 8766 | the-lord-is-god | The Lord is God | Joshua 22:1-34 | 2003-03-30 | `Js22a2003M.rtf` | M |
+| 8766 | the-lord-is-god | The Lord is God | Joshua 22:1-34 | 2003-03-30 | `Js22a2003N.rtf` | N |
+| 8767 | the-towns-of-levites | The Towns of Levites | Joshua 20:1-21:45 | 2003-03-23 | `Js20a2003Q.rtf` | Q |
+| 8767 | the-towns-of-levites | The Towns of Levites | Joshua 20:1-21:45 | 2003-03-23 | `Js20a2003M.rtf` | M |
+| 8767 | the-towns-of-levites | The Towns of Levites | Joshua 20:1-21:45 | 2003-03-23 | `Js20a2003N.rtf` | N |
+| 8768 | how-long-will-you-wait | How Long will you wait? | Joshua 13:1-19:51 | 2003-03-16 | `Js13a2003M.rtf` | M |
+| 8769 | o-sun-stand-still | O Sun, Stand Still | Joshua 10:1-12:24 | 2003-03-09 | `Js10a2003Q.rtf` | Q |
+| 8769 | o-sun-stand-still | O Sun, Stand Still | Joshua 10:1-12:24 | 2003-03-09 | `Js10a2003M.rtf` | M |
+| 8769 | o-sun-stand-still | O Sun, Stand Still | Joshua 10:1-12:24 | 2003-03-09 | `Js10a2003N.rtf` | N |
+| 8771 | all-the-words-of-the-law | All the words of the Law | Joshua 8:1-35 | 2003-02-23 | `Js8a2003Q.rtf` | Q |
+| 8771 | all-the-words-of-the-law | All the words of the Law | Joshua 8:1-35 | 2003-02-23 | `Js8a2003M.rtf` | M |
+| 8771 | all-the-words-of-the-law | All the words of the Law | Joshua 8:1-35 | 2003-02-23 | `Js8a2003N.rtf` | N |
+| 8772 | achan-s-sin-2 | Achan's Sin | Joshua 7:1-26 | 2003-02-16 | `Js7a2003Q.rtf` | Q |
+| 8772 | achan-s-sin-2 | Achan's Sin | Joshua 7:1-26 | 2003-02-16 | `Js7a2003M.rtf` | M |
+| 8772 | achan-s-sin-2 | Achan's Sin | Joshua 7:1-26 | 2003-02-16 | `Js7a2003N.rtf` | N |
+| 8773 | the-fall-of-jericho | The Fall of Jericho | Joshua 5:13-6:27 | 2003-02-09 | `Js5b2003M.rtf` | M |
+| 8773 | the-fall-of-jericho | The Fall of Jericho | Joshua 5:13-6:27 | 2003-02-09 | `Js5b2003N.rtf` | N |
+| 8774 | circumcision-at-gilgal | Circumcision at Gilgal | Joshua 5:1-12 | 2003-02-02 | `Js5a2003Q.rtf` | Q |
+| 8774 | circumcision-at-gilgal | Circumcision at Gilgal | Joshua 5:1-12 | 2003-02-02 | `Js5a2003M.rtf` | M |
+| 8775 | armed-for-battle | Armed For Battle | Joshua 3:1-4:24 | 2003-01-26 | `Js3a2003Q.rtf` | Q |
+| 8775 | armed-for-battle | Armed For Battle | Joshua 3:1-4:24 | 2003-01-26 | `Js3a2003M.rtf` | M |
+| 8775 | armed-for-battle | Armed For Battle | Joshua 3:1-4:24 | 2003-01-26 | `Js3a2003N.rtf` | N |
+| 8776 | scarlet-cord | Scarlet Cord | Joshua 2:1-24 | 2003-01-19 | `Js2a2003Q.rtf` | Q |
+| 8776 | scarlet-cord | Scarlet Cord | Joshua 2:1-24 | 2003-01-19 | `Js2a2003M.rtf` | M |
+| 8776 | scarlet-cord | Scarlet Cord | Joshua 2:1-24 | 2003-01-19 | `Js2a2003N.rtf` | N |
+| 8777 | be-strong | Be Strong! | Joshua 1:1-18 | 2003-01-12 | `Js1a2003M.rtf` | M |
+| 8777 | be-strong | Be Strong! | Joshua 1:1-18 | 2003-01-12 | `Js1a2003N.rtf` | N |
+| 8778 | a-very-small-thing | A Very small thing | Luke 19:11-27 | 2003-01-05 | `Lk19a2003Q.rtf` | Q |
 
 ### Non-Standard .doc Files (Need Special Handling)
 
@@ -261,49 +261,49 @@ File directory: `00_old_laubf_db_dump/files/` (3262 files total on disk)
 
 These files have `.doc` extension but are actually RTF format (magic bytes: `{\rt`). Standard RTF conversion should work.
 
-| legacyId | File | Size |
-|----------|------|------|
-| 8482 | `Heb11e2008M.doc` | 21,470 bytes |
-| 8486 | `Heb11c2008Q.doc` | 16,409 bytes |
-| 8488 | `Heb11b2008M.doc` | 26,603 bytes |
-| 8498 | `Heb2a2008M.doc` | 61,192 bytes |
-| 8704 | `Hb11c2004N.doc` | 45,839 bytes |
-| 8736 | `Lk7a2003Q.doc` | 12,554 bytes |
+| legacyId | slug | title | passage | date | File | Size |
+|----------|------|-------|---------|------|------|------|
+| 8482 | the-faith-of-abraham | The Faith of Abraham | Hebrews 11:8-22 | 2008-04-27 | `Heb11e2008M.doc` | 21,470 bytes |
+| 8486 | the-faith-of-enoch | The Faith of Enoch | Hebrews 11:5-6 | 2008-04-13 | `Heb11c2008Q.doc` | 16,409 bytes |
+| 8488 | the-faith-of-abel | The Faith of Abel | Hebrews 11:4-4 | 2008-04-06 | `Heb11b2008M.doc` | 26,603 bytes |
+| 8498 | he-is-able | He Is Able | Hebrews 2:5-18 | 2008-01-20 | `Heb2a2008M.doc` | 61,192 bytes |
+| 8704 | the-world-was-not-worthy-of-them-2 | The world was not worthy of them | Hebrews 11:32-40 | 2004-05-16 | `Hb11c2004N.doc` | 45,839 bytes |
+| 8736 | such-great-faith | Such Great faith | Luke 7:1-10 | 2003-10-26 | `Lk7a2003Q.doc` | 12,554 bytes |
 
 #### WordPerfect (WPC) Format .doc Files (3 files)
 
 These files have `.doc` extension but are WordPerfect format (magic bytes: `\xFFWPC`). These require WordPerfect-specific conversion and may produce garbled output with standard .doc converters.
 
-| legacyId | File | Size |
-|----------|------|------|
-| 8773 | `Js5b2003Q.doc` | 11,203 bytes |
-| 8774 | `Js5a2003N.doc` | 16,113 bytes |
-| 8778 | `Lk19a2003N.doc` | 17,400 bytes |
+| legacyId | slug | title | passage | date | File | Size |
+|----------|------|-------|---------|------|------|------|
+| 8773 | the-fall-of-jericho | The Fall of Jericho | Joshua 5:13-6:27 | 2003-02-09 | `Js5b2003Q.doc` | 11,203 bytes |
+| 8774 | circumcision-at-gilgal | Circumcision at Gilgal | Joshua 5:1-12 | 2003-02-02 | `Js5a2003N.doc` | 16,113 bytes |
+| 8778 | a-very-small-thing | A Very small thing | Luke 19:11-27 | 2003-01-05 | `Lk19a2003N.doc` | 17,400 bytes |
 
 ### Duplicate Filenames
 
 These filenames appear in multiple entries, which may cause conflicts during import.
 
-| File | Entries (legacyIds) |
-|------|--------------------|
-| `Phil2b-2017Q.docx` | 7691, 7692 |
-| `2Cor9-2015N.docx` | 7759, 8856 |
-| `Mat3-2008Q.doc` | 8440, 8454 |
-| `Mat3-2008M.doc` | 8440, 8454 |
-| `Lk6e2005Q.doc` | 8653, 8653 (same entry, listed twice) |
-| `Php4a2003Q.rtf` | 8753, 8754 |
-| `Php4a2003M.doc` | 8753, 8754 |
-| `Php4a2003N.doc` | 8753, 8754 |
-| `QS_Revelation_2_12_17.docx` | 8991, 8991 (same entry, listed twice) |
+| File | Entries (legacyIds) | Details |
+|------|--------------------|---------|
+| `Phil2b-2017Q.docx` | 7691, 7692 | 7691: "Work Out For Your Salvation" (Philippians 2:12-30, 2017-02-26) / 7692: "Imitating Christ's Humility" (Philippians 2:1-11, 2017-02-19) |
+| `2Cor9-2015N.docx` | 7759, 8856 | 7759: "Thanks Be To God" (2Corinthians 9:6-15, 2015-11-22) / 8856: "Thanks be to God for his indescribable gift!" (2Corinthians 9:6-15, 2019-11-24) |
+| `Mat3-2008Q.doc` | 8440, 8454 | 8440: "Repent, the Kingdom is Near" (Matthew 3:1-17, 2008-08-24) / 8454: "Test Me in This" (Malachi 2:17-3:18, 2008-07-13) |
+| `Mat3-2008M.doc` | 8440, 8454 | Same entries as above |
+| `Lk6e2005Q.doc` | 8653, 8653 (same entry, listed twice) | "A Tree and its Fruit" (Luke 6:43-45, 2005-04-24) |
+| `Php4a2003Q.rtf` | 8753, 8754 | 8753: "The God of Peace" (Philippians 4:2-9, 2003-06-29) / 8754: "One thing I do" (Philippians 3:12-4:1, 2003-06-22) |
+| `Php4a2003M.doc` | 8753, 8754 | Same entries as above |
+| `Php4a2003N.doc` | 8753, 8754 | Same entries as above |
+| `QS_Revelation_2_12_17.docx` | 8991, 8991 (same entry, listed twice) | Same attachment listed twice on one entry |
 
 ### Uppercase .DOC Extension Files
 
 These 2 files have uppercase `.DOC` extension, which may cause issues on case-sensitive systems.
 
-| legacyId | File |
-|----------|------|
-| 8741 | `Jn17c2003M.DOC` |
-| 8745 | `Jn10a2003M.DOC` |
+| legacyId | slug | title | passage | date | File |
+|----------|------|-------|---------|------|------|
+| 8741 | jesus-high-priestly-prayer-iii | Jesus high priestly prayer III | John 17:20-26 | 2003-09-21 | `Jn17c2003M.DOC` |
+| 8745 | i-am-the-good-shepherd-3 | I am the good Shepherd | John 10:1-21 | 2003-08-24 | `Jn10a2003M.DOC` |
 
 ---
 
@@ -368,12 +368,12 @@ These criteria define pass/fail for each bible study entry after re-migration.
 
 These attachment references exist in the parsed data but the files are not present in `00_old_laubf_db_dump/files/`.
 
-| legacyId | slug | Missing File | Impact |
-|----------|------|--------------|--------|
-| 8862 | what-is-impossible-with-man-is-possible-with-god | `NewYear-2020(2)Inductive.docx` | Q field will be empty |
-| 8914 | jesus-a-horn-of-salvation | `XmasLK1-2020Q.docx` | Q field will be empty |
-| 8918 | the-lord-knows-how-to-rescue-the-godly | `2Pet2A-2020Q.docx` | Q field will be empty |
-| 8944 | rehoboam-and-jeroboam | `1ki12-2021P (3).pptx` | Presentation only, not content |
+| legacyId | slug | title | passage | date | Missing File | Impact |
+|----------|------|-------|---------|------|--------------|--------|
+| 8862 | what-is-impossible-with-man-is-possible-with-god | "What is impossible with man is possible with God." | Luke 18:18-30 | 2020-01-05 | `NewYear-2020(2)Inductive.docx` | Q field will be empty |
+| 8914 | jesus-a-horn-of-salvation | Jesus, A horn of Salvation | Luke 1:67-80 | 2020-12-13 | `XmasLK1-2020Q.docx` | Q field will be empty |
+| 8918 | the-lord-knows-how-to-rescue-the-godly | The Lord knows how to rescue the godly | 2Peter 2:1-12 | 2021-01-10 | `2Pet2A-2020Q.docx` | Q field will be empty |
+| 8944 | rehoboam-and-jeroboam | Rehoboam and Jeroboam | 1Kings 12:1-33 | 2021-06-06 | `1ki12-2021P (3).pptx` | Presentation only, not content |
 
 ### 4.2 WordPerfect (WPC) Format Files (3 files)
 
@@ -381,24 +381,24 @@ These files use WordPerfect format disguised with `.doc` extension. Standard con
 
 **Required handling:** Use LibreOffice with explicit WordPerfect import filter, or use a dedicated WPC-to-text converter.
 
-| legacyId | slug | File |
-|----------|------|------|
-| 8773 | the-fall-of-jericho | `Js5b2003Q.doc` |
-| 8774 | circumcision-at-gilgal | `Js5a2003N.doc` |
-| 8778 | a-very-small-thing | `Lk19a2003N.doc` |
+| legacyId | slug | title | passage | date | File |
+|----------|------|-------|---------|------|------|
+| 8773 | the-fall-of-jericho | The Fall of Jericho | Joshua 5:13-6:27 | 2003-02-09 | `Js5b2003Q.doc` |
+| 8774 | circumcision-at-gilgal | Circumcision at Gilgal | Joshua 5:1-12 | 2003-02-02 | `Js5a2003N.doc` |
+| 8778 | a-very-small-thing | A Very small thing | Luke 19:11-27 | 2003-01-05 | `Lk19a2003N.doc` |
 
 ### 4.3 RTF Files Disguised as .doc (6 files)
 
 These files have `.doc` extension but contain RTF content. The migration pipeline must detect RTF magic bytes (`{\rtf`) and route these through RTF conversion instead of .doc conversion.
 
-| legacyId | slug | File |
-|----------|------|------|
-| 8482 | the-hope-of-heaven | `Heb11e2008M.doc` |
-| 8486 | by-faith-moses | `Heb11c2008Q.doc` |
-| 8488 | by-faith-the-people | `Heb11b2008M.doc` |
-| 8498 | the-great-value-of-salvation | `Heb2a2008M.doc` |
-| 8704 | the-world-was-not-worthy-of-them-2 | `Hb11c2004N.doc` |
-| 8736 | who-can-enter | `Lk7a2003Q.doc` |
+| legacyId | slug | title | passage | date | File |
+|----------|------|-------|---------|------|------|
+| 8482 | the-faith-of-abraham | The Faith of Abraham | Hebrews 11:8-22 | 2008-04-27 | `Heb11e2008M.doc` |
+| 8486 | the-faith-of-enoch | The Faith of Enoch | Hebrews 11:5-6 | 2008-04-13 | `Heb11c2008Q.doc` |
+| 8488 | the-faith-of-abel | The Faith of Abel | Hebrews 11:4-4 | 2008-04-06 | `Heb11b2008M.doc` |
+| 8498 | he-is-able | He Is Able | Hebrews 2:5-18 | 2008-01-20 | `Heb2a2008M.doc` |
+| 8704 | the-world-was-not-worthy-of-them-2 | The world was not worthy of them | Hebrews 11:32-40 | 2004-05-16 | `Hb11c2004N.doc` |
+| 8736 | such-great-faith | Such Great faith | Luke 7:1-10 | 2003-10-26 | `Lk7a2003Q.doc` |
 
 ### 4.4 RTF Files Not Imported (80 files)
 
