@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useRef } from "react"
+import { toast } from "sonner"
 import { Plus, Upload, FileText, AlertCircle, Paperclip, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -139,6 +140,7 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, attachme
       }
     } catch (err) {
       console.error("Failed to import from attachment:", err)
+      toast.error("Failed to import from attachment")
     } finally {
       setImportingFromAttachment(false)
     }
@@ -190,6 +192,12 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, attachme
       const file = (e.target as HTMLInputElement).files?.[0]
       if (!file) return
 
+      const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error("File exceeds 50 MB limit")
+        return
+      }
+
       // Add imported file to attachment list (upload to R2 first)
       if (onAttachmentAdd && !file.name.endsWith(".txt")) {
         const ext = file.name.split(".").pop()?.toLowerCase() || ""
@@ -227,6 +235,7 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, attachme
           })
         } catch (err) {
           console.error(`Failed to upload ${file.name} to R2:`, err)
+          toast.error(`Failed to upload ${file.name}`)
         }
       }
 
@@ -336,7 +345,7 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, attachme
               <TabsTrigger
                 key={section.id}
                 value={section.id}
-                className="rounded-md px-3 text-xs h-7 data-[state=active]:bg-background data-[state=active]:shadow-sm"
+                className="rounded-md px-3 text-xs h-7 text-muted-foreground/70 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:shadow-sm"
               >
                 {section.title}
               </TabsTrigger>

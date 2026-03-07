@@ -801,7 +801,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
         {/* Video Tab */}
         <TabsContent value="video" className="px-6 pt-4">
-          <div className="max-w-3xl mx-auto space-y-5">
+          <div className="space-y-5">
             {/* Inline publish toggle */}
             <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
               <div className="flex items-center gap-2">
@@ -838,23 +838,6 @@ export function EntryForm({ mode, message }: EntryFormProps) {
               </TooltipProvider>
             </div>
 
-            {/* Video Title (alternate) */}
-            <div className="space-y-2">
-              <Label htmlFor="video-title" className="text-sm text-muted-foreground">
-                Video Title
-              </Label>
-              <Input
-                id="video-title"
-                value={videoTitle}
-                onChange={(e) => setVideoTitle(e.target.value)}
-                placeholder={title || "Same as message title"}
-                maxLength={100}
-              />
-              <p className="text-xs text-muted-foreground">
-                Optional. If different from the message title, this will be shown on the video player.
-              </p>
-            </div>
-
             <VideoTab
               videoUrl={videoUrl}
               onVideoUrlChange={setVideoUrl}
@@ -864,6 +847,23 @@ export function EntryForm({ mode, message }: EntryFormProps) {
               onRawTranscriptChange={setRawTranscript}
               segments={transcriptSegments}
               onSegmentsChange={setTranscriptSegments}
+              videoTitleSlot={
+                <div className="space-y-2">
+                  <Label htmlFor="video-title" className="text-sm text-muted-foreground">
+                    Video Title
+                  </Label>
+                  <Input
+                    id="video-title"
+                    value={videoTitle}
+                    onChange={(e) => setVideoTitle(e.target.value)}
+                    placeholder={title || "Same as message title"}
+                    maxLength={100}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Optional. If different from the message title, this will be shown on the video player.
+                  </p>
+                </div>
+              }
               speakerSlot={
                 <div id="field-speaker" className="space-y-2 max-w-xs">
                   <Label>Speaker <span className="text-destructive">*</span></Label>
@@ -881,8 +881,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
         </TabsContent>
       </Tabs>
 
-      {/* Attachments — visible on all tabs */}
-      <div className="px-6 pt-5 pb-16">
+      {/* Attachments — commented out for now, placement TBD */}
+      {/* <div className="px-6 pt-5 pb-16">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-3">
           <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
@@ -920,7 +920,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                       <p className="text-sm font-medium truncate">{att.name}</p>
                       <p className="text-xs text-muted-foreground">{att.size || att.type || ""}</p>
                     </div>
-                    {att.url && (
+                    {att.url && /\.(docx|pptx|xlsx|pdf|jpe?g|png|gif|webp)$/i.test(att.name) && (
                       <Button variant="ghost" size="icon-sm" onClick={() => setPreviewAttachment(att)} title="Preview">
                         <Eye className="size-3.5" />
                       </Button>
@@ -959,7 +959,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
           />
         </div>
       </div>
-      </div>
+      </div> */}
 
       {/* Save confirmation dialog — shows what will be published */}
       <AlertDialog open={saveConfirmOpen} onOpenChange={setSaveConfirmOpen}>
@@ -1161,7 +1161,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
             <DialogTitle className="truncate">{previewAttachment?.name}</DialogTitle>
           </DialogHeader>
           <div className="flex-1 min-h-0 overflow-auto">
-            {previewAttachment?.url && /\.(docx?|pptx?|xlsx?)$/i.test(previewAttachment.name) ? (
+            {previewAttachment?.url && /\.(docx|pptx|xlsx)$/i.test(previewAttachment.name) ? (
               <iframe
                 src={`https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(previewAttachment.url)}`}
                 className="w-full h-[70vh] rounded-md border"

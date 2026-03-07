@@ -19,6 +19,8 @@ interface VideoTabProps {
   onRawTranscriptChange: (value: string) => void
   segments: TranscriptSegment[]
   onSegmentsChange: (segments: TranscriptSegment[]) => void
+  /** Video title field — rendered in the left column above the URL input */
+  videoTitleSlot?: React.ReactNode
   /** Speaker field — lives on the Video tab since it's about who delivered the sermon */
   speakerSlot?: React.ReactNode
 }
@@ -46,6 +48,7 @@ export function VideoTab({
   segments,
   onSegmentsChange,
   speakerSlot,
+  videoTitleSlot,
 }: VideoTabProps) {
   const [urlInput, setUrlInput] = useState(videoUrl)
   const [checked, setChecked] = useState(!!videoUrl)
@@ -87,65 +90,68 @@ export function VideoTab({
   // Would fetch video title, description, duration, and captions
 
   return (
-    <div className="space-y-6">
-      {/* Video URL */}
-      <div id="field-video-url" className="space-y-3">
-        <Label>Video URL</Label>
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Input
-              value={urlInput}
-              onChange={(e) => {
-                setUrlInput(e.target.value)
-                setChecked(false)
-                setUrlError("")
-              }}
-              placeholder="Paste YouTube or Vimeo link"
-            />
-            {platform && (
-              <span className={`absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
-                platform === "YouTube"
-                  ? "bg-muted text-foreground"
-                  : "bg-info/10 text-info dark:bg-info/20"
-              }`}>
-                {platform}
-              </span>
-            )}
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Left column: title, video URL, preview, speaker, description */}
+      <div className="space-y-6">
+        {videoTitleSlot}
+
+        {/* Video URL */}
+        <div id="field-video-url" className="space-y-3">
+          <Label>Video URL</Label>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Input
+                value={urlInput}
+                onChange={(e) => {
+                  setUrlInput(e.target.value)
+                  setChecked(false)
+                  setUrlError("")
+                }}
+                placeholder="Paste YouTube or Vimeo link"
+              />
+              {platform && (
+                <span className={`absolute right-2 top-1/2 -translate-y-1/2 inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-medium ${
+                  platform === "YouTube"
+                    ? "bg-muted text-foreground"
+                    : "bg-info/10 text-info dark:bg-info/20"
+                }`}>
+                  {platform}
+                </span>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleCheckUrl}
+              disabled={!urlInput.trim()}
+            >
+              {checked && <Check className="size-4" />}
+              {checked ? "Verified" : "Check URL"}
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            onClick={handleCheckUrl}
-            disabled={!urlInput.trim()}
-          >
-            {checked && <Check className="size-4" />}
-            {checked ? "Verified" : "Check URL"}
-          </Button>
+          {urlError && (
+            <p className="text-xs text-destructive">{urlError}</p>
+          )}
         </div>
-        {urlError && (
-          <p className="text-xs text-destructive">{urlError}</p>
+
+        {/* Empty state when no URL is set */}
+        {!checked && !videoUrl && (
+          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-center">
+            <Video className="size-10 text-muted-foreground/40 mb-3" />
+            <p className="text-sm font-medium text-muted-foreground">Add a video to get started</p>
+            <p className="text-xs text-muted-foreground/70 mt-1 max-w-xs">
+              Paste a YouTube or Vimeo link above, then click &quot;Check URL&quot; to continue.
+            </p>
+          </div>
         )}
-      </div>
 
-      {/* Empty state when no URL is set */}
-      {!checked && !videoUrl && (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-12 text-center">
-          <Video className="size-10 text-muted-foreground/40 mb-3" />
-          <p className="text-sm font-medium text-muted-foreground">Add a video to get started</p>
-          <p className="text-xs text-muted-foreground/70 mt-1 max-w-xs">
-            Paste a YouTube or Vimeo link above, then click &quot;Check URL&quot; to continue.
-          </p>
-        </div>
-      )}
-
-      {/* Content shown only after URL is verified */}
-      {checked && videoUrl && (
-        <>
-          {/* Video Preview */}
-          {hasValidPreview && youtubeId && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>Video Preview</Label>
-                <div className="flex items-center gap-2">
+        {/* Content shown only after URL is verified */}
+        {checked && videoUrl && (
+          <>
+            {/* Video Preview */}
+            {hasValidPreview && youtubeId && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Video Preview</Label>
                   <Button variant="ghost" size="sm" asChild>
                     <a href={videoUrl} target="_blank" rel="noopener noreferrer">
                       <ExternalLink className="size-3.5" />
@@ -153,49 +159,49 @@ export function VideoTab({
                     </a>
                   </Button>
                 </div>
+                <div className="aspect-video rounded-lg overflow-hidden border bg-muted">
+                  <iframe
+                    src={`https://www.youtube.com/embed/${youtubeId}`}
+                    title="Video preview"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    className="size-full"
+                  />
+                </div>
               </div>
-              <div className="aspect-video rounded-lg overflow-hidden border bg-muted">
-                <iframe
-                  src={`https://www.youtube.com/embed/${youtubeId}`}
-                  title="Video preview"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  className="size-full"
-                />
+            )}
+
+            {hasValidPreview && platform === "Vimeo" && (
+              <div className="rounded-lg border bg-muted/50 p-4 text-center">
+                <Badge variant="outline" className="mb-2">Vimeo</Badge>
+                <p className="text-sm text-muted-foreground">
+                  Vimeo video linked successfully.{" "}
+                  <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                    Open in new tab
+                  </a>
+                </p>
               </div>
+            )}
+
+            {/* Speaker */}
+            {speakerSlot}
+
+            {/* Description */}
+            <div className="space-y-2">
+              <Label htmlFor="video-description">Video Description</Label>
+              <Textarea
+                id="video-description"
+                value={description}
+                onChange={(e) => onDescriptionChange(e.target.value)}
+                placeholder="Video description..."
+                className="min-h-[100px]"
+              />
             </div>
-          )}
+          </>
+        )}
+      </div>
 
-          {hasValidPreview && platform === "Vimeo" && (
-            <div className="rounded-lg border bg-muted/50 p-4 text-center">
-              <Badge variant="outline" className="mb-2">Vimeo</Badge>
-              <p className="text-sm text-muted-foreground">
-                Vimeo video linked successfully.{" "}
-                <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="underline">
-                  Open in new tab
-                </a>
-              </p>
-            </div>
-          )}
-
-          {/* Speaker */}
-          {speakerSlot}
-
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="video-description">Video Description</Label>
-            <Textarea
-              id="video-description"
-              value={description}
-              onChange={(e) => onDescriptionChange(e.target.value)}
-              placeholder="Video description..."
-              className="min-h-[100px]"
-            />
-          </div>
-        </>
-      )}
-
-      {/* Transcript — always visible, even without a video URL */}
+      {/* Right column: transcript (always visible) */}
       <div className="space-y-2">
         <Label>Transcript</Label>
         <TranscriptEditor
