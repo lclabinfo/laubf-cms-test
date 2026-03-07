@@ -173,13 +173,13 @@ Update all helper functions that currently hardcode `ATTACHMENTS_BUCKET` to acce
 
 | Function | Current bucket param | Action needed |
 |---|---|---|
-| `getUploadUrl(key, contentType, expiresIn)` | None — hardcodes `ATTACHMENTS_BUCKET` | Add `bucket` param (default `ATTACHMENTS_BUCKET`) |
-| `deleteObject(key, bucket?)` | Optional, defaults to `ATTACHMENTS_BUCKET` | Already supports it — no change |
-| `moveObject(srcKey, destKey, bucket?)` | Optional, defaults to `ATTACHMENTS_BUCKET` | Already supports it — no change |
-| `getPublicUrl(key)` | None — hardcodes `PUBLIC_URL` (attachments) | Add `publicUrl` param or create `getMediaPublicUrl(key)` |
-| `keyFromUrl(url)` | None — hardcodes `PUBLIC_URL` (attachments) | Add `publicUrl` param or create `keyFromMediaUrl(url)` |
-| `uploadFile(key, body, contentType, bucket?)` | Optional | Already supports it — no change |
-| `listObjects(prefix, bucket?)` | Optional | Already supports it — no change |
+| `getUploadUrl(key, contentType, fileSize?, opts?)` | `opts.bucket`, defaults to `ATTACHMENTS_BUCKET` | **Done** — accepts `fileSize` (ContentLength) and `opts.bucket` |
+| `deleteObject(key, bucket?)` | Optional, defaults to `ATTACHMENTS_BUCKET` | **Done** — no change needed |
+| `moveObject(srcKey, destKey, bucket?)` | Optional, defaults to `ATTACHMENTS_BUCKET` | **Done** — no change needed |
+| `getPublicUrl(key)` | None — hardcodes `PUBLIC_URL` (attachments) | **Done** — `getMediaPublicUrl(key)` added |
+| `keyFromUrl(url)` | None — hardcodes `PUBLIC_URL` (attachments) | **Done** — `keyFromMediaUrl(url)` added |
+| `uploadFile(key, body, contentType, bucket?)` | Optional | **Done** — no change needed |
+| `listObjects(prefix, bucket?)` | Optional | **Done** — no change needed |
 
 **Recommended approach:** Add a `bucket` param to `getUploadUrl`, and create separate `getMediaPublicUrl(key)` and `keyFromMediaUrl(url)` functions that use `MEDIA_PUBLIC_URL`. This avoids breaking existing attachment code.
 
@@ -607,7 +607,7 @@ Same as bible study plan — shared 10 GB quota per church, enforced at `POST /a
 export async function getChurchStorageUsage(churchId: string): Promise<number> {
   const [mediaResult, attachmentResult] = await Promise.all([
     prisma.mediaAsset.aggregate({
-      where: { churchId, deletedAt: null },
+      where: { churchId },
       _sum: { fileSize: true },
     }),
     prisma.bibleStudyAttachment.aggregate({
@@ -619,7 +619,7 @@ export async function getChurchStorageUsage(churchId: string): Promise<number> {
 }
 ```
 
-**Not yet implemented** — add when media uploads are working.
+**Implemented** in `lib/dal/storage.ts` and enforced at `POST /api/v1/upload-url`. Note: soft-deleted MediaAssets still count toward quota (the aggregation does not filter by `deletedAt`) to prevent quota gaming. Storage is only freed after hard-delete.
 
 ## Security Hardening — IMPLEMENTED
 

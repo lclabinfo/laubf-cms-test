@@ -29,7 +29,7 @@ Create a thin wrapper around the S3 client:
 
 ```ts
 // lib/storage/r2.ts — IMPLEMENTED
-export async function getUploadUrl(key: string, contentType: string, expiresIn?: number): Promise<string>
+export async function getUploadUrl(key: string, contentType: string, fileSize?: number, opts?: { expiresIn?: number; bucket?: string }): Promise<string>
 export async function deleteObject(key: string, bucket?: string): Promise<void>
 export async function moveObject(srcKey: string, destKey: string, bucket?: string): Promise<void>
 export function getPublicUrl(key: string): string
@@ -116,8 +116,8 @@ Implemented in `lib/dal/storage.ts`:
 | Type | Extensions | Max Size |
 |---|---|---|
 | PDF | `.pdf` | 50 MB |
-| Word | `.docx`, `.doc` | 25 MB |
-| Rich Text | `.rtf` | 10 MB |
+| Word | `.docx`, `.doc` | 50 MB |
+| Rich Text | `.rtf` | 50 MB |
 | Image | `.jpg`, `.png`, `.webp` | 10 MB |
 
 ## Error Handling

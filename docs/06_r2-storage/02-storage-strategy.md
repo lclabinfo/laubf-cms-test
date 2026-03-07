@@ -159,14 +159,14 @@ Configure per-bucket in Cloudflare dashboard. The staging prefix includes the ch
 
 | Prefix | Rule | Purpose |
 |---|---|---|
-| `*/staging/` (or per-church: `la-ubf/staging/`) | Delete after 24 hours | Orphan upload cleanup |
+| `la-ubf/staging/` | Delete after 24 hours | Orphan upload cleanup |
 | (all) | Transition to IA after 90 days | Cost optimization for old study materials |
 
 **`file-media` bucket:**
 
 | Prefix | Rule | Purpose |
 |---|---|---|
-| `*/staging/` (or per-church: `la-ubf/staging/`) | Delete after 24 hours | Orphan upload cleanup |
+| `la-ubf/staging/` | Delete after 24 hours | Orphan upload cleanup |
 
 **Note:** R2 lifecycle rules use prefix matching. For Phase 1 (single church), use the specific church prefix. For Phase 2 (multi-tenant), use a wildcard or add per-church rules.
 

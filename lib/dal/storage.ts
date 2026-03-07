@@ -10,7 +10,7 @@ export const DEFAULT_STORAGE_QUOTA = 10 * 1024 * 1024 * 1024 // 10 GB
 export async function getChurchStorageUsage(churchId: string): Promise<number> {
   const [mediaResult, attachmentResult] = await Promise.all([
     prisma.mediaAsset.aggregate({
-      where: { churchId, deletedAt: null },
+      where: { churchId },
       _sum: { fileSize: true },
     }),
     prisma.bibleStudyAttachment.aggregate({
