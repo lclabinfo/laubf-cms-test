@@ -211,6 +211,21 @@ export function tiptapJsonToHtml(jsonString: string): string {
 }
 
 /**
+ * Ensure content is HTML, converting from TipTap JSON if needed.
+ * Safe to call on content that may be TipTap JSON, raw HTML, or plain text.
+ * Used by public website pages that render via dangerouslySetInnerHTML.
+ */
+export function contentToHtml(content: string | null | undefined): string {
+  if (!content) return ""
+  const trimmed = content.trim()
+  if (!trimmed) return ""
+  // TipTap JSON starts with { — convert to HTML
+  if (trimmed.startsWith("{")) return tiptapJsonToHtml(content)
+  // Already HTML or plain text — return as-is
+  return content
+}
+
+/**
  * Convert HTML string to TipTap JSON (stringified).
  * Used for DOCX import pipeline: mammoth HTML → TipTap JSON.
  */

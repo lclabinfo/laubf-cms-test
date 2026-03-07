@@ -4,6 +4,7 @@ import { getChurchId } from "@/lib/tenant/context"
 import { getBibleStudyBySlug } from "@/lib/dal/bible-studies"
 import type { BibleStudyDetail, BibleStudyAttachment } from "@/lib/types/bible-study"
 import { bibleBookLabel } from "@/lib/website/bible-book-labels"
+import { contentToHtml } from "@/lib/tiptap"
 import StudyDetailView from "@/components/website/study-detail/study-detail-view"
 
 interface PageProps {
@@ -44,9 +45,9 @@ function transformStudy(study: NonNullable<Awaited<ReturnType<typeof getBibleStu
       study.keyVerseRef && study.keyVerseText
         ? { verse: study.keyVerseRef, text: study.keyVerseText }
         : undefined,
-    questions: study.questions ?? "",
-    answers: study.answers ?? undefined,
-    transcript: study.transcript ?? undefined,
+    questions: contentToHtml(study.questions),
+    answers: contentToHtml(study.answers) || undefined,
+    transcript: contentToHtml(study.transcript) || undefined,
     bibleText: study.bibleText ?? undefined,
     bibleVersion: study.relatedMessage?.bibleVersion ?? undefined,
     messageSlug:
