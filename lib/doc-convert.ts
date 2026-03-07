@@ -137,7 +137,11 @@ async function convertWithWordExtractor(buffer: Buffer): Promise<string | null> 
 
 /**
  * Attempts to detect the dominant font from HTML output.
- * Looks for font-family declarations in inline styles and <style> blocks.
+ * Looks for font-family declarations AND shorthand font: declarations
+ * in inline styles and <style> blocks.
+ *
+ * textutil (macOS) uses shorthand: `font: 12.0px 'Times New Roman'`
+ * LibreOffice uses longhand: `font-family: 'Times New Roman'`
  */
 function detectFontFromHtml(html: string): {
   dominantFont: string | null
@@ -146,20 +150,28 @@ function detectFontFromHtml(html: string): {
 } {
   const fontCounts = new Map<string, number>()
 
-  // Match font-family declarations in inline styles and style blocks
+  function addFont(name: string) {
+    const key = name.trim().replace(/^['"]|['"]$/g, "").toLowerCase()
+    if (key && !key.includes("serif") && !key.includes("sans") && !key.includes("monospace")) {
+      fontCounts.set(key, (fontCounts.get(key) || 0) + 1)
+    }
+  }
+
+  // Match font-family: declarations (longhand)
   const fontFamilyRegex = /font-family\s*:\s*([^;}"]+)/gi
   let match: RegExpExecArray | null
   while ((match = fontFamilyRegex.exec(html)) !== null) {
-    // Parse out individual font names from the font-family value
-    const value = match[1].trim()
-    const fonts = value.split(",").map(f =>
-      f.trim().replace(/^['"]|['"]$/g, "").toLowerCase()
-    )
-    for (const font of fonts) {
-      if (font && !font.includes("serif") && !font.includes("sans") && !font.includes("monospace")) {
-        fontCounts.set(font, (fontCounts.get(font) || 0) + 1)
-      }
-    }
+    const fonts = match[1].split(",")
+    for (const f of fonts) addFont(f)
+  }
+
+  // Match shorthand font: declarations (e.g., "font: 12.0px 'Times New Roman'")
+  // The shorthand format is: font: [style] [variant] [weight] size[/line-height] family
+  // textutil outputs: font: 12.0px 'Times New Roman'
+  const shorthandFontRegex = /(?:^|[{;\s])font\s*:\s*(?:(?:italic|oblique|normal|bold|bolder|lighter|\d+)\s+)*[\d.]+(?:px|pt|em|rem|%)(?:\s*\/\s*[\d.]+(?:px|pt|em|rem|%))?\s+([^;}"]+)/gi
+  while ((match = shorthandFontRegex.exec(html)) !== null) {
+    const fonts = match[1].split(",")
+    for (const f of fonts) addFont(f)
   }
 
   let dominantFont: string | null = null
@@ -175,7 +187,6 @@ function detectFontFromHtml(html: string): {
 
   let serifFontFamily: string | null = null
   if (isSerifDoc) {
-    // Capitalize for CSS value
     const originalCase = dominantFont!.replace(/\b\w/g, c => c.toUpperCase())
     serifFontFamily = `"${originalCase}", Georgia, serif`
   }
@@ -245,12 +256,39 @@ export async function convertDocToHtml(
 
   console.log(`[doc-convert] Converted "${label}" using ${conversionMethod}`)
 
-  // Extract HTML body content if wrapped in full document
-  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
-  const bodyHtml = bodyMatch ? bodyMatch[1].trim() : html
-
-  // Detect dominant font
+  // Detect dominant font from FULL html (including <style> block) before stripping
   const { dominantFont, isSerifDoc, serifFontFamily } = detectFontFromHtml(html)
+
+  // Extract HTML body content if wrapped in full document
+  let bodyHtml: string
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
+  if (bodyMatch) {
+    bodyHtml = bodyMatch[1].trim()
+
+    // Inline CSS class styles from <style> block into elements.
+    // textutil generates class-based styles (e.g., p.p1 { font: 12px 'Times New Roman' })
+    // that are lost when we strip the <style> block. Inline them so the HTML is self-contained.
+    const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i)
+    if (styleMatch) {
+      const styleBlock = styleMatch[1]
+      // Parse CSS rules: "p.p1 { ... }" or ".p1 { ... }"
+      const ruleRegex = /(?:p\.)?(\w+)\s*\{([^}]+)\}/g
+      let ruleMatch: RegExpExecArray | null
+      const classStyles = new Map<string, string>()
+      while ((ruleMatch = ruleRegex.exec(styleBlock)) !== null) {
+        classStyles.set(ruleMatch[1], ruleMatch[2].trim())
+      }
+
+      // Replace class references with inline styles
+      for (const [cls, styles] of classStyles) {
+        // Match elements with class="cls" and add inline style
+        const classRegex = new RegExp(`(<\\w+)\\s+class="${cls}"`, "g")
+        bodyHtml = bodyHtml.replace(classRegex, `$1 style="${styles}"`)
+      }
+    }
+  } else {
+    bodyHtml = html
+  }
 
   return {
     html: bodyHtml,
