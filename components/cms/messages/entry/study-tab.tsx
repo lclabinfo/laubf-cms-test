@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { Plus, Upload, FileText, AlertCircle } from "lucide-react"
+import { useState, useRef } from "react"
+import { Plus, Upload, FileText, AlertCircle, Paperclip, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
@@ -16,6 +16,12 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { plainTextToTiptapJson, isTiptapContentEmpty, getExtensions } from "@/lib/tiptap"
 import { convertDocxToHtml } from "@/lib/docx-import"
 import type { StudySection, Attachment } from "@/lib/messages-data"
@@ -25,6 +31,8 @@ interface StudyTabProps {
   onSectionsChange: (sections: StudySection[]) => void
   /** Called when a file import should also be added to the attachment list */
   onAttachmentAdd?: (attachment: Attachment) => void
+  /** Existing attachments — shown in the import picker for re-importing */
+  attachments?: Attachment[]
   /** Bible version selector — lives on the Study tab since it's about study materials */
   bibleVersionSlot?: React.ReactNode
 }
@@ -58,9 +66,16 @@ function addFontToTextNodes(node: any, fontFamily: string): void {
   }
 }
 
-export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, bibleVersionSlot }: StudyTabProps) {
+export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, attachments = [], bibleVersionSlot }: StudyTabProps) {
   const [overwriteConfirmId, setOverwriteConfirmId] = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState(sections[0]?.id ?? "")
+  const [importPickerOpen, setImportPickerOpen] = useState(false)
+  const [importingFromAttachment, setImportingFromAttachment] = useState(false)
+
+  // Filter attachments to only show importable document types
+  const docAttachments = attachments.filter((a) =>
+    /\.(docx?|txt)$/i.test(a.name) && a.url
+  )
 
   function handleContentChange(id: string, content: string) {
     onSectionsChange(
@@ -69,6 +84,12 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, bibleVer
   }
 
   function handleImportClick(sectionId: string) {
+    // If there are existing doc attachments, show the picker dialog
+    if (docAttachments.length > 0) {
+      setImportPickerOpen(true)
+      return
+    }
+    // No existing attachments — go straight to file picker
     const section = sections.find((s) => s.id === sectionId)
     if (section && !isTiptapContentEmpty(section.content)) {
       setOverwriteConfirmId(sectionId)
@@ -76,6 +97,90 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, bibleVer
       handleImportDocx(sectionId)
     }
   }
+
+  function handleImportNewFile() {
+    setImportPickerOpen(false)
+    const section = sections.find((s) => s.id === activeSection)
+    if (section && !isTiptapContentEmpty(section.content)) {
+      setOverwriteConfirmId(activeSection)
+    } else {
+      handleImportDocx(activeSection)
+    }
+  }
+
+  async function handleImportFromAttachment(attachment: Attachment) {
+    if (!attachment.url) return
+    setImportingFromAttachment(true)
+
+    try {
+      const res = await fetch(attachment.url)
+      if (!res.ok) throw new Error(`Failed to fetch attachment: ${res.status}`)
+      const blob = await res.blob()
+
+      const sectionId = activeSection
+      const section = sections.find((s) => s.id === sectionId)
+      const hasContent = section && !isTiptapContentEmpty(section.content)
+
+      // Parse the file content
+      const content = await parseDocumentBlob(blob, attachment.name)
+      if (!content) {
+        console.error("Failed to parse attachment content")
+        return
+      }
+
+      if (hasContent) {
+        // Store parsed content and show overwrite confirmation
+        pendingImportContentRef.current = content
+        setImportPickerOpen(false)
+        setOverwriteConfirmId(sectionId)
+      } else {
+        handleContentChange(sectionId, content)
+        setImportPickerOpen(false)
+      }
+    } catch (err) {
+      console.error("Failed to import from attachment:", err)
+    } finally {
+      setImportingFromAttachment(false)
+    }
+  }
+
+  /** Parse a document blob (.doc/.docx/.txt) into TipTap JSON string */
+  async function parseDocumentBlob(blob: Blob, filename: string): Promise<string | null> {
+    try {
+      if (filename.endsWith(".txt")) {
+        const text = await blob.text()
+        return plainTextToTiptapJson(text)
+      } else if (filename.toLowerCase().endsWith(".doc") && !filename.toLowerCase().endsWith(".docx")) {
+        // .doc — use server-side conversion
+        const formData = new FormData()
+        formData.append("file", blob, filename)
+        const res = await fetch("/api/v1/convert-doc", { method: "POST", body: formData })
+        if (!res.ok) throw new Error(`Conversion failed: ${res.status}`)
+        const { data } = await res.json()
+        const { html, isSerifDoc, serifFontFamily } = data
+        const { generateJSON } = await import("@tiptap/html")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const json = generateJSON(html, getExtensions()) as any
+        if (isSerifDoc && serifFontFamily) addFontToTextNodes(json, serifFontFamily)
+        return JSON.stringify(json)
+      } else {
+        // .docx
+        const arrayBuffer = await blob.arrayBuffer()
+        const { html, isSerifDoc, serifFontFamily } = await convertDocxToHtml(arrayBuffer, filename)
+        const { generateJSON } = await import("@tiptap/html")
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const json = generateJSON(html, getExtensions()) as any
+        if (isSerifDoc && serifFontFamily) addFontToTextNodes(json, serifFontFamily)
+        return JSON.stringify(json)
+      }
+    } catch (err) {
+      console.error("Failed to parse document:", err)
+      return null
+    }
+  }
+
+  // Ref to hold pre-parsed content when importing from attachment + overwrite confirmation
+  const pendingImportContentRef = useRef<string | null>(null)
 
   async function handleImportDocx(sectionId: string) {
     const input = document.createElement("input")
@@ -259,7 +364,12 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, bibleVer
         ))}
       </Tabs>
 
-      <AlertDialog open={!!overwriteConfirmId} onOpenChange={(open) => { if (!open) setOverwriteConfirmId(null) }}>
+      <AlertDialog open={!!overwriteConfirmId} onOpenChange={(open) => {
+        if (!open) {
+          setOverwriteConfirmId(null)
+          pendingImportContentRef.current = null
+        }
+      }}>
         <AlertDialogContent className="sm:max-w-sm">
           <AlertDialogHeader>
             <AlertDialogMedia className="bg-warning/10">
@@ -273,7 +383,16 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, bibleVer
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => {
-              if (overwriteConfirmId) handleImportDocx(overwriteConfirmId)
+              if (overwriteConfirmId) {
+                if (pendingImportContentRef.current) {
+                  // Content already parsed (from attachment import)
+                  handleContentChange(overwriteConfirmId, pendingImportContentRef.current)
+                  pendingImportContentRef.current = null
+                } else {
+                  // Need to pick a file
+                  handleImportDocx(overwriteConfirmId)
+                }
+              }
               setOverwriteConfirmId(null)
             }}>
               Replace
@@ -281,6 +400,58 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, bibleVer
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import picker — choose between uploading new file or using existing attachment */}
+      <Dialog open={importPickerOpen} onOpenChange={setImportPickerOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Import into {sections.find((s) => s.id === activeSection)?.title ?? "section"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 h-auto py-3"
+              onClick={handleImportNewFile}
+            >
+              <Upload className="size-4 shrink-0" />
+              <div className="text-left">
+                <p className="text-sm font-medium">Upload new file</p>
+                <p className="text-xs text-muted-foreground">.docx, .doc, or .txt from your computer</p>
+              </div>
+            </Button>
+
+            {docAttachments.length > 0 && (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className="h-px flex-1 bg-border" />
+                  <span className="text-xs text-muted-foreground">or use existing attachment</span>
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+                <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                  {docAttachments.map((att) => (
+                    <Button
+                      key={att.id}
+                      variant="ghost"
+                      className="w-full justify-start gap-3 h-auto py-2.5 px-3"
+                      disabled={importingFromAttachment}
+                      onClick={() => handleImportFromAttachment(att)}
+                    >
+                      <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
+                      <div className="text-left min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">{att.name}</p>
+                        <p className="text-xs text-muted-foreground">{att.size}</p>
+                      </div>
+                      {importingFromAttachment && (
+                        <Loader2 className="size-3.5 animate-spin shrink-0" />
+                      )}
+                    </Button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

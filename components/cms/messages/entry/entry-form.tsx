@@ -136,6 +136,10 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const [deleteAttachmentId, setDeleteAttachmentId] = useState<string | null>(null)
   const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(null)
 
+  // Duplicate attachment detection
+  const [duplicateFile, setDuplicateFile] = useState<{ file: File; existing: Attachment; sameSize: boolean } | null>(null)
+  const pendingFilesRef = useRef<File[]>([])
+
   // Attachment file input
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -371,57 +375,119 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     fileInputRef.current?.click()
   }
 
+  async function uploadFileToR2(file: File): Promise<Attachment | null> {
+    try {
+      const res = await fetch("/api/v1/upload-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+          fileSize: file.size,
+          context: "bible-study",
+        }),
+      })
+      if (!res.ok) throw new Error(`Failed to get upload URL: ${res.status}`)
+      const { data } = await res.json()
+      const { uploadUrl, key, publicUrl } = data
+
+      const putRes = await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      })
+      if (!putRes.ok) throw new Error(`R2 upload failed: ${putRes.status}`)
+
+      return {
+        id: crypto.randomUUID(),
+        name: file.name,
+        size: formatFileSize(file.size),
+        type: file.type,
+        url: publicUrl,
+        r2Key: key,
+        fileSize: file.size,
+      }
+    } catch (err) {
+      console.error(`Failed to upload ${file.name}:`, err)
+      return null
+    }
+  }
+
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files
     if (!files || files.length === 0) return
-    setUploading(true)
-    const newAttachments: Attachment[] = []
+    if (fileInputRef.current) fileInputRef.current.value = ""
+
     const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
-    for (const file of Array.from(files)) {
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error(`${file.name} exceeds the 50 MB limit`)
-        continue
+    const filesToProcess = Array.from(files).filter((f) => {
+      if (f.size > MAX_FILE_SIZE) {
+        toast.error(`${f.name} exceeds the 50 MB limit`)
+        return false
       }
-      try {
-        const res = await fetch("/api/v1/upload-url", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            filename: file.name,
-            contentType: file.type,
-            fileSize: file.size,
-            context: "bible-study",
-          }),
-        })
-        if (!res.ok) throw new Error(`Failed to get upload URL: ${res.status}`)
-        const { data } = await res.json()
-        const { uploadUrl, key, publicUrl } = data
+      return true
+    })
 
-        const putRes = await fetch(uploadUrl, {
-          method: "PUT",
-          body: file,
-          headers: { "Content-Type": file.type },
-        })
-        if (!putRes.ok) throw new Error(`R2 upload failed: ${putRes.status}`)
+    // Queue files and process one at a time, checking for duplicates
+    pendingFilesRef.current = filesToProcess
+    processNextFile()
+  }
 
-        newAttachments.push({
-          id: crypto.randomUUID(),
-          name: file.name,
-          size: formatFileSize(file.size),
-          type: file.type,
-          url: publicUrl,
-          r2Key: key,
-          fileSize: file.size,
-        })
-      } catch (err) {
-        console.error(`Failed to upload ${file.name}:`, err)
-      }
+  async function processNextFile() {
+    const file = pendingFilesRef.current.shift()
+    if (!file) return
+
+    // Check for duplicate filename in existing attachments
+    const existing = attachments.find(
+      (a) => a.name.toLowerCase() === file.name.toLowerCase()
+    )
+
+    if (existing) {
+      const sameSize = existing.fileSize === file.size
+      setDuplicateFile({ file, existing, sameSize })
+      return // Wait for user decision via dialog
     }
-    if (newAttachments.length > 0) {
-      setAttachments([...attachments, ...newAttachments])
+
+    // No duplicate — upload directly
+    await uploadAndAppend(file)
+    processNextFile()
+  }
+
+  async function uploadAndAppend(file: File) {
+    setUploading(true)
+    const att = await uploadFileToR2(file)
+    if (att) {
+      setAttachments((prev) => [...prev, att])
     }
     setUploading(false)
-    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
+  async function handleDuplicateSkip() {
+    setDuplicateFile(null)
+    processNextFile()
+  }
+
+  async function handleDuplicateKeepBoth() {
+    if (!duplicateFile) return
+    const { file } = duplicateFile
+    setDuplicateFile(null)
+    await uploadAndAppend(file)
+    processNextFile()
+  }
+
+  async function handleDuplicateReplace() {
+    if (!duplicateFile) return
+    const { file, existing } = duplicateFile
+    setDuplicateFile(null)
+    setUploading(true)
+    const att = await uploadFileToR2(file)
+    if (att) {
+      // Replace the existing attachment entry (old R2 key becomes orphaned — cleaned on save)
+      setAttachments((prev) =>
+        prev.map((a) => (a.id === existing.id ? { ...att, id: existing.id } : a))
+      )
+    }
+    setUploading(false)
+    processNextFile()
   }
 
   function handleRemoveAttachment(id: string) {
@@ -728,6 +794,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
               sections={studySections}
               onSectionsChange={setStudySections}
               onAttachmentAdd={(att) => setAttachments(prev => [...prev, att])}
+              attachments={attachments}
             />
           </div>
         </TabsContent>
@@ -1017,6 +1084,45 @@ export function EntryForm({ mode, message }: EntryFormProps) {
             <AlertDialogCancel variant="default">
               Keep Editing
             </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Duplicate attachment dialog */}
+      <AlertDialog open={!!duplicateFile} onOpenChange={(open) => !open && handleDuplicateSkip()}>
+        <AlertDialogContent className="sm:max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-warning/10">
+              <AlertCircle className="text-warning" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              {duplicateFile?.sameSize ? "File already attached" : "File name already exists"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {duplicateFile?.sameSize ? (
+                <>
+                  <span className="font-medium">{duplicateFile.file.name}</span> ({duplicateFile.existing.size}) is already in the attachment list.
+                </>
+              ) : (
+                <>
+                  A file named <span className="font-medium">{duplicateFile?.file.name}</span> already exists ({duplicateFile?.existing.size}).
+                  The new file is {duplicateFile?.file ? formatFileSize(duplicateFile.file.size) : ""}.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel onClick={handleDuplicateSkip}>
+              {duplicateFile?.sameSize ? "Skip" : "Cancel"}
+            </AlertDialogCancel>
+            {!duplicateFile?.sameSize && (
+              <Button variant="outline" onClick={handleDuplicateReplace}>
+                Replace Existing
+              </Button>
+            )}
+            <AlertDialogAction onClick={handleDuplicateKeepBoth}>
+              {duplicateFile?.sameSize ? "Upload Anyway" : "Keep Both"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

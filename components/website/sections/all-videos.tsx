@@ -81,6 +81,11 @@ export default function AllVideosSection({ content, enableAnimations, colorSchem
     <SectionContainer colorScheme={colorScheme} paddingY="none" containerWidth={containerWidth} className="pb-24 lg:pb-30">
       {/* Filter toolbar — matches Messages and Bible Studies pages */}
       <FilterToolbar
+        tabs={{
+          options: [{ key: "all", label: "All Videos" }],
+          active: "all",
+          onChange: () => {},
+        }}
         search={{
           value: search,
           onChange: (v) => {
