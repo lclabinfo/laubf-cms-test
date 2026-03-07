@@ -388,10 +388,8 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
   }, [fetchMessages, pagination.page, pagination.pageSize, search, dateFrom, dateTo, seriesFilter, sortBy, sortDir])
 
   const fetchMessageById = useCallback(async (id: string): Promise<Message | null> => {
-    // Check local state first
-    const local = messages.find((m) => m.id === id)
-    if (local) return local
-
+    // Always fetch from API to get full detail data (including relatedStudy).
+    // The local messages list uses lightweight includes that omit heavy fields.
     try {
       const res = await fetch(`/api/v1/messages/${id}`)
       if (!res.ok) return null
@@ -403,7 +401,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
     } catch {
       return null
     }
-  }, [messages])
+  }, [])
 
   const addSeries = useCallback((data: { name: string; imageUrl?: string }) => {
     const tempSeries: Series = {

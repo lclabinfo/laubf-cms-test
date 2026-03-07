@@ -10,27 +10,23 @@ import type { Message } from "@/lib/messages-data"
 
 export default function EditMessagePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const { messages, fetchMessageById } = useMessages()
+  const { fetchMessageById } = useMessages()
 
-  // Check context first (synchronous, no effect needed)
-  const fromContext = messages.find((m) => m.id === id)
-
-  // Track async-fetched message separately (null = not found, undefined = loading)
-  const [fetched, setFetched] = useState<Message | null | undefined>(
-    fromContext ? undefined : undefined
-  )
+  // Track async-fetched message (null = not found, undefined = loading)
+  const [fetched, setFetched] = useState<Message | null | undefined>(undefined)
 
   useEffect(() => {
-    if (fromContext) return // already in context, no fetch needed
-
+    // Always fetch full detail data from the API.
+    // The messages list in context uses lightweight includes that omit
+    // relatedStudy and other heavy fields needed by the detail view.
     let cancelled = false
     fetchMessageById(id).then((result) => {
       if (!cancelled) setFetched(result)
     })
     return () => { cancelled = true }
-  }, [id, fromContext, fetchMessageById])
+  }, [id, fetchMessageById])
 
-  const message = fromContext ?? fetched
+  const message = fetched
 
   if (message === undefined) {
     return (

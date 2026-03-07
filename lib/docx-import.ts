@@ -226,6 +226,12 @@ export async function convertDocxToHtml(
     })
   }
 
+  // Merge consecutive same-type lists separated only by empty paragraphs.
+  // mammoth splits a single numbered list into multiple <ol>/<ul> elements when
+  // Word inserts blank paragraphs between list items.  We recombine them so the
+  // numbering stays continuous.
+  html = mergeAdjacentLists(html)
+
   // Build serif font-family value
   let serifFontFamily: string | null = null
   if (isSerifDoc) {
@@ -436,6 +442,49 @@ function parseDocumentXml(
       spacingAfter,
     })
   }
+}
+
+// ── Helper: Merge adjacent lists separated only by empty paragraphs ──
+
+/**
+ * Detects consecutive <ol> (or <ul>) elements separated only by empty
+ * `<p></p>` or `<p>&nbsp;</p>` tags and merges them into a single list.
+ *
+ * Heuristic: only merge when the ONLY content between two lists of the same
+ * type is empty paragraphs (no real text).  This preserves intentionally
+ * separate lists that have meaningful content between them.
+ *
+ * The merged list keeps the opening tag (including `start` and `style`
+ * attributes) of the first list in each run.
+ */
+function mergeAdjacentLists(html: string): string {
+  // Process both <ol> and <ul>
+  for (const listTag of ["ol", "ul"] as const) {
+    // Pattern explanation:
+    //   closing </ol> or </ul>
+    //   followed by one or more empty paragraphs (whitespace, &nbsp;, or \u00A0)
+    //   followed by opening <ol...> or <ul...> (with optional attributes)
+    //
+    // We loop because each replacement can expose new adjacent pairs.
+    const emptyParagraphGap = new RegExp(
+      `</${listTag}>`
+      + `((?:\\s*<p[^>]*>(?:\\s|&nbsp;|\u00A0)*<\\/p>\\s*)+)`
+      + `<${listTag}(?:\\s[^>]*)?>`,
+      "g",
+    )
+
+    let previous = ""
+    while (previous !== html) {
+      previous = html
+      html = html.replace(emptyParagraphGap, () => {
+        // Drop the closing tag, the empty paragraphs, and the next opening tag.
+        // The <li> items from the second list merge into the first list's scope.
+        return ""
+      })
+    }
+  }
+
+  return html
 }
 
 // ── Helper: Detect dominant font from collected font names ──

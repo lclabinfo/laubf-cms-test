@@ -35,6 +35,29 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
+/**
+ * Walk a TipTap JSON tree and add textStyle mark with fontFamily to all text nodes.
+ * Used for both .doc and .docx imports when a serif font is detected.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function addFontToTextNodes(node: any, fontFamily: string): void {
+  if (node.type === "text") {
+    const marks = node.marks || []
+    const existing = marks.find((m: { type: string }) => m.type === "textStyle")
+    if (existing) {
+      existing.attrs = { ...existing.attrs, fontFamily }
+    } else {
+      marks.push({ type: "textStyle", attrs: { fontFamily } })
+    }
+    node.marks = marks
+  }
+  if (node.content) {
+    for (const child of node.content) {
+      addFontToTextNodes(child, fontFamily)
+    }
+  }
+}
+
 export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, bibleVersionSlot }: StudyTabProps) {
   const [overwriteConfirmId, setOverwriteConfirmId] = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState(sections[0]?.id ?? "")
@@ -110,8 +133,39 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, bibleVer
           handleContentChange(sectionId, plainTextToTiptapJson(text))
         }
         reader.readAsText(file)
+      } else if (file.name.toLowerCase().endsWith(".doc") && !file.name.toLowerCase().endsWith(".docx")) {
+        // .doc (Word 97-2003 binary) — use server-side conversion API
+        try {
+          const formData = new FormData()
+          formData.append("file", file)
+
+          const res = await fetch("/api/v1/convert-doc", {
+            method: "POST",
+            body: formData,
+          })
+
+          if (!res.ok) {
+            const errJson = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+            throw new Error(errJson.error || `Conversion failed: ${res.status}`)
+          }
+
+          const { data } = await res.json()
+          const { html, isSerifDoc, serifFontFamily } = data
+
+          const { generateJSON } = await import("@tiptap/html")
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const json = generateJSON(html, getExtensions()) as any
+
+          if (isSerifDoc && serifFontFamily) {
+            addFontToTextNodes(json, serifFontFamily)
+          }
+
+          handleContentChange(sectionId, JSON.stringify(json))
+        } catch (err) {
+          console.error("Failed to import .doc file:", err)
+        }
       } else {
-        // .docx — use service to convert to HTML, then to TipTap JSON
+        // .docx — use client-side mammoth service to convert to HTML, then to TipTap JSON
         try {
           const { generateJSON } = await import("@tiptap/html")
           const arrayBuffer = await file.arrayBuffer()
@@ -125,26 +179,7 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, bibleVer
           const json = generateJSON(html, getExtensions()) as any
 
           if (isSerifDoc && serifFontFamily) {
-            // Walk JSON tree and add textStyle mark with fontFamily to all text nodes
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            function addFontToTextNodes(node: any): void {
-              if (node.type === "text") {
-                const marks = node.marks || []
-                const existing = marks.find((m: { type: string }) => m.type === "textStyle")
-                if (existing) {
-                  existing.attrs = { ...existing.attrs, fontFamily: serifFontFamily }
-                } else {
-                  marks.push({ type: "textStyle", attrs: { fontFamily: serifFontFamily } })
-                }
-                node.marks = marks
-              }
-              if (node.content) {
-                for (const child of node.content) {
-                  addFontToTextNodes(child)
-                }
-              }
-            }
-            addFontToTextNodes(json)
+            addFontToTextNodes(json, serifFontFamily)
           }
 
           handleContentChange(sectionId, JSON.stringify(json))
