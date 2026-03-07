@@ -44,7 +44,7 @@ export function keyFromUrl(url: string): string | null
 - `isStagingKey` — checks if a key is in the staging/ prefix
 - `keyFromUrl` — derives R2 key from a full public URL
 
-Default bucket is `ATTACHMENTS_BUCKET`. Bucket param available for future `file-media` bucket.
+Default bucket is `ATTACHMENTS_BUCKET`. Bucket param available for future `media` bucket.
 
 ### Phase 3: Upload API Route (`app/api/v1/upload-url/route.ts`) — IMPLEMENTED
 

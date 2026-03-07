@@ -14,7 +14,7 @@
 ## Target State
 
 - Full media library: upload, browse, search, edit metadata, delete
-- Files stored in the **`file-media`** R2 bucket (separate from `file-attachments`)
+- Files stored in the **`media`** R2 bucket (separate from `file-attachments`)
 - Same staging-to-permanent key pattern as bible study attachments
 - Reusable media selector for embedding images in bible studies, messages, events, etc.
 - Shared storage quota with bible study attachments (10 GB combined per church)
@@ -25,19 +25,19 @@
 
 These steps caused bugs when skipped during the attachments implementation. Do them first.
 
-### 1. Create the `file-media` R2 bucket
+### 1. Create the `media` R2 bucket
 
 In Cloudflare dashboard > R2 > Create Bucket:
-- Bucket name: `file-media`
+- Bucket name: `media`
 - Region: Automatic
 - Enable public access (R2.dev subdomain)
 - Copy the public URL (e.g., `https://pub-XXXX.r2.dev`)
 
-### 2. Configure CORS on the `file-media` bucket
+### 2. Configure CORS on the `media` bucket
 
 **This MUST be done before any browser upload code is written.** Without CORS, the browser's `PUT` to the presigned URL will silently fail with a network error.
 
-Cloudflare dashboard > R2 > `file-media` bucket > Settings > CORS Policy:
+Cloudflare dashboard > R2 > `media` bucket > Settings > CORS Policy:
 
 ```json
 [
@@ -60,11 +60,11 @@ Cloudflare dashboard > R2 > `file-media` bucket > Settings > CORS Policy:
 Add to `.env` (values already templated in `.env.example`):
 
 ```
-R2_MEDIA_BUCKET_NAME=file-media
+R2_MEDIA_BUCKET_NAME=media
 R2_MEDIA_PUBLIC_URL=https://pub-XXXX.r2.dev
 ```
 
-### 4. Add `file-media` bucket domain to `next.config.ts`
+### 4. Add `media` bucket domain to `next.config.ts`
 
 The R2 dev URL must be in `images.remotePatterns` for `<Image>` to load media files:
 
@@ -80,7 +80,7 @@ images: {
 
 ### 5. Configure lifecycle rule for staging cleanup
 
-Cloudflare dashboard > R2 > `file-media` bucket > Settings > Object lifecycle rules:
+Cloudflare dashboard > R2 > `media` bucket > Settings > Object lifecycle rules:
 - Prefix: `la-ubf/staging/`
 - Action: Delete after 1 day
 
@@ -660,11 +660,11 @@ This requires Cloudflare Pro plan ($20/mo) or a separate Worker-based solution.
 Use this as a step-by-step guide. Complete each item in order.
 
 ### Infrastructure (do first, do once)
-- [ ] Create `file-media` R2 bucket in Cloudflare dashboard
-- [ ] Configure CORS on `file-media` bucket (see Prerequisites section)
+- [ ] Create `media` R2 bucket in Cloudflare dashboard
+- [ ] Configure CORS on `media` bucket (see Prerequisites section)
 - [ ] Set `R2_MEDIA_BUCKET_NAME` and `R2_MEDIA_PUBLIC_URL` in `.env`
 - [ ] Add media bucket R2.dev hostname to `next.config.ts` `images.remotePatterns`
-- [ ] Configure staging lifecycle rule on `file-media` bucket (delete after 1 day, prefix `la-ubf/staging/`)
+- [ ] Configure staging lifecycle rule on `media` bucket (delete after 1 day, prefix `la-ubf/staging/`)
 
 ### Storage client
 - [ ] Add `MEDIA_BUCKET` and `MEDIA_PUBLIC_URL` exports to `lib/storage/r2.ts`
@@ -701,7 +701,7 @@ Use this as a step-by-step guide. Complete each item in order.
 - [ ] Restart dev server
 
 ### Verification
-- [ ] Upload an image — verify it appears in R2 `file-media` bucket under `la-ubf/staging/`
+- [ ] Upload an image — verify it appears in R2 `media` bucket under `la-ubf/staging/`
 - [ ] Save — verify file moves to `la-ubf/media/images/2026/` permanent key
 - [ ] Verify the `MediaAsset` DB record has the permanent URL (not staging)
 - [ ] Delete a media asset — verify R2 object is removed

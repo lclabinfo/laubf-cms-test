@@ -7,7 +7,7 @@ Two separate R2 buckets, each serving a distinct purpose:
 | Bucket | Env Var | Contents | Access Pattern |
 |---|---|---|---|
 | `file-attachments` | `R2_ATTACHMENTS_BUCKET_NAME` | Bible study PDFs, DOCXs, sermon handouts | Download-oriented (user clicks to download) |
-| `file-media` | `R2_MEDIA_BUCKET_NAME` | Images, audio, thumbnails, series covers | Serve-oriented (embedded inline, cached by CDN) |
+| `media` | `R2_MEDIA_BUCKET_NAME` | Images, audio, thumbnails, series covers | Serve-oriented (embedded inline, cached by CDN) |
 
 **Why two buckets instead of one?**
 - Different access patterns — media is served inline with aggressive caching; attachments are downloaded on-demand
@@ -28,7 +28,7 @@ Both buckets live in the same Cloudflare account and share API credentials (`R2_
 | `R2_SECRET_ACCESS_KEY` | S3-compatible API token secret | Shown once at token creation — save immediately |
 | `R2_ATTACHMENTS_BUCKET_NAME` | Attachments bucket name | e.g., `file-attachments` |
 | `R2_ATTACHMENTS_PUBLIC_URL` | Attachments public URL | Custom domain or R2 dev URL |
-| `R2_MEDIA_BUCKET_NAME` | Media bucket name | e.g., `file-media` |
+| `R2_MEDIA_BUCKET_NAME` | Media bucket name | e.g., `media` |
 | `R2_MEDIA_PUBLIC_URL` | Media public URL | Custom domain or R2 dev URL |
 
 ## Endpoint

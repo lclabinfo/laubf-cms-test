@@ -12,7 +12,7 @@ This document describes the two-phase approach to Cloudflare account and R2 buck
 Cloudflare Account: LA UBF
   laubf.org DNS (proxied — app hosted on Azure VM)
   R2 Bucket: file-attachments
-  R2 Bucket: file-media
+  R2 Bucket: media
   Free tier: 10 GB storage, 0 egress cost
 ```
 
@@ -55,7 +55,7 @@ Cloudflare Account: LA UBF
 Cloudflare Account: lclab.io
   lclab.io DNS
   R2 Bucket: file-attachments    (all churches, tenant-prefixed keys)
-  R2 Bucket: file-media           (all churches, tenant-prefixed keys)
+  R2 Bucket: media           (all churches, tenant-prefixed keys)
   -- OR --
   R2 Bucket: {church-slug}-attachments   (per-church buckets)
   R2 Bucket: {church-slug}-media         (per-church buckets)
@@ -70,7 +70,7 @@ file-attachments/
   {churchId-1}/2026/uuid-handout.pdf
   {churchId-2}/2026/uuid-notes.docx
 
-file-media/
+media/
   {churchId-1}/images/2026/uuid-photo.jpg
   {churchId-2}/images/2026/uuid-banner.png
 ```
@@ -143,7 +143,7 @@ When consolidating from per-church accounts to lclab.io:
 ## Current State (as of March 2026)
 
 - LA UBF Cloudflare account: created
-- R2 buckets: `file-attachments` and `file-media` created
+- R2 buckets: `file-attachments` and `media` created
 - DNS: `laubf.org` managed by Cloudflare, proxied to Azure VM
 - App hosting: Azure VM (unchanged — no migration needed)
 - R2 integration: **bible study attachments fully implemented** (storage client, presigned upload, staging→permanent move, deletion)

@@ -16,8 +16,11 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "pub-59a92027daa648c8a02f226cb5873645.r2.dev",
       },
-      // Media bucket R2 dev URL — update hostname after creating the file-media bucket in Cloudflare
-      // { protocol: "https", hostname: "pub-MEDIA-BUCKET-ID.r2.dev" },
+      // Media bucket R2 dev URL
+      {
+        protocol: "https",
+        hostname: "pub-91add7d8455848c9a871477af3249f9e.r2.dev",
+      },
     ],
   },
 };

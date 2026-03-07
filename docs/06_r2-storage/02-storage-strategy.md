@@ -46,7 +46,7 @@ None of these apply to this project in its current phase.
 
 ### Phased Approach
 
-1. **Now (LA UBF):** Cloud-only with R2. Dedicated Cloudflare account per church. Two buckets (`file-attachments`, `file-media`). 10 GB free tier per account.
+1. **Now (LA UBF):** Cloud-only with R2. Dedicated Cloudflare account per church. Two buckets (`file-attachments`, `media`). 10 GB free tier per account.
 2. **Growth (2-5 churches):** Same pattern — new Cloudflare account per church, managed by lclab.io. Single-tenant deployments.
 3. **Consolidation (~5-10 churches):** Migrate to centralized lclab.io Cloudflare account. Shared buckets with tenant-prefixed keys. Multi-tenant app.
 
@@ -106,7 +106,7 @@ Files are split across two R2 buckets by purpose:
 | Bucket | Contents | Access Pattern |
 |---|---|---|
 | `file-attachments` | Bible study PDFs, DOCXs, sermon handouts | Download-oriented |
-| `file-media` | Images, audio, thumbnails, series covers | Serve-oriented (inline, cached) |
+| `media` | Images, audio, thumbnails, series covers | Serve-oriented (inline, cached) |
 
 See `docs/06_r2-storage/01-r2-env-setup.md` for env vars and rationale.
 
@@ -129,7 +129,7 @@ Both buckets use the same key pattern — `churchSlug` prefix for tenant isolati
       {uuid}-{sanitized-filename}.docx
 ```
 
-**`file-media` bucket:**
+**`media` bucket:**
 ```
 {churchSlug}/
   staging/
@@ -162,7 +162,7 @@ Configure per-bucket in Cloudflare dashboard. The staging prefix includes the ch
 | `la-ubf/staging/` | Delete after 24 hours | Orphan upload cleanup |
 | (all) | Transition to IA after 90 days | Cost optimization for old study materials |
 
-**`file-media` bucket:**
+**`media` bucket:**
 
 | Prefix | Rule | Purpose |
 |---|---|---|
