@@ -81,6 +81,7 @@ function UploadPhotoDialogInner({
 }: Omit<UploadPhotoDialogProps, "open">) {
   const [trackedFiles, setTrackedFiles] = useState<TrackedFile[]>([])
   const [isUploading, setIsUploading] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -255,11 +256,27 @@ function UploadPhotoDialogInner({
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              className="flex flex-col items-center justify-center rounded-lg border border-dashed py-10 text-center hover:border-foreground/30 transition-colors"
+              onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+              onDragLeave={(e) => { e.preventDefault(); setIsDragging(false) }}
+              onDrop={(e) => {
+                e.preventDefault()
+                setIsDragging(false)
+                if (e.dataTransfer.files?.length) {
+                  const newFiles: TrackedFile[] = Array.from(e.dataTransfer.files).map(
+                    (file) => file.size > MAX_FILE_SIZE
+                      ? { file, status: "error" as const, error: `File exceeds ${formatFileSize(MAX_FILE_SIZE)} limit` }
+                      : { file, status: "pending" as const }
+                  )
+                  setTrackedFiles(newFiles)
+                }
+              }}
+              className={`flex flex-col items-center justify-center rounded-lg border border-dashed py-10 text-center transition-colors ${
+                isDragging ? "border-primary bg-primary/5" : "hover:border-foreground/30"
+              }`}
             >
               <Upload className="size-8 text-muted-foreground/50 mb-2" />
               <span className="text-sm font-medium">
-                Click to select files
+                {isDragging ? "Drop files here" : "Drag and drop or click to select files"}
               </span>
               <span className="text-xs text-muted-foreground mt-1">
                 Images, videos, audio, and PDFs supported (max{" "}

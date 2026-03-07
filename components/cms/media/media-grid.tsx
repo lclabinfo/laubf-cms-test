@@ -53,7 +53,7 @@ export function MediaGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
       {/* Folder cards (only in "all" view) */}
       {folders?.map((folder) => {
         const count = folderCounts?.get(folder.id) ?? 0
@@ -63,8 +63,8 @@ export function MediaGrid({
             onClick={() => onFolderClick(folder.id)}
             className="group relative rounded-lg border overflow-hidden transition-all hover:border-foreground/20 text-left"
           >
-            <div className="aspect-video flex flex-col items-center justify-center bg-muted/50">
-              <Folder className="size-10 text-muted-foreground/60 mb-1" />
+            <div className="aspect-square flex flex-col items-center justify-center bg-muted/50">
+              <Folder className="size-8 text-muted-foreground/60 mb-1" />
               <span className="text-sm font-medium truncate max-w-[90%]">{folder.name}</span>
               <span className="text-xs text-muted-foreground">
                 {count} item{count !== 1 ? "s" : ""}
@@ -89,7 +89,7 @@ export function MediaGrid({
             <div
               role="button"
               tabIndex={0}
-              className="aspect-video relative bg-muted w-full cursor-pointer"
+              className="aspect-square relative bg-muted w-full cursor-pointer"
               onClick={() => onEdit(item.id)}
               onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onEdit(item.id) } }}
             >

@@ -43,7 +43,7 @@ import {
 import { cn } from "@/lib/utils"
 import { CustomRecurrenceDialog } from "./custom-recurrence-dialog"
 import { AddressAutocomplete } from "./address-autocomplete"
-import { MediaSelectorDialog } from "@/components/cms/media/media-selector-dialog"
+import { MediaPickerDialog } from "@/components/cms/media/media-picker-dialog"
 import { useEvents } from "@/lib/events-context"
 import { statusDisplay } from "@/lib/status"
 import type { ContentStatus } from "@/lib/status"
@@ -203,6 +203,8 @@ export function EventForm({ mode, event }: EventFormProps) {
   const [registrationDeadline, setRegistrationDeadline] = useState(event?.registrationDeadline ?? "")
   // Sidebar-absorbed local state
   const [mediaSelectorOpen, setMediaSelectorOpen] = useState(false)
+  const [coverDragging, setCoverDragging] = useState(false)
+  const [coverUploading, setCoverUploading] = useState(false)
 
   const isValid = title.trim().length >= 2 && startDate && startTime && endTime && location.trim()
   const statusConfig = statusDisplay[status]
@@ -287,21 +289,9 @@ export function EventForm({ mode, event }: EventFormProps) {
     setLinks(links.map((l, i) => i === index ? { ...l, [field]: value } : l))
   }
 
-  // Image handlers (absorbed from sidebar)
+  // Image handlers — all go through the media picker
   function handleUploadImage() {
-    const input = document.createElement("input")
-    input.type = "file"
-    input.accept = "image/*"
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]
-      if (!file) return
-      const reader = new FileReader()
-      reader.onload = () => {
-        setCoverImage(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    }
-    input.click()
+    setMediaSelectorOpen(true)
   }
 
   function handleGenerateAI() {
@@ -311,6 +301,56 @@ export function EventForm({ mode, event }: EventFormProps) {
 
   function handleSelectFromLibrary() {
     setMediaSelectorOpen(true)
+  }
+
+  async function handleCoverDrop(e: React.DragEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    setCoverDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (!file || !file.type.startsWith("image/")) return
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Image exceeds 10 MB limit")
+      return
+    }
+    setCoverUploading(true)
+    try {
+      // Ensure Events folder exists
+      fetch("/api/v1/media/folders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Events" }),
+      }).catch(() => {})
+      // Upload to R2
+      const urlRes = await fetch("/api/v1/upload-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: file.name, contentType: file.type, fileSize: file.size, context: "media" }),
+      })
+      const urlJson = await urlRes.json()
+      if (!urlJson.success) throw new Error(urlJson.error?.message || "Upload failed")
+      await fetch(urlJson.data.uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } })
+      // Get dimensions
+      const dims = await new Promise<{ w: number; h: number }>((resolve) => {
+        const img = new window.Image()
+        img.onload = () => { resolve({ w: img.naturalWidth, h: img.naturalHeight }); URL.revokeObjectURL(img.src) }
+        img.onerror = () => { resolve({ w: 0, h: 0 }); URL.revokeObjectURL(img.src) }
+        img.src = URL.createObjectURL(file)
+      })
+      // Create media record
+      const createRes = await fetch("/api/v1/media", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: file.name, url: urlJson.data.publicUrl, mimeType: file.type, fileSize: file.size, width: dims.w || undefined, height: dims.h || undefined, folder: "Events" }),
+      })
+      const createJson = await createRes.json()
+      if (!createJson.success) throw new Error("Failed to create media record")
+      setCoverImage(createJson.data.url)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed")
+    } finally {
+      setCoverUploading(false)
+    }
   }
 
   function handleSave() {
@@ -1044,28 +1084,41 @@ export function EventForm({ mode, event }: EventFormProps) {
                   <button
                     type="button"
                     onClick={handleUploadImage}
-                    className="w-full aspect-video rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50 bg-muted/30 hover:bg-muted/50 transition-colors flex flex-col items-center justify-center gap-3 cursor-pointer group"
+                    onDragOver={(e) => { e.preventDefault(); setCoverDragging(true) }}
+                    onDragLeave={(e) => { e.preventDefault(); setCoverDragging(false) }}
+                    onDrop={handleCoverDrop}
+                    className={`w-full aspect-video rounded-lg border-2 border-dashed transition-colors flex flex-col items-center justify-center gap-3 cursor-pointer group ${
+                      coverDragging
+                        ? "border-primary bg-primary/5"
+                        : "border-muted-foreground/25 hover:border-muted-foreground/50 bg-muted/30 hover:bg-muted/50"
+                    }`}
                   >
                     <div className="flex size-10 items-center justify-center rounded-full bg-muted group-hover:bg-muted-foreground/10 transition-colors">
-                      <Upload className="size-5 text-muted-foreground" />
+                      {coverUploading ? (
+                        <span className="size-5 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Upload className="size-5 text-muted-foreground" />
+                      )}
                     </div>
                     <div className="text-center">
                       <p className="text-sm font-medium text-muted-foreground">
-                        Click to upload an image
+                        {coverUploading ? "Uploading..." : coverDragging ? "Drop image here" : "Click or drag to upload an image"}
                       </p>
-                      <p className="text-xs text-muted-foreground/70 mt-0.5">
-                        or{" "}
-                        <span
-                          role="button"
-                          className="text-primary underline underline-offset-2 hover:text-primary/80"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleSelectFromLibrary()
-                          }}
-                        >
-                          choose from media library
-                        </span>
-                      </p>
+                      {!coverUploading && !coverDragging && (
+                        <p className="text-xs text-muted-foreground/70 mt-0.5">
+                          or{" "}
+                          <span
+                            role="button"
+                            className="text-primary underline underline-offset-2 hover:text-primary/80"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleSelectFromLibrary()
+                            }}
+                          >
+                            choose from media library
+                          </span>
+                        </p>
+                      )}
                     </div>
                   </button>
                 )}
@@ -1090,14 +1143,13 @@ export function EventForm({ mode, event }: EventFormProps) {
         </div>
       </div>
 
-      {/* MediaSelectorDialog */}
-      <MediaSelectorDialog
+      {/* Media Picker Dialog */}
+      <MediaPickerDialog
         open={mediaSelectorOpen}
         onOpenChange={setMediaSelectorOpen}
-        onSelect={(items) => {
-          if (items.length > 0) {
-            setCoverImage(items[0].url)
-          }
+        folder="Events"
+        onSelect={(url) => {
+          setCoverImage(url)
         }}
       />
 

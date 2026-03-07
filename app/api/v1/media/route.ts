@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { listMedia, createMediaAsset } from '@/lib/dal/media'
-import { moveObject, isStagingKey, keyFromMediaUrl, getMediaPublicUrl, MEDIA_BUCKET } from '@/lib/storage/r2'
+import { moveObject, deleteObject, isStagingKey, keyFromMediaUrl, getMediaPublicUrl, MEDIA_BUCKET } from '@/lib/storage/r2'
 
 // ---------------------------------------------------------------------------
 // GET /api/v1/media — List media assets (cursor-paginated)
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
       mimeTypePrefix,
       search: searchParams.get('search') || undefined,
       cursor: searchParams.get('cursor') || undefined,
-      limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!, 10) : undefined,
+      limit: searchParams.get('limit') ? Math.min(parseInt(searchParams.get('limit')!, 10), 200) : undefined,
     })
 
     return NextResponse.json({ success: true, data: result })
@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
 
     // --- Promote staging file to permanent key ---
     let permanentUrl = url
+    let promotedDestKey: string | null = null
     const srcKey = keyFromMediaUrl(url)
     if (srcKey && isStagingKey(srcKey)) {
       const category = mimeType.startsWith('image/')
@@ -113,23 +114,33 @@ export async function POST(request: NextRequest) {
       const year = new Date().getFullYear().toString()
       const uuidFilename = srcKey.replace(/^[^/]+\/staging\//, '')
       const churchSlug = process.env.CHURCH_SLUG || 'la-ubf'
-      const destKey = `${churchSlug}/media/${category}/${year}/${uuidFilename}`
+      promotedDestKey = `${churchSlug}/${category}/${year}/${uuidFilename}`
 
-      await moveObject(srcKey, destKey, MEDIA_BUCKET)
-      permanentUrl = getMediaPublicUrl(destKey)
+      await moveObject(srcKey, promotedDestKey, MEDIA_BUCKET)
+      permanentUrl = getMediaPublicUrl(promotedDestKey)
     }
 
-    const asset = await createMediaAsset(churchId, {
-      filename,
-      url: permanentUrl,
-      mimeType,
-      fileSize,
-      width: width ?? null,
-      height: height ?? null,
-      alt: alt ?? null,
-      folder: folder || '/',
-      createdBy: session.user.id,
-    })
+    // Create DB record — roll back R2 promotion if this fails
+    let asset
+    try {
+      asset = await createMediaAsset(churchId, {
+        filename,
+        url: permanentUrl,
+        mimeType,
+        fileSize,
+        width: width ?? null,
+        height: height ?? null,
+        alt: alt ?? null,
+        folder: folder || '/',
+        createdBy: session.user.id,
+      })
+    } catch (dbError) {
+      // Clean up promoted R2 object to prevent orphans
+      if (promotedDestKey) {
+        try { await deleteObject(promotedDestKey, MEDIA_BUCKET) } catch { /* best effort */ }
+      }
+      throw dbError
+    }
 
     return NextResponse.json({ success: true, data: asset }, { status: 201 })
   } catch (error) {

@@ -10,7 +10,7 @@ export const DEFAULT_STORAGE_QUOTA = 10 * 1024 * 1024 * 1024 // 10 GB
 export async function getChurchStorageUsage(churchId: string): Promise<number> {
   const [mediaResult, attachmentResult] = await Promise.all([
     prisma.mediaAsset.aggregate({
-      where: { churchId },
+      where: { churchId, deletedAt: null },
       _sum: { fileSize: true },
     }),
     prisma.bibleStudyAttachment.aggregate({
@@ -20,6 +20,130 @@ export async function getChurchStorageUsage(churchId: string): Promise<number> {
   ])
 
   return (mediaResult._sum.fileSize ?? 0) + (attachmentResult._sum.fileSize ?? 0)
+}
+
+/**
+ * Get a detailed storage breakdown for the dashboard.
+ * Returns usage by category (media vs attachments), media by type, and top consuming files.
+ */
+export async function getStorageBreakdown(churchId: string) {
+  const [
+    mediaTotal,
+    attachmentTotal,
+    mediaByType,
+    mediaCount,
+    attachmentCount,
+    topMediaAssets,
+    topAttachments,
+  ] = await Promise.all([
+    // Total media bytes
+    prisma.mediaAsset.aggregate({
+      where: { churchId, deletedAt: null },
+      _sum: { fileSize: true },
+    }),
+    // Total attachment bytes
+    prisma.bibleStudyAttachment.aggregate({
+      where: { bibleStudy: { churchId } },
+      _sum: { fileSize: true },
+    }),
+    // Media grouped by mime type prefix (images, audio, video, other)
+    prisma.$queryRaw<Array<{ category: string; total_bytes: bigint; file_count: bigint }>>`
+      SELECT
+        CASE
+          WHEN "mimeType" LIKE 'image/%' THEN 'images'
+          WHEN "mimeType" LIKE 'audio/%' THEN 'audio'
+          WHEN "mimeType" LIKE 'video/%' THEN 'video'
+          ELSE 'other'
+        END AS category,
+        COALESCE(SUM("fileSize"), 0)::bigint AS total_bytes,
+        COUNT(*)::bigint AS file_count
+      FROM "MediaAsset"
+      WHERE "churchId" = ${churchId}::uuid AND "deletedAt" IS NULL
+      GROUP BY category
+      ORDER BY total_bytes DESC
+    `,
+    // Total media file count
+    prisma.mediaAsset.count({ where: { churchId, deletedAt: null } }),
+    // Total attachment file count
+    prisma.bibleStudyAttachment.count({ where: { bibleStudy: { churchId } } }),
+    // Top 10 largest media assets
+    prisma.mediaAsset.findMany({
+      where: { churchId, deletedAt: null },
+      orderBy: { fileSize: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        filename: true,
+        mimeType: true,
+        fileSize: true,
+        url: true,
+        folder: true,
+        createdAt: true,
+      },
+    }),
+    // Top 10 largest attachments
+    prisma.bibleStudyAttachment.findMany({
+      where: { bibleStudy: { churchId }, fileSize: { not: null } },
+      orderBy: { fileSize: 'desc' },
+      take: 10,
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        fileSize: true,
+        url: true,
+        createdAt: true,
+        bibleStudy: {
+          select: { slug: true, title: true },
+        },
+      },
+    }),
+  ])
+
+  const mediaBytes = mediaTotal._sum.fileSize ?? 0
+  const attachmentBytes = attachmentTotal._sum.fileSize ?? 0
+  const totalBytes = mediaBytes + attachmentBytes
+
+  return {
+    totalBytes,
+    mediaBytes,
+    attachmentBytes,
+    mediaCount,
+    attachmentCount,
+    mediaByType: mediaByType.map((r) => ({
+      category: r.category,
+      totalBytes: Number(r.total_bytes),
+      fileCount: Number(r.file_count),
+    })),
+    topFiles: [
+      ...topMediaAssets.map((a) => ({
+        id: a.id,
+        name: a.filename,
+        type: a.mimeType,
+        fileSize: a.fileSize,
+        url: a.url,
+        source: 'media' as const,
+        folder: a.folder,
+        createdAt: a.createdAt.toISOString(),
+        context: a.folder === '/' ? 'Media Library' : `Media / ${a.folder}`,
+      })),
+      ...topAttachments.map((a) => ({
+        id: a.id,
+        name: a.name,
+        type: a.type,
+        fileSize: a.fileSize ?? 0,
+        url: a.url,
+        source: 'attachment' as const,
+        folder: null,
+        createdAt: a.createdAt.toISOString(),
+        context: a.bibleStudy
+          ? `Bible Study: ${a.bibleStudy.title}`
+          : 'Bible Study Attachment',
+      })),
+    ]
+      .sort((a, b) => b.fileSize - a.fileSize)
+      .slice(0, 15),
+  }
 }
 
 /**

@@ -1,13 +1,19 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { getChurchId } from '@/lib/api/get-church-id'
-import { getChurchStorageUsage, DEFAULT_STORAGE_QUOTA, formatBytes } from '@/lib/dal/storage'
+import {
+  getChurchStorageUsage,
+  getStorageBreakdown,
+  DEFAULT_STORAGE_QUOTA,
+  formatBytes,
+} from '@/lib/dal/storage'
 
 // ---------------------------------------------------------------------------
 // GET /api/v1/storage — Get storage usage for the current church
+// ?detail=true returns full breakdown for the storage dashboard
 // ---------------------------------------------------------------------------
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth()
     if (!session?.user) {
@@ -18,6 +24,55 @@ export async function GET() {
     }
 
     const churchId = await getChurchId()
+    const detail = request.nextUrl.searchParams.get('detail') === 'true'
+
+    if (detail) {
+      const breakdown = await getStorageBreakdown(churchId)
+      const quota = DEFAULT_STORAGE_QUOTA
+      const remaining = Math.max(0, quota - breakdown.totalBytes)
+      const percentUsed = quota > 0 ? Math.round((breakdown.totalBytes / quota) * 100) : 0
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          currentUsage: breakdown.totalBytes,
+          quota,
+          remaining,
+          percentUsed,
+          currentUsageFormatted: formatBytes(breakdown.totalBytes),
+          quotaFormatted: formatBytes(quota),
+          remainingFormatted: formatBytes(remaining),
+          breakdown: {
+            media: {
+              bytes: breakdown.mediaBytes,
+              formatted: formatBytes(breakdown.mediaBytes),
+              fileCount: breakdown.mediaCount,
+              percent: breakdown.totalBytes > 0
+                ? Math.round((breakdown.mediaBytes / breakdown.totalBytes) * 100)
+                : 0,
+            },
+            attachments: {
+              bytes: breakdown.attachmentBytes,
+              formatted: formatBytes(breakdown.attachmentBytes),
+              fileCount: breakdown.attachmentCount,
+              percent: breakdown.totalBytes > 0
+                ? Math.round((breakdown.attachmentBytes / breakdown.totalBytes) * 100)
+                : 0,
+            },
+            mediaByType: breakdown.mediaByType.map((t) => ({
+              ...t,
+              formatted: formatBytes(t.totalBytes),
+            })),
+          },
+          topFiles: breakdown.topFiles.map((f) => ({
+            ...f,
+            fileSizeFormatted: formatBytes(f.fileSize),
+          })),
+        },
+      })
+    }
+
+    // Simple usage response (used by media page sidebar)
     const currentUsage = await getChurchStorageUsage(churchId)
     const quota = DEFAULT_STORAGE_QUOTA
     const remaining = Math.max(0, quota - currentUsage)

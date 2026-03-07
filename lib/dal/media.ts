@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { deleteObject, keyFromMediaUrl, MEDIA_BUCKET } from '@/lib/storage/r2'
 
 // ---------------------------------------------------------------------------
 // List / Search
@@ -131,9 +132,15 @@ export async function deleteMediaAsset(churchId: string, id: string) {
 export async function hardDeleteMediaAsset(churchId: string, id: string) {
   const existing = await prisma.mediaAsset.findFirst({
     where: { id, churchId },
-    select: { id: true },
+    select: { id: true, url: true },
   })
   if (!existing) return null
+
+  // Delete R2 object first (best-effort)
+  const r2Key = keyFromMediaUrl(existing.url)
+  if (r2Key) {
+    try { await deleteObject(r2Key, MEDIA_BUCKET) } catch { /* best effort */ }
+  }
 
   return prisma.mediaAsset.delete({
     where: { id },

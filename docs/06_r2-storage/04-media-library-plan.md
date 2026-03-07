@@ -358,7 +358,7 @@ Create these route files:
 The POST handler receives a staging URL (from the upload flow) and must:
 1. Derive the staging key from the URL using `keyFromMediaUrl(url)`
 2. Determine the category from MIME type (`image/* -> images/`, `audio/* -> audio/`, etc.)
-3. Build the permanent key: `{churchSlug}/media/{category}/{year}/{uuid}-{filename}`
+3. Build the permanent key: `{churchSlug}/{category}/{year}/{uuid}-{filename}`
 4. Move from staging to permanent using `moveObject(srcKey, destKey, MEDIA_BUCKET)`
 5. Build the permanent public URL using `getMediaPublicUrl(destKey)`
 6. Create the `MediaAsset` DB record with the permanent URL
@@ -387,7 +387,7 @@ export async function POST(request: NextRequest) {
   const year = new Date().getFullYear().toString()
   const uuidFilename = srcKey.replace(/^[^/]+\/staging\//, '')
   const churchSlug = process.env.CHURCH_SLUG || 'la-ubf'
-  const destKey = `${churchSlug}/media/${category}/${year}/${uuidFilename}`
+  const destKey = `${churchSlug}/${category}/${year}/${uuidFilename}`
 
   await moveObject(srcKey, destKey, MEDIA_BUCKET)
   const permanentUrl = getMediaPublicUrl(destKey)
@@ -559,9 +559,9 @@ Example: `la-ubf/staging/a1b2c3d4-sermon-cover.jpg`
 
 **Permanent (post-save):**
 ```
-{churchSlug}/media/{category}/{year}/{uuid}-{sanitized-filename}
+{churchSlug}/{category}/{year}/{uuid}-{sanitized-filename}
 ```
-Example: `la-ubf/media/images/2026/a1b2c3d4-sermon-cover.jpg`
+Example: `la-ubf/images/2026/a1b2c3d4-sermon-cover.jpg`
 
 Categories: `images`, `audio`, `video`, `other`
 
@@ -702,7 +702,7 @@ Use this as a step-by-step guide. Complete each item in order.
 
 ### Verification
 - [ ] Upload an image — verify it appears in R2 `media` bucket under `la-ubf/staging/`
-- [ ] Save — verify file moves to `la-ubf/media/images/2026/` permanent key
+- [ ] Save — verify file moves to `la-ubf/images/2026/` permanent key
 - [ ] Verify the `MediaAsset` DB record has the permanent URL (not staging)
 - [ ] Delete a media asset — verify R2 object is removed
 - [ ] Upload from media selector in another editor — verify cross-editor flow works

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback, useEffect } from "react"
+import { Folder } from "lucide-react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -21,6 +22,16 @@ import { AddVideoDialog } from "@/components/cms/media/add-video-dialog"
 import { ConnectAlbumDialog } from "@/components/cms/media/connect-album-dialog"
 import { MoveToDialog } from "@/components/cms/media/move-to-dialog"
 import { MediaPreviewDialog } from "@/components/cms/media/media-preview-dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { mediaAssetToItem } from "@/lib/media-data"
 import type { MediaItem, MediaFolder, GoogleAlbum } from "@/lib/media-data"
 
@@ -68,6 +79,7 @@ export default function MediaPage() {
   const [moveDialogOpen, setMoveDialogOpen] = useState(false)
   const [movingIds, setMovingIds] = useState<string[]>([])
   const [previewItem, setPreviewItem] = useState<MediaItem | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ ids: string[]; mode: "single" | "bulk" } | null>(null)
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -264,6 +276,26 @@ export default function MediaPage() {
     }
   }
 
+  function requestDeleteItem(id: string) {
+    setDeleteConfirm({ ids: [id], mode: "single" })
+  }
+
+  function requestBulkDelete() {
+    const ids = Array.from(selectedIds)
+    if (ids.length === 0) return
+    setDeleteConfirm({ ids, mode: "bulk" })
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteConfirm) return
+    if (deleteConfirm.mode === "single") {
+      await handleDeleteItem(deleteConfirm.ids[0])
+    } else {
+      await handleBulkDelete(deleteConfirm.ids)
+    }
+    setDeleteConfirm(null)
+  }
+
   async function handleDeleteItem(id: string) {
     try {
       const res = await fetch(`/api/v1/media/${id}`, { method: "DELETE" })
@@ -285,37 +317,30 @@ export default function MediaPage() {
     }
   }
 
-  async function handleBulkDelete() {
-    const ids = Array.from(selectedIds)
-    const results = await Promise.allSettled(
-      ids.map((id) =>
-        fetch(`/api/v1/media/${id}`, { method: "DELETE" }).then((r) =>
-          r.json()
-        )
-      )
-    )
-
-    const successIds = new Set<string>()
-    results.forEach((result, idx) => {
-      if (result.status === "fulfilled" && result.value.success) {
-        successIds.add(ids[idx])
+  async function handleBulkDelete(ids: string[]) {
+    try {
+      const res = await fetch("/api/v1/media/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.success) {
+        toast.error(json.error?.message || "Failed to delete items")
+        return
       }
-    })
-
-    if (successIds.size > 0) {
-      setMediaItems((prev) => prev.filter((i) => !successIds.has(i.id)))
+      const deletedCount = json.data?.deletedCount ?? ids.length
+      const idSet = new Set(ids)
+      setMediaItems((prev) => prev.filter((i) => !idSet.has(i.id)))
       setSelectedIds((prev) => {
         const next = new Set(prev)
-        for (const id of successIds) next.delete(id)
+        for (const id of ids) next.delete(id)
         return next
       })
-      toast.success(`Deleted ${successIds.size} item${successIds.size > 1 ? "s" : ""}`)
+      toast.success(`Deleted ${deletedCount} item${deletedCount > 1 ? "s" : ""}`)
       fetchStorageUsage()
-    }
-
-    const failCount = ids.length - successIds.size
-    if (failCount > 0) {
-      toast.error(`Failed to delete ${failCount} item${failCount > 1 ? "s" : ""}`)
+    } catch {
+      toast.error("Failed to delete items")
     }
   }
 
@@ -329,7 +354,7 @@ export default function MediaPage() {
       setMoveDialogOpen(true)
     },
     onDelete: (id: string) => {
-      handleDeleteItem(id)
+      requestDeleteItem(id)
     },
   }), [mediaItems])
 
@@ -566,7 +591,7 @@ export default function MediaPage() {
         onAddVideo={() => setAddVideoOpen(true)}
         onConnectAlbum={() => setConnectAlbumOpen(true)}
         onBulkMove={handleBulkMove}
-        onBulkDelete={handleBulkDelete}
+        onBulkDelete={requestBulkDelete}
       />
 
       {/* Two-column layout */}
@@ -608,14 +633,36 @@ export default function MediaPage() {
                 setMovingIds([id])
                 setMoveDialogOpen(true)
               }}
-              onDelete={(id) => handleDeleteItem(id)}
+              onDelete={(id) => requestDeleteItem(id)}
             />
           ) : (
-            <DataTable
-              columns={columns}
-              table={table}
-              onRowClick={(row) => setPreviewItem(row)}
-            />
+            <div className="space-y-2">
+              {activeFolderId === "all" && folders.length > 0 && (
+                <div className="rounded-lg border divide-y">
+                  {folders.map((folder) => {
+                    const count = folderCounts.get(folder.id) ?? 0
+                    return (
+                      <button
+                        key={folder.id}
+                        onClick={() => handleSelectFolder(folder.id)}
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-accent/50 transition-colors"
+                      >
+                        <Folder className="size-5 text-muted-foreground shrink-0" />
+                        <span className="font-medium text-sm">{folder.name}</span>
+                        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                          {count} item{count !== 1 ? "s" : ""}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              <DataTable
+                columns={columns}
+                table={table}
+                onRowClick={(row) => setPreviewItem(row)}
+              />
+            </div>
           )}
         </div>
       </div>
@@ -657,7 +704,33 @@ export default function MediaPage() {
         item={previewItem}
         folders={folders}
         onUpdate={handleUpdateItem}
+        onDelete={(id) => {
+          setPreviewItem(null)
+          requestDeleteItem(id)
+        }}
       />
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => { if (!open) setDeleteConfirm(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {deleteConfirm?.mode === "bulk"
+                ? `Delete ${deleteConfirm.ids.length} items?`
+                : "Delete this item?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteConfirm?.mode === "bulk"
+                ? `This will move ${deleteConfirm.ids.length} items to trash. You can recover them later.`
+                : "This will move the item to trash. You can recover it later."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

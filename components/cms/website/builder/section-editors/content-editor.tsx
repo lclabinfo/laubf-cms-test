@@ -1,11 +1,64 @@
 "use client"
 
+import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
+import { ImageIcon, X } from "lucide-react"
 import type { SectionType } from "@/lib/db/types"
+import { MediaPickerDialog } from "@/components/cms/media/media-picker-dialog"
+
+// --- Image Picker Field (reusable) ---
+
+function ImagePickerField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (url: string) => void
+}) {
+  const [pickerOpen, setPickerOpen] = useState(false)
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm font-medium">{label}</Label>
+      {value ? (
+        <div className="relative group rounded-md border overflow-hidden h-20">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={value} alt="" className="size-full object-cover" />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
+            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setPickerOpen(true)}>
+              Replace
+            </Button>
+            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => onChange("")}>
+              <X className="size-3" />
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full justify-start gap-2 text-muted-foreground font-normal"
+          onClick={() => setPickerOpen(true)}
+        >
+          <ImageIcon className="size-3.5" />
+          Choose image...
+        </Button>
+      )}
+      <MediaPickerDialog
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        folder="Website"
+        onSelect={(url) => onChange(url)}
+      />
+    </div>
+  )
+}
 
 interface ContentEditorProps {
   sectionType: SectionType
@@ -260,23 +313,18 @@ function CTABannerEditor({
 
       <Separator />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">
-          Background Image URL (optional)
-        </Label>
-        <Input
-          value={bgImage?.src ?? ""}
-          onChange={(e) =>
-            onChange({
-              ...content,
-              backgroundImage: e.target.value
-                ? { src: e.target.value, alt: bgImage?.alt ?? "" }
-                : undefined,
-            })
-          }
-          placeholder="https://..."
-        />
-      </div>
+      <ImagePickerField
+        label="Background Image (optional)"
+        value={bgImage?.src ?? ""}
+        onChange={(url) =>
+          onChange({
+            ...content,
+            backgroundImage: url
+              ? { src: url, alt: bgImage?.alt ?? "" }
+              : undefined,
+          })
+        }
+      />
 
       <Separator />
 
@@ -316,16 +364,11 @@ function AboutDescriptionEditor({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Logo Image URL</Label>
-        <Input
-          value={logoSrc}
-          onChange={(e) =>
-            onChange({ ...content, logoSrc: e.target.value })
-          }
-          placeholder="https://..."
-        />
-      </div>
+      <ImagePickerField
+        label="Logo Image"
+        value={logoSrc}
+        onChange={(url) => onChange({ ...content, logoSrc: url })}
+      />
 
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">Heading</Label>
@@ -602,16 +645,11 @@ function SpotlightMediaEditor({
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            Thumbnail URL
-          </Label>
-          <Input
-            value={sermon.thumbnailUrl ?? ""}
-            onChange={(e) => updateSermon("thumbnailUrl", e.target.value)}
-            placeholder="https://..."
-          />
-        </div>
+        <ImagePickerField
+          label="Thumbnail"
+          value={sermon.thumbnailUrl ?? ""}
+          onChange={(url) => updateSermon("thumbnailUrl", url)}
+        />
 
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">

@@ -133,6 +133,7 @@ export function MetadataSidebar({
         })
       } catch (err) {
         console.error(`Failed to upload ${file.name}:`, err)
+        toast.error(`Failed to upload ${file.name}`)
       }
     }
     if (newAttachments.length > 0) {

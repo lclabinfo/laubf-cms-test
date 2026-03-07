@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import {
   LayoutGrid,
   ImageIcon,
@@ -208,14 +209,17 @@ export function MediaSidebar({
         </div>
 
         {/* Storage indicator */}
-        <div className="p-3 border-t">
+        <Link href="/cms/storage" className="block p-3 border-t hover:bg-accent/50 transition-colors rounded-b-lg">
           <div className="flex items-center gap-2 mb-2">
             <HardDrive className="size-4 text-muted-foreground" />
             <span className="text-sm font-medium">Storage</span>
+            <span className="ml-auto text-xs text-muted-foreground">Details</span>
           </div>
           <div className="h-1.5 rounded-full bg-muted overflow-hidden mb-1.5">
             <div
-              className="h-full rounded-full bg-primary transition-all"
+              className={`h-full rounded-full transition-all ${
+                storagePercent >= 90 ? "bg-destructive" : storagePercent >= 75 ? "bg-orange-500" : "bg-primary"
+              }`}
               style={{ width: `${Math.min(storagePercent, 100)}%` }}
             />
           </div>
@@ -223,7 +227,10 @@ export function MediaSidebar({
             <span className="font-medium text-foreground">{storageUsed ?? "..."}</span>{" "}
             of {storageQuota ?? "10.0 GB"} used
           </p>
-        </div>
+          {storagePercent >= 90 && (
+            <p className="text-xs text-destructive mt-1 font-medium">Storage almost full</p>
+          )}
+        </Link>
       </div>
 
       {/* Rename dialog */}

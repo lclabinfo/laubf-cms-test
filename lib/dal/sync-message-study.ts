@@ -305,7 +305,7 @@ async function promoteFromStaging(
     return getPublicUrl(destKey)
   } catch (err) {
     console.error(`[syncStudyAttachments] Failed to move "${srcKey}" → "${destKey}":`, err)
-    return url // keep staging URL as fallback
+    throw new Error(`Failed to promote staging file: ${srcKey}`)
   }
 }
 

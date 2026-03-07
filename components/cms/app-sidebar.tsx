@@ -23,6 +23,7 @@ import {
   SettingsIcon,
   Building2Icon,
   MapPinIcon,
+  HardDriveIcon,
   type LucideIcon,
 } from "lucide-react"
 
@@ -98,6 +99,11 @@ const navGroups: NavGroup[] = [
         title: "Media",
         href: "/cms/media",
         icon: ImageIcon,
+      },
+      {
+        title: "Storage",
+        href: "/cms/storage",
+        icon: HardDriveIcon,
       },
     ],
   },

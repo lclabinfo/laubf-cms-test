@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
+import Link from "next/link"
 import {
   Download,
   ExternalLink,
@@ -14,6 +15,8 @@ import {
   FolderX,
   Check,
   ChevronsUpDown,
+  Trash2,
+  Link2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -50,6 +53,7 @@ interface MediaPreviewDialogProps {
   item: MediaItem | null
   folders: MediaFolder[]
   onUpdate: (id: string, updates: Partial<Pick<MediaItem, "name" | "altText" | "folderId">>) => void
+  onDelete?: (id: string) => void
 }
 
 function formatDate(dateStr: string) {
@@ -87,6 +91,7 @@ export function MediaPreviewDialog({
   item,
   folders,
   onUpdate,
+  onDelete,
 }: MediaPreviewDialogProps) {
   if (!item) return null
 
@@ -98,6 +103,7 @@ export function MediaPreviewDialog({
           item={item}
           folders={folders}
           onUpdate={onUpdate}
+          onDelete={onDelete}
           onClose={() => onOpenChange(false)}
         />
       </DialogContent>
@@ -105,15 +111,24 @@ export function MediaPreviewDialog({
   )
 }
 
+interface UsageEntry {
+  type: "event"
+  id: string
+  title: string
+  slug: string
+}
+
 function PreviewContent({
   item,
   folders,
   onUpdate,
+  onDelete,
   onClose,
 }: {
   item: MediaItem
   folders: MediaFolder[]
   onUpdate: MediaPreviewDialogProps["onUpdate"]
+  onDelete?: (id: string) => void
   onClose: () => void
 }) {
   const [name, setName] = useState(item.name)
@@ -122,6 +137,23 @@ function PreviewContent({
   const [folderOpen, setFolderOpen] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [usages, setUsages] = useState<UsageEntry[]>([])
+  const [usagesLoading, setUsagesLoading] = useState(false)
+
+  // Fetch usage tracking (events that reference this image URL)
+  useEffect(() => {
+    if (!item.url) return
+    setUsagesLoading(true)
+    fetch(`/api/v1/media/${item.id}/usage`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.success && Array.isArray(json.data)) {
+          setUsages(json.data)
+        }
+      })
+      .catch(() => {})
+      .finally(() => setUsagesLoading(false))
+  }, [item.id, item.url])
 
   const isImage = item.type === "image"
   const isVideo = item.type === "video"
@@ -387,6 +419,30 @@ function PreviewContent({
                 />
               )}
             </div>
+
+            {/* Used in */}
+            <Separator />
+            <div className="space-y-2">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Used in</span>
+              {usagesLoading ? (
+                <p className="text-xs text-muted-foreground">Loading...</p>
+              ) : usages.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Not used anywhere</p>
+              ) : (
+                <div className="space-y-1">
+                  {usages.map((u) => (
+                    <Link
+                      key={u.id}
+                      href={`/cms/events/${u.slug}`}
+                      className="flex items-center gap-2 text-sm text-primary hover:underline underline-offset-2"
+                    >
+                      <Link2 className="size-3 shrink-0" />
+                      {u.title}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -410,6 +466,20 @@ function PreviewContent({
                 <ExternalLink className="size-3.5 mr-1.5" />
                 Visit Original
               </a>
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => {
+                onDelete(item.id)
+                onClose()
+              }}
+            >
+              <Trash2 className="size-3.5 mr-1.5" />
+              Delete
             </Button>
           )}
         </div>
