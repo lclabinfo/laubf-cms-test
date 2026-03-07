@@ -42,7 +42,28 @@ const Indent = Extension.create({
             },
             renderHTML: (attributes) => {
               if (!attributes.indent) return {}
-              return { style: `margin-left: ${(attributes.indent as number) * 40}px` }
+              const styles = [`margin-left: ${(attributes.indent as number) * 40}px`]
+              // Hanging indent: pull first line back so numbers align with left edge
+              if (attributes.hangingIndent) {
+                styles.push(`text-indent: -${(attributes.indent as number) * 40}px`)
+              }
+              return { style: styles.join("; ") }
+            },
+          },
+          hangingIndent: {
+            default: false,
+            parseHTML: (element) => {
+              // Detect hanging indent: negative text-indent with positive margin-left
+              const ti = element.style.textIndent
+              if (ti) {
+                const px = parseFloat(ti)
+                if (px < 0) return true
+              }
+              return false
+            },
+            renderHTML: () => {
+              // Rendering handled by indent attribute above
+              return {}
             },
           },
         },
