@@ -147,6 +147,12 @@ Failure to do this causes stale Prisma client types and cryptic runtime errors.
 
 The current `r2.ts` only exports `ATTACHMENTS_BUCKET` and `PUBLIC_URL` (attachments). All existing helpers (`getUploadUrl`, `getPublicUrl`, `moveObject`, `keyFromUrl`) default to the attachments bucket. The media implementation MUST add media bucket support — see Phase 1 below.
 
+### Pitfall 7: R2 key is immutable after creation
+When a user renames a `MediaAsset` (changes `filename`), the R2 object key still contains the original sanitized filename. This is by design — the `url` stored in the DB is the permanent URL and always works. The rename only updates the `filename` column (used for display). If download filenames need to match, use a `Content-Disposition` response header override (via Cloudflare Transform Rule or at serve-time).
+
+### Pitfall 8: Orphan reconciliation
+If an R2 `deleteObject()` call fails (network error, R2 outage), the code logs the error and continues with DB deletion. This means R2 objects can become orphaned (no matching DB record). A periodic reconciliation script should be run to identify and clean up orphans. Not critical for MVP but plan for it. The script pattern: `listObjects()` all permanent keys -> check each against DB -> delete any with no matching record older than 7 days.
+
 ---
 
 ## Implementation Phases
@@ -187,6 +193,8 @@ export function keyFromMediaUrl(url: string): string | null {
   return url.slice(MEDIA_PUBLIC_URL.length + 1);
 }
 ```
+
+**Status (March 2026):** Media bucket support added to `r2.ts`. `MEDIA_BUCKET`, `MEDIA_PUBLIC_URL`, `getMediaPublicUrl()`, and `keyFromMediaUrl()` are now exported. `getUploadUrl()` accepts `bucket` and `fileSize` params. The upload-url endpoint routes to the correct bucket based on context.
 
 ### Phase 2: Update Upload URL Endpoint
 
@@ -574,15 +582,21 @@ Users can create custom folders via the media sidebar.
 
 ## Delete Handling
 
-When a media asset is deleted:
-1. Soft-delete in DB (`deletedAt` timestamp on `MediaAsset`)
-2. Delete R2 object immediately (best-effort — don't block on failure)
-3. DB record with `deletedAt` can support "undo" if needed in the future
+**Strategy: Keep R2 file until hard-delete (supports undo).**
 
-For hard delete (admin action or trash cleanup):
+When a media asset is soft-deleted:
+1. Set `deletedAt` timestamp on `MediaAsset` record
+2. R2 file is **NOT** deleted — it remains accessible if the user undoes
+3. Soft-deleted assets are excluded from all queries (`WHERE deletedAt IS NULL`)
+4. The file continues to count toward storage quota until hard-deleted
+
+For hard delete (admin "empty trash" action or scheduled cleanup):
 1. Delete R2 object via `deleteObject(key, MEDIA_BUCKET)`
 2. Delete DB record via `hardDeleteMediaAsset()`
 3. Check if any bible study, message, or page still references the URL — warn if so
+4. Storage quota is recalculated after hard delete
+
+**Rationale:** Media assets are commonly reused across pages and posts. Immediate R2 deletion on soft-delete would make "undo" impossible since the file would be gone. Keeping the file until hard-delete is safer and costs minimal extra storage (soft-deleted files are typically cleaned up within days).
 
 ## Quota Enforcement
 
@@ -606,6 +620,26 @@ export async function getChurchStorageUsage(churchId: string): Promise<number> {
 ```
 
 **Not yet implemented** — add when media uploads are working.
+
+## Security Hardening — IMPLEMENTED
+
+### Authentication Gate
+The `POST /api/v1/upload-url` endpoint requires an authenticated session. Unauthenticated requests receive a 401 response. This prevents anonymous abuse of the upload system.
+
+### ContentLength Enforcement
+Presigned PUT URLs include a `ContentLength` constraint matching the client-declared `fileSize`. R2 rejects any upload whose actual body size doesn't match. This closes a bypass where a client could declare a small size to pass validation but upload a much larger file.
+
+### Per-Type Size Limits
+File size limits are enforced per MIME type category (not a flat 50 MB for everything):
+| Category | Max Size |
+|---|---|
+| Images (`image/*`) | 10 MB |
+| Audio (`audio/*`) | 100 MB |
+| Video (`video/*`) | 200 MB |
+| Documents (`application/pdf`, Word) | 50 MB |
+
+### Quota Enforcement
+Combined storage across media + attachments is capped at 10 GB per church. Enforced at the presigned URL endpoint before issuing upload URLs.
 
 ## Thumbnail Generation
 

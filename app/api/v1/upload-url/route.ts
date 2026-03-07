@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@/lib/auth'
 import { getChurchId } from '@/lib/api/get-church-id'
-import { getUploadUrl, getPublicUrl } from '@/lib/storage/r2'
+import { getUploadUrl, getPublicUrl, getMediaPublicUrl, MEDIA_BUCKET } from '@/lib/storage/r2'
+import { checkStorageQuota, formatBytes } from '@/lib/dal/storage'
 
 // ---------------------------------------------------------------------------
 // MIME type allowlists per context
@@ -27,7 +29,20 @@ const ALLOWED_MIME_TYPES: Record<string, string[]> = {
   ],
 }
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
+// ---------------------------------------------------------------------------
+// Per-type file size limits (in bytes)
+// ---------------------------------------------------------------------------
+
+function getMaxFileSize(contentType: string): number {
+  if (contentType.startsWith('image/')) return 10 * 1024 * 1024    // 10 MB
+  if (contentType.startsWith('audio/')) return 100 * 1024 * 1024   // 100 MB
+  if (contentType.startsWith('video/')) return 200 * 1024 * 1024   // 200 MB
+  return 50 * 1024 * 1024                                          // 50 MB (documents)
+}
+
+function formatMB(bytes: number): string {
+  return `${Math.round(bytes / (1024 * 1024))} MB`
+}
 
 // ---------------------------------------------------------------------------
 // POST /api/v1/upload-url
@@ -35,8 +50,17 @@ const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
 
 export async function POST(request: NextRequest) {
   try {
-    // Resolve church context (also validates session when available)
-    await getChurchId()
+    // --- Authentication gate ---
+    const session = await auth()
+    if (!session?.user) {
+      return NextResponse.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+        { status: 401 },
+      )
+    }
+
+    // Resolve church context
+    const churchId = await getChurchId()
 
     const body = await request.json()
     const { filename, contentType, fileSize, context } = body as {
@@ -59,9 +83,9 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       )
     }
-    if (fileSize == null || typeof fileSize !== 'number') {
+    if (fileSize == null || typeof fileSize !== 'number' || fileSize <= 0) {
       return NextResponse.json(
-        { success: false, error: { code: 'VALIDATION_ERROR', message: 'fileSize is required' } },
+        { success: false, error: { code: 'VALIDATION_ERROR', message: 'fileSize is required and must be positive' } },
         { status: 400 },
       )
     }
@@ -80,13 +104,33 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // --- Validate file size ---
-    if (fileSize > MAX_FILE_SIZE) {
+    // --- Validate per-type file size ---
+    const maxSize = getMaxFileSize(contentType)
+    if (fileSize > maxSize) {
       return NextResponse.json(
-        { success: false, error: { code: 'VALIDATION_ERROR', message: `File size exceeds maximum of 50 MB` } },
+        { success: false, error: { code: 'VALIDATION_ERROR', message: `File size exceeds maximum of ${formatMB(maxSize)} for this file type` } },
         { status: 400 },
       )
     }
+
+    // --- Validate storage quota ---
+    const quota = await checkStorageQuota(churchId, fileSize)
+    if (!quota.allowed) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: 'QUOTA_EXCEEDED',
+            message: `Storage quota exceeded. ${formatBytes(quota.remaining)} remaining of ${formatBytes(quota.quota)} total.`,
+          },
+        },
+        { status: 413 },
+      )
+    }
+
+    // --- Determine bucket based on context ---
+    const isMedia = context === 'media'
+    const bucket = isMedia ? MEDIA_BUCKET : undefined // undefined = default (attachments)
 
     // --- Generate object key ---
     const slug = process.env.CHURCH_SLUG || 'la-ubf'
@@ -97,9 +141,9 @@ export async function POST(request: NextRequest) {
     const uuid = crypto.randomUUID()
     const key = `${slug}/staging/${uuid}-${sanitized}`
 
-    // --- Get presigned URL ---
-    const uploadUrl = await getUploadUrl(key, contentType)
-    const publicUrl = getPublicUrl(key)
+    // --- Get presigned URL (with ContentLength enforcement) ---
+    const uploadUrl = await getUploadUrl(key, contentType, fileSize, { bucket })
+    const publicUrl = isMedia ? getMediaPublicUrl(key) : getPublicUrl(key)
 
     return NextResponse.json({
       success: true,

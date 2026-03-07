@@ -100,16 +100,14 @@ All three CMS upload entry points are wired to R2:
 | `lib/dal/sync-message-study.ts` | `syncStudyAttachments()` moves staging → permanent, deletes R2 on removal |
 | `app/api/v1/messages/[slug]/route.ts` | PATCH handler passes attachments through to `syncMessageStudy()` |
 
-### Phase 6: Quota Enforcement — NOT IMPLEMENTED
+### Phase 6: Quota Enforcement — IMPLEMENTED
 
-Planned DAL function (not yet built):
+Implemented in `lib/dal/storage.ts`:
 
-```ts
-// lib/dal/storage.ts
-export async function getChurchStorageUsage(churchId: string): Promise<number>
-```
-
-Query: `SUM(fileSize)` across `BibleStudyAttachment` + `MediaAsset` where `churchId` matches. Return bytes. Compare against 10 GB limit before allowing uploads. Enforce at `POST /api/v1/upload-url`.
+- `getChurchStorageUsage(churchId)` — sums `fileSize` across `BibleStudyAttachment` + `MediaAsset`
+- `checkStorageQuota(churchId, additionalBytes)` — returns `{ allowed, currentUsage, quota, remaining }`
+- Enforced at `POST /api/v1/upload-url` — rejects with 413 if quota exceeded
+- Default quota: 10 GB per church (combined media + attachments)
 
 ---
 
@@ -201,3 +199,21 @@ if (file.size > 50 * 1024 * 1024) {
 ### 10. fileSize Round-Trip Preservation
 
 `synthesizeAttachments()` (in `lib/messages-data.ts`) must preserve the raw `fileSize` (number of bytes) when loading attachments from the API — not just the formatted display string (e.g., `"2.4 MB"`). The raw byte value is needed for quota tracking and accurate display after reload. Both `size` (formatted string) and `fileSize` (raw bytes) must be carried through the full round trip: API response -> client state -> save payload -> DB.
+
+### 11. Authentication Required on Upload Endpoint
+
+The `POST /api/v1/upload-url` endpoint now requires an authenticated session. Previously, `getChurchId()` silently fell back to `CHURCH_SLUG` env var when no session was present, allowing unauthenticated users to generate presigned upload URLs. The endpoint now returns 401 if no valid session exists. This prevents abuse where anyone could fill the church's R2 bucket with arbitrary files.
+
+### 12. ContentLength Enforcement on Presigned URLs
+
+`getUploadUrl()` now accepts a `fileSize` parameter and sets `ContentLength` on the `PutObjectCommand`. R2 will reject any PUT request whose body size doesn't match the declared `ContentLength`. This prevents a client from declaring a small file size (to pass the 50 MB validation) but actually uploading a much larger file. The upload-url endpoint passes the validated `fileSize` through to `getUploadUrl()`.
+
+### 13. Per-Type File Size Limits
+
+The upload-url endpoint now enforces per-MIME-type size limits instead of a flat 50 MB cap:
+- Images: 10 MB
+- Audio: 100 MB
+- Video: 200 MB
+- PDF/Documents: 50 MB
+
+This aligns with the media library plan's file type allowlist and prevents oversized uploads for image-heavy use cases while allowing larger audio files.

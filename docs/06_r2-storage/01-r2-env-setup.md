@@ -65,13 +65,16 @@ const client = new S3Client({
 export const ATTACHMENTS_BUCKET = process.env.R2_ATTACHMENTS_BUCKET_NAME!
 // Strip trailing slash — keyFromUrl() relies on exact prefix matching
 export const PUBLIC_URL = process.env.R2_ATTACHMENTS_PUBLIC_URL!.replace(/\/+$/, "")
+
+export const MEDIA_BUCKET = process.env.R2_MEDIA_BUCKET_NAME!
+export const MEDIA_PUBLIC_URL = (process.env.R2_MEDIA_PUBLIC_URL || "").replace(/\/+$/, "")
 ```
 
 **Exported helpers:**
 
 | Function | Purpose |
 |---|---|
-| `getUploadUrl(key, contentType)` | Presigned PUT URL for browser uploads (1h expiry) |
+| `getUploadUrl(key, contentType, fileSize?, opts?)` | Presigned PUT URL with ContentLength enforcement (1h expiry) |
 | `deleteObject(key)` | Delete an R2 object |
 | `moveObject(srcKey, destKey)` | Copy + delete (staging → permanent) |
 | `getPublicUrl(key)` | Full CDN URL from key |
@@ -79,6 +82,11 @@ export const PUBLIC_URL = process.env.R2_ATTACHMENTS_PUBLIC_URL!.replace(/\/+$/,
 | `keyFromUrl(url)` | Derive R2 key from full public URL |
 | `uploadFile(key, body, contentType)` | Server-side upload (scripts/migration) |
 | `listObjects(prefix)` | Paginated listing under a prefix |
+| `getMediaPublicUrl(key)` | Full CDN URL for media bucket |
+| `keyFromMediaUrl(url)` | Derive R2 key from media public URL |
+
+**Media bucket support (added March 2026):**
+The storage client now exports `MEDIA_BUCKET` and `MEDIA_PUBLIC_URL` alongside the attachments equivalents. All bucket-aware helpers accept an optional `bucket` parameter. The `getUploadUrl()` function now accepts `fileSize` to set `ContentLength` on the presigned URL — R2 will reject uploads that don't match the declared size. This prevents clients from bypassing the per-file size validation.
 
 Usage example:
 

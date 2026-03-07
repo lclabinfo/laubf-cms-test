@@ -89,6 +89,16 @@ Egress is any time data leaves R2’s network, not only when a user downloads in
 
 Track usage via `MediaAsset.fileSize` and `BibleStudyAttachment.fileSize` columns — sum per `churchId` on upload to enforce the limit server-side.
 
+### Quota Enforcement — IMPLEMENTED
+
+Quota is enforced server-side at the presigned URL endpoint (`POST /api/v1/upload-url`):
+
+1. `checkStorageQuota(churchId, fileSize)` in `lib/dal/storage.ts` sums `MediaAsset.fileSize` + `BibleStudyAttachment.fileSize`
+2. If `currentUsage + fileSize > 10 GB`, the endpoint returns `413` with remaining storage info
+3. Client-side: show storage usage indicator in CMS (planned)
+
+**Note:** `BibleStudyAttachment.fileSize` is nullable (`Int?`). Null values are treated as 0 bytes in the quota calculation, which means records without fileSize slightly undercount usage. Consider backfilling null values.
+
 ## Two-Bucket Architecture
 
 Files are split across two R2 buckets by purpose:
@@ -160,4 +170,4 @@ Configure per-bucket in Cloudflare dashboard. The staging prefix includes the ch
 
 **Note:** R2 lifecycle rules use prefix matching. For Phase 1 (single church), use the specific church prefix. For Phase 2 (multi-tenant), use a wildcard or add per-church rules.
 
-**Status:** Lifecycle rules are NOT yet configured in Cloudflare — staging files currently persist indefinitely. This is safe because the move-on-save logic promotes files to permanent keys, so only orphaned uploads (user cancels before saving) accumulate in staging. Configure the rule when cleanup becomes needed.
+**Status (March 2026):** Lifecycle rules should be configured in the Cloudflare dashboard for both buckets. The prefix must be literal (e.g., `la-ubf/staging/`) — R2 lifecycle rules do NOT support wildcards like `*/staging/`. For Phase 1 (single church), use the specific church prefix. For Phase 2, create per-church rules.

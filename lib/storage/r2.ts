@@ -16,6 +16,9 @@ const ACCOUNT_ID = process.env.R2_ACCOUNT_ID!;
 export const ATTACHMENTS_BUCKET = process.env.R2_ATTACHMENTS_BUCKET_NAME!;
 export const PUBLIC_URL = (process.env.R2_ATTACHMENTS_PUBLIC_URL || process.env.R2_PUBLIC_URL || "").replace(/\/+$/, "");
 
+export const MEDIA_BUCKET = process.env.R2_MEDIA_BUCKET_NAME!;
+export const MEDIA_PUBLIC_URL = (process.env.R2_MEDIA_PUBLIC_URL || "").replace(/\/+$/, "");
+
 // ---------------------------------------------------------------------------
 // S3-compatible client (singleton)
 // ---------------------------------------------------------------------------
@@ -36,19 +39,25 @@ const client = new S3Client({
 /**
  * Generate a presigned PUT URL for direct browser uploads.
  * Default expiration: 1 hour (3600 seconds).
+ *
+ * When `fileSize` is provided the presigned URL includes a ContentLength
+ * constraint — R2 will reject uploads whose body size doesn't match, which
+ * prevents a client from declaring a small size to pass validation but
+ * uploading a much larger file.
  */
 export async function getUploadUrl(
   key: string,
   contentType: string,
-  expiresIn = 3600,
+  fileSize?: number,
+  opts?: { expiresIn?: number; bucket?: string },
 ): Promise<string> {
   const command = new PutObjectCommand({
-    Bucket: ATTACHMENTS_BUCKET,
+    Bucket: opts?.bucket || ATTACHMENTS_BUCKET,
     Key: key,
     ContentType: contentType,
+    ...(fileSize != null && { ContentLength: fileSize }),
   });
-
-  return getSignedUrl(client, command, { expiresIn });
+  return getSignedUrl(client, command, { expiresIn: opts?.expiresIn ?? 3600 });
 }
 
 /**
@@ -112,6 +121,22 @@ export function isStagingKey(key: string): boolean {
 export function keyFromUrl(url: string): string | null {
   if (!PUBLIC_URL || !url.startsWith(PUBLIC_URL)) return null;
   return url.slice(PUBLIC_URL.length + 1); // +1 for trailing "/"
+}
+
+/**
+ * Return the public URL for a media-bucket object.
+ */
+export function getMediaPublicUrl(key: string): string {
+  return `${MEDIA_PUBLIC_URL}/${key}`;
+}
+
+/**
+ * Derive the R2 object key from a full media-bucket public URL.
+ * Returns null if the URL doesn't match the media public URL prefix.
+ */
+export function keyFromMediaUrl(url: string): string | null {
+  if (!MEDIA_PUBLIC_URL || !url.startsWith(MEDIA_PUBLIC_URL)) return null;
+  return url.slice(MEDIA_PUBLIC_URL.length + 1);
 }
 
 /**
