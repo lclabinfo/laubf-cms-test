@@ -1,8 +1,9 @@
 /**
- * Migrate Bible study content from DOCX files using the mammoth pipeline.
+ * Migrate Bible study content from DOCX/DOC files.
  *
- * Uses the same convertDocxToHtml() service that the CMS editor uses,
- * ensuring formatting fidelity (spacing, alignment, fonts, lists).
+ * Uses:
+ * - convertDocxToHtml() for .docx files (mammoth pipeline with full formatting)
+ * - convertDocToHtml() for .doc files (textutil/libreoffice with font + indent preservation)
  *
  * Outputs: scripts/bible-study-content.json
  *   mapping legacyId -> { questions?, answers?, transcript? } as HTML
@@ -17,6 +18,9 @@ import { DOMParser } from "@xmldom/xmldom"
 
 const docxImport = await import("../lib/docx-import.ts")
 const convertDocxToHtml = docxImport.convertDocxToHtml
+
+const docImport = await import("../lib/doc-convert.ts")
+const convertDocToHtml = docImport.convertDocToHtml
 
 // ── Parse the laubfmaterial SQL dump to get doctype→filename mapping ──
 
@@ -128,27 +132,10 @@ async function convertFile(filepath: string): Promise<string | null> {
       const result = await convertDocxToHtml(buffer, filepath)
       return result.html || null
     } else {
-      // .doc files: mammoth doesn't support .doc, fall back to textutil on macOS
-      const { execSync } = await import("child_process")
-      const text = execSync(`textutil -convert txt -stdout "${filepath}"`, {
-        encoding: "utf-8",
-        timeout: 10000,
-      }).trim()
-      if (!text) return null
-      // Convert plain text to basic HTML paragraphs
-      return text
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .split(/\n\s*\n/)
-        .filter(Boolean)
-        .map(block => {
-          const trimmed = block.trim()
-          if (!trimmed) return ""
-          return `<p>${trimmed.replace(/\n/g, "<br>\n")}</p>`
-        })
-        .filter(Boolean)
-        .join("\n")
+      // .doc files: use server-side conversion pipeline (textutil html / libreoffice / word-extractor)
+      const buffer = readFileSync(filepath)
+      const result = await convertDocToHtml(buffer, filepath)
+      return result.html || null
     }
   } catch (err) {
     console.error(`  Error converting ${filepath}: ${(err as Error).message}`)
