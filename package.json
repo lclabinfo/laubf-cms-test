@@ -61,7 +61,7 @@
     "word-extractor": "^1.0.4"
   },
   "prisma": {
-    "seed": "npx tsx prisma/seed.ts"
+    "seed": "npx tsx prisma/seed.mts"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
