@@ -521,27 +521,30 @@ export default function MediaPage() {
   // ---------------------------------------------------------------------------
   // Move / selection handlers
   // ---------------------------------------------------------------------------
-  function handleMoveItems(folderId: string | null) {
+  async function handleMoveItems(folderId: string | null) {
     // Find folder name for the target
     const folder = folderId ? folders.find((f) => f.id === folderId) : null
     const folderName = folder ? folder.name : "/"
+    const idSet = new Set(movingIds)
 
-    setMediaItems((prev) =>
-      prev.map((i) => (movingIds.includes(i.id) ? { ...i, folderId } : i))
-    )
-    // PATCH each item server-side
-    for (const id of movingIds) {
-      fetch(`/api/v1/media/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ folder: folderName }),
-      }).catch(() => {
-        toast.error("Failed to move item")
-      })
-    }
+    // Optimistic: remove from current view
+    setMediaItems((prev) => prev.filter((i) => !idSet.has(i.id)))
     setMovingIds([])
     setSelectedIds(new Set())
-    // Refresh to get accurate counts
+
+    // PATCH each item server-side, then refresh
+    await Promise.all(
+      Array.from(idSet).map((id) =>
+        fetch(`/api/v1/media/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ folder: folderName }),
+        }).catch(() => {
+          toast.error("Failed to move item")
+        })
+      )
+    )
+
     fetchFolders()
     fetchMedia()
   }
@@ -551,29 +554,31 @@ export default function MediaPage() {
     setMoveDialogOpen(true)
   }
 
-  function handleDropOnFolder(itemIds: string[], folderId: string) {
+  async function handleDropOnFolder(itemIds: string[], folderId: string) {
     const folder = folders.find((f) => f.id === folderId)
     if (!folder) return
     const folderName = folder.name
+    const idSet = new Set(itemIds)
 
-    // Optimistic update
-    setMediaItems((prev) =>
-      prev.map((i) => (itemIds.includes(i.id) ? { ...i, folderId } : i))
-    )
+    // Optimistic: remove from current view (they're moving to a different folder)
+    setMediaItems((prev) => prev.filter((i) => !idSet.has(i.id)))
     setSelectedIds(new Set())
 
-    // PATCH each item server-side
-    for (const id of itemIds) {
-      fetch(`/api/v1/media/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ folder: folderName }),
-      }).catch(() => {
-        toast.error("Failed to move item")
-      })
-    }
-
     toast.success(`Moved ${itemIds.length} item${itemIds.length > 1 ? "s" : ""} to ${folderName}`)
+
+    // PATCH each item server-side, then refresh
+    await Promise.all(
+      itemIds.map((id) =>
+        fetch(`/api/v1/media/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ folder: folderName }),
+        }).catch(() => {
+          toast.error("Failed to move item")
+        })
+      )
+    )
+
     fetchFolders()
     fetchMedia()
   }

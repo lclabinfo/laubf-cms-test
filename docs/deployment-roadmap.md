@@ -116,41 +116,257 @@ Fix rendering issues on the public-facing website before launch.
 
 ---
 
-### 5. Production Deployment (P0)
+### 5. Domain Routing & Route Group Restructure (P0)
+
+The public website currently lives at `/website/*` (a regular directory). For launch, it must serve at the root of `laubf.org` and the CMS admin must be at `admin.laubf.org`. This requires converting the directory structure to route groups and adding hostname-based middleware.
+
+**Current state:** `app/website/` is a regular directory → pages render at `/website/...`. No `middleware.ts` exists.
+
+**Target state:** `laubf.org/` serves the public site, `admin.laubf.org/` serves the CMS.
+
+- [ ] **5.1 Convert `app/website/` to route group `app/(website)/`** — Rename the directory so its routes render at `/` instead of `/website/`. All internal files stay the same. Update any imports that reference `app/website/`.
+- [ ] **5.2 Verify CMS routes** — `app/cms/` already uses `(dashboard)` route group internally. Ensure `/cms/*` routes still work after the website route group change.
+- [ ] **5.3 Create `middleware.ts`** — Root middleware that inspects `request.headers.get('host')`:
+  - `admin.laubf.org` (or `localhost:3000/cms`) → allow through to `/cms/*` routes
+  - `laubf.org` (or `localhost:3000`) → allow through to `/(website)` routes
+  - Block public access to `/cms/*` on the main domain (redirect to `admin.laubf.org`)
+  - Pass through `/api/*` routes on both domains
+- [ ] **5.4 Update `next.config.ts`** — Add rewrites or redirects if needed for the domain split. Configure `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_ADMIN_URL` env vars.
+- [ ] **5.5 Update internal links** — Search codebase for any hardcoded `/website/` prefixes in links, redirects, or `href` values. Update to `/`.
+- [ ] **5.6 Update seed data** — Any PageSection content or MenuItem `href` values that reference `/website/...` must be updated to `/...`.
+- [ ] **5.7 Handle localhost development** — Middleware must work in dev mode where both sites run on `localhost:3000`. Options:
+  - Path-based fallback: `/cms/*` for admin, everything else for website
+  - Or use `admin.localhost:3000` with hosts file entry
+- [ ] **5.8 Test both domains** — Verify: public site loads at root, CMS loads at admin subdomain, API routes accessible from both, auth cookies work across subdomains.
+
+<details>
+<summary>AI Prompt: Domain Routing & Route Group Restructure</summary>
+
+```
+I need to restructure routing so the public website serves at the root domain (laubf.org)
+and the CMS admin serves at admin.laubf.org.
+
+Current state:
+- Public website is at app/website/ (regular directory, renders at /website/*)
+- CMS is at app/cms/(dashboard)/ (renders at /cms/*)
+- No middleware.ts exists
+- No multi-domain routing
+
+Changes needed:
+1. Rename app/website/ → app/(website)/ so pages render at / instead of /website/
+2. Create middleware.ts at project root that:
+   - Detects hostname (admin.laubf.org vs laubf.org)
+   - On admin.* hostname: only allow /cms/* and /api/* routes
+   - On main domain: serve /(website) routes, block /cms/* (redirect to admin subdomain)
+   - In dev mode (localhost:3000): use path-based routing (/cms/* = admin, everything else = website)
+   - Always pass through: /api/*, /_next/*, /favicon.ico, static assets
+3. Update next.config.ts with NEXT_PUBLIC_SITE_URL and NEXT_PUBLIC_ADMIN_URL
+4. Search and update any hardcoded /website/ prefixes in:
+   - MenuItem href values in seed data
+   - PageSection content JSON
+   - Component links and redirects
+   - Auth redirect URLs (NEXTAUTH_URL must work for admin subdomain)
+5. Ensure auth cookies have domain=.laubf.org so they work across subdomains
+
+Key files to modify:
+- app/website/ → app/(website)/ (rename)
+- middleware.ts (create)
+- next.config.ts (update)
+- prisma/seed.mts (update hrefs)
+- lib/auth/config.ts (cookie domain)
+
+Test: localhost:3000/ shows public site, localhost:3000/cms shows admin.
+Production: laubf.org shows public site, admin.laubf.org shows admin.
+```
+</details>
+
+---
+
+### 6. Website Image Pipeline & WebP Serving (P0)
+
+All website images must be served from the media library (R2) and converted to WebP on the fly. Currently some section content references Unsplash placeholder URLs or hardcoded paths. Next.js Image component handles WebP negotiation automatically, but we need to ensure all images go through it.
+
+- [ ] **6.1 Audit all image sources** — Search `components/website/` for `<img` tags (raw HTML) and `<Image` (Next.js). Identify any raw `<img>` tags that bypass Next.js optimization.
+  - Known: `components/website/sections/all-messages-client.tsx` uses raw `<img>`
+- [ ] **6.2 Replace raw `<img>` with `<Image>`** — Convert all raw `<img>` tags in website components to Next.js `<Image>`. This automatically serves WebP/AVIF to supporting browsers.
+- [ ] **6.3 Audit placeholder images** — Search seed data and PageSection content for Unsplash URLs or non-R2 image sources. Replace with actual LA UBF images uploaded to R2.
+- [ ] **6.4 Upload LA UBF images to R2** — Church logo, favicon, OG image, hero banners, ministry photos, speaker headshots, event covers. Use the media library upload flow.
+- [ ] **6.5 Update seed data image URLs** — Replace all placeholder/Unsplash URLs in `prisma/seed.mts` with R2 media URLs.
+- [ ] **6.6 Configure Next.js image optimization** — In `next.config.ts`, explicitly set output formats:
+  ```ts
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    remotePatterns: [/* R2 buckets, YouTube thumbnails */],
+  }
+  ```
+- [ ] **6.7 Verify WebP serving** — After deployment, use browser DevTools Network tab to confirm images are served as `image/webp` or `image/avif` (check `Content-Type` response header).
+- [ ] **6.8 Handle user-uploaded images** — When users upload PNG/JPG via CMS media library, the original format is stored in R2. Next.js `<Image>` automatically converts on-the-fly when serving. No server-side pre-conversion needed.
+- [ ] **6.9 Image size limits** — Verify large hero images are reasonably sized. Consider adding `sizes` prop to `<Image>` components for responsive srcset (e.g., `sizes="(max-width: 768px) 100vw, 50vw"`).
+
+<details>
+<summary>AI Prompt: Website Image Pipeline & WebP</summary>
+
+```
+Audit and fix all image handling on the public website so every image is:
+1. Served from R2 (no Unsplash placeholders, no hardcoded paths)
+2. Rendered through Next.js <Image> component (not raw <img>) for automatic WebP/AVIF
+3. Properly sized with responsive srcset
+
+Steps:
+1. Search components/website/ for raw <img> tags:
+   grep -rn '<img ' components/website/
+   Convert each to Next.js <Image> with appropriate fill/width/height props.
+
+2. Search seed data for non-R2 image URLs:
+   grep -n 'unsplash\|placeholder\|via.placeholder' prisma/seed.mts
+   These need to be replaced with actual R2 media URLs after uploading real images.
+
+3. In next.config.ts, add explicit format preference:
+   images: {
+     formats: ['image/avif', 'image/webp'],
+     remotePatterns: [existing patterns],
+   }
+
+4. For each <Image> in hero/banner sections, add sizes prop:
+   <Image sizes="100vw" ... />  // full-width heroes
+   <Image sizes="(max-width: 768px) 100vw, 50vw" ... />  // split layouts
+
+Key constraint: Users upload in any format (PNG, JPG, etc.) via CMS. The original
+is stored as-is in R2. Next.js Image optimization layer converts to WebP/AVIF
+at request time based on browser Accept header. No pre-conversion needed.
+
+Files to check:
+- components/website/sections/*.tsx (all 40 section components)
+- components/website/shared/*.tsx (23 shared components)
+- components/website/layout/*.tsx (navbar, footer)
+- next.config.ts (image config)
+- prisma/seed.mts (placeholder URLs)
+```
+</details>
+
+---
+
+### 7. Production Deployment (P0)
 
 Get LA UBF live on a real server.
 
-- [ ] **5.1 Choose hosting** — Decision: Vercel (recommended per docs) or Azure VM with Caddy.
+- [ ] **7.1 Choose hosting** — Decision: Vercel (recommended per docs) or Azure VM with Caddy.
   - Vercel: simpler, native Next.js support, auto-SSL, ~$20/mo
   - Azure VM: more control, existing infrastructure, requires manual setup
-- [ ] **5.2 Set up production database** — Neon (recommended) or continue PostgreSQL 18 on VM.
+- [ ] **7.2 Set up production database** — Neon (recommended) or continue PostgreSQL 18 on VM.
   - [ ] Create production database
   - [ ] Run `prisma migrate deploy`
   - [ ] Run `npx prisma db seed`
   - [ ] Verify data integrity
-- [ ] **5.3 Configure R2 for production** — Verify R2 buckets, CORS rules, lifecycle rules, and public URLs are correct for production domain (not localhost).
-- [ ] **5.4 Environment variables** — Set all env vars in production:
+- [ ] **7.3 Configure R2 for production** — Verify R2 buckets, CORS rules, lifecycle rules, and public URLs are correct for production domain (not localhost).
+- [ ] **7.4 Environment variables** — Set all env vars in production:
   - DATABASE_URL, DIRECT_URL
   - AUTH_SECRET, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET, NEXTAUTH_URL
   - R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_*_BUCKET_NAME, R2_*_PUBLIC_URL
   - CHURCH_SLUG=la-ubf
-- [ ] **5.5 DNS setup** — Point laubf.org (or chosen domain) to hosting provider.
-- [ ] **5.6 SSL certificate** — Auto-provisioned by Vercel, or configure Caddy/Let's Encrypt on VM.
-- [ ] **5.7 Build & deploy** — `npx prisma generate && next build` → deploy.
-- [ ] **5.8 Smoke test production** — Visit every page, test CMS login, test file upload, test form submission.
-- [ ] **5.9 Error tracking** — Set up Sentry (free tier: 5K errors/mo). Add `@sentry/nextjs` to project.
+  - NEXT_PUBLIC_SITE_URL=https://laubf.org
+  - NEXT_PUBLIC_ADMIN_URL=https://admin.laubf.org
+- [ ] **7.5 DNS setup** — Configure:
+  - `laubf.org` → hosting provider (A record or CNAME)
+  - `admin.laubf.org` → same hosting provider (CNAME)
+  - Cloudflare proxy if using CDN layer
+- [ ] **7.6 SSL certificate** — Auto-provisioned by Vercel, or configure Caddy/Let's Encrypt on VM. Must cover both `laubf.org` and `admin.laubf.org`.
+- [ ] **7.7 Build & deploy** — `npx prisma generate && next build` → deploy.
+- [ ] **7.8 Smoke test production** — Visit every page, test CMS login, test file upload, test form submission.
+- [ ] **7.9 Error tracking** — Set up Sentry (free tier: 5K errors/mo). Add `@sentry/nextjs` to project.
 
 ---
 
-### 6. Auth Hardening (P0)
+### 8. Auth Hardening (P0)
 
 Current auth works for Google SSO + credentials but is missing critical flows for production.
 
-- [ ] **6.1 Password reset flow** — Implement forgot password → email token → reset password page.
-- [ ] **6.2 Secure session config** — Verify cookies are httpOnly, secure, sameSite=lax in production.
-- [ ] **6.3 Rate limiting on login** — Prevent brute force on `/api/auth/callback/credentials`. Use simple in-memory counter or Upstash rate limiter.
-- [ ] **6.4 CSRF protection** — Verify NextAuth CSRF token is working (should be automatic).
-- [ ] **6.5 Logout** — Verify signOut() clears session and redirects to login page.
+- [ ] **8.1 Password reset flow** — Implement forgot password → email token → reset password page.
+- [ ] **8.2 Secure session config** — Verify cookies are httpOnly, secure, sameSite=lax in production. Cookie domain must be `.laubf.org` to work across `laubf.org` and `admin.laubf.org`.
+- [ ] **8.3 Rate limiting on login** — Prevent brute force on `/api/auth/callback/credentials`. Use simple in-memory counter or Upstash rate limiter.
+- [ ] **8.4 CSRF protection** — Verify NextAuth CSRF token is working (should be automatic).
+- [ ] **8.5 Logout** — Verify signOut() clears session and redirects to login page.
+
+---
+
+### 9. Daily Bread Page (P0/P1)
+
+The Daily Bread section component (`DAILY_BREAD_FEATURE`) and DAL (`lib/dal/daily-bread.ts`) are fully implemented. The `DailyBread` model exists in the database. What's missing: a dedicated `/daily-bread` page on the public site (not just the homepage section), CMS management UI, and seed data.
+
+**Reference implementation:** `laubf-test/src/components/daily-bread/DailyBreadDetailPage.tsx` — resizable split-pane with scripture sidebar, audio player, and devotional body text.
+
+- [ ] **9.1 Create public daily bread page** — `app/(website)/daily-bread/page.tsx` that fetches today's daily bread via `getTodaysDailyBread(churchId)` and renders the detail view.
+- [ ] **9.2 Port the detail view component** — Create `components/website/daily-bread/daily-bread-detail.tsx` based on `laubf-test/src/components/daily-bread/DailyBreadDetailPage.tsx`. Key features to preserve:
+  - Resizable split-pane layout (scripture left, devotional right) on desktop
+  - Collapsible scripture text section
+  - Audio player with playback speed (1x, 1.25x, 1.5x, 2x), rewind 10s, progress bar
+  - Mobile: scripture section inline (no sidebar)
+  - "Daily Bread" badge with date, title, passage, author
+  - Link to external UBF daily bread archive
+- [ ] **9.3 Wire the homepage section** — Verify the `DAILY_BREAD_FEATURE` section type on the homepage calls `getTodaysDailyBread()` via `resolve-section-data.ts` and renders a summary card linking to `/daily-bread`.
+- [ ] **9.4 Seed daily bread data** — Add sample DailyBread entries to `prisma/seed.mts` (at least today's date + a few past entries) so the page has content on first deploy.
+- [ ] **9.5 CMS daily bread management** — `/cms/daily-bread` page for CRUD. Alternatively, integrate into existing messages workflow or add a simple form:
+  - Date picker (one entry per day, unique constraint)
+  - Passage input (e.g., "Psalm 2:1-12")
+  - Key verse input
+  - Body (rich text editor)
+  - Bible text (auto-populated from BibleVerse DB, or manual paste)
+  - Author
+  - Audio URL (optional)
+  - Status (DRAFT/PUBLISHED)
+- [ ] **9.6 Daily bread data source** — Determine where daily bread content comes from:
+  - Option A: Manual entry via CMS (full control, more work for admin)
+  - Option B: Import from ubf.org API/RSS (if available — automate daily)
+  - Option C: Hybrid — auto-import with manual override
+- [ ] **9.7 Add to navigation** — Add "Daily Bread" link to header menu under a "Resources" dropdown (matches laubf-test nav structure).
+
+<details>
+<summary>AI Prompt: Daily Bread Page Implementation</summary>
+
+```
+Implement the Daily Bread feature for the public website. The DAL, model, and API
+already exist. The homepage section component exists but the dedicated page doesn't.
+
+Reference implementation: laubf-test/src/components/daily-bread/DailyBreadDetailPage.tsx
+
+Steps:
+1. Create app/(website)/daily-bread/page.tsx:
+   - Server component that calls getTodaysDailyBread(churchId)
+   - If no entry for today, show empty state with link to archive
+   - Pass data to client component for interactive features
+
+2. Create components/website/daily-bread/daily-bread-detail.tsx:
+   Port from laubf-test/src/components/daily-bread/DailyBreadDetailPage.tsx
+   Key features:
+   - "Daily Bread" badge (purple/brand color) + formatted date
+   - Title + passage + author metadata
+   - Resizable split-pane: scripture sidebar (45% default) | devotional body
+   - Scripture section: collapsible, shows verse numbers, HTML content
+   - Audio player (sticky bottom): play/pause, rewind 10s, speed selector, progress bar
+   - Mobile: no sidebar, scripture section inline
+   - Use theme variables (var(--font-heading), var(--color-primary), etc.)
+   - Use DOMPurify for HTML sanitization (matching existing implementation)
+
+3. Data shape (from lib/dal/daily-bread.ts getTodaysDailyBread):
+   { id, date, passage, body, bibleText, author, keyVerse, audioUrl, status }
+
+4. Verify DAILY_BREAD_FEATURE section on homepage:
+   - Check components/website/sections/daily-bread-feature.tsx
+   - Ensure it shows today's entry with "Read more" link to /daily-bread
+
+5. Add seed data in prisma/seed.mts:
+   - Create 7 DailyBread entries (today + last 6 days)
+   - Use real-looking devotional content
+   - Set status: PUBLISHED
+
+Existing files to reference:
+- lib/dal/daily-bread.ts (DAL functions)
+- lib/website/resolve-section-data.ts (section data resolution)
+- components/website/sections/daily-bread-feature.tsx (homepage section)
+- laubf-test/src/components/daily-bread/DailyBreadDetailPage.tsx (reference UI)
+- laubf-test/src/lib/types/daily-bread.ts (data types)
+```
+</details>
 
 ---
 
@@ -160,85 +376,85 @@ Ship within 2-4 weeks after launch.
 
 ---
 
-### 7. User Management & Roles (P1)
+### 10. User Management & Roles (P1)
 
 The ChurchMember model exists with OWNER/ADMIN/EDITOR/VIEWER roles, but there's no admin UI for managing users.
 
-- [ ] **7.1 User list page** — `/cms/settings/users` showing all ChurchMember records for the church. Columns: name, email, role, last login, status.
-- [ ] **7.2 Invite user flow** — Button to invite by email. Creates User + ChurchMember record. Sends invitation email (or shows a link to share).
-- [ ] **7.3 Change user role** — Dropdown to change ADMIN/EDITOR/VIEWER. Only OWNER can promote to ADMIN.
-- [ ] **7.4 Deactivate user** — Soft-disable a user's access without deleting their account.
-- [ ] **7.5 Connect to Person records** — Link ChurchMember (auth user) to Person (member directory) so logged-in members see their profile.
-- [ ] **7.6 Role-based UI gating** — Hide CMS sidebar items based on role:
+- [ ] **10.1 User list page** — `/cms/settings/users` showing all ChurchMember records for the church. Columns: name, email, role, last login, status.
+- [ ] **10.2 Invite user flow** — Button to invite by email. Creates User + ChurchMember record. Sends invitation email (or shows a link to share).
+- [ ] **10.3 Change user role** — Dropdown to change ADMIN/EDITOR/VIEWER. Only OWNER can promote to ADMIN.
+- [ ] **10.4 Deactivate user** — Soft-disable a user's access without deleting their account.
+- [ ] **10.5 Connect to Person records** — Link ChurchMember (auth user) to Person (member directory) so logged-in members see their profile.
+- [ ] **10.6 Role-based UI gating** — Hide CMS sidebar items based on role:
   - VIEWER: read-only access to all content
   - EDITOR: can edit content but not settings/users
   - ADMIN: full access except ownership transfer
   - OWNER: full access including billing and ownership
-- [ ] **7.7 Role-based API gating** — `requireApiAuth()` already accepts roles. Audit all API routes to ensure correct role requirements.
+- [ ] **10.7 Role-based API gating** — `requireApiAuth()` already accepts roles. Audit all API routes to ensure correct role requirements.
 
 ---
 
-### 8. Login & Sign-Up (P1)
+### 11. Login & Sign-Up (P1)
 
 Expand auth beyond admin-only to support member login.
 
-- [ ] **8.1 Public sign-up page** — `/sign-up` page for church members (not CMS admins). Creates User with no ChurchMember role (member-only access).
-- [ ] **8.2 Email verification** — Send verification email on sign-up. Block login until verified. Schema has `emailVerified` field.
-- [ ] **8.3 Member portal** — `/member` dashboard after login showing: my profile, my groups, prayer requests, giving history (future).
-- [ ] **8.4 Choose email provider** — Resend (recommended in docs), SendGrid, or AWS SES for transactional emails (verification, password reset, invitations).
-- [ ] **8.5 2FA (optional)** — Schema has `twoFactorEnabled` and `twoFactorSecret`. Implement TOTP-based 2FA for admin accounts.
+- [ ] **11.1 Public sign-up page** — `/sign-up` page for church members (not CMS admins). Creates User with no ChurchMember role (member-only access).
+- [ ] **11.2 Email verification** — Send verification email on sign-up. Block login until verified. Schema has `emailVerified` field.
+- [ ] **11.3 Member portal** — `/member` dashboard after login showing: my profile, my groups, prayer requests, giving history (future).
+- [ ] **11.4 Choose email provider** — Resend (recommended in docs), SendGrid, or AWS SES for transactional emails (verification, password reset, invitations).
+- [ ] **11.5 2FA (optional)** — Schema has `twoFactorEnabled` and `twoFactorSecret`. Implement TOTP-based 2FA for admin accounts.
 
 ---
 
-### 9. Transcript AI Workflow (P1)
+### 12. Transcript AI Workflow (P1)
 
 Frontend UI is built but backend is stubbed with mocks. Three AI workflows defined in `docs/transcript-ai-flows.md`.
 
-- [ ] **9.1 Configure Azure OpenAI** — Set AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT in env.
-- [ ] **9.2 YouTube caption import** — Wire `GET /api/v1/youtube/captions` to actually call YouTube Data API v3. Requires YOUTUBE_API_KEY.
-- [ ] **9.3 AI transcript alignment** — Wire `POST /api/v1/ai/align-transcript` to call Azure OpenAI. Takes raw text + video duration → returns timestamped segments.
-- [ ] **9.4 AI caption cleanup** — Wire `POST /api/v1/ai/cleanup-captions` to clean up YouTube auto-captions (punctuation, capitalization, paragraph breaks).
-- [ ] **9.5 Whisper transcription** — Wire `POST /api/v1/ai/transcribe` to generate transcript from audio/video file. Options: OpenAI Whisper API, AssemblyAI, or self-hosted Whisper.
-- [ ] **9.6 Test end-to-end** — Upload a video → generate transcript → align timestamps → save → verify on public site.
+- [ ] **12.1 Configure Azure OpenAI** — Set AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT in env.
+- [ ] **12.2 YouTube caption import** — Wire `GET /api/v1/youtube/captions` to actually call YouTube Data API v3. Requires YOUTUBE_API_KEY.
+- [ ] **12.3 AI transcript alignment** — Wire `POST /api/v1/ai/align-transcript` to call Azure OpenAI. Takes raw text + video duration → returns timestamped segments.
+- [ ] **12.4 AI caption cleanup** — Wire `POST /api/v1/ai/cleanup-captions` to clean up YouTube auto-captions (punctuation, capitalization, paragraph breaks).
+- [ ] **12.5 Whisper transcription** — Wire `POST /api/v1/ai/transcribe` to generate transcript from audio/video file. Options: OpenAI Whisper API, AssemblyAI, or self-hosted Whisper.
+- [ ] **12.6 Test end-to-end** — Upload a video → generate transcript → align timestamps → save → verify on public site.
 
 ---
 
-### 10. Video Clipping (P1)
+### 13. Video Clipping (P1)
 
 Not yet designed or implemented. Needed for creating shareable sermon clips.
 
-- [ ] **10.1 Define requirements** — What is a clip? A time range within a sermon video (start/end timestamps) with optional title and description.
-- [ ] **10.2 Schema design** — New `VideoClip` model: messageId, title, startTime, endTime, thumbnailUrl, shareUrl, status.
-- [ ] **10.3 Clipping UI in CMS** — In the message editor video tab: "Create Clip" button → set start/end time on video player → title → save.
-- [ ] **10.4 Clip generation backend** — Options:
+- [ ] **13.1 Define requirements** — What is a clip? A time range within a sermon video (start/end timestamps) with optional title and description.
+- [ ] **13.2 Schema design** — New `VideoClip` model: messageId, title, startTime, endTime, thumbnailUrl, shareUrl, status.
+- [ ] **13.3 Clipping UI in CMS** — In the message editor video tab: "Create Clip" button → set start/end time on video player → title → save.
+- [ ] **13.4 Clip generation backend** — Options:
   - FFmpeg server-side (extract segment, transcode, upload to R2)
   - Client-side (use YouTube embed with start/end params — no server processing needed for YouTube videos)
   - Third-party API (Mux, Cloudflare Stream)
-- [ ] **10.5 Clip sharing** — Public URL `/clips/[id]` that embeds just the clip segment. OG tags for social sharing.
-- [ ] **10.6 Clip gallery** — Public page showing all clips, filterable by series/speaker.
+- [ ] **13.5 Clip sharing** — Public URL `/clips/[id]` that embeds just the clip segment. OG tags for social sharing.
+- [ ] **13.6 Clip gallery** — Public page showing all clips, filterable by series/speaker.
 
 ---
 
-### 11. Announcements CMS (P1)
+### 14. Announcements CMS (P1)
 
 Schema and DAL exist but no CMS page.
 
-- [ ] **11.1 Announcements list page** — `/cms/announcements` with data table. Columns: title, date range, priority, status, pinned.
-- [ ] **11.2 Create/edit announcement** — Form with: title, body (rich text), start date, end date, priority (LOW/MEDIUM/HIGH/URGENT), pinned toggle, cover image.
-- [ ] **11.3 Auto-expiration** — Announcements past their end date auto-archive (cron or on-read filter).
-- [ ] **11.4 Wire to website** — ANNOUNCEMENTS_LIST section type should pull from DAL and render active announcements.
+- [ ] **14.1 Announcements list page** — `/cms/announcements` with data table. Columns: title, date range, priority, status, pinned.
+- [ ] **14.2 Create/edit announcement** — Form with: title, body (rich text), start date, end date, priority (LOW/MEDIUM/HIGH/URGENT), pinned toggle, cover image.
+- [ ] **14.3 Auto-expiration** — Announcements past their end date auto-archive (cron or on-read filter).
+- [ ] **14.4 Wire to website** — ANNOUNCEMENTS_LIST section type should pull from DAL and render active announcements.
 
 ---
 
-### 12. CMS Dashboard (P1)
+### 15. CMS Dashboard (P1)
 
 Currently a health monitoring page exists but is limited.
 
-- [ ] **12.1 Quick actions widget** — "New Message", "New Event", "Upload Media", "Edit Pages" buttons.
-- [ ] **12.2 Content health widget** — Color-coded cards (Green/Yellow/Red) for messages, events, pages, media. Flag stale content (>30 days since last update).
-- [ ] **12.3 Upcoming events widget** — Next 5 events with date, time, type badge.
-- [ ] **12.4 Recent activity feed** — Last 10 actions from AuditLog table (create, edit, publish, delete).
-- [ ] **12.5 At-a-glance stats** — Total counts for messages, events, pages, media with published/draft breakdown.
+- [ ] **15.1 Quick actions widget** — "New Message", "New Event", "Upload Media", "Edit Pages" buttons.
+- [ ] **15.2 Content health widget** — Color-coded cards (Green/Yellow/Red) for messages, events, pages, media. Flag stale content (>30 days since last update).
+- [ ] **15.3 Upcoming events widget** — Next 5 events with date, time, type badge.
+- [ ] **15.4 Recent activity feed** — Last 10 actions from AuditLog table (create, edit, publish, delete).
+- [ ] **15.5 At-a-glance stats** — Total counts for messages, events, pages, media with published/draft breakdown.
 
 ---
 
