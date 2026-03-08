@@ -1,17 +1,17 @@
 "use client"
 
 import { useState, useMemo, useCallback, useEffect } from "react"
-import { Folder } from "lucide-react"
 import {
   useReactTable,
   getCoreRowModel,
   getPaginationRowModel,
   getSortedRowModel,
   type SortingState,
+  type Row,
 } from "@tanstack/react-table"
 import { toast } from "sonner"
 import { DataTable } from "@/components/ui/data-table"
-import { columns, type MediaTableMeta } from "@/components/cms/media/columns"
+import { columns, type MediaTableMeta, type MediaTableRow } from "@/components/cms/media/columns"
 import { Toolbar, type SortOption } from "@/components/cms/media/toolbar"
 import { MediaGrid } from "@/components/cms/media/media-grid"
 import { MediaSidebar, type ActiveFilterId } from "@/components/cms/media/media-sidebar"
@@ -204,6 +204,25 @@ export default function MediaPage() {
     return items
   }, [mediaItems, sort])
 
+  // Build unified table data: folders first (only in "all" view), then media items
+  const tableData = useMemo<MediaTableRow[]>(() => {
+    const rows: MediaTableRow[] = []
+    if (activeFolderId === "all") {
+      for (const folder of folders) {
+        rows.push({
+          _kind: "folder",
+          id: folder.id,
+          name: folder.name,
+          count: folderCounts.get(folder.id) ?? 0,
+        })
+      }
+    }
+    for (const item of filteredItems) {
+      rows.push({ _kind: "media", ...item })
+    }
+    return rows
+  }, [activeFolderId, folders, folderCounts, filteredItems])
+
   // TanStack Table sorting state
   const tableSorting = useMemo<SortingState>(() => {
     switch (sort) {
@@ -215,27 +234,28 @@ export default function MediaPage() {
     }
   }, [sort])
 
-  // Row selection for TanStack Table
+  // Row selection for TanStack Table (only media rows are selectable)
   const rowSelection = useMemo(() => {
     const sel: Record<string, boolean> = {}
-    filteredItems.forEach((item, idx) => {
-      if (selectedIds.has(item.id)) sel[String(idx)] = true
+    tableData.forEach((row, idx) => {
+      if (row._kind === "media" && selectedIds.has(row.id)) sel[String(idx)] = true
     })
     return sel
-  }, [selectedIds, filteredItems])
+  }, [selectedIds, tableData])
 
   const handleRowSelectionChange = useCallback(
     (updater: Record<string, boolean> | ((old: Record<string, boolean>) => Record<string, boolean>)) => {
       const newSel = typeof updater === "function" ? updater(rowSelection) : updater
       const newIds = new Set<string>()
       for (const [idx, selected] of Object.entries(newSel)) {
-        if (selected && filteredItems[Number(idx)]) {
-          newIds.add(filteredItems[Number(idx)].id)
+        const row = tableData[Number(idx)]
+        if (selected && row && row._kind === "media") {
+          newIds.add(row.id)
         }
       }
       setSelectedIds(newIds)
     },
-    [rowSelection, filteredItems]
+    [rowSelection, tableData]
   )
 
   // ---------------------------------------------------------------------------
@@ -356,10 +376,13 @@ export default function MediaPage() {
     onDelete: (id: string) => {
       requestDeleteItem(id)
     },
+    onFolderClick: (folderId: string) => {
+      handleSelectFolder(folderId)
+    },
   }), [mediaItems])
 
   const table = useReactTable({
-    data: filteredItems,
+    data: tableData,
     columns,
     state: {
       sorting: tableSorting,
@@ -367,6 +390,7 @@ export default function MediaPage() {
       pagination: { pageIndex: 0, pageSize: 20 },
     },
     onRowSelectionChange: handleRowSelectionChange,
+    enableRowSelection: (row) => row.original._kind === "media",
     enableSortingRemoval: false,
     getCoreRowModel: coreRowModel,
     getPaginationRowModel: paginationRowModel,
@@ -527,6 +551,33 @@ export default function MediaPage() {
     setMoveDialogOpen(true)
   }
 
+  function handleDropOnFolder(itemIds: string[], folderId: string) {
+    const folder = folders.find((f) => f.id === folderId)
+    if (!folder) return
+    const folderName = folder.name
+
+    // Optimistic update
+    setMediaItems((prev) =>
+      prev.map((i) => (itemIds.includes(i.id) ? { ...i, folderId } : i))
+    )
+    setSelectedIds(new Set())
+
+    // PATCH each item server-side
+    for (const id of itemIds) {
+      fetch(`/api/v1/media/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ folder: folderName }),
+      }).catch(() => {
+        toast.error("Failed to move item")
+      })
+    }
+
+    toast.success(`Moved ${itemIds.length} item${itemIds.length > 1 ? "s" : ""} to ${folderName}`)
+    fetchFolders()
+    fetchMedia()
+  }
+
   function handleToggleSelect(id: string) {
     setSelectedIds((prev) => {
       const next = new Set(prev)
@@ -603,6 +654,7 @@ export default function MediaPage() {
           onCreateFolder={() => setCreateFolderOpen(true)}
           onRenameFolder={handleRenameFolder}
           onDeleteFolder={handleDeleteFolder}
+          onDropOnFolder={handleDropOnFolder}
           mediaCounts={mediaCounts}
           folderCounts={folderCounts}
           storageUsed={storageUsed}
@@ -634,35 +686,58 @@ export default function MediaPage() {
                 setMoveDialogOpen(true)
               }}
               onDelete={(id) => requestDeleteItem(id)}
+              onDropOnFolder={handleDropOnFolder}
             />
           ) : (
-            <div className="space-y-2">
-              {activeFolderId === "all" && folders.length > 0 && (
-                <div className="rounded-lg border divide-y">
-                  {folders.map((folder) => {
-                    const count = folderCounts.get(folder.id) ?? 0
-                    return (
-                      <button
-                        key={folder.id}
-                        onClick={() => handleSelectFolder(folder.id)}
-                        className="flex items-center gap-3 w-full px-4 py-2.5 text-left hover:bg-accent/50 transition-colors"
-                      >
-                        <Folder className="size-5 text-muted-foreground shrink-0" />
-                        <span className="font-medium text-sm">{folder.name}</span>
-                        <span className="ml-auto text-xs text-muted-foreground tabular-nums">
-                          {count} item{count !== 1 ? "s" : ""}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-              <DataTable
-                columns={columns}
-                table={table}
-                onRowClick={(row) => setPreviewItem(row)}
-              />
-            </div>
+            <DataTable
+              columns={columns}
+              table={table}
+              onRowClick={(row) => {
+                if (row._kind === "folder") {
+                  handleSelectFolder(row.id)
+                } else {
+                  setPreviewItem(row)
+                }
+              }}
+              getRowProps={(row: Row<MediaTableRow>) => {
+                const item = row.original
+                if (item._kind === "media") {
+                  return {
+                    draggable: true,
+                    onDragStart: (e: React.DragEvent) => {
+                      const ids = selectedIds.has(item.id) && selectedIds.size > 1
+                        ? Array.from(selectedIds)
+                        : [item.id]
+                      e.dataTransfer.setData("application/x-media-ids", JSON.stringify(ids))
+                      e.dataTransfer.effectAllowed = "move"
+                    },
+                  }
+                }
+                // Folder rows are drop targets
+                return {
+                  onDragOver: (e: React.DragEvent) => {
+                    if (e.dataTransfer.types.includes("application/x-media-ids")) {
+                      e.preventDefault()
+                      e.dataTransfer.dropEffect = "move"
+                      ;(e.currentTarget as HTMLElement).dataset.dragOver = "true"
+                    }
+                  },
+                  onDragLeave: (e: React.DragEvent) => {
+                    delete (e.currentTarget as HTMLElement).dataset.dragOver
+                  },
+                  onDrop: (e: React.DragEvent) => {
+                    e.preventDefault()
+                    delete (e.currentTarget as HTMLElement).dataset.dragOver
+                    const raw = e.dataTransfer.getData("application/x-media-ids")
+                    if (!raw) return
+                    try {
+                      const ids = JSON.parse(raw) as string[]
+                      if (ids.length > 0) handleDropOnFolder(ids, item.id)
+                    } catch { /* ignore */ }
+                  },
+                }
+              }}
+            />
           )}
         </div>
       </div>

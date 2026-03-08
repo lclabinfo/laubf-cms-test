@@ -110,16 +110,18 @@ export default function MessageCard({ message }: { message: Message }) {
 
       {/* Content area */}
       <div className="flex flex-col items-start pt-5 px-2 pb-3">
-        {/* Series pill + date row */}
+        {/* Date + Series pill row */}
         <div className="flex items-center justify-between w-full mb-[12px]">
-          <div className="bg-white-2 flex flex-col items-start px-[8px] py-[6px] rounded-[8px] shrink-0">
-            <p className="font-medium leading-none text-black-3 text-[12px] text-center tracking-[0.24px]">
-              {message.series}
-            </p>
-          </div>
           <p className="font-medium leading-none text-black-3 text-[14px] tracking-[-0.42px] whitespace-nowrap">
             {formatDate(message.dateFor)}
           </p>
+          {message.series && (
+            <div className="bg-white-2 flex flex-col items-start px-[8px] py-[6px] rounded-[8px] shrink-0">
+              <p className="font-medium leading-none text-black-3 text-[12px] text-center tracking-[0.24px]">
+                {message.series}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Title */}

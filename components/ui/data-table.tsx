@@ -44,6 +44,8 @@ interface DataTableProps<TData, TValue> {
   fixedLayout?: boolean
   /** Hide the built-in pagination (useful when providing custom server-side pagination). */
   hidePagination?: boolean
+  /** Extra HTML attributes for each table row (e.g. draggable, onDragStart). */
+  getRowProps?: (row: Row<TData>) => React.HTMLAttributes<HTMLTableRowElement>
 }
 
 export function DataTable<TData, TValue>({
@@ -54,6 +56,7 @@ export function DataTable<TData, TValue>({
   renderSubComponent,
   fixedLayout,
   hidePagination,
+  getRowProps,
 }: DataTableProps<TData, TValue>) {
   return (
     <div className="space-y-4">
@@ -85,15 +88,19 @@ export function DataTable<TData, TValue>({
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => {
                 const isActive = activeRowId != null && (row.original as Record<string, unknown>).id === activeRowId
+                const extraProps = getRowProps?.(row)
                 return (
                 <React.Fragment key={row.id}>
                 <TableRow
                   data-state={row.getIsSelected() ? "selected" : isActive ? "active" : undefined}
                   className={cn(
                     onRowClick && "cursor-pointer",
-                    isActive && "bg-accent"
+                    isActive && "bg-accent",
+                    extraProps?.className,
                   )}
+                  {...extraProps}
                   onClick={(e) => {
+                    extraProps?.onClick?.(e)
                     if (!onRowClick) return
                     // Don't navigate when clicking interactive elements
                     const target = e.target as HTMLElement

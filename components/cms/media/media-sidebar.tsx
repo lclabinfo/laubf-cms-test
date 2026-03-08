@@ -39,7 +39,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
 import type { MediaFolder } from "@/lib/media-data"
+
+// System folders created automatically by the app — cannot be renamed or deleted
+const SYSTEM_FOLDER_NAMES = new Set(["Events", "Website"])
 
 export type ActiveFilterId = "all" | "photos" | "videos" | "google-albums" | string
 
@@ -50,6 +54,7 @@ interface MediaSidebarProps {
   onCreateFolder: () => void
   onRenameFolder: (id: string, name: string) => void
   onDeleteFolder: (id: string) => void
+  onDropOnFolder?: (itemIds: string[], folderId: string) => void
   mediaCounts: { all: number; photos: number; videos: number }
   folderCounts: Map<string, number>
   storageUsed: string | null
@@ -76,6 +81,7 @@ export function MediaSidebar({
   onCreateFolder,
   onRenameFolder,
   onDeleteFolder,
+  onDropOnFolder,
   mediaCounts,
   folderCounts,
   storageUsed,
@@ -85,6 +91,7 @@ export function MediaSidebar({
   const [renamingFolder, setRenamingFolder] = useState<{ id: string; name: string } | null>(null)
   const [renameValue, setRenameValue] = useState("")
   const [deletingFolderId, setDeletingFolderId] = useState<string | null>(null)
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null)
 
   function handleRenameOpen(folder: MediaFolder) {
     setRenamingFolder(folder)
@@ -157,47 +164,79 @@ export function MediaSidebar({
               {folders.map((folder) => {
                 const isActive = activeFolderId === folder.id
                 const count = folderCounts.get(folder.id) ?? 0
+                const isSystem = SYSTEM_FOLDER_NAMES.has(folder.name)
+                const isDragOver = dragOverFolderId === folder.id
                 return (
-                  <div key={folder.id} className="group relative flex items-center">
+                  <div
+                    key={folder.id}
+                    className="group relative flex items-center"
+                    onDragOver={(e) => {
+                      if (e.dataTransfer.types.includes("application/x-media-ids")) {
+                        e.preventDefault()
+                        e.dataTransfer.dropEffect = "move"
+                        setDragOverFolderId(folder.id)
+                      }
+                    }}
+                    onDragLeave={() => setDragOverFolderId(null)}
+                    onDrop={(e) => {
+                      e.preventDefault()
+                      setDragOverFolderId(null)
+                      const raw = e.dataTransfer.getData("application/x-media-ids")
+                      if (!raw || !onDropOnFolder) return
+                      try {
+                        const ids = JSON.parse(raw) as string[]
+                        if (ids.length > 0) onDropOnFolder(ids, folder.id)
+                      } catch { /* ignore */ }
+                    }}
+                  >
                     <Button
                       variant="ghost"
                       onClick={() => onSelectFolder(folder.id)}
                       className={`flex-1 justify-start gap-2 h-8 px-2 pr-8 font-medium min-w-0 ${
-                        isActive
-                          ? "bg-accent text-accent-foreground"
-                          : "text-muted-foreground"
+                        isDragOver
+                          ? "bg-primary/20 text-primary"
+                          : isActive
+                            ? "bg-accent text-accent-foreground"
+                            : "text-muted-foreground"
                       }`}
                     >
                       <Folder className="size-4 shrink-0" />
                       <span className="truncate">{folder.name}</span>
+                      {isSystem && (
+                        <Badge variant="outline" className="text-[9px] h-3.5 px-1 py-0 font-normal text-muted-foreground border-muted-foreground/30 ml-0.5">
+                          auto
+                        </Badge>
+                      )}
                     </Button>
                     {/* Count / actions — share the same absolute position */}
-                    <span className="absolute right-2 text-xs text-muted-foreground tabular-nums group-hover:invisible pointer-events-none">{count}</span>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          className="absolute right-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <MoreHorizontal className="size-3.5" />
-                          <span className="sr-only">Folder actions</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleRenameOpen(folder)}>
-                          <Pencil />
-                          Rename
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => setDeletingFolderId(folder.id)}
-                        >
-                          <Trash2 />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    <span className={`absolute right-2 text-xs text-muted-foreground tabular-nums ${isSystem ? "" : "group-hover:invisible"} pointer-events-none`}>{count}</span>
+                    {!isSystem && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            className="absolute right-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <MoreHorizontal className="size-3.5" />
+                            <span className="sr-only">Folder actions</span>
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleRenameOpen(folder)}>
+                            <Pencil />
+                            Rename
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onClick={() => setDeletingFolderId(folder.id)}
+                          >
+                            <Trash2 />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 )
               })}

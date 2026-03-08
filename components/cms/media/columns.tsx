@@ -1,7 +1,7 @@
 "use client"
 
 import { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, Play, Pencil, FolderInput, Trash2 } from "lucide-react"
+import { MoreHorizontal, Play, Pencil, FolderInput, Trash2, Folder } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { SortableHeader } from "@/components/ui/sortable-header"
@@ -16,10 +16,16 @@ import {
 import type { MediaItem } from "@/lib/media-data"
 import { mediaTypeDisplay, formatDisplay } from "@/lib/media-data"
 
+// Discriminated union: folder rows + media rows
+export type MediaTableRow =
+  | { _kind: "folder"; id: string; name: string; count: number }
+  | ({ _kind: "media" } & MediaItem)
+
 export interface MediaTableMeta {
   onEdit: (id: string) => void
   onMoveRequest: (id: string) => void
   onDelete: (id: string) => void
+  onFolderClick: (folderId: string) => void
 }
 
 function formatDate(dateStr: string) {
@@ -27,7 +33,7 @@ function formatDate(dateStr: string) {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
 }
 
-export const columns: ColumnDef<MediaItem>[] = [
+export const columns: ColumnDef<MediaTableRow>[] = [
   {
     id: "select",
     header: ({ table }) => (
@@ -40,13 +46,16 @@ export const columns: ColumnDef<MediaItem>[] = [
         aria-label="Select all"
       />
     ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
+    cell: ({ row }) => {
+      if (row.original._kind === "folder") return null
+      return (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      )
+    },
     enableSorting: false,
     enableHiding: false,
     size: 40,
@@ -58,6 +67,21 @@ export const columns: ColumnDef<MediaItem>[] = [
     ),
     cell: ({ row }) => {
       const item = row.original
+      if (item._kind === "folder") {
+        return (
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative size-10 shrink-0 rounded overflow-hidden bg-muted flex items-center justify-center">
+              <Folder className="size-5 text-muted-foreground" />
+            </div>
+            <div className="min-w-0">
+              <div className="font-medium truncate">{item.name}</div>
+              <div className="text-muted-foreground text-xs">
+                {item.count} item{item.count !== 1 ? "s" : ""}
+              </div>
+            </div>
+          </div>
+        )
+      }
       return (
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative size-10 shrink-0 rounded overflow-hidden bg-muted">
@@ -90,6 +114,7 @@ export const columns: ColumnDef<MediaItem>[] = [
     accessorKey: "format",
     header: "Format",
     cell: ({ row }) => {
+      if (row.original._kind === "folder") return <span className="text-muted-foreground text-xs">Folder</span>
       const format = row.original.format
       const config = formatDisplay[format]
       return (
@@ -104,7 +129,10 @@ export const columns: ColumnDef<MediaItem>[] = [
   {
     accessorKey: "size",
     header: "Size",
-    cell: ({ row }) => <span className="text-sm">{row.original.size}</span>,
+    cell: ({ row }) => {
+      if (row.original._kind === "folder") return <span className="text-muted-foreground text-sm">—</span>
+      return <span className="text-sm">{row.original.size}</span>
+    },
     enableSorting: false,
     size: 80,
   },
@@ -113,9 +141,10 @@ export const columns: ColumnDef<MediaItem>[] = [
     header: ({ column }) => (
       <SortableHeader column={column}>Date Added</SortableHeader>
     ),
-    cell: ({ row }) => (
-      <span className="text-sm">{formatDate(row.original.dateAdded)}</span>
-    ),
+    cell: ({ row }) => {
+      if (row.original._kind === "folder") return null
+      return <span className="text-sm">{formatDate(row.original.dateAdded)}</span>
+    },
     size: 140,
   },
   {
@@ -123,6 +152,7 @@ export const columns: ColumnDef<MediaItem>[] = [
     cell: ({ row, table }) => {
       const item = row.original
       const meta = table.options.meta as MediaTableMeta | undefined
+      if (item._kind === "folder") return null
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

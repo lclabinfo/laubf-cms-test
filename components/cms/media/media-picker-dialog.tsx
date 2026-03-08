@@ -219,11 +219,13 @@ export function MediaPickerDialog({
         return
       }
 
+      // Use the permanent URL from the created media record (not the staging publicUrl)
+      const permanentUrl = createJson.data.url ?? publicUrl
       setUploadStatus("done")
-      setUploadedUrl(publicUrl)
+      setUploadedUrl(permanentUrl)
       setUploadedFilename(file.name)
       // Auto-select the uploaded image
-      setSelectedUrl(publicUrl)
+      setSelectedUrl(permanentUrl)
       setSelectedAlt(file.name)
     } catch {
       setUploadStatus("error")
