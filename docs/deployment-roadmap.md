@@ -464,7 +464,72 @@ Ship when capacity allows.
 
 ---
 
-### 13. Website Builder v2 — Full-Screen Canvas (P2)
+### 16. Cloudflare CDN Setup (P2)
+
+Configure Cloudflare as CDN and security layer in front of the hosting provider. Full guide in `docs/cloudflare-cdn-setup.md`.
+
+- [ ] **16.1 Add domain to Cloudflare** — Add `laubf.org` to Cloudflare (free plan). Update nameservers at registrar.
+- [ ] **16.2 SSL mode** — Set to "Full (Strict)". Install Cloudflare Origin CA certificate on the origin server (Vercel handles this automatically if using Vercel).
+- [ ] **16.3 Cache rules** — Configure via Cloudflare dashboard or API:
+  - `/_next/static/*` → Cache Everything, Edge TTL 1 year (immutable hashed assets)
+  - `*.jpg, *.png, *.webp, *.avif, *.svg, *.woff2` → Cache Everything, Edge TTL 30 days
+  - `/api/*` → Bypass Cache (dynamic API responses)
+  - `/cms/*` → Bypass Cache (admin pages, authenticated)
+  - Everything else (HTML pages) → Standard caching, Edge TTL 1 hour, Browser TTL 0 (revalidate)
+- [ ] **16.4 Security settings:**
+  - Enable Bot Fight Mode (blocks known bad bots)
+  - Add WAF rule: block non-GET requests to `/api/auth/*` from known bot ASNs
+  - Enable "Under Attack Mode" toggle (for emergencies only)
+  - Enable "Always Use HTTPS" redirect
+- [ ] **16.5 Performance settings:**
+  - Enable Auto Minify (HTML, CSS, JS)
+  - Enable Brotli compression
+  - **Disable Rocket Loader** (breaks React/Next.js hydration)
+  - Enable Early Hints (103)
+  - Enable HTTP/3
+- [ ] **16.6 DNS records** — Configure:
+  - `@` (root) → hosting provider IP/CNAME (proxied through Cloudflare)
+  - `admin` → same origin (proxied)
+  - `cdn` → R2 public bucket URL (if using custom CDN domain for media)
+- [ ] **16.7 Page rules (if needed):**
+  - `laubf.org/cms/*` → Bypass Cache, Security Level High
+  - `laubf.org/api/v1/*` → Bypass Cache
+- [ ] **16.8 Test cache headers** — Use `curl -I https://laubf.org/` and verify `cf-cache-status: HIT` on static assets, `BYPASS` on API/CMS routes.
+
+<details>
+<summary>AI Prompt: Cloudflare CDN Configuration</summary>
+
+```
+Configure Cloudflare CDN for laubf.org. The site is a Next.js app with:
+- Public website at laubf.org (cacheable HTML + static assets)
+- CMS admin at admin.laubf.org (never cache, authenticated)
+- API at laubf.org/api/* (never cache, dynamic)
+- Static assets at /_next/static/* (immutable, cache forever)
+- Images served via Next.js Image optimization (WebP/AVIF, cache at edge)
+- Media files on R2 (already have CDN via R2 public access)
+
+Cloudflare free plan is sufficient. Key settings:
+1. SSL: Full (Strict)
+2. Cache rules:
+   - /_next/static/* → 1 year edge TTL
+   - Images/fonts → 30 day edge TTL
+   - /api/*, /cms/* → Bypass
+   - HTML → 1 hour edge, 0 browser (stale-while-revalidate)
+3. Security: Bot Fight Mode ON, Rocket Loader OFF
+4. Performance: Brotli ON, HTTP/3 ON, Early Hints ON
+
+Next.js config should set Cache-Control headers:
+- Static assets: public, max-age=31536000, immutable (Next.js does this by default)
+- API responses: no-store or private, no-cache
+- HTML pages: public, s-maxage=3600, stale-while-revalidate=86400
+
+Reference: docs/cloudflare-cdn-setup.md for full configuration guide.
+```
+</details>
+
+---
+
+### 17. Website Builder v2 — Full-Screen Canvas (P2)
 
 The ambitious WYSIWYG builder. Not a launch blocker but significantly improves the editing experience. 48 tasks across 9 phases documented in `docs/00_dev-notes/development-status.md`.
 
@@ -479,87 +544,85 @@ The ambitious WYSIWYG builder. Not a launch blocker but significantly improves t
 
 ---
 
-### 14. Messages List Enhancements (P2)
+### 18. Messages List Enhancements (P2)
 
 Bulk actions UI exists but handlers aren't wired.
 
-- [ ] **14.1 Wire bulk publish** — Select multiple messages → "Publish" → batch update status.
-- [ ] **14.2 Wire bulk archive** — Select → "Archive" → batch update.
-- [ ] **14.3 Wire bulk delete** — Select → "Delete" → confirmation → batch soft-delete.
-- [ ] **14.4 Speaker filter** — Combobox filter in toolbar.
-- [ ] **14.5 Series filter** — Combobox filter in toolbar.
-- [ ] **14.6 Bible book filter** — Filter messages by book from passage field.
-- [ ] **14.7 Mobile card view** — Responsive layout for narrow screens (cards instead of table).
+- [ ] **18.1 Wire bulk publish** — Select multiple messages → "Publish" → batch update status.
+- [ ] **18.2 Wire bulk archive** — Select → "Archive" → batch update.
+- [ ] **18.3 Wire bulk delete** — Select → "Delete" → confirmation → batch soft-delete.
+- [ ] **18.4 Speaker filter** — Combobox filter in toolbar.
+- [ ] **18.5 Series filter** — Combobox filter in toolbar.
+- [ ] **18.6 Bible book filter** — Filter messages by book from passage field.
+- [ ] **18.7 Mobile card view** — Responsive layout for narrow screens (cards instead of table).
 
 ---
 
-### 15. Event Enhancements (P2)
+### 19. Event Enhancements (P2)
 
-- [ ] **15.1 Event sharing** — Shareable link, Google Calendar add, Apple Calendar add (.ics file).
-- [ ] **15.2 Duplicate event** — Wire the existing menu option to actually clone an event.
-- [ ] **15.3 Preview before publish** — Side-by-side preview of event detail page.
-- [ ] **15.4 Event form field gaps** — Add slug, shortDescription, campus, tags, image alt text, image object position to form.
-
----
-
-### 16. SEO & Performance (P2)
-
-- [ ] **16.1 Sitemap generation** — Auto-generated `sitemap.xml` from all published pages, messages, events, bible studies.
-- [ ] **16.2 Structured data (JSON-LD)** — Church schema, Event schema, VideoObject schema on relevant pages.
-- [ ] **16.3 301 redirects** — Admin UI for managing URL redirects (old laubf.org URLs → new paths).
-- [ ] **16.4 Image optimization** — Verify Next.js `<Image>` component is used everywhere (not raw `<img>`) for automatic WebP/AVIF conversion and lazy loading.
-- [ ] **16.5 Cloudflare CDN** — Configure cache rules per `docs/cloudflare-cdn-setup.md` (static assets 1yr, images 30d, API bypass, HTML 1hr).
+- [ ] **19.1 Event sharing** — Shareable link, Google Calendar add, Apple Calendar add (.ics file).
+- [ ] **19.2 Duplicate event** — Wire the existing menu option to actually clone an event.
+- [ ] **19.3 Preview before publish** — Side-by-side preview of event detail page.
+- [ ] **19.4 Event form field gaps** — Add slug, shortDescription, campus, tags, image alt text, image object position to form.
 
 ---
 
-### 17. Media Library Enhancements (P2)
+### 20. SEO & Performance (P2)
 
-- [ ] **17.1 Usage tracking** — "Where is this used?" panel showing which pages/sections/messages reference a media asset.
-- [ ] **17.2 Bulk metadata editing** — Select multiple items → edit alt text, tags, folder in batch.
-- [ ] **17.3 Image editor** — Basic crop/resize before upload.
-- [ ] **17.4 Google Photos sync** — OAuth flow to connect Google Photos account, import albums. UI stub exists but no backend.
+- [ ] **20.1 Sitemap generation** — Auto-generated `sitemap.xml` from all published pages, messages, events, bible studies.
+- [ ] **20.2 Structured data (JSON-LD)** — Church schema, Event schema, VideoObject schema on relevant pages.
+- [ ] **20.3 301 redirects** — Admin UI for managing URL redirects (old laubf.org URLs → new paths).
 
 ---
 
-### 18. Ministry & Campus Pages (P2)
+### 21. Media Library Enhancements (P2)
+
+- [ ] **21.1 Usage tracking** — "Where is this used?" panel showing which pages/sections/messages reference a media asset.
+- [ ] **21.2 Bulk metadata editing** — Select multiple items → edit alt text, tags, folder in batch.
+- [ ] **21.3 Image editor** — Basic crop/resize before upload.
+- [ ] **21.4 Google Photos sync** — OAuth flow to connect Google Photos account, import albums. UI stub exists but no backend.
+
+---
+
+### 22. Ministry & Campus Pages (P2)
 
 Not yet built. Schema (Ministry, Campus models) exists.
 
-- [ ] **18.1 Ministry list page** — `/cms/ministries` (separate from people/ministries — this is for public-facing ministry pages).
-- [ ] **18.2 Ministry detail editor** — Hero image, description (rich text), leadership (linked Person records), events, contact info.
-- [ ] **18.3 Campus detail editor** — Similar structure for multi-campus churches.
-- [ ] **18.4 Wire to website** — Ministry and campus pages auto-generated from DB, rendered via section types.
+- [ ] **22.1 Ministry list page** — `/cms/ministries` (separate from people/ministries — this is for public-facing ministry pages).
+- [ ] **22.2 Ministry detail editor** — Hero image, description (rich text), leadership (linked Person records), events, contact info.
+- [ ] **22.3 Campus detail editor** — Similar structure for multi-campus churches.
+- [ ] **22.4 Wire to website** — Ministry and campus pages auto-generated from DB, rendered via section types.
 
 ---
 
-### 19. Prayer Requests (P2)
+### 23. Prayer Requests (P2)
 
 Feature flag exists (`SiteSettings.enablePrayerRequests`) but no model or UI.
 
-- [ ] **19.1 Schema** — New `PrayerRequest` model: churchId, authorId (optional), title, body, isAnonymous, status (ACTIVE/ANSWERED/ARCHIVED), prayerCount, createdAt.
-- [ ] **19.2 Public submission form** — Accessible from website (if feature enabled). Anonymous or logged-in submission.
-- [ ] **19.3 CMS moderation** — `/cms/prayer` page to review, approve, archive prayer requests.
-- [ ] **19.4 Public prayer wall** — Website section showing approved requests with "I prayed" button.
+- [ ] **23.1 Schema** — New `PrayerRequest` model: churchId, authorId (optional), title, body, isAnonymous, status (ACTIVE/ANSWERED/ARCHIVED), prayerCount, createdAt.
+- [ ] **23.2 Public submission form** — Accessible from website (if feature enabled). Anonymous or logged-in submission.
+- [ ] **23.3 CMS moderation** — `/cms/prayer` page to review, approve, archive prayer requests.
+- [ ] **23.4 Public prayer wall** — Website section showing approved requests with "I prayed" button.
 
 ---
 
-### 20. Notification System (P2)
+### 24. Notification System (P2)
 
-- [ ] **20.1 Choose email provider** — Resend recommended. Set up account and API key.
-- [ ] **20.2 Transactional emails** — Password reset, email verification, user invitation templates.
-- [ ] **20.3 In-app notifications** — Bell icon in CMS header. Notification model (type, message, read, link). Show: stale content flags, new form submissions, user invites.
-- [ ] **20.4 Email digests** — Weekly summary of content health, new submissions, upcoming events.
+- [ ] **24.1 Choose email provider** — Resend recommended. Set up account and API key.
+- [ ] **24.2 Transactional emails** — Password reset, email verification, user invitation templates.
+- [ ] **24.3 In-app notifications** — Bell icon in CMS header. Notification model (type, message, read, link). Show: stale content flags, new form submissions, user invites.
+- [ ] **24.4 Email digests** — Weekly summary of content health, new submissions, upcoming events.
 
 ---
 
-### 21. Testing (P2)
+### 25. Testing (P2)
 
 Zero tests exist currently.
 
-- [ ] **21.1 Unit tests** — Test critical DAL functions (message CRUD, event filtering, storage quota).
-- [ ] **21.2 API integration tests** — Test all 66 API endpoints with proper auth headers.
-- [ ] **21.3 E2E tests** — Playwright tests for: login, create message, create event, upload media, edit page.
-- [ ] **21.4 CI pipeline** — GitHub Actions: lint → type-check → test → build on every PR.
+- [ ] **25.1 Unit tests** — Test critical DAL functions (message CRUD, event filtering, storage quota).
+- [ ] **25.2 API integration tests** — Test all 66 API endpoints with proper auth headers.
+- [ ] **25.3 E2E tests** — Playwright tests for: login, create message, create event, upload media, edit page.
+- [ ] **25.4 CI pipeline** — GitHub Actions: lint → type-check → test → build on every PR.
 
 ---
 
@@ -569,52 +632,52 @@ Not needed for LA UBF launch. Required for scaling to multiple churches.
 
 ---
 
-### 22. Multi-Tenant Middleware (P3)
+### 26. Multi-Tenant Middleware (P3)
 
 Currently single-tenant via `CHURCH_SLUG` env var.
 
-- [ ] **22.1 Hostname-based routing** — Middleware detects subdomain or custom domain → resolves to churchId → sets `x-tenant-id` header.
-- [ ] **22.2 Custom domain resolution** — Lookup `CustomDomain` table by hostname → resolve to church.
-- [ ] **22.3 Redis caching** — Cache domain→church mappings in Upstash Redis (5-min TTL).
-- [ ] **22.4 PostgreSQL Row-Level Security** — Enable RLS on all tenant-scoped tables. Set `app.current_church_id` per request.
+- [ ] **26.1 Hostname-based routing** — Middleware detects subdomain or custom domain → resolves to churchId → sets `x-tenant-id` header.
+- [ ] **26.2 Custom domain resolution** — Lookup `CustomDomain` table by hostname → resolve to church.
+- [ ] **26.3 Redis caching** — Cache domain→church mappings in Upstash Redis (5-min TTL).
+- [ ] **26.4 PostgreSQL Row-Level Security** — Enable RLS on all tenant-scoped tables. Set `app.current_church_id` per request.
 
 ---
 
-### 23. Billing & Subscriptions (P3)
+### 27. Billing & Subscriptions (P3)
 
-- [ ] **23.1 Stripe integration** — Connect Stripe account, configure products/prices for Free/Starter/Pro tiers.
-- [ ] **23.2 Checkout flow** — Church admin clicks "Upgrade" → Stripe Checkout → webhook updates subscription.
-- [ ] **23.3 Feature gating** — `canAccessFeature(church, feature)` function checks plan tier + feature flags.
-- [ ] **23.4 Billing page** — `/cms/settings/billing` showing current plan, usage, invoices.
-- [ ] **23.5 Superadmin billing dashboard** — Revenue, MRR, churn, plan distribution.
-
----
-
-### 24. Onboarding Flow (P3)
-
-- [ ] **24.1 Church registration** — Sign up → create church → choose template → configure basics.
-- [ ] **24.2 Setup wizard** — Step-by-step: church info → template → logo/colors → modules → invite team.
-- [ ] **24.3 Demo content** — Pre-populate sample messages, events, pages so the site isn't empty.
+- [ ] **27.1 Stripe integration** — Connect Stripe account, configure products/prices for Free/Starter/Pro tiers.
+- [ ] **27.2 Checkout flow** — Church admin clicks "Upgrade" → Stripe Checkout → webhook updates subscription.
+- [ ] **27.3 Feature gating** — `canAccessFeature(church, feature)` function checks plan tier + feature flags.
+- [ ] **27.4 Billing page** — `/cms/settings/billing` showing current plan, usage, invoices.
+- [ ] **27.5 Superadmin billing dashboard** — Revenue, MRR, churn, plan distribution.
 
 ---
 
-### 25. Superadmin Console (P3)
+### 28. Onboarding Flow (P3)
 
-- [ ] **25.1 Church list** — All churches with plan, status, MRR, last login.
-- [ ] **25.2 Church detail** — Profile, subscription, usage, members, feature flags, audit log.
-- [ ] **25.3 Impersonation** — "Login as church" with signed JWT, yellow banner, full audit logging.
-- [ ] **25.4 Support tickets** — In-CMS ticket submission, superadmin queue, conversation threads.
+- [ ] **28.1 Church registration** — Sign up → create church → choose template → configure basics.
+- [ ] **28.2 Setup wizard** — Step-by-step: church info → template → logo/colors → modules → invite team.
+- [ ] **28.3 Demo content** — Pre-populate sample messages, events, pages so the site isn't empty.
 
 ---
 
-### 26. Content Generalization (P3)
+### 29. Superadmin Console (P3)
+
+- [ ] **29.1 Church list** — All churches with plan, status, MRR, last login.
+- [ ] **29.2 Church detail** — Profile, subscription, usage, members, feature flags, audit log.
+- [ ] **29.3 Impersonation** — "Login as church" with signed JWT, yellow banner, full audit logging.
+- [ ] **29.4 Support tickets** — In-CMS ticket submission, superadmin queue, conversation threads.
+
+---
+
+### 30. Content Generalization (P3)
 
 Make LA UBF-specific models work for any church.
 
-- [ ] **26.1 Feature flags** — `Church.featureFlags` JSON field controlling which modules are enabled.
-- [ ] **26.2 Configurable labels** — "Sermons" vs "Messages" vs "Teachings" — per-church content type labels.
-- [ ] **26.3 Dynamic CMS sidebar** — Show/hide menu items based on enabled modules.
-- [ ] **26.4 Website templates** — Template selection during onboarding, multiple starter layouts.
+- [ ] **30.1 Feature flags** — `Church.featureFlags` JSON field controlling which modules are enabled.
+- [ ] **30.2 Configurable labels** — "Sermons" vs "Messages" vs "Teachings" — per-church content type labels.
+- [ ] **30.3 Dynamic CMS sidebar** — Show/hide menu items based on enabled modules.
+- [ ] **30.4 Website templates** — Template selection during onboarding, multiple starter layouts.
 
 ---
 
@@ -623,24 +686,27 @@ Make LA UBF-specific models work for any church.
 ### Phase 1: Pre-Launch Sprint (P0 items)
 1. Church Profile & Seed Data (#1)
 2. Database Cleanup (#3)
-3. Auth Hardening (#6)
-4. Public Website UI Fixes (#4)
-5. Website Builder Fixes (#2)
-6. Production Deployment (#5)
+3. Domain Routing & Route Group Restructure (#5)
+4. Image Pipeline & WebP (#6)
+5. Auth Hardening (#8)
+6. Public Website UI Fixes (#4)
+7. Website Builder Fixes (#2)
+8. Daily Bread Page (#9)
+9. Production Deployment (#7)
 
 ### Phase 2: Post-Launch Sprint (P1 items)
-7. User Management & Roles (#7)
-8. Login & Sign-Up (#8)
-9. Announcements CMS (#11)
-10. CMS Dashboard (#12)
-11. Transcript AI Workflow (#9)
-12. Video Clipping (#10)
+10. User Management & Roles (#10)
+11. Login & Sign-Up (#11)
+12. Announcements CMS (#14)
+13. CMS Dashboard (#15)
+14. Transcript AI Workflow (#12)
+15. Video Clipping (#13)
 
 ### Phase 3: Polish (P2 items)
-13-21. As capacity allows, in parallel tracks.
+16-25. Cloudflare CDN, builder v2, list enhancements, events, SEO, media, ministries, prayer, notifications, testing — as capacity allows.
 
 ### Phase 4: Platform (P3 items)
-22-26. When ready to onboard church #2.
+26-30. Multi-tenant, billing, onboarding, superadmin, content generalization — when ready for church #2.
 
 ---
 
@@ -648,13 +714,17 @@ Make LA UBF-specific models work for any church.
 
 | Task | Blocked By | Notes |
 |------|-----------|-------|
-| Production Deployment (#5) | Church Profile (#1), DB Cleanup (#3), Auth (#6) | Can't deploy with wrong data |
-| User Management (#7) | Auth Hardening (#6) | Need solid auth before adding users |
-| Login & Sign-Up (#8) | Email Provider (#20.1) | Need transactional email for verification |
-| Transcript AI (#9) | Azure OpenAI credentials, YouTube API key | External service config |
-| Video Clipping (#10) | Requirements definition | Need to decide approach first |
-| Multi-Tenant (#22) | Production Deployment (#5) | Need single-tenant running first |
-| Billing (#23) | Multi-Tenant (#22), Onboarding (#24) | Need multi-tenant before billing |
+| Domain Routing (#5) | None | Should be done early — changes all URL paths |
+| Image Pipeline (#6) | R2 media bucket configured | Need actual images uploaded |
+| Production Deployment (#7) | #1, #3, #5, #6, #8 | Can't deploy with wrong data/routes |
+| Daily Bread (#9) | Route group restructure (#5) | Page path depends on `/(website)` |
+| User Management (#10) | Auth Hardening (#8) | Need solid auth before adding users |
+| Login & Sign-Up (#11) | Email Provider (#24.1) | Need transactional email for verification |
+| Transcript AI (#12) | Azure OpenAI, YouTube API key | External service config |
+| Video Clipping (#13) | Requirements definition | Need to decide approach first |
+| Cloudflare CDN (#16) | Production Deployment (#7) | Need live domain to configure |
+| Multi-Tenant (#26) | Production Deployment (#7) | Need single-tenant running first |
+| Billing (#27) | Multi-Tenant (#26) | Need multi-tenant before billing |
 
 ---
 
@@ -671,3 +741,5 @@ These small tasks can be knocked out quickly between larger work:
 - [ ] Verify 404 page renders correctly for invalid slugs
 - [ ] Wire AuditLog writes on CMS create/edit/delete actions
 - [ ] Add loading skeletons to CMS pages that flash blank
+- [ ] Add `sizes` prop to `<Image>` components for responsive srcset
+- [ ] Configure `images.formats: ['image/avif', 'image/webp']` in next.config.ts
