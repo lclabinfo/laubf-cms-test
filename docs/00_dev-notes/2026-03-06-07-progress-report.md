@@ -144,7 +144,7 @@
 ## 6. Documentation & Planning
 
 ### Deployment Roadmap (`docs/deployment-roadmap.md`)
-Comprehensive roadmap with **30 work streams** across 4 priority tiers:
+Comprehensive roadmap with **31 work streams** across 4 priority tiers:
 - **P0 (Launch Blockers):** 9 items — church profile/seed data, website builder fixes, DB cleanup, public website UI fixes, domain routing (laubf.org + admin.laubf.org), image pipeline (WebP/AVIF via Next.js Image), production deployment, auth hardening, daily bread page
 - **P1 (Post-Launch):** 6 items — user management/roles, login/sign-up, transcript AI workflow, video clipping, announcements CMS, dashboard improvements
 - **P2 (Polish):** 10 items — Cloudflare CDN, builder v2, list enhancements, events, SEO, media, ministries, prayer, notifications, testing

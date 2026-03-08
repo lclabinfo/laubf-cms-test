@@ -17,6 +17,7 @@ This document organizes all remaining work into prioritized categories. Tasks ar
 
 | Area | Status |
 |------|--------|
+| Contact form / Visit Us (public form, API, CMS viewer) | ~30% complete (form UI done, API TODO) |
 | CMS core (Messages, Events, Media, People) | ~85% complete |
 | Website rendering (42 section types, theme, fonts) | ~95% complete |
 | Website builder v1 (pages, sections, menus, domains) | 100% complete |
@@ -104,7 +105,7 @@ Fix rendering issues on the public-facing website before launch.
   - [ ] Bible study list page (pagination, card layout)
   - [ ] Bible study detail page (questions, answers, transcript, attachments, key verse)
   - [ ] About / Ministry pages (content renders, images load)
-  - [ ] Contact page (form submission works → ContactSubmission table)
+  - [ ] Contact page (form submission works → ContactSubmission table, see #10)
 - [ ] **4.2 Fix empty paragraph rendering** — Verify the `<p><br></p>` fix in `tiptapJsonToHtml()` works across all content areas.
 - [ ] **4.3 Fix font rendering** — Verify serif fonts (Times New Roman) display correctly for pre-2016 Bible studies, and sans-serif (Calibri/Arial) for post-2016.
 - [ ] **4.4 Mobile responsiveness** — Test all pages at 375px, 768px, 1024px widths.
@@ -112,7 +113,7 @@ Fix rendering issues on the public-facing website before launch.
 - [ ] **4.6 Navigation** — Verify header menu links work, footer links work, mobile menu opens/closes, external links open in new tab.
 - [ ] **4.7 SEO basics** — Verify `<title>`, `<meta description>`, OG tags render on every page type. Check with `curl -s URL | grep '<meta'`.
 - [ ] **4.8 404 page** — Verify invalid slugs return a proper 404 page, not an error.
-- [ ] **4.9 Fix ContactSubmission persistence** — There's a TODO in the form submission route — ensure it actually writes to the database.
+- [ ] **4.9 Fix ContactSubmission persistence** — See dedicated section #10 (Visit Us / Contact Form) for full scope.
 
 ---
 
@@ -370,91 +371,198 @@ Existing files to reference:
 
 ---
 
+### 10. Visit Us / Contact Form (P0)
+
+The public website has a "Visit Us" form section (`FormSection` component) that collects visitor info (name, email, phone, interests, campus, comments, bible teacher request). The form UI is fully built and submits to `POST /api/v1/form-submissions`, but **the API route only logs to console — it doesn't persist to the database**. The `ContactSubmission` model exists in the Prisma schema with all needed fields (`formType`, `name`, `email`, `phone`, `fields` JSONB, `isRead`, `assignedTo`, `notes`). No CMS page exists to view submissions.
+
+**What exists:**
+- `components/website/sections/form-section.tsx` — Full form UI (name, email, phone, interests, campus, comments, bible teacher checkbox)
+- `app/api/v1/form-submissions/route.ts` — API route (has TODO, only `console.log`s)
+- `prisma/schema.prisma` — `ContactSubmission` model with indexes on `churchId+isRead`, `churchId+formType`, `churchId+createdAt`
+- Section is already wired in the website builder section catalog
+
+**What's missing:**
+
+- [ ] **10.1 Fix form submission persistence** — Update `POST /api/v1/form-submissions` to write to `ContactSubmission` table via Prisma:
+  - Map form fields: `name` = `${firstName} ${lastName}`, `email`, `phone`, `formType` = `"visit-us"`
+  - Store extra fields (`interests`, `otherInterest`, `campus`, `otherCampus`, `comments`, `bibleTeacher`) in the `fields` JSONB column
+  - Return the created submission ID in the response
+- [ ] **10.2 Email notification on submission** — When a form is submitted, send an email to the church's contact email (from `SiteSettings.email` or a configurable recipient):
+  - Use email provider (Resend recommended — see #24.1) or fall back to a simple SMTP/Nodemailer setup
+  - Email template: "New Visit Us Form Submission" with all submitted fields formatted in a readable layout
+  - Include a direct link to the CMS submission detail page (e.g., `admin.laubf.org/cms/form-submissions/[id]`)
+  - Consider a simple env var `NOTIFICATION_EMAIL` for MVP (no email provider dependency)
+- [ ] **10.3 CMS form submissions list page** — `/cms/form-submissions` (or `/cms/submissions`):
+  - Data table with columns: Name, Email, Date, Read/Unread status, Interests summary
+  - Filter by: read/unread, date range, form type
+  - Sort by: date (default newest first), name
+  - Bulk mark as read/unread
+  - Add to CMS sidebar under a "Forms" or "Submissions" menu item
+- [ ] **10.4 CMS submission detail view** — Click a submission row to see full details:
+  - All submitted fields displayed in a clean layout
+  - Mark as read/unread toggle
+  - Internal notes field (staff can add notes about follow-up)
+  - Assign to a team member (dropdown of ChurchMember records)
+  - Delete submission
+- [ ] **10.5 DAL module** — Create `lib/dal/form-submissions.ts`:
+  - `listSubmissions(churchId, filters)` — Cursor-paginated list with read/unread/formType/date filters
+  - `getSubmission(churchId, id)` — Single submission with all fields
+  - `markAsRead(churchId, id)` / `markAsUnread(churchId, id)`
+  - `updateNotes(churchId, id, notes)`
+  - `assignSubmission(churchId, id, assignedTo)`
+  - `deleteSubmission(churchId, id)` — Hard delete
+  - `getUnreadCount(churchId)` — For sidebar badge
+- [ ] **10.6 API routes** — `app/api/v1/form-submissions/`:
+  - `GET /` — List submissions (paginated, filtered)
+  - `GET /[id]` — Single submission
+  - `PATCH /[id]` — Update read status, notes, assignment
+  - `DELETE /[id]` — Delete submission
+  - `POST /[id]/mark-read` — Quick mark as read
+- [ ] **10.7 Unread badge in CMS sidebar** — Show count of unread submissions next to "Submissions" menu item (red badge, like email inbox).
+- [ ] **10.8 Reply-by-email (optional)** — Add a "Reply" button in the CMS detail view that opens a compose dialog and sends an email response to the submitter from the church's email address. This requires an email provider with sending capability.
+
+<details>
+<summary>AI Prompt: Visit Us / Contact Form Feature</summary>
+
+```
+Implement the full Visit Us / Contact Form pipeline: persistence, CMS viewer, email notification.
+
+Current state:
+- Form UI: components/website/sections/form-section.tsx (DONE, fully built)
+- API route: app/api/v1/form-submissions/route.ts (has TODO, only console.log)
+- Schema: ContactSubmission model in prisma/schema.prisma (DONE)
+  Fields: id, churchId, formType, name, email, phone, subject, message, fields (JSONB),
+  isRead, readAt, assignedTo, notes, createdAt
+
+Step 1: Fix the API route (app/api/v1/form-submissions/route.ts)
+- Import prisma from @/lib/db
+- Replace console.log with prisma.contactSubmission.create()
+- Map: name = `${firstName} ${lastName}`, formType = "visit-us"
+- Store interests, campus, bibleTeacher, etc. in fields JSONB
+- After DB write, trigger email notification (async, don't block response)
+
+Step 2: Create DAL (lib/dal/form-submissions.ts)
+- listSubmissions(churchId, { isRead?, formType?, cursor?, limit? })
+- getSubmission(churchId, id)
+- markAsRead/markAsUnread
+- updateNotes, assignSubmission, deleteSubmission
+- getUnreadCount(churchId) for sidebar badge
+
+Step 3: Create API routes for CMS
+- GET /api/v1/form-submissions (list, paginated)
+- GET /api/v1/form-submissions/[id] (detail)
+- PATCH /api/v1/form-submissions/[id] (update read/notes/assignee)
+- DELETE /api/v1/form-submissions/[id]
+
+Step 4: Create CMS page
+- app/cms/(dashboard)/form-submissions/page.tsx — list view with DataTable
+- app/cms/(dashboard)/form-submissions/[id]/page.tsx — detail view
+- Add sidebar link with unread count badge
+
+Step 5: Email notification
+- Create lib/email/send-notification.ts
+- On form submit, send email to NOTIFICATION_EMAIL env var (or SiteSettings.email)
+- Template: "New Visit Us Submission from {name}" with all fields
+- Include link to CMS detail page
+- Use Resend (npm install resend) or Nodemailer as fallback
+
+Key files:
+- prisma/schema.prisma (ContactSubmission model — already exists)
+- app/api/v1/form-submissions/route.ts (fix TODO)
+- lib/dal/form-submissions.ts (create)
+- app/cms/(dashboard)/form-submissions/ (create)
+- components/cms/form-submissions/ (create list + detail components)
+- lib/email/send-notification.ts (create)
+```
+</details>
+
+---
+
 ## P1: Post-Launch High Priority
 
 Ship within 2-4 weeks after launch.
 
 ---
 
-### 10. User Management & Roles (P1)
+### 11. User Management & Roles (P1)
 
 The ChurchMember model exists with OWNER/ADMIN/EDITOR/VIEWER roles, but there's no admin UI for managing users.
 
-- [ ] **10.1 User list page** — `/cms/settings/users` showing all ChurchMember records for the church. Columns: name, email, role, last login, status.
-- [ ] **10.2 Invite user flow** — Button to invite by email. Creates User + ChurchMember record. Sends invitation email (or shows a link to share).
-- [ ] **10.3 Change user role** — Dropdown to change ADMIN/EDITOR/VIEWER. Only OWNER can promote to ADMIN.
-- [ ] **10.4 Deactivate user** — Soft-disable a user's access without deleting their account.
-- [ ] **10.5 Connect to Person records** — Link ChurchMember (auth user) to Person (member directory) so logged-in members see their profile.
-- [ ] **10.6 Role-based UI gating** — Hide CMS sidebar items based on role:
+- [ ] **11.1 User list page** — `/cms/settings/users` showing all ChurchMember records for the church. Columns: name, email, role, last login, status.
+- [ ] **11.2 Invite user flow** — Button to invite by email. Creates User + ChurchMember record. Sends invitation email (or shows a link to share).
+- [ ] **11.3 Change user role** — Dropdown to change ADMIN/EDITOR/VIEWER. Only OWNER can promote to ADMIN.
+- [ ] **11.4 Deactivate user** — Soft-disable a user's access without deleting their account.
+- [ ] **11.5 Connect to Person records** — Link ChurchMember (auth user) to Person (member directory) so logged-in members see their profile.
+- [ ] **11.6 Role-based UI gating** — Hide CMS sidebar items based on role:
   - VIEWER: read-only access to all content
   - EDITOR: can edit content but not settings/users
   - ADMIN: full access except ownership transfer
   - OWNER: full access including billing and ownership
-- [ ] **10.7 Role-based API gating** — `requireApiAuth()` already accepts roles. Audit all API routes to ensure correct role requirements.
+- [ ] **11.7 Role-based API gating** — `requireApiAuth()` already accepts roles. Audit all API routes to ensure correct role requirements.
 
 ---
 
-### 11. Login & Sign-Up (P1)
+### 12. Login & Sign-Up (P1)
 
 Expand auth beyond admin-only to support member login.
 
-- [ ] **11.1 Public sign-up page** — `/sign-up` page for church members (not CMS admins). Creates User with no ChurchMember role (member-only access).
-- [ ] **11.2 Email verification** — Send verification email on sign-up. Block login until verified. Schema has `emailVerified` field.
-- [ ] **11.3 Member portal** — `/member` dashboard after login showing: my profile, my groups, prayer requests, giving history (future).
-- [ ] **11.4 Choose email provider** — Resend (recommended in docs), SendGrid, or AWS SES for transactional emails (verification, password reset, invitations).
-- [ ] **11.5 2FA (optional)** — Schema has `twoFactorEnabled` and `twoFactorSecret`. Implement TOTP-based 2FA for admin accounts.
+- [ ] **12.1 Public sign-up page** — `/sign-up` page for church members (not CMS admins). Creates User with no ChurchMember role (member-only access).
+- [ ] **12.2 Email verification** — Send verification email on sign-up. Block login until verified. Schema has `emailVerified` field.
+- [ ] **12.3 Member portal** — `/member` dashboard after login showing: my profile, my groups, prayer requests, giving history (future).
+- [ ] **12.4 Choose email provider** — Resend (recommended in docs), SendGrid, or AWS SES for transactional emails (verification, password reset, invitations).
+- [ ] **12.5 2FA (optional)** — Schema has `twoFactorEnabled` and `twoFactorSecret`. Implement TOTP-based 2FA for admin accounts.
 
 ---
 
-### 12. Transcript AI Workflow (P1)
+### 13. Transcript AI Workflow (P1)
 
 Frontend UI is built but backend is stubbed with mocks. Three AI workflows defined in `docs/transcript-ai-flows.md`.
 
-- [ ] **12.1 Configure Azure OpenAI** — Set AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT in env.
-- [ ] **12.2 YouTube caption import** — Wire `GET /api/v1/youtube/captions` to actually call YouTube Data API v3. Requires YOUTUBE_API_KEY.
-- [ ] **12.3 AI transcript alignment** — Wire `POST /api/v1/ai/align-transcript` to call Azure OpenAI. Takes raw text + video duration → returns timestamped segments.
-- [ ] **12.4 AI caption cleanup** — Wire `POST /api/v1/ai/cleanup-captions` to clean up YouTube auto-captions (punctuation, capitalization, paragraph breaks).
-- [ ] **12.5 Whisper transcription** — Wire `POST /api/v1/ai/transcribe` to generate transcript from audio/video file. Options: OpenAI Whisper API, AssemblyAI, or self-hosted Whisper.
-- [ ] **12.6 Test end-to-end** — Upload a video → generate transcript → align timestamps → save → verify on public site.
+- [ ] **13.1 Configure Azure OpenAI** — Set AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT in env.
+- [ ] **13.2 YouTube caption import** — Wire `GET /api/v1/youtube/captions` to actually call YouTube Data API v3. Requires YOUTUBE_API_KEY.
+- [ ] **13.3 AI transcript alignment** — Wire `POST /api/v1/ai/align-transcript` to call Azure OpenAI. Takes raw text + video duration → returns timestamped segments.
+- [ ] **13.4 AI caption cleanup** — Wire `POST /api/v1/ai/cleanup-captions` to clean up YouTube auto-captions (punctuation, capitalization, paragraph breaks).
+- [ ] **13.5 Whisper transcription** — Wire `POST /api/v1/ai/transcribe` to generate transcript from audio/video file. Options: OpenAI Whisper API, AssemblyAI, or self-hosted Whisper.
+- [ ] **13.6 Test end-to-end** — Upload a video → generate transcript → align timestamps → save → verify on public site.
 
 ---
 
-### 13. Video Clipping (P1)
+### 14. Video Clipping (P1)
 
 Not yet designed or implemented. Needed for creating shareable sermon clips.
 
-- [ ] **13.1 Define requirements** — What is a clip? A time range within a sermon video (start/end timestamps) with optional title and description.
-- [ ] **13.2 Schema design** — New `VideoClip` model: messageId, title, startTime, endTime, thumbnailUrl, shareUrl, status.
-- [ ] **13.3 Clipping UI in CMS** — In the message editor video tab: "Create Clip" button → set start/end time on video player → title → save.
-- [ ] **13.4 Clip generation backend** — Options:
+- [ ] **14.1 Define requirements** — What is a clip? A time range within a sermon video (start/end timestamps) with optional title and description.
+- [ ] **14.2 Schema design** — New `VideoClip` model: messageId, title, startTime, endTime, thumbnailUrl, shareUrl, status.
+- [ ] **14.3 Clipping UI in CMS** — In the message editor video tab: "Create Clip" button → set start/end time on video player → title → save.
+- [ ] **14.4 Clip generation backend** — Options:
   - FFmpeg server-side (extract segment, transcode, upload to R2)
   - Client-side (use YouTube embed with start/end params — no server processing needed for YouTube videos)
   - Third-party API (Mux, Cloudflare Stream)
-- [ ] **13.5 Clip sharing** — Public URL `/clips/[id]` that embeds just the clip segment. OG tags for social sharing.
-- [ ] **13.6 Clip gallery** — Public page showing all clips, filterable by series/speaker.
+- [ ] **14.5 Clip sharing** — Public URL `/clips/[id]` that embeds just the clip segment. OG tags for social sharing.
+- [ ] **14.6 Clip gallery** — Public page showing all clips, filterable by series/speaker.
 
 ---
 
-### 14. Announcements CMS (P1)
+### 15. Announcements CMS (P1)
 
 Schema and DAL exist but no CMS page.
 
-- [ ] **14.1 Announcements list page** — `/cms/announcements` with data table. Columns: title, date range, priority, status, pinned.
-- [ ] **14.2 Create/edit announcement** — Form with: title, body (rich text), start date, end date, priority (LOW/MEDIUM/HIGH/URGENT), pinned toggle, cover image.
-- [ ] **14.3 Auto-expiration** — Announcements past their end date auto-archive (cron or on-read filter).
-- [ ] **14.4 Wire to website** — ANNOUNCEMENTS_LIST section type should pull from DAL and render active announcements.
+- [ ] **15.1 Announcements list page** — `/cms/announcements` with data table. Columns: title, date range, priority, status, pinned.
+- [ ] **15.2 Create/edit announcement** — Form with: title, body (rich text), start date, end date, priority (LOW/MEDIUM/HIGH/URGENT), pinned toggle, cover image.
+- [ ] **15.3 Auto-expiration** — Announcements past their end date auto-archive (cron or on-read filter).
+- [ ] **15.4 Wire to website** — ANNOUNCEMENTS_LIST section type should pull from DAL and render active announcements.
 
 ---
 
-### 15. CMS Dashboard (P1)
+### 16. CMS Dashboard (P1)
 
 Currently a health monitoring page exists but is limited.
 
-- [ ] **15.1 Quick actions widget** — "New Message", "New Event", "Upload Media", "Edit Pages" buttons.
-- [ ] **15.2 Content health widget** — Color-coded cards (Green/Yellow/Red) for messages, events, pages, media. Flag stale content (>30 days since last update).
-- [ ] **15.3 Upcoming events widget** — Next 5 events with date, time, type badge.
-- [ ] **15.4 Recent activity feed** — Last 10 actions from AuditLog table (create, edit, publish, delete).
-- [ ] **15.5 At-a-glance stats** — Total counts for messages, events, pages, media with published/draft breakdown.
+- [ ] **16.1 Quick actions widget** — "New Message", "New Event", "Upload Media", "Edit Pages" buttons.
+- [ ] **16.2 Content health widget** — Color-coded cards (Green/Yellow/Red) for messages, events, pages, media. Flag stale content (>30 days since last update).
+- [ ] **16.3 Upcoming events widget** — Next 5 events with date, time, type badge.
+- [ ] **16.4 Recent activity feed** — Last 10 actions from AuditLog table (create, edit, publish, delete).
+- [ ] **16.5 At-a-glance stats** — Total counts for messages, events, pages, media with published/draft breakdown.
 
 ---
 
@@ -464,7 +572,7 @@ Ship when capacity allows.
 
 ---
 
-### 16. Cloudflare CDN Setup (P2)
+### 17. Cloudflare CDN Setup (P2)
 
 Configure Cloudflare as CDN and security layer in front of the hosting provider. Full guide in `docs/cloudflare-cdn-setup.md`.
 
@@ -529,100 +637,100 @@ Reference: docs/cloudflare-cdn-setup.md for full configuration guide.
 
 ---
 
-### 17. Website Builder v2 — Full-Screen Canvas (P2)
+### 18. Website Builder v2 — Full-Screen Canvas (P2)
 
 The ambitious WYSIWYG builder. Not a launch blocker but significantly improves the editing experience. 48 tasks across 9 phases documented in `docs/00_dev-notes/development-status.md`.
 
-- [ ] **13.1 Builder shell** — Full-screen layout with sidebar (page tree + section list), canvas (iframe or inline render), and floating toolbar.
-- [ ] **13.2 Canvas rendering** — Live preview of the page using actual section components.
-- [ ] **13.3 Section selection** — Click a section in canvas to select → show floating toolbar (move up/down, edit, duplicate, delete, visibility).
-- [ ] **13.4 Drag-and-drop reorder** — Drag sections in sidebar or canvas to reorder.
-- [ ] **13.5 Inline text editing** — Click text in canvas to edit directly (contentEditable → sync to TipTap JSON).
-- [ ] **13.6 Device preview** — Desktop (100%), tablet (768px), mobile (375px) mode switcher.
-- [ ] **13.7 Undo/redo** — In-memory state history (50 snapshots max) per architecture doc.
-- [ ] **13.8 Auto-save** — 30-second debounce auto-save with manual Ctrl+S override.
+- [ ] **18.1 Builder shell** — Full-screen layout with sidebar (page tree + section list), canvas (iframe or inline render), and floating toolbar.
+- [ ] **18.2 Canvas rendering** — Live preview of the page using actual section components.
+- [ ] **18.3 Section selection** — Click a section in canvas to select → show floating toolbar (move up/down, edit, duplicate, delete, visibility).
+- [ ] **18.4 Drag-and-drop reorder** — Drag sections in sidebar or canvas to reorder.
+- [ ] **18.5 Inline text editing** — Click text in canvas to edit directly (contentEditable → sync to TipTap JSON).
+- [ ] **18.6 Device preview** — Desktop (100%), tablet (768px), mobile (375px) mode switcher.
+- [ ] **18.7 Undo/redo** — In-memory state history (50 snapshots max) per architecture doc.
+- [ ] **18.8 Auto-save** — 30-second debounce auto-save with manual Ctrl+S override.
 
 ---
 
-### 18. Messages List Enhancements (P2)
+### 19. Messages List Enhancements (P2)
 
 Bulk actions UI exists but handlers aren't wired.
 
-- [ ] **18.1 Wire bulk publish** — Select multiple messages → "Publish" → batch update status.
-- [ ] **18.2 Wire bulk archive** — Select → "Archive" → batch update.
-- [ ] **18.3 Wire bulk delete** — Select → "Delete" → confirmation → batch soft-delete.
-- [ ] **18.4 Speaker filter** — Combobox filter in toolbar.
-- [ ] **18.5 Series filter** — Combobox filter in toolbar.
-- [ ] **18.6 Bible book filter** — Filter messages by book from passage field.
-- [ ] **18.7 Mobile card view** — Responsive layout for narrow screens (cards instead of table).
+- [ ] **19.1 Wire bulk publish** — Select multiple messages → "Publish" → batch update status.
+- [ ] **19.2 Wire bulk archive** — Select → "Archive" → batch update.
+- [ ] **19.3 Wire bulk delete** — Select → "Delete" → confirmation → batch soft-delete.
+- [ ] **19.4 Speaker filter** — Combobox filter in toolbar.
+- [ ] **19.5 Series filter** — Combobox filter in toolbar.
+- [ ] **19.6 Bible book filter** — Filter messages by book from passage field.
+- [ ] **19.7 Mobile card view** — Responsive layout for narrow screens (cards instead of table).
 
 ---
 
-### 19. Event Enhancements (P2)
+### 20. Event Enhancements (P2)
 
-- [ ] **19.1 Event sharing** — Shareable link, Google Calendar add, Apple Calendar add (.ics file).
-- [ ] **19.2 Duplicate event** — Wire the existing menu option to actually clone an event.
-- [ ] **19.3 Preview before publish** — Side-by-side preview of event detail page.
-- [ ] **19.4 Event form field gaps** — Add slug, shortDescription, campus, tags, image alt text, image object position to form.
-
----
-
-### 20. SEO & Performance (P2)
-
-- [ ] **20.1 Sitemap generation** — Auto-generated `sitemap.xml` from all published pages, messages, events, bible studies.
-- [ ] **20.2 Structured data (JSON-LD)** — Church schema, Event schema, VideoObject schema on relevant pages.
-- [ ] **20.3 301 redirects** — Admin UI for managing URL redirects (old laubf.org URLs → new paths).
+- [ ] **20.1 Event sharing** — Shareable link, Google Calendar add, Apple Calendar add (.ics file).
+- [ ] **20.2 Duplicate event** — Wire the existing menu option to actually clone an event.
+- [ ] **20.3 Preview before publish** — Side-by-side preview of event detail page.
+- [ ] **20.4 Event form field gaps** — Add slug, shortDescription, campus, tags, image alt text, image object position to form.
 
 ---
 
-### 21. Media Library Enhancements (P2)
+### 21. SEO & Performance (P2)
 
-- [ ] **21.1 Usage tracking** — "Where is this used?" panel showing which pages/sections/messages reference a media asset.
-- [ ] **21.2 Bulk metadata editing** — Select multiple items → edit alt text, tags, folder in batch.
-- [ ] **21.3 Image editor** — Basic crop/resize before upload.
-- [ ] **21.4 Google Photos sync** — OAuth flow to connect Google Photos account, import albums. UI stub exists but no backend.
+- [ ] **21.1 Sitemap generation** — Auto-generated `sitemap.xml` from all published pages, messages, events, bible studies.
+- [ ] **21.2 Structured data (JSON-LD)** — Church schema, Event schema, VideoObject schema on relevant pages.
+- [ ] **21.3 301 redirects** — Admin UI for managing URL redirects (old laubf.org URLs → new paths).
 
 ---
 
-### 22. Ministry & Campus Pages (P2)
+### 22. Media Library Enhancements (P2)
+
+- [ ] **22.1 Usage tracking** — "Where is this used?" panel showing which pages/sections/messages reference a media asset.
+- [ ] **22.2 Bulk metadata editing** — Select multiple items → edit alt text, tags, folder in batch.
+- [ ] **22.3 Image editor** — Basic crop/resize before upload.
+- [ ] **22.4 Google Photos sync** — OAuth flow to connect Google Photos account, import albums. UI stub exists but no backend.
+
+---
+
+### 23. Ministry & Campus Pages (P2)
 
 Not yet built. Schema (Ministry, Campus models) exists.
 
-- [ ] **22.1 Ministry list page** — `/cms/ministries` (separate from people/ministries — this is for public-facing ministry pages).
-- [ ] **22.2 Ministry detail editor** — Hero image, description (rich text), leadership (linked Person records), events, contact info.
-- [ ] **22.3 Campus detail editor** — Similar structure for multi-campus churches.
-- [ ] **22.4 Wire to website** — Ministry and campus pages auto-generated from DB, rendered via section types.
+- [ ] **23.1 Ministry list page** — `/cms/ministries` (separate from people/ministries — this is for public-facing ministry pages).
+- [ ] **23.2 Ministry detail editor** — Hero image, description (rich text), leadership (linked Person records), events, contact info.
+- [ ] **23.3 Campus detail editor** — Similar structure for multi-campus churches.
+- [ ] **23.4 Wire to website** — Ministry and campus pages auto-generated from DB, rendered via section types.
 
 ---
 
-### 23. Prayer Requests (P2)
+### 24. Prayer Requests (P2)
 
 Feature flag exists (`SiteSettings.enablePrayerRequests`) but no model or UI.
 
-- [ ] **23.1 Schema** — New `PrayerRequest` model: churchId, authorId (optional), title, body, isAnonymous, status (ACTIVE/ANSWERED/ARCHIVED), prayerCount, createdAt.
-- [ ] **23.2 Public submission form** — Accessible from website (if feature enabled). Anonymous or logged-in submission.
-- [ ] **23.3 CMS moderation** — `/cms/prayer` page to review, approve, archive prayer requests.
-- [ ] **23.4 Public prayer wall** — Website section showing approved requests with "I prayed" button.
+- [ ] **24.1 Schema** — New `PrayerRequest` model: churchId, authorId (optional), title, body, isAnonymous, status (ACTIVE/ANSWERED/ARCHIVED), prayerCount, createdAt.
+- [ ] **24.2 Public submission form** — Accessible from website (if feature enabled). Anonymous or logged-in submission.
+- [ ] **24.3 CMS moderation** — `/cms/prayer` page to review, approve, archive prayer requests.
+- [ ] **24.4 Public prayer wall** — Website section showing approved requests with "I prayed" button.
 
 ---
 
-### 24. Notification System (P2)
+### 25. Notification System (P2)
 
-- [ ] **24.1 Choose email provider** — Resend recommended. Set up account and API key.
-- [ ] **24.2 Transactional emails** — Password reset, email verification, user invitation templates.
-- [ ] **24.3 In-app notifications** — Bell icon in CMS header. Notification model (type, message, read, link). Show: stale content flags, new form submissions, user invites.
-- [ ] **24.4 Email digests** — Weekly summary of content health, new submissions, upcoming events.
+- [ ] **25.1 Choose email provider** — Resend recommended. Set up account and API key.
+- [ ] **25.2 Transactional emails** — Password reset, email verification, user invitation templates.
+- [ ] **25.3 In-app notifications** — Bell icon in CMS header. Notification model (type, message, read, link). Show: stale content flags, new form submissions, user invites.
+- [ ] **25.4 Email digests** — Weekly summary of content health, new submissions, upcoming events.
 
 ---
 
-### 25. Testing (P2)
+### 26. Testing (P2)
 
 Zero tests exist currently.
 
-- [ ] **25.1 Unit tests** — Test critical DAL functions (message CRUD, event filtering, storage quota).
-- [ ] **25.2 API integration tests** — Test all 66 API endpoints with proper auth headers.
-- [ ] **25.3 E2E tests** — Playwright tests for: login, create message, create event, upload media, edit page.
-- [ ] **25.4 CI pipeline** — GitHub Actions: lint → type-check → test → build on every PR.
+- [ ] **26.1 Unit tests** — Test critical DAL functions (message CRUD, event filtering, storage quota).
+- [ ] **26.2 API integration tests** — Test all 66 API endpoints with proper auth headers.
+- [ ] **26.3 E2E tests** — Playwright tests for: login, create message, create event, upload media, edit page.
+- [ ] **26.4 CI pipeline** — GitHub Actions: lint → type-check → test → build on every PR.
 
 ---
 
@@ -632,52 +740,52 @@ Not needed for LA UBF launch. Required for scaling to multiple churches.
 
 ---
 
-### 26. Multi-Tenant Middleware (P3)
+### 27. Multi-Tenant Middleware (P3)
 
 Currently single-tenant via `CHURCH_SLUG` env var.
 
-- [ ] **26.1 Hostname-based routing** — Middleware detects subdomain or custom domain → resolves to churchId → sets `x-tenant-id` header.
-- [ ] **26.2 Custom domain resolution** — Lookup `CustomDomain` table by hostname → resolve to church.
-- [ ] **26.3 Redis caching** — Cache domain→church mappings in Upstash Redis (5-min TTL).
-- [ ] **26.4 PostgreSQL Row-Level Security** — Enable RLS on all tenant-scoped tables. Set `app.current_church_id` per request.
+- [ ] **27.1 Hostname-based routing** — Middleware detects subdomain or custom domain → resolves to churchId → sets `x-tenant-id` header.
+- [ ] **27.2 Custom domain resolution** — Lookup `CustomDomain` table by hostname → resolve to church.
+- [ ] **27.3 Redis caching** — Cache domain→church mappings in Upstash Redis (5-min TTL).
+- [ ] **27.4 PostgreSQL Row-Level Security** — Enable RLS on all tenant-scoped tables. Set `app.current_church_id` per request.
 
 ---
 
-### 27. Billing & Subscriptions (P3)
+### 28. Billing & Subscriptions (P3)
 
-- [ ] **27.1 Stripe integration** — Connect Stripe account, configure products/prices for Free/Starter/Pro tiers.
-- [ ] **27.2 Checkout flow** — Church admin clicks "Upgrade" → Stripe Checkout → webhook updates subscription.
-- [ ] **27.3 Feature gating** — `canAccessFeature(church, feature)` function checks plan tier + feature flags.
-- [ ] **27.4 Billing page** — `/cms/settings/billing` showing current plan, usage, invoices.
-- [ ] **27.5 Superadmin billing dashboard** — Revenue, MRR, churn, plan distribution.
-
----
-
-### 28. Onboarding Flow (P3)
-
-- [ ] **28.1 Church registration** — Sign up → create church → choose template → configure basics.
-- [ ] **28.2 Setup wizard** — Step-by-step: church info → template → logo/colors → modules → invite team.
-- [ ] **28.3 Demo content** — Pre-populate sample messages, events, pages so the site isn't empty.
+- [ ] **28.1 Stripe integration** — Connect Stripe account, configure products/prices for Free/Starter/Pro tiers.
+- [ ] **28.2 Checkout flow** — Church admin clicks "Upgrade" → Stripe Checkout → webhook updates subscription.
+- [ ] **28.3 Feature gating** — `canAccessFeature(church, feature)` function checks plan tier + feature flags.
+- [ ] **28.4 Billing page** — `/cms/settings/billing` showing current plan, usage, invoices.
+- [ ] **28.5 Superadmin billing dashboard** — Revenue, MRR, churn, plan distribution.
 
 ---
 
-### 29. Superadmin Console (P3)
+### 29. Onboarding Flow (P3)
 
-- [ ] **29.1 Church list** — All churches with plan, status, MRR, last login.
-- [ ] **29.2 Church detail** — Profile, subscription, usage, members, feature flags, audit log.
-- [ ] **29.3 Impersonation** — "Login as church" with signed JWT, yellow banner, full audit logging.
-- [ ] **29.4 Support tickets** — In-CMS ticket submission, superadmin queue, conversation threads.
+- [ ] **29.1 Church registration** — Sign up → create church → choose template → configure basics.
+- [ ] **29.2 Setup wizard** — Step-by-step: church info → template → logo/colors → modules → invite team.
+- [ ] **29.3 Demo content** — Pre-populate sample messages, events, pages so the site isn't empty.
 
 ---
 
-### 30. Content Generalization (P3)
+### 30. Superadmin Console (P3)
+
+- [ ] **30.1 Church list** — All churches with plan, status, MRR, last login.
+- [ ] **30.2 Church detail** — Profile, subscription, usage, members, feature flags, audit log.
+- [ ] **30.3 Impersonation** — "Login as church" with signed JWT, yellow banner, full audit logging.
+- [ ] **30.4 Support tickets** — In-CMS ticket submission, superadmin queue, conversation threads.
+
+---
+
+### 31. Content Generalization (P3)
 
 Make LA UBF-specific models work for any church.
 
-- [ ] **30.1 Feature flags** — `Church.featureFlags` JSON field controlling which modules are enabled.
-- [ ] **30.2 Configurable labels** — "Sermons" vs "Messages" vs "Teachings" — per-church content type labels.
-- [ ] **30.3 Dynamic CMS sidebar** — Show/hide menu items based on enabled modules.
-- [ ] **30.4 Website templates** — Template selection during onboarding, multiple starter layouts.
+- [ ] **31.1 Feature flags** — `Church.featureFlags` JSON field controlling which modules are enabled.
+- [ ] **31.2 Configurable labels** — "Sermons" vs "Messages" vs "Teachings" — per-church content type labels.
+- [ ] **31.3 Dynamic CMS sidebar** — Show/hide menu items based on enabled modules.
+- [ ] **31.4 Website templates** — Template selection during onboarding, multiple starter layouts.
 
 ---
 
@@ -689,24 +797,25 @@ Make LA UBF-specific models work for any church.
 3. Domain Routing & Route Group Restructure (#5)
 4. Image Pipeline & WebP (#6)
 5. Auth Hardening (#8)
-6. Public Website UI Fixes (#4)
-7. Website Builder Fixes (#2)
-8. Daily Bread Page (#9)
-9. Production Deployment (#7)
+6. Visit Us / Contact Form (#10) — quick win, schema exists
+7. Public Website UI Fixes (#4)
+8. Website Builder Fixes (#2)
+9. Daily Bread Page (#9)
+10. Production Deployment (#7)
 
 ### Phase 2: Post-Launch Sprint (P1 items)
-10. User Management & Roles (#10)
-11. Login & Sign-Up (#11)
-12. Announcements CMS (#14)
-13. CMS Dashboard (#15)
-14. Transcript AI Workflow (#12)
-15. Video Clipping (#13)
+11. User Management & Roles (#11)
+12. Login & Sign-Up (#12)
+13. Announcements CMS (#15)
+14. CMS Dashboard (#16)
+15. Transcript AI Workflow (#13)
+16. Video Clipping (#14)
 
 ### Phase 3: Polish (P2 items)
-16-25. Cloudflare CDN, builder v2, list enhancements, events, SEO, media, ministries, prayer, notifications, testing — as capacity allows.
+17-26. Cloudflare CDN, builder v2, list enhancements, events, SEO, media, ministries, prayer, notifications, testing — as capacity allows.
 
 ### Phase 4: Platform (P3 items)
-26-30. Multi-tenant, billing, onboarding, superadmin, content generalization — when ready for church #2.
+27-31. Multi-tenant, billing, onboarding, superadmin, content generalization — when ready for church #2.
 
 ---
 
@@ -718,13 +827,15 @@ Make LA UBF-specific models work for any church.
 | Image Pipeline (#6) | R2 media bucket configured | Need actual images uploaded |
 | Production Deployment (#7) | #1, #3, #5, #6, #8 | Can't deploy with wrong data/routes |
 | Daily Bread (#9) | Route group restructure (#5) | Page path depends on `/(website)` |
-| User Management (#10) | Auth Hardening (#8) | Need solid auth before adding users |
-| Login & Sign-Up (#11) | Email Provider (#24.1) | Need transactional email for verification |
-| Transcript AI (#12) | Azure OpenAI, YouTube API key | External service config |
-| Video Clipping (#13) | Requirements definition | Need to decide approach first |
-| Cloudflare CDN (#16) | Production Deployment (#7) | Need live domain to configure |
-| Multi-Tenant (#26) | Production Deployment (#7) | Need single-tenant running first |
-| Billing (#27) | Multi-Tenant (#26) | Need multi-tenant before billing |
+| Visit Us Form (#10) | None | Schema exists, quick to wire up |
+| Contact Form Email (#10.2) | Email Provider (#25.1) | Need email sending capability |
+| User Management (#11) | Auth Hardening (#8) | Need solid auth before adding users |
+| Login & Sign-Up (#12) | Email Provider (#25.1) | Need transactional email for verification |
+| Transcript AI (#13) | Azure OpenAI, YouTube API key | External service config |
+| Video Clipping (#14) | Requirements definition | Need to decide approach first |
+| Cloudflare CDN (#17) | Production Deployment (#7) | Need live domain to configure |
+| Multi-Tenant (#27) | Production Deployment (#7) | Need single-tenant running first |
+| Billing (#28) | Multi-Tenant (#27) | Need multi-tenant before billing |
 
 ---
 
@@ -734,7 +845,6 @@ These small tasks can be knocked out quickly between larger work:
 
 - [ ] Wire bulk action handlers on messages list (publish/archive/delete)
 - [ ] Add "View Page" button in website builder → opens public URL
-- [ ] Fix ContactSubmission persistence (TODO in code)
 - [ ] Add sitemap.xml generation
 - [ ] Set up Sentry error tracking
 - [ ] Add `robots.txt` for SEO

@@ -703,13 +703,41 @@ Issues found in the website mock data that should be corrected:
 
 ---
 
+## 8. Form Submissions (Contact / Visit Us)
+
+The public website includes a "Visit Us" form (section type: `FORM_SECTION`) that collects visitor information. Submissions must be persisted and viewable by admins.
+
+### 8.1 Submission Persistence
+- ❌ [P0] Form submissions from the public website are saved to the `ContactSubmission` table (schema exists, API route has a TODO).
+- ❌ [P0] Submissions capture: name, email, phone, interests, campus, comments, bible teacher request (stored in `fields` JSONB).
+
+### 8.2 CMS Submissions Viewer
+- ❌ [P0] Admins can view all form submissions in a list at `/cms/form-submissions`.
+- ❌ [P0] List shows: name, email, date, read/unread status, interests summary.
+- ❌ [P0] Admins can click a submission to see full details.
+- ❌ [P0] Admins can mark submissions as read/unread.
+- ❌ [P1] Admins can add internal notes to a submission (for follow-up tracking).
+- ❌ [P1] Admins can assign a submission to a team member.
+- ❌ [P1] Unread count badge shown in CMS sidebar next to "Submissions" menu item.
+
+### 8.3 Email Notifications
+- ❌ [P0] When a form is submitted, an email notification is sent to a configurable recipient (church contact email or `NOTIFICATION_EMAIL` env var).
+- ❌ [P1] Email includes all submitted fields and a link to view the submission in the CMS.
+- ❌ [P2] Admins can reply to submissions via email from the CMS detail view.
+
+### 8.4 Form Configuration
+- ❌ [P2] Admins can customize form fields (add/remove interest options, campus options) via the website builder section editor.
+- ❌ [P2] Admins can create additional form types beyond "Visit Us" (e.g., prayer request, volunteer sign-up).
+
+---
+
 ## Appendix: CMS Navigation Structure
 
 Based on the Figma prototype, the CMS sidebar groups content as follows:
 
 | Group | Menu Items |
 |---|---|
-| **Contents** | Dashboard, Messages, Events, Media |
+| **Contents** | Dashboard, Messages, Events, Media, Submissions |
 | **Website** | Pages, Navigation, Theme, Domains |
 | **App** | Notifications, Announcements, Mobile App, Integrations |
 | **Giving** | Donations, Payments, Reports |
