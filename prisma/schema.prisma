@@ -1054,6 +1054,11 @@ model SiteSettings {
   enableAnnouncements  Boolean @default(false)
   enableSearch         Boolean @default(true)
 
+  // Navbar CTA button
+  navCtaLabel    String?
+  navCtaHref     String?
+  navCtaVisible  Boolean @default(false)
+
   // Custom code injection
   customHeadHtml  String? @db.Text
   customBodyHtml  String? @db.Text

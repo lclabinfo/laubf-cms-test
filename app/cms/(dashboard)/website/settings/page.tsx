@@ -72,6 +72,9 @@ interface SiteSettingsData {
   enablePrayerRequests: boolean
   enableAnnouncements: boolean
   enableSearch: boolean
+  navCtaLabel: string | null
+  navCtaHref: string | null
+  navCtaVisible: boolean
   customHeadHtml: string | null
   customBodyHtml: string | null
   maintenanceMode: boolean
@@ -137,6 +140,9 @@ export default function SiteSettingsPage() {
             enablePrayerRequests: false,
             enableAnnouncements: false,
             enableSearch: true,
+            navCtaLabel: null,
+            navCtaHref: null,
+            navCtaVisible: false,
             customHeadHtml: null,
             customBodyHtml: null,
             maintenanceMode: false,
@@ -591,7 +597,59 @@ export default function SiteSettingsPage() {
           </div>
         </section>
 
-        {/* Card 7: SEO & Analytics */}
+        {/* Card 7: Navbar CTA Button */}
+        <section className="rounded-xl border bg-card">
+          <div className="px-5 py-3 border-b">
+            <h2 className="text-sm font-semibold">Navbar CTA Button</h2>
+          </div>
+          <div className="p-5 space-y-4">
+            <div className="flex items-center justify-between gap-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="navCtaVisible" className="text-sm font-medium">
+                  Show CTA Button
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Display a primary call-to-action button in the navbar
+                </p>
+              </div>
+              <Switch
+                id="navCtaVisible"
+                checked={settings.navCtaVisible}
+                onCheckedChange={(checked) =>
+                  updateField("navCtaVisible", checked)
+                }
+              />
+            </div>
+            {settings.navCtaVisible && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="navCtaLabel">Button Label</Label>
+                  <Input
+                    id="navCtaLabel"
+                    value={settings.navCtaLabel ?? ""}
+                    onChange={(e) =>
+                      updateField("navCtaLabel", e.target.value || null)
+                    }
+                    placeholder="e.g. I'm New"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="navCtaHref">Button Link</Label>
+                  <Input
+                    id="navCtaHref"
+                    value={settings.navCtaHref ?? ""}
+                    onChange={(e) =>
+                      updateField("navCtaHref", e.target.value || null)
+                    }
+                    placeholder="e.g. /im-new"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* Card 8: SEO & Analytics */}
         <section className="rounded-xl border bg-card">
           <div className="px-5 py-3 border-b">
             <h2 className="text-sm font-semibold">SEO & Analytics</h2>

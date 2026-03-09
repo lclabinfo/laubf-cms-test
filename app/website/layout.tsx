@@ -55,9 +55,9 @@ export default async function WebsiteLayout({
           logoUrl={siteSettings?.logoUrl ?? null}
           logoAlt={siteSettings?.logoAlt ?? null}
           siteName={siteSettings?.siteName ?? 'Church'}
-          ctaLabel={null}
-          ctaHref={null}
-          ctaVisible={false}
+          ctaLabel={siteSettings?.navCtaLabel ?? null}
+          ctaHref={siteSettings?.navCtaHref ?? null}
+          ctaVisible={siteSettings?.navCtaVisible ?? false}
           memberLoginLabel="Member Login"
           memberLoginHref="/member-login"
           memberLoginVisible={siteSettings?.enableMemberLogin ?? false}
