@@ -16,6 +16,7 @@ import { TableHeader } from "@tiptap/extension-table-header"
 import { TableCell } from "@tiptap/extension-table-cell"
 import { generateHTML } from "@tiptap/html"
 import { Extension } from "@tiptap/core"
+import { Plugin, PluginKey } from "@tiptap/pm/state"
 import type { Extensions } from "@tiptap/react"
 import type { JSONContent } from "@tiptap/core"
 
@@ -149,6 +150,74 @@ const LineSpacing = Extension.create({
 })
 
 /**
+ * ProseMirror plugin that automatically continues ordered list numbering
+ * across non-list content (paragraphs, headings, etc.).
+ *
+ * When the document contains consecutive ordered lists separated by other
+ * block content, this plugin sets the `start` attribute on each subsequent
+ * list so numbering continues from where the previous list left off.
+ *
+ * Example: ol(3 items) → p("V5-14") → ol(start=4, 3 items) → p("V15") → ol(start=7)
+ */
+const listContinuationPluginKey = new PluginKey("listContinuation")
+
+const ListContinuation = Extension.create({
+  name: "listContinuation",
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: listContinuationPluginKey,
+        appendTransaction(_transactions, _oldState, newState) {
+          const { doc, tr } = newState
+          let modified = false
+
+          // Track the running count for consecutive ordered list sequences.
+          // A "sequence" is a series of orderedList nodes that may be
+          // separated by non-list block content (paragraphs, headings, etc.)
+          // but NOT by bulletLists or other list types.
+          //
+          // We reset when we encounter a bulletList — that breaks the
+          // ordered list continuation context.
+          let runningCount = 0
+          let inSequence = false
+
+          doc.forEach((node, offset) => {
+            if (node.type.name === "orderedList") {
+              if (inSequence && runningCount > 0) {
+                const expectedStart = runningCount + 1
+                if (node.attrs.start !== expectedStart) {
+                  tr.setNodeMarkup(offset, undefined, {
+                    ...node.attrs,
+                    start: expectedStart,
+                  })
+                  modified = true
+                }
+                runningCount += node.childCount
+              } else {
+                // First ordered list in a new sequence
+                inSequence = true
+                // Respect existing start attr for the first list
+                runningCount = (node.attrs.start || 1) - 1 + node.childCount
+              }
+            } else if (node.type.name === "bulletList") {
+              // Bullet list breaks the ordered list continuation
+              inSequence = false
+              runningCount = 0
+            }
+            // Other block types (paragraph, heading, blockquote, etc.)
+            // do NOT break the sequence — they're the "gaps" between
+            // ordered lists that we want to bridge.
+          })
+
+          return modified ? tr : null
+        },
+      }),
+    ]
+  },
+})
+
+/**
  * Shared TipTap extension configuration.
  * Used by both the editor component and HTML generation to ensure parity.
  */
@@ -184,6 +253,7 @@ export function getExtensions(placeholder?: string): Extensions {
     Color,
     Highlight.configure({ multicolor: true }),
     LineSpacing,
+    ListContinuation,
     ...(placeholder
       ? [Placeholder.configure({ placeholder })]
       : []),
@@ -258,6 +328,50 @@ export function isTiptapContentEmpty(content: string): boolean {
     // Legacy plain text — check if it has non-whitespace
     return !content.trim()
   }
+}
+
+/**
+ * Post-process TipTap JSON to fix ordered list continuation.
+ *
+ * When importing HTML, each `<ol>` becomes a separate `orderedList` node
+ * with `start: 1`. This function walks the top-level content and sets the
+ * `start` attribute on subsequent ordered lists so numbering continues
+ * from the previous list.
+ *
+ * This mirrors the logic of the `ListContinuation` ProseMirror plugin
+ * but works on static JSON (for import pipelines, seed data, etc.).
+ */
+export function fixOrderedListContinuation(json: JSONContent): JSONContent {
+  if (!json.content) return json
+
+  const fixedContent = [...json.content]
+  let runningCount = 0
+  let inSequence = false
+
+  for (let i = 0; i < fixedContent.length; i++) {
+    const node = fixedContent[i]
+    if (node.type === "orderedList") {
+      const itemCount = node.content?.length ?? 0
+      if (inSequence && runningCount > 0) {
+        const expectedStart = runningCount + 1
+        fixedContent[i] = {
+          ...node,
+          attrs: { ...(node.attrs || {}), start: expectedStart },
+        }
+        runningCount += itemCount
+      } else {
+        inSequence = true
+        const start = node.attrs?.start ?? 1
+        runningCount = start - 1 + itemCount
+      }
+    } else if (node.type === "bulletList") {
+      inSequence = false
+      runningCount = 0
+    }
+    // Other node types (paragraph, heading, etc.) don't break the sequence
+  }
+
+  return { ...json, content: fixedContent }
 }
 
 /**

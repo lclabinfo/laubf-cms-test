@@ -318,8 +318,44 @@ export async function convertDocToHtml(
         return `<p style="${style}">${inner}</p>`
       }
     )
+
+    // Strip em-spaces after numbers in hanging-indent paragraphs.
+    // textutil converts tab stops between "N." and text to em-spaces (\u2003),
+    // but hanging indent (margin-left + text-indent) already provides the spacing.
+    // The em-spaces create an extra visual gap between the number and text.
+    // Note: \s matches \u2003 in JS, so use [ ] for regular space only.
+    bodyHtml = bodyHtml.replace(
+      /<p style="([^"]*text-indent[^"]*)">([ ]*\d+\.[ ]*)\u2003+/g,
+      (_match, style: string, numberPrefix: string) => {
+        return `<p style="${style}">${numberPrefix}`
+      }
+    )
   } else {
     bodyHtml = html
+  }
+
+  // For serif documents, ensure list item text has inline font-family so that
+  // TipTap's generateJSON() picks up the font on text nodes inside lists.
+  // TipTap's FontFamily extension only reads font-family from inline elements
+  // like <span>, not from block-level parents like <ol>/<ul>.
+  if (isSerifDoc && serifFontFamily) {
+    // Add font-family to list containers (for marker rendering)
+    bodyHtml = bodyHtml.replace(/<ol/g, `<ol style="font-family: ${serifFontFamily}"`)
+    bodyHtml = bodyHtml.replace(/<ul/g, `<ul style="font-family: ${serifFontFamily}"`)
+
+    // Wrap text inside <li> elements with font-family span.
+    // Process iteratively to handle nested lists (inner items first).
+    let prev = ""
+    while (prev !== bodyHtml) {
+      prev = bodyHtml
+      bodyHtml = bodyHtml.replace(
+        /<li>([\s\S]*?)<\/li>/g,
+        (fullMatch, inner: string) => {
+          if (/<li>/.test(inner)) return fullMatch
+          return `<li><span style="font-family: ${serifFontFamily}">${inner}</span></li>`
+        },
+      )
+    }
   }
 
   return {

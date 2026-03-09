@@ -214,8 +214,8 @@ export default async function MessageDetailPage({ params }: PageProps) {
             rawTranscript={message.rawTranscript}
           />
 
-          {/* Study Guide Card */}
-          {message.relatedStudy && (
+          {/* Study Guide Card — only show when study is published */}
+          {message.relatedStudy && message.relatedStudy.status === "PUBLISHED" && (
             <Link
               href={resolveHref(`/bible-study/${message.relatedStudy.slug}`)}
               className="group relative rounded-[24px] bg-white-0 border border-accent-blue/20 overflow-hidden p-5 shadow-[0px_10px_15px_-3px_rgba(28,57,142,0.05),0px_4px_6px_-4px_rgba(28,57,142,0.05)] hover:shadow-[0px_10px_15px_-3px_rgba(28,57,142,0.1)] transition-shadow"

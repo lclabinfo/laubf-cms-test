@@ -41,6 +41,7 @@ const dom = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>')
 const { convertDocxToHtml } = await import('../lib/docx-import.ts')
 const { convertDocToHtml } = await import('../lib/doc-convert.ts')
 const { generateJSON } = await import('@tiptap/html')
+const { fixOrderedListContinuation } = await import('../lib/tiptap.ts')
 
 // TipTap extensions (mirror getExtensions() from lib/tiptap.ts)
 const { default: StarterKit } = await import('@tiptap/starter-kit')
@@ -300,7 +301,10 @@ async function convertFile(filepath: string, filename: string): Promise<Conversi
     if (!html || !html.trim()) return null
 
     // HTML → TipTap JSON
-    const json = generateJSON(html, tiptapExtensions) as any
+    let json = generateJSON(html, tiptapExtensions) as any
+
+    // Fix ordered list continuation (e.g., V1-4 questions → V5-14 questions)
+    json = fixOrderedListContinuation(json)
 
     // Apply serif font marks
     if (isSerifDoc && serifFontFamily) {
@@ -612,7 +616,10 @@ async function main() {
         // Check if it's HTML (not binary garbage)
         if (content.includes('<') && content.includes('>') && !content.includes('\x00')) {
           try {
-            const json = generateJSON(content, tiptapExtensions) as any
+            let json = generateJSON(content, tiptapExtensions) as any
+
+            // Fix ordered list continuation
+            json = fixOrderedListContinuation(json)
 
             // Try to detect font from the HTML
             const fontInfo = detectFontFromHtml(content)

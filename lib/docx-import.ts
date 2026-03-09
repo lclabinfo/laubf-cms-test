@@ -232,6 +232,11 @@ export async function convertDocxToHtml(
   // numbering stays continuous.
   html = mergeAdjacentLists(html)
 
+  // For ordered lists separated by content paragraphs (e.g., verse reference
+  // headings like "V5-14"), set start= on subsequent <ol> elements so
+  // numbering continues from the previous list.
+  html = continueOrderedListNumbering(html)
+
   // Build serif font-family value
   let serifFontFamily: string | null = null
   if (isSerifDoc) {
@@ -240,6 +245,12 @@ export async function convertDocxToHtml(
     // (numbers/bullets) also render in serif, not just the text spans inside.
     html = html.replace(/<ol/g, `<ol style="font-family: ${serifFontFamily}"`)
     html = html.replace(/<ul/g, `<ul style="font-family: ${serifFontFamily}"`)
+
+    // Also wrap text inside <li> elements with a font-family span so that
+    // TipTap's generateJSON() picks up the font on text nodes (TipTap's
+    // FontFamily extension only reads font-family from inline elements like
+    // <span>, not from block-level parents like <ol>/<ul>).
+    html = addFontSpanToListItems(html, serifFontFamily)
   }
 
   // ── 5. Apply alignment and per-paragraph spacing ──
@@ -485,6 +496,124 @@ function mergeAdjacentLists(html: string): string {
   }
 
   return html
+}
+
+// ── Helper: Add font-family span to list item content ──
+
+/**
+ * Wraps the content of each `<li>` element in a `<span style="font-family: ...">`.
+ *
+ * TipTap's FontFamily extension only parses font-family from inline elements
+ * (like `<span>`), not from block-level containers like `<ol>` or `<ul>`.
+ * Without this, `generateJSON()` will drop any font-family set on `<ol>/<ul>`.
+ *
+ * Handles nested lists safely by only wrapping `<li>` elements that don't
+ * contain nested `<li>` tags.
+ */
+function addFontSpanToListItems(html: string, fontFamily: string): string {
+  // Process iteratively to handle nested lists (inner items first, then outer)
+  let prev = ""
+  while (prev !== html) {
+    prev = html
+    html = html.replace(
+      /<li>([\s\S]*?)<\/li>/g,
+      (fullMatch, inner: string) => {
+        // Skip if this <li> contains a nested <li> (will be handled in next pass)
+        if (/<li>/.test(inner)) return fullMatch
+        return `<li><span style="font-family: ${fontFamily}">${inner}</span></li>`
+      },
+    )
+  }
+  return html
+}
+
+// ── Helper: Continue ordered list numbering across content gaps ──
+
+/**
+ * For ordered lists separated by content paragraphs (not empty ones),
+ * set the `start` attribute on subsequent `<ol>` elements so numbering
+ * continues from the previous list.
+ *
+ * Example: <ol><li>...</li><li>...</li><li>...</li></ol>
+ *          <p>V5-14</p>
+ *          <ol start="4"><li>...</li></ol>
+ *
+ * Does NOT modify `<ul>` lists. A `<ul>` between two `<ol>` blocks
+ * resets the ordered list continuation.
+ */
+function continueOrderedListNumbering(html: string): string {
+  // Split HTML into tokens: <ol...>...</ol> blocks, <ul...>...</ul> blocks, and everything else.
+  // We use a regex to match complete list blocks.
+  const listBlockRegex = /<(ol|ul)(\s[^>]*)?>[\s\S]*?<\/\1>/g
+
+  // Collect all list blocks with their positions
+  const tokens: { type: "ol" | "ul" | "other"; text: string; itemCount?: number }[] = []
+  let lastIndex = 0
+  let match: RegExpExecArray | null
+
+  while ((match = listBlockRegex.exec(html)) !== null) {
+    // Add any content before this list block
+    if (match.index > lastIndex) {
+      tokens.push({ type: "other", text: html.slice(lastIndex, match.index) })
+    }
+
+    const tag = match[1] as "ol" | "ul"
+    const blockHtml = match[0]
+
+    if (tag === "ol") {
+      // Count <li> items (top-level only — don't count nested list items)
+      // Simple approach: count occurrences of <li at the correct nesting depth
+      const itemCount = (blockHtml.match(/<li[\s>]/g) || []).length
+      tokens.push({ type: "ol", text: blockHtml, itemCount })
+    } else {
+      tokens.push({ type: "ul", text: blockHtml })
+    }
+
+    lastIndex = match.index + match[0].length
+  }
+
+  // Add remaining content
+  if (lastIndex < html.length) {
+    tokens.push({ type: "other", text: html.slice(lastIndex) })
+  }
+
+  // Now walk the tokens and set `start` on subsequent ordered lists
+  let runningCount = 0
+  let inSequence = false
+
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]
+    if (token.type === "ol") {
+      if (inSequence && runningCount > 0) {
+        const expectedStart = runningCount + 1
+        // Set or update the start attribute on this <ol>
+        token.text = token.text.replace(
+          /^<ol(\s[^>]*)?>/,
+          (fullMatch, attrs) => {
+            if (attrs && /\bstart\s*=/.test(attrs)) {
+              // Replace existing start attribute
+              return `<ol${attrs.replace(/\bstart\s*=\s*["']?\d+["']?/, `start="${expectedStart}"`)}>`
+            }
+            return `<ol start="${expectedStart}"${attrs || ""}>`
+          }
+        )
+        runningCount += token.itemCount || 0
+      } else {
+        inSequence = true
+        // Parse existing start attr
+        const startMatch = token.text.match(/^<ol[^>]*\bstart\s*=\s*["']?(\d+)["']?/)
+        const start = startMatch ? parseInt(startMatch[1], 10) : 1
+        runningCount = start - 1 + (token.itemCount || 0)
+      }
+    } else if (token.type === "ul") {
+      // Bullet list breaks the ordered list continuation
+      inSequence = false
+      runningCount = 0
+    }
+    // "other" tokens don't break the sequence
+  }
+
+  return tokens.map((t) => t.text).join("")
 }
 
 // ── Helper: Detect dominant font from collected font names ──

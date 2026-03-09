@@ -143,6 +143,79 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   // Attachment file input
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Reusable attachments section (shown on details + study tabs, not video)
+  const attachmentsSection = (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+          Attachments
+        </p>
+        {attachments.length > 0 && (
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+            {attachments.length}
+          </Badge>
+        )}
+      </div>
+      <div className="rounded-xl border p-4 space-y-3">
+        <p className="text-xs text-muted-foreground">
+          These files will appear on the message page, video player, and bible study materials.
+        </p>
+        {attachments.length === 0 ? (
+          <div className="flex flex-col items-center py-4 text-center">
+            <Paperclip className="size-8 text-muted-foreground/40 mb-2" />
+            <p className="text-sm text-muted-foreground">No attachments yet.</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={handleUploadAttachment} disabled={uploading}>
+              {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+              {uploading ? "Uploading…" : "Upload Files"}
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="space-y-2">
+              {attachments.map((att) => (
+                <div
+                  key={att.id}
+                  className="flex items-center gap-3 rounded-lg border px-3 py-2.5"
+                >
+                  <FileText className="size-4 text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{att.name}</p>
+                    <p className="text-xs text-muted-foreground">{att.size || att.type || ""}</p>
+                  </div>
+                  {att.url && /\.(docx|pptx|xlsx|pdf|jpe?g|png|gif|webp)$/i.test(att.name) && (
+                    <Button variant="ghost" size="icon-sm" onClick={() => setPreviewAttachment(att)} title="Preview">
+                      <Eye className="size-3.5" />
+                    </Button>
+                  )}
+                  {att.url && (
+                    <Button variant="ghost" size="icon-sm" asChild>
+                      <a href={att.url} download={att.name} title="Download">
+                        <Download className="size-3.5" />
+                      </a>
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => setDeleteAttachmentId(att.id)}
+                    title="Remove"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+            <Button variant="outline" size="sm" onClick={handleUploadAttachment} disabled={uploading}>
+              {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+              {uploading ? "Uploading…" : "Upload Files"}
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+
   // Tab state with URL sync
   const initialTab = searchParams.get("tab") || "details"
   const [activeTab, setActiveTab] = useState(initialTab)
@@ -470,7 +543,19 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     if (!duplicateFile) return
     const { file } = duplicateFile
     setDuplicateFile(null)
-    await uploadAndAppend(file)
+
+    // Auto-rename: "file.docx" → "file (1).docx", "file (1).docx" → "file (2).docx", etc.
+    const dot = file.name.lastIndexOf(".")
+    const baseName = dot > 0 ? file.name.slice(0, dot) : file.name
+    const ext = dot > 0 ? file.name.slice(dot) : ""
+    let counter = 1
+    let newName = `${baseName} (${counter})${ext}`
+    while (attachments.some((a) => a.name.toLowerCase() === newName.toLowerCase())) {
+      counter++
+      newName = `${baseName} (${counter})${ext}`
+    }
+    const renamedFile = new File([file], newName, { type: file.type })
+    await uploadAndAppend(renamedFile)
     processNextFile()
   }
 
@@ -749,6 +834,9 @@ export function EntryForm({ mode, message }: EntryFormProps) {
               </div>
             </div>
 
+            {/* Attachments */}
+            {attachmentsSection}
+
           </div>
         </TabsContent>
 
@@ -796,6 +884,9 @@ export function EntryForm({ mode, message }: EntryFormProps) {
               onAttachmentAdd={(att) => setAttachments(prev => [...prev, att])}
               attachments={attachments}
             />
+
+            {/* Attachments */}
+            {attachmentsSection}
           </div>
         </TabsContent>
 
@@ -881,85 +972,14 @@ export function EntryForm({ mode, message }: EntryFormProps) {
         </TabsContent>
       </Tabs>
 
-      {/* Attachments — commented out for now, placement TBD */}
-      {/* <div className="px-6 pt-5 pb-16">
-      <div className="max-w-3xl mx-auto">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
-            Attachments
-          </p>
-          {attachments.length > 0 && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-              {attachments.length}
-            </Badge>
-          )}
-        </div>
-        <div className="rounded-xl border p-4 space-y-3">
-          <p className="text-xs text-muted-foreground">
-            These files will appear on the message page, video player, and bible study materials.
-          </p>
-          {attachments.length === 0 ? (
-            <div className="flex flex-col items-center py-4 text-center">
-              <Paperclip className="size-8 text-muted-foreground/40 mb-2" />
-              <p className="text-sm text-muted-foreground">No attachments yet.</p>
-              <Button variant="outline" size="sm" className="mt-3" onClick={handleUploadAttachment} disabled={uploading}>
-                {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
-                {uploading ? "Uploading…" : "Upload Files"}
-              </Button>
-            </div>
-          ) : (
-            <>
-              <div className="space-y-2">
-                {attachments.map((att) => (
-                  <div
-                    key={att.id}
-                    className="flex items-center gap-3 rounded-lg border px-3 py-2.5"
-                  >
-                    <FileText className="size-4 text-muted-foreground shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{att.name}</p>
-                      <p className="text-xs text-muted-foreground">{att.size || att.type || ""}</p>
-                    </div>
-                    {att.url && /\.(docx|pptx|xlsx|pdf|jpe?g|png|gif|webp)$/i.test(att.name) && (
-                      <Button variant="ghost" size="icon-sm" onClick={() => setPreviewAttachment(att)} title="Preview">
-                        <Eye className="size-3.5" />
-                      </Button>
-                    )}
-                    {att.url && (
-                      <Button variant="ghost" size="icon-sm" asChild>
-                        <a href={att.url} download={att.name} title="Download">
-                          <Download className="size-3.5" />
-                        </a>
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      className="text-muted-foreground hover:text-destructive"
-                      onClick={() => setDeleteAttachmentId(att.id)}
-                      title="Remove"
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              <Button variant="outline" size="sm" onClick={handleUploadAttachment} disabled={uploading}>
-                {uploading ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
-                {uploading ? "Uploading…" : "Upload Files"}
-              </Button>
-            </>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            onChange={handleFileChange}
-            className="hidden"
-          />
-        </div>
-      </div>
-      </div> */}
+      {/* Hidden file input for attachment uploads */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        onChange={handleFileChange}
+        className="hidden"
+      />
 
       {/* Save confirmation dialog — shows what will be published */}
       <AlertDialog open={saveConfirmOpen} onOpenChange={setSaveConfirmOpen}>
@@ -1113,15 +1133,13 @@ export function EntryForm({ mode, message }: EntryFormProps) {
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel onClick={handleDuplicateSkip}>
-              {duplicateFile?.sameSize ? "Skip" : "Cancel"}
+              Cancel
             </AlertDialogCancel>
-            {!duplicateFile?.sameSize && (
-              <Button variant="outline" onClick={handleDuplicateReplace}>
-                Replace Existing
-              </Button>
-            )}
-            <AlertDialogAction onClick={handleDuplicateKeepBoth}>
-              {duplicateFile?.sameSize ? "Upload Anyway" : "Keep Both"}
+            <Button variant="outline" onClick={handleDuplicateKeepBoth}>
+              Upload Separately
+            </Button>
+            <AlertDialogAction onClick={handleDuplicateReplace}>
+              Update Existing
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
