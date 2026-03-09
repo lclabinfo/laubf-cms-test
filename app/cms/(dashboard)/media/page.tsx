@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -79,15 +79,20 @@ export default function MediaPage() {
   const [moveDialogOpen, setMoveDialogOpen] = useState(false)
   const [movingIds, setMovingIds] = useState<string[]>([])
   const [previewItem, setPreviewItem] = useState<MediaItem | null>(null)
-  const [deleteConfirm, setDeleteConfirm] = useState<{ ids: string[]; mode: "single" | "bulk" } | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ ids: string[]; mode: "single" | "bulk"; usages?: Array<{ type: string; title: string }> } | null>(null)
 
   // ---------------------------------------------------------------------------
   // Data fetching
   // ---------------------------------------------------------------------------
+  // Ref to read folders without adding them as a useCallback dependency (avoids infinite loop)
+  const foldersRef = useRef(folders)
+  foldersRef.current = folders
+
   const fetchMedia = useCallback(async () => {
     setIsLoading(true)
     try {
       const params = new URLSearchParams()
+      const currentFolders = foldersRef.current
 
       // Map sidebar filter to API query params
       if (activeFolderId === "photos") {
@@ -99,7 +104,7 @@ export default function MediaPage() {
         params.set("folder", "/")
       } else if (isRealFolder(activeFolderId)) {
         // Find the folder name from our folders list
-        const folder = folders.find((f) => f.id === activeFolderId)
+        const folder = currentFolders.find((f) => f.id === activeFolderId)
         if (folder) params.set("folder", folder.name)
       }
 
@@ -118,7 +123,10 @@ export default function MediaPage() {
       const json = await res.json()
 
       if (json.success) {
-        const items: MediaItem[] = json.data.items.map(mediaAssetToItem)
+        const nameToId: Record<string, string> = {}
+        for (const f of currentFolders) nameToId[f.name] = f.id
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const items: MediaItem[] = json.data.items.map((a: any) => mediaAssetToItem(a, nameToId))
         setMediaItems(items)
       } else {
         toast.error("Failed to load media")
@@ -128,7 +136,7 @@ export default function MediaPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [activeFolderId, search, sort, folders])
+  }, [activeFolderId, search, sort])
 
   const fetchFolders = useCallback(async () => {
     try {
@@ -169,7 +177,7 @@ export default function MediaPage() {
     if (activeFolderId !== "google-albums") {
       fetchMedia()
     }
-  }, [fetchMedia, activeFolderId])
+  }, [fetchMedia]) // activeFolderId is already a dep of fetchMedia
 
   // Fetch folders and storage on mount
   useEffect(() => {
@@ -296,8 +304,16 @@ export default function MediaPage() {
     }
   }
 
-  function requestDeleteItem(id: string) {
-    setDeleteConfirm({ ids: [id], mode: "single" })
+  async function requestDeleteItem(id: string) {
+    // Fetch usage before showing delete confirmation
+    try {
+      const res = await fetch(`/api/v1/media/${id}/usage`)
+      const json = await res.json()
+      const usages = json.success && Array.isArray(json.data) ? json.data : []
+      setDeleteConfirm({ ids: [id], mode: "single", usages })
+    } catch {
+      setDeleteConfirm({ ids: [id], mode: "single", usages: [] })
+    }
   }
 
   function requestBulkDelete() {
@@ -797,16 +813,39 @@ export default function MediaPage() {
                 ? `Delete ${deleteConfirm.ids.length} items?`
                 : "Delete this item?"}
             </AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteConfirm?.mode === "bulk"
-                ? `This will move ${deleteConfirm.ids.length} items to trash. You can recover them later.`
-                : "This will move the item to trash. You can recover it later."}
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  {deleteConfirm?.mode === "bulk"
+                    ? `This will move ${deleteConfirm.ids.length} items to trash. You can recover them later.`
+                    : "This will move the item to trash. You can recover it later."}
+                </p>
+                {deleteConfirm?.usages && deleteConfirm.usages.length > 0 && (
+                  <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
+                    <p className="font-medium text-destructive mb-1.5">
+                      This image is currently used in:
+                    </p>
+                    <ul className="space-y-0.5 text-muted-foreground">
+                      {deleteConfirm.usages.map((u, i) => (
+                        <li key={i} className="flex items-center gap-1.5">
+                          <span className="size-1 rounded-full bg-destructive/50 shrink-0" />
+                          {u.title}
+                          <span className="text-xs">({u.type === "page-section" ? "Website" : "Event"})</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Deleting it will leave broken images in these locations.
+                    </p>
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Delete
+              {deleteConfirm?.usages && deleteConfirm.usages.length > 0 ? "Delete Anyway" : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

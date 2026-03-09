@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from "react"
 import {
   generateSlug,
   type ChurchEvent,
@@ -211,6 +211,10 @@ export function EventsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Ref to read current events without stale closures
+  const eventsRef = useRef(events)
+  eventsRef.current = events
+
   // Fetch events from API on mount
   useEffect(() => {
     let cancelled = false
@@ -277,95 +281,85 @@ export function EventsProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const updateEvent = useCallback((id: string, data: Partial<Omit<ChurchEvent, "id">>) => {
-    // Capture pre-update snapshot for rollback, then optimistic update
-    let snapshot: ChurchEvent | undefined
-    setEvents((prev) => {
-      snapshot = prev.find((e) => e.id === id)
-      return prev.map((e) => (e.id === id ? { ...e, ...data } : e))
+    // Read current state from ref (not stale closure)
+    const snapshot = eventsRef.current.find((e) => e.id === id)
+    if (!snapshot?.slug) return
+
+    // Optimistic update
+    setEvents((prev) => prev.map((e) => (e.id === id ? { ...e, ...data } : e)))
+
+    // Build API payload from CMS fields
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const payload: Record<string, any> = {}
+    if (data.title !== undefined) {
+      payload.title = data.title
+      payload.slug = generateSlug(data.title)
+    }
+    if (data.type !== undefined) payload.type = eventTypeToApi[data.type] ?? "EVENT"
+    if (data.date !== undefined) payload.dateStart = new Date(data.date + "T00:00:00").toISOString()
+    if (data.endDate !== undefined) payload.dateEnd = data.endDate ? new Date(data.endDate + "T00:00:00").toISOString() : null
+    if (data.startTime !== undefined) payload.startTime = data.startTime
+    if (data.endTime !== undefined) payload.endTime = data.endTime
+    if (data.locationType !== undefined) payload.locationType = locationTypeToApi[data.locationType] ?? "IN_PERSON"
+    if (data.location !== undefined) payload.location = data.location || null
+    if (data.meetingUrl !== undefined) payload.meetingUrl = data.meetingUrl || null
+    if (data.shortDescription !== undefined) payload.shortDescription = data.shortDescription || null
+    if (data.description !== undefined) payload.description = data.description || null
+    if (data.welcomeMessage !== undefined) payload.welcomeMessage = data.welcomeMessage || null
+    if (data.contacts !== undefined) payload.contacts = data.contacts ?? []
+    if (data.coverImage !== undefined) payload.coverImage = data.coverImage || null
+    if (data.imageAlt !== undefined) payload.imageAlt = data.imageAlt || null
+    if (data.isFeatured !== undefined) payload.isFeatured = data.isFeatured
+    if (data.address !== undefined) payload.address = data.address || null
+    if (data.locationInstructions !== undefined) payload.locationInstructions = data.locationInstructions || null
+    if (data.monthlyType !== undefined) payload.monthlyRecurrenceType = data.monthlyType ? (monthlyTypeToApi[data.monthlyType] ?? data.monthlyType) : null
+    if (data.recurrence !== undefined) {
+      payload.recurrence = recurrenceToApi[data.recurrence] ?? "NONE"
+      payload.isRecurring = data.recurrence !== "none"
+    }
+    if (data.recurrenceDays !== undefined) payload.recurrenceDays = data.recurrenceDays
+    if (data.recurrenceEndType !== undefined) payload.recurrenceEndType = recurrenceEndTypeToApi[data.recurrenceEndType] ?? "NEVER"
+    if (data.recurrenceEndDate !== undefined) payload.recurrenceEndDate = data.recurrenceEndDate ? new Date(data.recurrenceEndDate + "T00:00:00").toISOString() : null
+    if (data.customRecurrence !== undefined) payload.customRecurrence = data.customRecurrence || null
+    if (data.status !== undefined) payload.status = statusToApi[data.status] ?? "DRAFT"
+    if (data.ministry !== undefined) {
+      payload.ministrySlug = data.ministry && data.ministry !== "church-wide" ? data.ministry : null
+    }
+    if (data.campus !== undefined) {
+      payload.campusSlug = data.campus && data.campus !== "all" ? data.campus : null
+    }
+    if (data.links !== undefined) payload.links = data.links ?? []
+    if (data.costType !== undefined) payload.costType = data.costType?.toUpperCase() || "FREE"
+    if (data.costAmount !== undefined) payload.costAmount = data.costAmount || null
+    if (data.registrationRequired !== undefined) payload.registrationRequired = data.registrationRequired
+    if (data.registrationUrl !== undefined) payload.registrationUrl = data.registrationUrl || null
+    if (data.maxParticipants !== undefined) payload.maxParticipants = data.maxParticipants ?? null
+    if (data.registrationDeadline !== undefined) payload.registrationDeadline = data.registrationDeadline ? new Date(data.registrationDeadline + "T00:00:00").toISOString() : null
+
+    // Fire fetch OUTSIDE state updater — guaranteed to execute
+    // keepalive ensures the request completes even if the page navigates away
+    fetch(`/api/v1/events/${snapshot.slug}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      keepalive: true,
     })
-
-    // Read slug from state without stale closure
-    setEvents((prev) => {
-      const evt = prev.find((e) => e.id === id)
-      if (!evt?.slug) return prev
-
-      // Build API payload from CMS fields
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const payload: Record<string, any> = {}
-      if (data.title !== undefined) {
-        payload.title = data.title
-        payload.slug = generateSlug(data.title)
-      }
-      if (data.type !== undefined) payload.type = eventTypeToApi[data.type] ?? "EVENT"
-      if (data.date !== undefined) payload.dateStart = new Date(data.date + "T00:00:00").toISOString()
-      if (data.endDate !== undefined) payload.dateEnd = data.endDate ? new Date(data.endDate + "T00:00:00").toISOString() : null
-      if (data.startTime !== undefined) payload.startTime = data.startTime
-      if (data.endTime !== undefined) payload.endTime = data.endTime
-      if (data.locationType !== undefined) payload.locationType = locationTypeToApi[data.locationType] ?? "IN_PERSON"
-      if (data.location !== undefined) payload.location = data.location || null
-      if (data.meetingUrl !== undefined) payload.meetingUrl = data.meetingUrl || null
-      if (data.shortDescription !== undefined) payload.shortDescription = data.shortDescription || null
-      if (data.description !== undefined) payload.description = data.description || null
-      if (data.welcomeMessage !== undefined) payload.welcomeMessage = data.welcomeMessage || null
-      if (data.contacts !== undefined) payload.contacts = data.contacts ?? []
-      if (data.coverImage !== undefined) payload.coverImage = data.coverImage || null
-      if (data.imageAlt !== undefined) payload.imageAlt = data.imageAlt || null
-      if (data.isFeatured !== undefined) payload.isFeatured = data.isFeatured
-      if (data.address !== undefined) payload.address = data.address || null
-      if (data.locationInstructions !== undefined) payload.locationInstructions = data.locationInstructions || null
-      if (data.monthlyType !== undefined) payload.monthlyRecurrenceType = data.monthlyType ? (monthlyTypeToApi[data.monthlyType] ?? data.monthlyType) : null
-      if (data.recurrence !== undefined) {
-        payload.recurrence = recurrenceToApi[data.recurrence] ?? "NONE"
-        payload.isRecurring = data.recurrence !== "none"
-      }
-      if (data.recurrenceDays !== undefined) payload.recurrenceDays = data.recurrenceDays
-      if (data.recurrenceEndType !== undefined) payload.recurrenceEndType = recurrenceEndTypeToApi[data.recurrenceEndType] ?? "NEVER"
-      if (data.recurrenceEndDate !== undefined) payload.recurrenceEndDate = data.recurrenceEndDate ? new Date(data.recurrenceEndDate + "T00:00:00").toISOString() : null
-      if (data.customRecurrence !== undefined) payload.customRecurrence = data.customRecurrence || null
-      if (data.status !== undefined) payload.status = statusToApi[data.status] ?? "DRAFT"
-      // Send ministry/campus slugs for server-side resolution to UUIDs
-      if (data.ministry !== undefined) {
-        payload.ministrySlug = data.ministry && data.ministry !== "church-wide" ? data.ministry : null
-      }
-      if (data.campus !== undefined) {
-        payload.campusSlug = data.campus && data.campus !== "all" ? data.campus : null
-      }
-      // Links: send the full array
-      if (data.links !== undefined) payload.links = data.links ?? []
-      // Cost & Registration
-      if (data.costType !== undefined) payload.costType = data.costType?.toUpperCase() || "FREE"
-      if (data.costAmount !== undefined) payload.costAmount = data.costAmount || null
-      if (data.registrationRequired !== undefined) payload.registrationRequired = data.registrationRequired
-      if (data.registrationUrl !== undefined) payload.registrationUrl = data.registrationUrl || null
-      if (data.maxParticipants !== undefined) payload.maxParticipants = data.maxParticipants ?? null
-      if (data.registrationDeadline !== undefined) payload.registrationDeadline = data.registrationDeadline ? new Date(data.registrationDeadline + "T00:00:00").toISOString() : null
-
-      fetch(`/api/v1/events/${evt.slug}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to update event (${res.status})`)
+        return res.json()
       })
-        .then((res) => {
-          if (!res.ok) throw new Error(`Failed to update event (${res.status})`)
-          return res.json()
-        })
-        .then((json) => {
-          if (json.success && json.data) {
-            setEvents((p) =>
-              p.map((e) => (e.id === id ? apiEventToCms(json.data) : e))
-            )
-          }
-        })
-        .catch((err) => {
-          console.error("updateEvent error:", err)
-          // Rollback to snapshot
-          if (snapshot) {
-            setEvents((p) => p.map((e) => (e.id === id ? snapshot! : e)))
-          }
-        })
-
-      return prev // no state change here, just reading slug
-    })
+      .then((json) => {
+        if (json.success && json.data) {
+          setEvents((p) =>
+            p.map((e) => (e.id === id ? apiEventToCms(json.data) : e))
+          )
+        }
+      })
+      .catch((err) => {
+        console.error("updateEvent error:", err)
+        // Rollback to snapshot
+        setEvents((p) => p.map((e) => (e.id === id ? snapshot : e)))
+      })
   }, [])
 
   const deleteEvent = useCallback((id: string) => {

@@ -61,7 +61,7 @@ export const formatDisplay: Record<MediaFormat, { label: string; variant: "secon
 // ---------------------------------------------------------------------------
 import type { MediaAsset } from '@/lib/generated/prisma/client'
 
-export function mediaAssetToItem(asset: MediaAsset): MediaItem {
+export function mediaAssetToItem(asset: MediaAsset, folderNameToId?: Record<string, string>): MediaItem {
   const ext = asset.filename.split('.').pop()?.toUpperCase() ?? ''
   const isImage = asset.mimeType.startsWith('image/')
   const isVideo = asset.mimeType.startsWith('video/')
@@ -93,7 +93,7 @@ export function mediaAssetToItem(asset: MediaAsset): MediaItem {
     format,
     url: asset.url,
     size: sizeStr,
-    folderId: asset.folder === '/' ? null : asset.folder,
+    folderId: asset.folder === '/' ? null : (folderNameToId?.[asset.folder] ?? asset.folder),
     dateAdded: asset.createdAt instanceof Date
       ? asset.createdAt.toISOString().slice(0, 10)
       : new Date(asset.createdAt).toISOString().slice(0, 10),

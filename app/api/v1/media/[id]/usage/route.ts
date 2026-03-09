@@ -36,22 +36,61 @@ export async function GET(
       )
     }
 
-    // Find events that use this image as cover
+    // Find events that use this image as cover (exclude soft-deleted)
     const events = await prisma.event.findMany({
       where: {
         churchId,
         coverImage: asset.url,
+        deletedAt: null,
       },
       select: { id: true, title: true, slug: true },
       take: 20,
     })
 
-    const usages = events.map((e) => ({
+    const eventUsages = events.map((e) => ({
       type: 'event' as const,
       id: e.id,
       title: e.title,
       slug: e.slug,
     }))
+
+    // Find page sections whose JSONB content contains the URL
+    const sectionRows = await prisma.$queryRaw<
+      Array<{
+        id: string
+        label: string | null
+        sectionType: string
+        pageId: string
+        pageTitle: string
+        pageSlug: string
+      }>
+    >`
+      SELECT
+        ps."id",
+        ps."label",
+        ps."sectionType",
+        p."id"    AS "pageId",
+        p."title" AS "pageTitle",
+        p."slug"  AS "pageSlug"
+      FROM "PageSection" ps
+      JOIN "Page" p ON p."id" = ps."pageId"
+      WHERE p."churchId" = ${churchId}
+        AND ps."content" IS NOT NULL
+        AND ps."content"::text LIKE ${'%' + asset.url + '%'}
+      LIMIT 20
+    `
+
+    const sectionUsages = sectionRows.map((s) => ({
+      type: 'page-section' as const,
+      id: s.id,
+      title: s.pageTitle,
+      slug: s.pageSlug,
+      pageId: s.pageId,
+      sectionLabel: s.label,
+      sectionType: s.sectionType,
+    }))
+
+    const usages = [...eventUsages, ...sectionUsages]
 
     return NextResponse.json({ success: true, data: usages })
   } catch (error) {

@@ -1,18 +1,27 @@
 "use client"
 
-import { useState, useRef, useCallback, useEffect } from "react"
-import { Upload, ImageIcon, Search, Loader2, Check } from "lucide-react"
+import { useState, useRef, useCallback, useEffect, useMemo } from "react"
+import {
+  Upload,
+  ImageIcon,
+  Search,
+  Loader2,
+  Check,
+  LayoutGrid,
+  List,
+  Folder,
+  ArrowLeft,
+  Play,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { cn } from "@/lib/utils"
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 const ACCEPTED_TYPES_STRING = ACCEPTED_TYPES.join(",")
@@ -26,20 +35,30 @@ interface MediaPickerDialogProps {
   folder?: string
 }
 
-type UploadStatus = "idle" | "uploading" | "done" | "error"
+type ViewMode = "grid" | "list"
 
-interface LibraryItem {
+interface FolderInfo {
+  id: string
+  name: string
+  count: number
+}
+
+interface MediaItem {
   id: string
   url: string
   filename: string
   alt?: string | null
+  mimeType?: string
+  fileSize?: number
+  createdAt?: string
+  folder?: string
 }
 
 function getImageDimensions(
   file: File
 ): Promise<{ width: number; height: number }> {
   return new Promise((resolve) => {
-    const img = new Image()
+    const img = new globalThis.Image()
     img.onload = () => {
       resolve({ width: img.naturalWidth, height: img.naturalHeight })
       URL.revokeObjectURL(img.src)
@@ -52,108 +71,167 @@ function getImageDimensions(
   })
 }
 
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+function formatDate(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+  } catch {
+    return ""
+  }
+}
+
 export function MediaPickerDialog({
   open,
   onOpenChange,
   onSelect,
   folder,
 }: MediaPickerDialogProps) {
-  const [tab, setTab] = useState<string>("upload")
-  const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle")
-  const [uploadError, setUploadError] = useState<string>("")
-  const [uploadedUrl, setUploadedUrl] = useState<string>("")
-  const [uploadedFilename, setUploadedFilename] = useState<string>("")
-  const [isDragging, setIsDragging] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  // Library state
-  const [libraryItems, setLibraryItems] = useState<LibraryItem[]>([])
-  const [libraryLoading, setLibraryLoading] = useState(false)
+  // View
+  const [viewMode, setViewMode] = useState<ViewMode>("grid")
   const [searchQuery, setSearchQuery] = useState("")
 
-  // Selection state (shared across tabs)
-  const [selectedUrl, setSelectedUrl] = useState<string>("")
-  const [selectedAlt, setSelectedAlt] = useState<string>("")
+  // Folders
+  const [folders, setFolders] = useState<FolderInfo[]>([])
+  const [totalCount, setTotalCount] = useState(0)
+  const [activeFolder, setActiveFolder] = useState<string | null>(null) // null = "All Media"
+  const [foldersLoading, setFoldersLoading] = useState(false)
 
-  // Reset state when dialog opens/closes
+  // Media items
+  const [items, setItems] = useState<MediaItem[]>([])
+  const [itemsLoading, setItemsLoading] = useState(false)
+
+  // Selection
+  const [selectedItem, setSelectedItem] = useState<MediaItem | null>(null)
+
+  // Upload
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // ---------------------------------------------------------------------------
+  // Reset on open
+  // ---------------------------------------------------------------------------
   useEffect(() => {
     if (open) {
-      setTab("upload")
-      setUploadStatus("idle")
-      setUploadError("")
-      setUploadedUrl("")
-      setUploadedFilename("")
-      setSelectedUrl("")
-      setSelectedAlt("")
       setSearchQuery("")
-      setIsDragging(false)
+      setSelectedItem(null)
+      setActiveFolder(folder ?? null)
+      setViewMode("grid")
+    }
+  }, [open, folder])
+
+  // ---------------------------------------------------------------------------
+  // Fetch folders on open
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+
+    async function load() {
+      setFoldersLoading(true)
+      try {
+        const res = await fetch("/api/v1/media/folders")
+        const json = await res.json()
+        if (!cancelled && json.success) {
+          const flds: FolderInfo[] = json.data.folders ?? []
+          setFolders(flds)
+          const counts = json.data.mediaCounts ?? {}
+          setTotalCount(counts.all ?? 0)
+        }
+      } catch {
+        // silent
+      } finally {
+        if (!cancelled) setFoldersLoading(false)
+      }
+    }
+
+    load()
+    return () => {
+      cancelled = true
     }
   }, [open])
 
-  // Fetch library items when Library tab is shown
-  useEffect(() => {
-    if (tab === "library" && open) {
-      fetchLibrary()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, open])
-
-  async function fetchLibrary() {
-    setLibraryLoading(true)
+  // ---------------------------------------------------------------------------
+  // Fetch media items when folder or dialog changes
+  // ---------------------------------------------------------------------------
+  const fetchItems = useCallback(async () => {
+    setItemsLoading(true)
     try {
-      let url = "/api/v1/media?type=image"
-      if (folder) {
-        url += `&folder=${encodeURIComponent(folder)}`
+      const params = new URLSearchParams({ type: "image" })
+      if (activeFolder) {
+        params.set("folder", activeFolder)
       }
-      const res = await fetch(url)
+      const res = await fetch(`/api/v1/media?${params.toString()}`)
       const json = await res.json()
       if (json.success && json.data?.items) {
-        setLibraryItems(
+        setItems(
           json.data.items.map((item: Record<string, unknown>) => ({
             id: item.id as string,
             url: item.url as string,
             filename: item.filename as string,
             alt: (item.alt as string | null) ?? null,
+            mimeType: (item.mimeType as string) ?? undefined,
+            fileSize: (item.fileSize as number) ?? undefined,
+            createdAt: (item.createdAt as string) ?? undefined,
+            folder: (item.folder as string) ?? undefined,
           }))
         )
       }
     } catch {
-      // Silently fail — grid will be empty
+      // silent
     } finally {
-      setLibraryLoading(false)
+      setItemsLoading(false)
     }
-  }
+  }, [activeFolder])
 
-  const ensureFolder = useCallback(async () => {
-    if (!folder) return
+  useEffect(() => {
+    if (!open) return
+    fetchItems()
+  }, [open, fetchItems])
+
+  // ---------------------------------------------------------------------------
+  // Ensure folder exists (for upload)
+  // ---------------------------------------------------------------------------
+  const ensureFolder = useCallback(async (folderName: string) => {
     try {
       await fetch("/api/v1/media/folders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: folder }),
+        body: JSON.stringify({ name: folderName }),
       })
     } catch {
       // Fire-and-forget, 409 is fine
     }
-  }, [folder])
+  }, [])
 
+  // ---------------------------------------------------------------------------
+  // Upload
+  // ---------------------------------------------------------------------------
   async function uploadFile(file: File) {
     if (!ACCEPTED_TYPES.includes(file.type)) {
-      setUploadStatus("error")
-      setUploadError("File type not accepted. Use JPEG, PNG, WebP, or GIF.")
       return
     }
     if (file.size > MAX_FILE_SIZE) {
-      setUploadStatus("error")
-      setUploadError("File exceeds 10 MB limit.")
       return
     }
 
-    setUploadStatus("uploading")
-    setUploadError("")
+    setIsUploading(true)
 
-    // Ensure folder exists (fire-and-forget)
-    ensureFolder()
+    // Determine target folder for upload
+    const targetFolder = activeFolder ?? folder ?? "/"
+
+    // Ensure folder exists if not root
+    if (targetFolder !== "/") {
+      await ensureFolder(targetFolder)
+    }
 
     try {
       // 1. Get presigned URL
@@ -170,12 +248,7 @@ export function MediaPickerDialog({
 
       const urlJson = await urlRes.json()
       if (!urlJson.success) {
-        const msg =
-          urlRes.status === 413
-            ? "Storage quota exceeded"
-            : urlJson.error?.message ?? "Failed to get upload URL"
-        setUploadStatus("error")
-        setUploadError(msg)
+        setIsUploading(false)
         return
       }
 
@@ -189,8 +262,7 @@ export function MediaPickerDialog({
       })
 
       if (!putRes.ok) {
-        setUploadStatus("error")
-        setUploadError("Upload to storage failed")
+        setIsUploading(false)
         return
       }
 
@@ -208,284 +280,459 @@ export function MediaPickerDialog({
           fileSize: file.size,
           width: dims.width || undefined,
           height: dims.height || undefined,
-          folder: folder ?? "/",
+          folder: targetFolder,
         }),
       })
 
       const createJson = await createRes.json()
-      if (!createJson.success) {
-        setUploadStatus("error")
-        setUploadError(createJson.error?.message ?? "Failed to create media record")
-        return
-      }
+      if (createJson.success && createJson.data) {
+        const newItem: MediaItem = {
+          id: createJson.data.id,
+          url: createJson.data.url ?? publicUrl,
+          filename: file.name,
+          alt: null,
+          mimeType: file.type,
+          fileSize: file.size,
+          createdAt: new Date().toISOString(),
+          folder: targetFolder,
+        }
 
-      // Use the permanent URL from the created media record (not the staging publicUrl)
-      const permanentUrl = createJson.data.url ?? publicUrl
-      setUploadStatus("done")
-      setUploadedUrl(permanentUrl)
-      setUploadedFilename(file.name)
-      // Auto-select the uploaded image
-      setSelectedUrl(permanentUrl)
-      setSelectedAlt(file.name)
+        // Add to items and auto-select
+        setItems((prev) => [newItem, ...prev])
+        setSelectedItem(newItem)
+
+        // Refresh folder counts
+        try {
+          const fRes = await fetch("/api/v1/media/folders")
+          const fJson = await fRes.json()
+          if (fJson.success) {
+            setFolders(fJson.data.folders ?? [])
+            setTotalCount(fJson.data.mediaCounts?.total ?? 0)
+          }
+        } catch {
+          // silent
+        }
+      }
     } catch {
-      setUploadStatus("error")
-      setUploadError("Network error")
+      // silent
+    } finally {
+      setIsUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ""
     }
   }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) {
-      uploadFile(file)
+    if (file) uploadFile(file)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Selection
+  // ---------------------------------------------------------------------------
+  function handleItemClick(item: MediaItem) {
+    if (selectedItem?.id === item.id) {
+      setSelectedItem(null)
+    } else {
+      setSelectedItem(item)
     }
   }
 
-  function handleDragOver(e: React.DragEvent) {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragging(true)
-  }
-
-  function handleDragLeave(e: React.DragEvent) {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragging(false)
-  }
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragging(false)
-
-    const file = e.dataTransfer.files?.[0]
-    if (file) {
-      uploadFile(file)
-    }
-  }
-
-  function handleSelectLibraryItem(item: LibraryItem) {
-    setSelectedUrl(item.url)
-    setSelectedAlt(item.alt ?? item.filename)
-  }
-
-  function handleUseImage() {
-    if (selectedUrl) {
-      onSelect(selectedUrl, selectedAlt || undefined)
+  function handleSelect() {
+    if (selectedItem) {
+      onSelect(selectedItem.url, selectedItem.alt ?? selectedItem.filename)
       onOpenChange(false)
     }
   }
 
-  // Filter library items by search query
-  const filteredItems = searchQuery
-    ? libraryItems.filter((item) =>
-        item.filename.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : libraryItems
+  // ---------------------------------------------------------------------------
+  // Filtering
+  // ---------------------------------------------------------------------------
+  const filteredItems = useMemo(() => {
+    if (!searchQuery.trim()) return items
+    const q = searchQuery.toLowerCase()
+    return items.filter((item) =>
+      item.filename.toLowerCase().includes(q)
+    )
+  }, [items, searchQuery])
 
+  // Separate folders that have items (for "All Media" view showing folder cards first)
+  const foldersWithItems = useMemo(() => {
+    if (activeFolder !== null) return []
+    return folders.filter((f) => f.count > 0)
+  }, [activeFolder, folders])
+
+  // Current folder display info
+  const currentFolderName = activeFolder ?? "All Media"
+  const currentItemCount = filteredItems.length
+
+  // ---------------------------------------------------------------------------
+  // Render
+  // ---------------------------------------------------------------------------
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle>Select Image</DialogTitle>
-          <DialogDescription>
-            Upload a new image or choose from your media library.
+      <DialogContent
+        showCloseButton={false}
+        className="sm:max-w-5xl h-[80vh] !p-0 !gap-0 flex flex-col"
+      >
+        {/* ---- Header ---- */}
+        <div className="flex items-center justify-between border-b px-5 py-3 shrink-0">
+          <DialogTitle className="text-base font-semibold">
+            Select Media
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Browse and select an image from your media library or upload a new one.
           </DialogDescription>
-        </DialogHeader>
 
-        <Tabs value={tab} onValueChange={setTab}>
-          <TabsList>
-            <TabsTrigger value="upload">
-              <Upload className="size-4" />
-              Upload
-            </TabsTrigger>
-            <TabsTrigger value="library">
-              <ImageIcon className="size-4" />
-              Library
-            </TabsTrigger>
-          </TabsList>
+          <div className="flex items-center gap-2">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+              <Input
+                placeholder="Search files..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 w-64 h-8 text-sm"
+              />
+            </div>
 
-          <TabsContent value="upload">
+            {/* Grid / List toggle */}
+            <div className="flex items-center rounded-md border">
+              <Button
+                type="button"
+                variant={viewMode === "grid" ? "secondary" : "ghost"}
+                size="icon-sm"
+                className="rounded-r-none border-0"
+                onClick={() => setViewMode("grid")}
+              >
+                <LayoutGrid className="size-4" />
+                <span className="sr-only">Grid view</span>
+              </Button>
+              <Button
+                type="button"
+                variant={viewMode === "list" ? "secondary" : "ghost"}
+                size="icon-sm"
+                className="rounded-l-none border-0"
+                onClick={() => setViewMode("list")}
+              >
+                <List className="size-4" />
+                <span className="sr-only">List view</span>
+              </Button>
+            </div>
+
+            {/* Upload */}
             <input
-              ref={inputRef}
+              ref={fileInputRef}
               type="file"
               accept={ACCEPTED_TYPES_STRING}
               onChange={handleFileChange}
               className="hidden"
-              disabled={uploadStatus === "uploading"}
+              disabled={isUploading}
             />
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+            >
+              {isUploading ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Upload className="size-4" />
+              )}
+              {isUploading ? "Uploading..." : "Upload"}
+            </Button>
+          </div>
+        </div>
 
-            {uploadStatus === "idle" && (
-              <button
-                type="button"
-                onClick={() => inputRef.current?.click()}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                className={`flex w-full flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center transition-colors ${
-                  isDragging
-                    ? "border-primary bg-primary/5"
-                    : "hover:border-foreground/30"
-                }`}
-              >
-                <Upload className="size-10 text-muted-foreground/50 mb-3" />
-                <span className="text-sm font-medium">
-                  Drag and drop an image here, or click to browse
-                </span>
-                <span className="text-xs text-muted-foreground mt-1">
-                  JPEG, PNG, WebP, or GIF (max 10 MB)
-                </span>
-              </button>
-            )}
+        {/* ---- Body ---- */}
+        <div className="flex flex-1 min-h-0">
+          {/* Sidebar */}
+          <div className="w-56 shrink-0 border-r overflow-y-auto p-3">
+            <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-2 mb-2">
+              Folders
+            </div>
 
-            {uploadStatus === "uploading" && (
-              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
-                <Loader2 className="size-10 text-muted-foreground animate-spin mb-3" />
-                <span className="text-sm font-medium">Uploading...</span>
+            {/* All Media */}
+            <button
+              type="button"
+              className={cn(
+                "w-full flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors",
+                activeFolder === null
+                  ? "bg-accent text-accent-foreground font-medium"
+                  : "hover:bg-muted text-foreground"
+              )}
+              onClick={() => setActiveFolder(null)}
+            >
+              <span>All Media</span>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {totalCount}
+              </span>
+            </button>
+
+            {/* Folder list */}
+            {foldersLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="size-4 animate-spin text-muted-foreground" />
               </div>
+            ) : (
+              folders.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  className={cn(
+                    "w-full flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors",
+                    activeFolder === f.name
+                      ? "bg-accent text-accent-foreground font-medium"
+                      : "hover:bg-muted text-foreground"
+                  )}
+                  onClick={() => setActiveFolder(f.name)}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <Folder className="size-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">{f.name}</span>
+                  </span>
+                  <span className="text-xs text-muted-foreground tabular-nums ml-2">
+                    {f.count}
+                  </span>
+                </button>
+              ))
             )}
+          </div>
 
-            {uploadStatus === "done" && (
-              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-10 text-center gap-3">
-                <div className="relative size-32 rounded-lg overflow-hidden border">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={uploadedUrl}
-                    alt={uploadedFilename}
-                    className="size-full object-cover"
-                  />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                    <Check className="size-8 text-white" />
-                  </div>
+          {/* Content area */}
+          <div className="flex-1 flex flex-col min-w-0">
+            {/* Breadcrumb bar */}
+            <div className="flex items-center gap-2 px-4 py-2 border-b text-sm shrink-0">
+              {activeFolder !== null && (
+                <button
+                  type="button"
+                  onClick={() => setActiveFolder(null)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <ArrowLeft className="size-4" />
+                </button>
+              )}
+              <span className="font-medium">{currentFolderName}</span>
+              <span className="text-muted-foreground">
+                ({currentItemCount} {currentItemCount === 1 ? "item" : "items"})
+              </span>
+            </div>
+
+            {/* Grid / List content */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {itemsLoading ? (
+                <div className="flex items-center justify-center h-full">
+                  <Loader2 className="size-8 animate-spin text-muted-foreground" />
                 </div>
-                <span className="text-sm font-medium text-green-600">
-                  Upload complete
-                </span>
-                <span className="text-xs text-muted-foreground truncate max-w-xs">
-                  {uploadedFilename}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setUploadStatus("idle")
-                    setUploadedUrl("")
-                    setUploadedFilename("")
-                    setSelectedUrl("")
-                    setSelectedAlt("")
-                    if (inputRef.current) inputRef.current.value = ""
-                  }}
-                >
-                  Upload another
-                </Button>
-              </div>
-            )}
+              ) : filteredItems.length === 0 && foldersWithItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center">
+                  <ImageIcon className="size-12 text-muted-foreground/30 mb-3" />
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {searchQuery ? "No images match your search" : "No images found"}
+                  </p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">
+                    {searchQuery
+                      ? "Try a different search term"
+                      : "Upload an image to get started"}
+                  </p>
+                </div>
+              ) : viewMode === "grid" ? (
+                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+                  {/* Folder cards in "All Media" view */}
+                  {foldersWithItems.map((f) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      className="flex flex-col items-center justify-center aspect-square rounded-lg border bg-muted/30 hover:bg-muted/60 transition-colors cursor-pointer"
+                      onClick={() => setActiveFolder(f.name)}
+                    >
+                      <Folder className="size-8 text-muted-foreground mb-1.5" />
+                      <span className="text-xs font-medium truncate max-w-full px-2">
+                        {f.name}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground">
+                        {f.count} {f.count === 1 ? "item" : "items"}
+                      </span>
+                    </button>
+                  ))}
 
-            {uploadStatus === "error" && (
-              <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-destructive/50 py-16 text-center">
-                <span className="text-sm font-medium text-destructive mb-1">
-                  Upload failed
-                </span>
-                <span className="text-xs text-muted-foreground mb-4">
-                  {uploadError}
-                </span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setUploadStatus("idle")
-                    setUploadError("")
-                    if (inputRef.current) inputRef.current.value = ""
-                  }}
-                >
-                  Try again
-                </Button>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="library">
-            <div className="space-y-3">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search images..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-
-              <div className="max-h-[360px] overflow-y-auto rounded-lg border p-2">
-                {libraryLoading ? (
-                  <div className="flex items-center justify-center py-16">
-                    <Loader2 className="size-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : filteredItems.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 text-center">
-                    <ImageIcon className="size-10 text-muted-foreground/30 mb-2" />
-                    <span className="text-sm text-muted-foreground">
-                      {searchQuery
-                        ? "No images match your search"
-                        : "No images in library"}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-4 gap-2 sm:grid-cols-5 md:grid-cols-6">
-                    {filteredItems.map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => handleSelectLibraryItem(item)}
-                        className={`group relative flex flex-col items-center rounded-md overflow-hidden transition-all ${
-                          selectedUrl === item.url
-                            ? "ring-2 ring-primary ring-offset-1"
-                            : "hover:ring-1 hover:ring-muted-foreground/30"
-                        }`}
-                      >
-                        <div className="aspect-square w-full overflow-hidden bg-muted">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {/* Image cards */}
+                  {filteredItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={cn(
+                        "group relative flex flex-col rounded-lg border overflow-hidden transition-all",
+                        selectedItem?.id === item.id
+                          ? "ring-2 ring-primary ring-offset-1"
+                          : "hover:shadow-md"
+                      )}
+                      onClick={() => handleItemClick(item)}
+                    >
+                      <div className="aspect-square w-full overflow-hidden bg-muted relative">
+                        {item.mimeType?.startsWith("video/") ? (
+                          /* eslint-disable-next-line jsx-a11y/media-has-caption */
+                          <video
+                            src={`${item.url}#t=0.5`}
+                            preload="metadata"
+                            muted
+                            playsInline
+                            className="size-full object-cover"
+                          />
+                        ) : (
+                          /* eslint-disable-next-line @next/next/no-img-element */
                           <img
                             src={item.url}
                             alt={item.alt ?? item.filename}
-                            className="size-full object-cover"
                             loading="lazy"
+                            decoding="async"
+                            className="size-full object-cover"
                           />
-                        </div>
-                        {selectedUrl === item.url && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                            <Check className="size-5 text-white" />
-                          </div>
                         )}
-                        <span className="w-full truncate px-1 py-0.5 text-[10px] text-muted-foreground text-center">
+                      </div>
+                      {selectedItem?.id === item.id && (
+                        <div className="absolute top-1.5 right-1.5 flex items-center justify-center size-5 rounded-full bg-primary text-primary-foreground">
+                          <Check className="size-3" />
+                        </div>
+                      )}
+                      <div className="px-1.5 py-1">
+                        <span className="text-xs text-muted-foreground truncate block">
                           {item.filename}
                         </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                /* List view */
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="text-left py-2 px-3 font-medium w-12" />
+                        <th className="text-left py-2 px-3 font-medium">Name</th>
+                        <th className="text-left py-2 px-3 font-medium hidden sm:table-cell">
+                          Date
+                        </th>
+                        <th className="text-left py-2 px-3 font-medium hidden sm:table-cell">
+                          Size
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* Folder rows in "All Media" view */}
+                      {foldersWithItems.map((f) => (
+                        <tr
+                          key={f.id}
+                          className="border-b hover:bg-muted/30 cursor-pointer transition-colors"
+                          onClick={() => setActiveFolder(f.name)}
+                        >
+                          <td className="py-2 px-3">
+                            <div className="size-8 flex items-center justify-center rounded bg-muted">
+                              <Folder className="size-4 text-muted-foreground" />
+                            </div>
+                          </td>
+                          <td className="py-2 px-3 font-medium">{f.name}</td>
+                          <td className="py-2 px-3 text-muted-foreground hidden sm:table-cell">
+                            --
+                          </td>
+                          <td className="py-2 px-3 text-muted-foreground hidden sm:table-cell">
+                            {f.count} {f.count === 1 ? "item" : "items"}
+                          </td>
+                        </tr>
+                      ))}
 
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            disabled={!selectedUrl}
-            onClick={handleUseImage}
-          >
-            Use Image
-          </Button>
-        </DialogFooter>
+                      {/* Media rows */}
+                      {filteredItems.map((item) => (
+                        <tr
+                          key={item.id}
+                          className={cn(
+                            "border-b cursor-pointer transition-colors",
+                            selectedItem?.id === item.id
+                              ? "bg-primary/5 ring-1 ring-inset ring-primary"
+                              : "hover:bg-muted/30"
+                          )}
+                          onClick={() => handleItemClick(item)}
+                        >
+                          <td className="py-2 px-3">
+                            <div className="size-8 rounded overflow-hidden bg-muted shrink-0">
+                              {item.mimeType?.startsWith("video/") ? (
+                                /* eslint-disable-next-line jsx-a11y/media-has-caption */
+                                <video
+                                  src={`${item.url}#t=0.5`}
+                                  preload="metadata"
+                                  muted
+                                  playsInline
+                                  className="size-full object-cover"
+                                />
+                              ) : (
+                                /* eslint-disable-next-line @next/next/no-img-element */
+                                <img
+                                  src={item.url}
+                                  alt={item.alt ?? item.filename}
+                                  loading="lazy"
+                                  decoding="async"
+                                  className="size-full object-cover"
+                                />
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-2 px-3">
+                            <span className="truncate block max-w-xs">
+                              {item.filename}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-muted-foreground hidden sm:table-cell">
+                            {item.createdAt ? formatDate(item.createdAt) : "--"}
+                          </td>
+                          <td className="py-2 px-3 text-muted-foreground hidden sm:table-cell">
+                            {item.fileSize ? formatFileSize(item.fileSize) : "--"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {filteredItems.length === 0 && foldersWithItems.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                      <ImageIcon className="size-10 text-muted-foreground/30 mb-2" />
+                      <span className="text-sm text-muted-foreground">
+                        {searchQuery
+                          ? "No images match your search"
+                          : "No images found"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ---- Footer ---- */}
+        <div className="flex items-center justify-between border-t px-5 py-3 shrink-0">
+          <span className="text-sm text-muted-foreground">
+            {selectedItem ? "1 item selected" : "No item selected"}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={!selectedItem}
+              onClick={handleSelect}
+            >
+              Select
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   )

@@ -1148,8 +1148,9 @@ export function EventForm({ mode, event }: EventFormProps) {
         open={mediaSelectorOpen}
         onOpenChange={setMediaSelectorOpen}
         folder="Events"
-        onSelect={(url) => {
+        onSelect={(url, alt) => {
           setCoverImage(url)
+          if (alt) setImageAlt(alt)
         }}
       />
 
