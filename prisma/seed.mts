@@ -1,4 +1,8 @@
 import 'dotenv/config'
+import { createReadStream } from 'fs'
+import { createGunzip } from 'zlib'
+import { createInterface } from 'readline'
+import { join } from 'path'
 import pg from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 
@@ -8,6 +12,11 @@ const adapter = new PrismaPg(pool)
 const mod = await import('../lib/generated/prisma/client.ts')
 const PrismaClient = mod.PrismaClient
 const prisma = new PrismaClient({ adapter })
+
+// ============================================================
+// CDN base URL for initial website assets (R2 media bucket)
+// ============================================================
+const CDN = 'https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/initial-setup'
 
 // ============================================================
 // Helper: slugify
@@ -447,6 +456,7 @@ async function main() {
   // ── 6. Create Bible Studies (before Messages, for relatedStudyId) ─
   console.log('Creating bible studies...')
   const bibleStudyMap = new Map<string, string>() // slug -> id
+  const archivedStudySlugs = new Set<string>() // slugs of archived studies
   const bsSeenSlugs = new Set<string>()
   for (const bs of BIBLE_STUDIES) {
     // Handle duplicate slugs
@@ -464,6 +474,8 @@ async function main() {
     const answers = content?.answers || null
     const transcript = content?.transcript || null
 
+    // Archive studies with garbled WordPerfect content (questions field)
+    const isArchived = bs.legacyId === 8773 // The Fall of Jericho — garbled questions from WP5.1 file
     const study = await prisma.bibleStudy.create({
       data: {
         churchId,
@@ -485,14 +497,16 @@ async function main() {
         hasQuestions: !!questions,
         hasAnswers: !!answers,
         hasTranscript: !!transcript,
-        status: 'PUBLISHED',
+        status: isArchived ? 'ARCHIVED' : 'PUBLISHED',
         publishedAt: new Date(bs.dateFor),
       },
     })
     bibleStudyMap.set(bsSlug, study.id)
+    if (isArchived) archivedStudySlugs.add(bsSlug)
     // Also map original slug for message matching
     if (bsSlug !== bs.slug && !bibleStudyMap.has(bs.slug)) {
       bibleStudyMap.set(bs.slug, study.id)
+      if (isArchived) archivedStudySlugs.add(bs.slug)
     }
   }
   console.log(`  Created ${bsSeenSlugs.size} bible studies`)
@@ -540,6 +554,7 @@ async function main() {
   for (const msg of MESSAGES) {
     // Match with bible study by slug
     const relatedStudyId = bibleStudyMap.get(msg.slug) || null
+    const studyIsArchived = archivedStudySlugs.has(msg.slug)
 
     const hasVideo = !!msg.youtubeId
     const thumbnailUrl = msg.thumbnailUrl || (msg.youtubeId
@@ -560,7 +575,7 @@ async function main() {
         youtubeId: msg.youtubeId,
         thumbnailUrl,
         hasVideo,
-        hasStudy: !!relatedStudyId,
+        hasStudy: !!relatedStudyId && !studyIsArchived,
         relatedStudyId,
         publishedAt: new Date(msg.dateFor),
       },
@@ -618,11 +633,12 @@ async function main() {
         select: { id: true, title: true },
       })
       if (videoMsg) {
+        const studyArchived = archivedStudySlugs.has(bs.slug)
         const titlesMatch = videoMsg.title.trim().toLowerCase() === bs.title.trim().toLowerCase()
         await prisma.message.update({
           where: { id: videoMsg.id },
           data: {
-            hasStudy: true,
+            hasStudy: !studyArchived,
             relatedStudyId,
             // Bible study title becomes primary; video gets alternate title
             title: bs.title,
@@ -653,6 +669,7 @@ async function main() {
       }
     }
 
+    const studyArchived = archivedStudySlugs.has(bs.slug)
     const created = await prisma.message.create({
       data: {
         churchId,
@@ -663,7 +680,7 @@ async function main() {
         speakerId: null,
         dateFor: new Date(bs.dateFor),
         hasVideo: false,
-        hasStudy: true,
+        hasStudy: !studyArchived,
         relatedStudyId,
         publishedAt: new Date(bs.dateFor),
       },
@@ -911,7 +928,7 @@ async function main() {
       tagline: 'Los Angeles University Bible Fellowship',
       description:
         'LA UBF (Los Angeles University Bible Fellowship) is a Bible-centered community raising lifelong disciples on college campuses and beyond.',
-      logoUrl: '/logo/laubf-logo.svg',
+      logoUrl: `${CDN}/laubf-logo.svg`,
       logoAlt: 'LA UBF',
       faviconUrl: '/favicon.ico',
       contactEmail: 'laubf.downey@gmail.com',
@@ -929,6 +946,9 @@ async function main() {
       enableSearch: true,
       enableGiving: false,
       enableBlog: false,
+      navCtaLabel: "I'm New",
+      navCtaHref: '/im-new',
+      navCtaVisible: true,
     },
   })
   console.log('  Created site settings')
@@ -1366,7 +1386,7 @@ async function main() {
           subheading: "Where people find their community.\nWhere disciples are raised.\nWhere the Word of God is lived.",
           primaryButton: { label: "I'm new", href: '/im-new', visible: true },
           secondaryButton: { label: 'Upcoming events', href: '/events', visible: true },
-          backgroundImage: { src: '/videos/compressed-hero-vid.mp4', alt: 'LA UBF community gathering' },
+          backgroundImage: { src: `${CDN}/compressed-hero-vid.mp4`, alt: 'LA UBF community gathering' },
         },
       },
       {
@@ -1379,12 +1399,12 @@ async function main() {
           body: 'LA UBF (Los Angeles University Bible Fellowship) is an international, non-denominational evangelical church. We serve college students from diverse backgrounds, helping them to grow in faith, build community, and find purpose through the Word of God.',
           button: { label: 'More about us', href: '/about', visible: true },
           images: [
-            { src: '/images/compressed/home/rotatingwheel/compressed-bible-study.png', alt: 'Bible study' },
-            { src: '/images/compressed/home/rotatingwheel/compressed-campus-ministry-list.png', alt: 'Campus ministry' },
-            { src: '/images/compressed/home/rotatingwheel/compressed-campus-ministry.jpg', alt: 'Campus ministry' },
-            { src: '/images/compressed/home/rotatingwheel/compressed-event-christmas.png', alt: 'Christmas event' },
-            { src: '/images/compressed/home/rotatingwheel/compressed-fellowship.jpg', alt: 'Fellowship' },
-            { src: '/images/compressed/home/rotatingwheel/compressed-sunday-worship.jpg', alt: 'Sunday worship' },
+            { src: `${CDN}/images-home-rotatingwheel-compressed-bible-study.png`, alt: 'Bible study' },
+            { src: `${CDN}/images-home-rotatingwheel-compressed-campus-ministry-list.png`, alt: 'Campus ministry' },
+            { src: `${CDN}/images-home-rotatingwheel-compressed-campus-ministry.jpg`, alt: 'Campus ministry' },
+            { src: `${CDN}/images-home-rotatingwheel-compressed-event-christmas.png`, alt: 'Christmas event' },
+            { src: `${CDN}/images-home-rotatingwheel-compressed-fellowship.jpg`, alt: 'Fellowship' },
+            { src: `${CDN}/images-home-rotatingwheel-compressed-sunday-worship.jpg`, alt: 'Sunday worship' },
           ],
         },
       },
@@ -1436,10 +1456,10 @@ async function main() {
           subheading: 'Explore different ways to connect, grow in faith, and be part of our community.',
           ctaButton: { label: 'Plan your visit', href: '/im-new' },
           cards: [
-            { id: 'ns-1', title: 'Sunday Worship', description: 'Join us every Sunday for worship, teaching, and fellowship with believers.', imageUrl: '/images/compressed/home/compressed-sunday-worship.jpg', imageAlt: 'Sunday worship service' },
-            { id: 'ns-2', title: 'College Campus Ministries', description: 'Connect with other students on your campus for Bible study and community.', imageUrl: '/images/compressed/home/compressed-campus-ministry.jpg', imageAlt: 'Campus ministry gathering' },
-            { id: 'ns-3', title: 'Personal Bible Studies', description: 'Study the Bible one-on-one with a mentor at a time that works for you.', imageUrl: '/images/compressed/home/compressed-bible-study.png', imageAlt: 'One-on-one Bible study' },
-            { id: 'ns-4', title: 'Fellowship', description: 'Build lasting friendships through shared meals, activities, and life together.', imageUrl: '/images/compressed/home/compressed-fellowship.jpg', imageAlt: 'Fellowship dinner' },
+            { id: 'ns-1', title: 'Sunday Worship', description: 'Join us every Sunday for worship, teaching, and fellowship with believers.', imageUrl: `${CDN}/images-home-compressed-sunday-worship.jpg`, imageAlt: 'Sunday worship service' },
+            { id: 'ns-2', title: 'College Campus Ministries', description: 'Connect with other students on your campus for Bible study and community.', imageUrl: `${CDN}/images-home-compressed-campus-ministry.jpg`, imageAlt: 'Campus ministry gathering' },
+            { id: 'ns-3', title: 'Personal Bible Studies', description: 'Study the Bible one-on-one with a mentor at a time that works for you.', imageUrl: `${CDN}/images-home-compressed-bible-study.png`, imageAlt: 'One-on-one Bible study' },
+            { id: 'ns-4', title: 'Fellowship', description: 'Build lasting friendships through shared meals, activities, and life together.', imageUrl: `${CDN}/images-home-compressed-fellowship.jpg`, imageAlt: 'Fellowship dinner' },
           ],
         },
       },
@@ -1462,7 +1482,7 @@ async function main() {
             { id: 'cypress', name: 'CYPRESS', href: '/ministries/campus/cypress' },
             { id: 'cal-poly-pomona', name: 'CAL POLY POMONA', href: '/ministries/campus/cal-poly-pomona' },
           ],
-          image: { src: '/images/compressed/home/compressed-campus-ministry-list.png', alt: 'Campus ministry students' },
+          image: { src: `${CDN}/images-home-compressed-campus-ministry-list.png`, alt: 'Campus ministry students' },
           ctaHeading: "Don't see your campus?",
           ctaButton: { label: 'Let us know your interest', href: '/im-new' },
         },
@@ -1498,7 +1518,7 @@ async function main() {
           body: 'All are welcome. Come connect with us and get to know our community.',
           primaryButton: { label: 'Plan your visit', href: '/im-new', visible: true },
           secondaryButton: { label: 'See our ministries', href: '/ministries', visible: true },
-          backgroundImage: { src: '/images/compressed/home/compressed-visit-us.jpg', alt: 'LA UBF community' },
+          backgroundImage: { src: `${CDN}/compressed-visit-us.jpg`, alt: 'LA UBF community' },
         },
       },
     ],
@@ -1523,7 +1543,7 @@ async function main() {
           headingLine1: 'Christian Ministry for',
           headingAccent: 'College Students +',
           description: 'Our main focus is to study the Bible and grow in the grace and knowledge of Jesus Christ as his disciples.',
-          image: { src: '/images/compressed/who%20we%20are/compressed-header.jpg', alt: 'LA UBF community gathering' },
+          image: { src: `${CDN}/images-who%20we%20are-compressed-header.jpg`, alt: 'LA UBF community gathering' },
         },
       },
       {
@@ -1531,7 +1551,7 @@ async function main() {
         label: 'About UBF',
         colorScheme: 'DARK',
         content: {
-          logoSrc: '/logo/laubf-logo-blue.svg',
+          logoSrc: `${CDN}/laubf-logo-blue.svg`,
           heading: 'About UBF',
           description: 'University Bible Fellowship (UBF) is an international evangelical church (non-denominational) dedicated to Christ and his kingdom. Our main focus is to study the Bible, grow in the grace and knowledge of our Lord and Savior Jesus Christ, and live according to his teachings as his disciples. We especially pray to reach college students and help them grow as his lifelong disciples. Our goal is to obey our Lord\u2019s commands to love one another and to go and make disciples of all nations (Jn 13:34; Mt 28:18-20). We pray that God may continue to call and raise lay missionaries through us and send them to the ends of the earth (Ac 1:8).',
           videoUrl: 'https://www.youtube.com/embed/WqeW4HtM06M',
@@ -1546,9 +1566,9 @@ async function main() {
           overline: 'WHAT WE DO',
           heading: 'The 3 Pillars of LA UBF',
           items: [
-            { title: 'Bible Study', description: 'We help students study the Bible so they may come to know God personally, understand themselves, and find purpose in Jesus Christ. Bible studies are offered one-to-one with a mentor or in small groups centered around campuses and shared interests.', images: [{ src: '/images/compressed/who%20we%20are/compressed-bible%20study.jpg', alt: 'Bible study session' }] },
-            { title: 'Discipleship', description: 'We walk with students as they grow as disciples of Jesus through shared life and discipleship training. Our goal is to equip students to mature in faith and become disciple makers who help others follow Christ.', images: [{ src: '/images/compressed/who%20we%20are/compressed-discipleship.jpg', alt: 'Discipleship gathering' }] },
-            { title: 'Fellowship', description: 'Fellowship is an essential part of our faith as we support and encourage one another in community. We share fellowship through Sunday worship, activities, and retreats as we grow together in Christ.', images: [{ src: '/images/compressed/who%20we%20are/compressed-fellowship.jpg', alt: 'Fellowship meal' }] },
+            { title: 'Bible Study', description: 'We help students study the Bible so they may come to know God personally, understand themselves, and find purpose in Jesus Christ. Bible studies are offered one-to-one with a mentor or in small groups centered around campuses and shared interests.', images: [{ src: `${CDN}/compressed-bible%20study.jpg`, alt: 'Bible study session' }] },
+            { title: 'Discipleship', description: 'We walk with students as they grow as disciples of Jesus through shared life and discipleship training. Our goal is to equip students to mature in faith and become disciple makers who help others follow Christ.', images: [{ src: `${CDN}/compressed-discipleship.jpg`, alt: 'Discipleship gathering' }] },
+            { title: 'Fellowship', description: 'Fellowship is an essential part of our faith as we support and encourage one another in community. We share fellowship through Sunday worship, activities, and retreats as we grow together in Christ.', images: [{ src: `${CDN}/images-who%20we%20are-compressed-fellowship.jpg`, alt: 'Fellowship meal' }] },
           ],
         },
       },
@@ -1579,7 +1599,7 @@ async function main() {
           description: 'We know that visiting a new church can be intimidating. Learn more about our church and how you can take your next steps at LA UBF.',
           buttonLabel: "I\u2019m new",
           buttonHref: '/im-new',
-          image: { src: '/images/compressed/home/compressed-sunday-worship.jpg', alt: 'Sunday worship at LA UBF' },
+          image: { src: `${CDN}/images-home-compressed-sunday-worship.jpg`, alt: 'Sunday worship at LA UBF' },
         },
       },
     ],
@@ -1756,7 +1776,7 @@ async function main() {
           overline: 'WHO WE ARE',
           headingLine1: 'Our Ministries',
           description: 'At LA UBF, we believe that spiritual growth happens best in community. Whether you are a student, a working professional, or a parent, there is a place for you here.',
-          image: { src: '/images/compressed/ministries/compressed-congregation.jpg', alt: 'LA UBF community gathering' },
+          image: { src: `${CDN}/compressed-congregation.jpg`, alt: 'LA UBF community gathering' },
           textAlign: 'center',
         },
       },
@@ -1768,10 +1788,10 @@ async function main() {
           overline: 'MINISTRIES',
           heading: 'Age Groups',
           items: [
-            { title: 'Young Adults', description: 'A community of college students and young professionals growing together through campus Bible studies, fellowship, and shared worship.', images: [{ src: '/images/compressed/ministries/compressed-young%20adults.jpg', alt: 'Young adults Bible study' }], button: { label: 'Learn more', href: '/ministries/college' } },
-            { title: 'Adults', description: 'Adults from many walks of life\u2014campus leaders, Bible teachers, parents, and missionaries\u2014growing in faith through personal and group Bible study, conferences, and outreach.', images: [{ src: '/images/compressed/ministries/compressed-adults.webp', alt: 'Adult fellowship' }], button: { label: 'Learn more', href: '/ministries/adults' } },
-            { title: 'Middle & High School\n(HBF / JBF)', description: 'Our youth ministries for middle and high school students, with engaging Bible studies, fun fellowship activities, and a supportive community during these formative years.', images: [{ src: '/images/compressed/ministries/compressed-middle%20n%20high.jpg', alt: 'HBF JBF students' }], button: { label: 'Learn more', href: '/ministries/high-school' } },
-            { title: 'Children (CBF)', description: "A safe, engaging, and age-appropriate environment where children can learn about God\u2019s Word and build friendships while growing in faith.", images: [{ src: '/images/compressed/ministries/compressed-children.webp', alt: 'Children Bible fellowship' }], button: { label: 'Learn more', href: '/ministries/children' } },
+            { title: 'Young Adults', description: 'A community of college students and young professionals growing together through campus Bible studies, fellowship, and shared worship.', images: [{ src: `${CDN}/compressed-young%20adults.jpg`, alt: 'Young adults Bible study' }], button: { label: 'Learn more', href: '/ministries/college' } },
+            { title: 'Adults', description: 'Adults from many walks of life\u2014campus leaders, Bible teachers, parents, and missionaries\u2014growing in faith through personal and group Bible study, conferences, and outreach.', images: [{ src: `${CDN}/compressed-adults.webp`, alt: 'Adult fellowship' }], button: { label: 'Learn more', href: '/ministries/adults' } },
+            { title: 'Middle & High School\n(HBF / JBF)', description: 'Our youth ministries for middle and high school students, with engaging Bible studies, fun fellowship activities, and a supportive community during these formative years.', images: [{ src: `${CDN}/compressed-middle%20n%20high.jpg`, alt: 'HBF JBF students' }], button: { label: 'Learn more', href: '/ministries/high-school' } },
+            { title: 'Children (CBF)', description: "A safe, engaging, and age-appropriate environment where children can learn about God\u2019s Word and build friendships while growing in faith.", images: [{ src: `${CDN}/compressed-children.webp`, alt: 'Children Bible fellowship' }], button: { label: 'Learn more', href: '/ministries/children' } },
           ],
         },
       },
@@ -1784,9 +1804,9 @@ async function main() {
           heading: 'Join a Campus Ministry',
           description: 'We have bible study clubs all across different college campuses. Join us for weekly group bible studies and get to know each other through fellowship.',
           decorativeImages: [
-            { src: '/images/compressed/ministries/join-campus-ministry-section/compressed-1.jpg', alt: 'Campus group photo' },
-            { src: '/images/compressed/ministries/join-campus-ministry-section/compressed-2.jpg', alt: 'Bible study outdoors' },
-            { src: '/images/compressed/ministries/join-campus-ministry-section/compressed-3.png', alt: 'Fellowship event' },
+            { src: `${CDN}/images-ministries-join-campus-ministry-section-compressed-1.jpg`, alt: 'Campus group photo' },
+            { src: `${CDN}/images-ministries-join-campus-ministry-section-compressed-2.jpg`, alt: 'Bible study outdoors' },
+            { src: `${CDN}/compressed-3.png`, alt: 'Fellowship event' },
           ],
           campuses: [
             { id: 'lbcc', abbreviation: 'LBCC', fullName: 'Long Beach City College', href: '/ministries/campus/lbcc' },
@@ -1814,7 +1834,7 @@ async function main() {
           description: 'We know that visiting a new church can be intimidating. Learn more about our church and how you can take your next steps at LA UBF.',
           buttonLabel: "I\u2019m new",
           buttonHref: '/im-new',
-          image: { src: '/images/compressed/home/compressed-sunday-worship.jpg', alt: 'Sunday worship at LA UBF' },
+          image: { src: `${CDN}/images-home-compressed-sunday-worship.jpg`, alt: 'Sunday worship at LA UBF' },
         },
       },
     ],
@@ -1824,9 +1844,9 @@ async function main() {
   // Shared campus card grid content
   const sharedCampusGrid = {
     decorativeImages: [
-      { src: '/images/compressed/ministries/join-campus-ministry-section/compressed-1.jpg', alt: 'Campus group photo' },
-      { src: '/images/compressed/ministries/join-campus-ministry-section/compressed-2.jpg', alt: 'Bible study outdoors' },
-      { src: '/images/compressed/ministries/join-campus-ministry-section/compressed-3.png', alt: 'Fellowship event' },
+      { src: `${CDN}/images-ministries-join-campus-ministry-section-compressed-1.jpg`, alt: 'Campus group photo' },
+      { src: `${CDN}/images-ministries-join-campus-ministry-section-compressed-2.jpg`, alt: 'Bible study outdoors' },
+      { src: `${CDN}/compressed-3.png`, alt: 'Fellowship event' },
     ],
     heading: 'Join a Campus Ministry',
     description: 'We have Bible study groups meeting on campuses across Southern California. Find a group near you and start studying the Bible with fellow students.',
@@ -1853,7 +1873,7 @@ async function main() {
     description: 'We know that visiting a new church can be intimidating. Learn more about our church and how you can take your next steps at LA UBF.',
     buttonLabel: "I\u2019m new",
     buttonHref: '/im-new',
-    image: { src: '/images/compressed/home/compressed-sunday-worship.jpg', alt: 'Sunday worship at LA UBF' },
+    image: { src: `${CDN}/images-home-compressed-sunday-worship.jpg`, alt: 'Sunday worship at LA UBF' },
   }
 
   // Shared form content
@@ -1906,7 +1926,7 @@ async function main() {
           overline: 'MINISTRY',
           heading: 'Young Adult / College',
           headingStyle: 'sans',
-          heroImage: { src: '/images/compressed/ministries/compressed-young%20adults.jpg', alt: 'Young adult and college ministry group' },
+          heroImage: { src: `${CDN}/compressed-young%20adults.jpg`, alt: 'Young adult and college ministry group' },
         },
       },
       {
@@ -1917,7 +1937,7 @@ async function main() {
           overline: 'INTRODUCTION',
           heading: 'Young Adult Ministry (YAM)',
           description: "The Young Adult Ministry (YAM) at LA UBF is a vibrant community of college students and young professionals growing together in faith. Through campus Bible study groups, fellowship activities, and shared worship, we create a space where young adults can explore God\u2019s Word, build meaningful friendships, and discover their calling. Whether you\u2019re on campus or in the workforce, you\u2019ll find a welcoming community here.",
-          image: { src: '/images/compressed/ministries/young%20adults/compressed-yam.png', alt: 'Young adult ministry fellowship' },
+          image: { src: `${CDN}/compressed-yam.png`, alt: 'Young adult ministry fellowship' },
         },
       },
       {
@@ -1928,9 +1948,9 @@ async function main() {
           overline: '',
           heading: 'What We Do',
           items: [
-            { title: 'Fellowship', description: 'Our young adult fellowship is a space to build authentic friendships and grow together. From shared meals to group outings, we create opportunities for meaningful connection and community among college students and young professionals.', images: [{ src: '/images/compressed/ministries/young%20adults/compressed-fellowship.png', alt: 'Young adult fellowship' }] },
-            { title: 'Discipleship Training', description: "Through personal and group Bible study, we help young adults develop a strong foundation in God\u2019s Word. Our discipleship training equips students to grow as leaders, mentors, and faithful followers of Christ.", images: [{ src: '/pics-temp/DSC05299.jpg', alt: 'Discipleship training' }] },
-            { title: 'Serving Opportunities', description: "We believe in learning by serving. Young adults have the opportunity to serve through campus outreach, community events, conferences, and supporting the church\u2019s mission locally and beyond.", images: [{ src: '/images/compressed/ministries/young%20adults/compressed-serving.jpg', alt: 'Serving opportunities' }] },
+            { title: 'Fellowship', description: 'Our young adult fellowship is a space to build authentic friendships and grow together. From shared meals to group outings, we create opportunities for meaningful connection and community among college students and young professionals.', images: [{ src: `${CDN}/compressed-fellowship.png`, alt: 'Young adult fellowship' }] },
+            { title: 'Discipleship Training', description: "Through personal and group Bible study, we help young adults develop a strong foundation in God\u2019s Word. Our discipleship training equips students to grow as leaders, mentors, and faithful followers of Christ.", images: [{ src: `${CDN}/DSC05299.jpg`, alt: 'Discipleship training' }] },
+            { title: 'Serving Opportunities', description: "We believe in learning by serving. Young adults have the opportunity to serve through campus outreach, community events, conferences, and supporting the church\u2019s mission locally and beyond.", images: [{ src: `${CDN}/images-ministries-young%20adults-compressed-serving.jpg`, alt: 'Serving opportunities' }] },
           ],
         },
       },
@@ -1941,16 +1961,16 @@ async function main() {
         content: {
           heading: 'Snippets from the Ministry',
           images: [
-            { src: '/images/compressed/ministries/young%20adults/carousel/compressed-1.jpg', alt: 'YAM moment 1' },
-            { src: '/images/compressed/ministries/young%20adults/carousel/compressed-2.jpg', alt: 'YAM moment 2' },
-            { src: '/images/compressed/ministries/young%20adults/carousel/compressed-3.jpg', alt: 'YAM moment 3' },
-            { src: '/images/compressed/ministries/young%20adults/carousel/compressed-4.jpg', alt: 'YAM moment 4' },
-            { src: '/images/compressed/ministries/young%20adults/carousel/compressed-5.jpg', alt: 'YAM moment 5' },
-            { src: '/images/compressed/ministries/young%20adults/carousel/compressed-6.jpg', alt: 'YAM moment 6' },
-            { src: '/images/compressed/ministries/young%20adults/carousel/compressed-7.jpg', alt: 'YAM moment 7' },
-            { src: '/images/compressed/ministries/young%20adults/carousel/compressed-8.jpg', alt: 'YAM moment 8' },
-            { src: '/images/compressed/ministries/young%20adults/carousel/compressed-9.jpg', alt: 'YAM moment 9' },
-            { src: '/images/compressed/ministries/young%20adults/carousel/compressed-10.jpg', alt: 'YAM moment 10' },
+            { src: `${CDN}/images-ministries-young%20adults-carousel-compressed-1.jpg`, alt: 'YAM moment 1' },
+            { src: `${CDN}/images-ministries-young%20adults-carousel-compressed-2.jpg`, alt: 'YAM moment 2' },
+            { src: `${CDN}/compressed-3.jpg`, alt: 'YAM moment 3' },
+            { src: `${CDN}/compressed-4.jpg`, alt: 'YAM moment 4' },
+            { src: `${CDN}/compressed-5.jpg`, alt: 'YAM moment 5' },
+            { src: `${CDN}/compressed-6.jpg`, alt: 'YAM moment 6' },
+            { src: `${CDN}/compressed-7.jpg`, alt: 'YAM moment 7' },
+            { src: `${CDN}/compressed-8.jpg`, alt: 'YAM moment 8' },
+            { src: `${CDN}/compressed-9.jpg`, alt: 'YAM moment 9' },
+            { src: `${CDN}/compressed-10.jpg`, alt: 'YAM moment 10' },
           ],
         },
       },
@@ -1968,9 +1988,9 @@ async function main() {
           overline: 'YOUNG ADULT MINISTRY',
           heading: 'Meet Our Team',
           members: [
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Leader name' } },
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05299.jpg', alt: 'Leader name' } },
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC01195.jpg', alt: 'Leader name' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Leader name' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05299.jpg`, alt: 'Leader name' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC01195.jpg`, alt: 'Leader name' } },
           ],
         },
       },
@@ -2015,7 +2035,7 @@ async function main() {
           overline: 'MINISTRY',
           heading: 'Adult',
           headingStyle: 'sans',
-          heroImage: { src: '/images/compressed/ministries/compressed-adults.webp', alt: 'Adult ministry worship service' },
+          heroImage: { src: `${CDN}/compressed-adults.webp`, alt: 'Adult ministry worship service' },
         },
       },
       {
@@ -2026,7 +2046,7 @@ async function main() {
           overline: 'INTRODUCTION',
           heading: 'Adult Ministry',
           description: "Our adult ministry brings together people from many walks of life, including campus leaders, Bible teachers, parents, missionaries, and members growing in faith. Within the adult ministry, there are opportunities for personal and group Bible study, special conferences, campus outreach, and opportunities to support the church\u2019s mission in various mission fields and beyond. Join us for Sunday worship to learn more about how you can find your place at LA UBF.",
-          image: { src: '/images/compressed/ministries/adults/compressed-introduction.jpg', alt: 'Adult ministry group photo' },
+          image: { src: `${CDN}/images-ministries-adults-compressed-introduction.jpg`, alt: 'Adult ministry group photo' },
         },
       },
       {
@@ -2037,10 +2057,10 @@ async function main() {
           overline: '',
           heading: 'What We Do',
           items: [
-            { title: 'Growing in Faith', description: "Adult ministry includes opportunities for Bible study, prayer, and spiritual growth to be built up and be established in God\u2019s grace, devotionals, and shared learning, adults grow together in the Word.", images: [{ src: '/images/compressed/ministries/adults/compressed-growing.jpg', alt: 'Growing in faith' }] },
-            { title: 'Raising Disciples', description: "Many adults learn to grow in leadership, mentoring, teaching personal Bible studies, or guiding others in faith. Teaching helps to grow in understanding by sharing God\u2019s Word with others. Key to our ministry is raising others as lifelong disciples of Christ.", images: [{ src: '/images/compressed/ministries/adults/compressed-disciples.jpg', alt: 'Raising disciples' }] },
-            { title: 'Serving & Mission', description: "Adults take part and serve together through short-term and long-term service opportunities, seasonal conferences, campus outreach, and opportunities to support the church\u2019s mission in various mission fields and beyond.", images: [{ src: '/images/compressed/ministries/adults/compressed-serving.jpg', alt: 'Serving and mission' }] },
-            { title: 'Community & Fellowship', description: 'Adult ministry is also a place to build relationships through simple shared meals as a church, joyful worship, time spent together at various studies, and fellowship time together as a church community.', images: [{ src: '/pics-temp/DSC01195.jpg', alt: 'Community fellowship' }] },
+            { title: 'Growing in Faith', description: "Adult ministry includes opportunities for Bible study, prayer, and spiritual growth to be built up and be established in God\u2019s grace, devotionals, and shared learning, adults grow together in the Word.", images: [{ src: `${CDN}/compressed-growing.jpg`, alt: 'Growing in faith' }] },
+            { title: 'Raising Disciples', description: "Many adults learn to grow in leadership, mentoring, teaching personal Bible studies, or guiding others in faith. Teaching helps to grow in understanding by sharing God\u2019s Word with others. Key to our ministry is raising others as lifelong disciples of Christ.", images: [{ src: `${CDN}/compressed-disciples.jpg`, alt: 'Raising disciples' }] },
+            { title: 'Serving & Mission', description: "Adults take part and serve together through short-term and long-term service opportunities, seasonal conferences, campus outreach, and opportunities to support the church\u2019s mission in various mission fields and beyond.", images: [{ src: `${CDN}/images-ministries-adults-compressed-serving.jpg`, alt: 'Serving and mission' }] },
+            { title: 'Community & Fellowship', description: 'Adult ministry is also a place to build relationships through simple shared meals as a church, joyful worship, time spent together at various studies, and fellowship time together as a church community.', images: [{ src: `${CDN}/DSC01195.jpg`, alt: 'Community fellowship' }] },
           ],
         },
       },
@@ -2052,9 +2072,9 @@ async function main() {
           overline: 'ADULT',
           heading: 'Meet Our Team',
           members: [
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Leader name' } },
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05299.jpg', alt: 'Leader name' } },
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC01195.jpg', alt: 'Leader name' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Leader name' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05299.jpg`, alt: 'Leader name' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC01195.jpg`, alt: 'Leader name' } },
           ],
         },
       },
@@ -2099,7 +2119,7 @@ async function main() {
           overline: 'MINISTRY',
           heading: 'Middle & High School',
           headingStyle: 'sans',
-          heroImage: { src: '/images/compressed/ministries/middle%20n%20high/compressed-header.jpg', alt: 'Middle and high school ministry group photo' },
+          heroImage: { src: `${CDN}/images-ministries-middle%20n%20high-compressed-header.jpg`, alt: 'Middle and high school ministry group photo' },
         },
       },
       {
@@ -2110,7 +2130,7 @@ async function main() {
           overline: 'INTRODUCTION',
           heading: 'JBF & HBF',
           description: "JBF (Junior Bible Fellowship) and HBF (High School Bible Fellowship) are our youth ministries for middle school and high school students. Through engaging Bible studies, fun fellowship activities, and a supportive community, we help young people build a strong foundation of faith during these formative years.",
-          image: { src: '/images/compressed/ministries/middle%20n%20high/compressed-introduction.jpg', alt: 'JBF and HBF youth ministry' },
+          image: { src: `${CDN}/images-ministries-middle%20n%20high-compressed-introduction.jpg`, alt: 'JBF and HBF youth ministry' },
         },
       },
       {
@@ -2121,9 +2141,9 @@ async function main() {
           overline: '',
           heading: 'What We Do',
           items: [
-            { title: 'Praise Night', description: "Praise Night is a time for our youth to come together in worship through music, prayer, and fellowship. It\u2019s an uplifting experience where students can express their faith and grow closer to God and each other.", images: [{ src: '/images/compressed/ministries/middle%20n%20high/compressed-praise%20night.jpg', alt: 'Youth praise night' }] },
-            { title: 'Fellowship', description: 'Fellowship activities give our youth the opportunity to build friendships, have fun, and strengthen their bonds within the church community through games, outings, and shared experiences.', images: [{ src: '/images/compressed/ministries/middle%20n%20high/compressed-fellowship.jpg', alt: 'Youth fellowship' }] },
-            { title: 'Youth Conference', description: "Our annual Youth Conference brings together students for an immersive experience of worship, Bible study, and community. It\u2019s a highlight of the year where young people are inspired and challenged in their faith.", images: [{ src: '/images/compressed/ministries/middle%20n%20high/compressed-jbfhbf%20conference.jpg', alt: 'Youth conference' }] },
+            { title: 'Praise Night', description: "Praise Night is a time for our youth to come together in worship through music, prayer, and fellowship. It\u2019s an uplifting experience where students can express their faith and grow closer to God and each other.", images: [{ src: `${CDN}/compressed-praise%20night.jpg`, alt: 'Youth praise night' }] },
+            { title: 'Fellowship', description: 'Fellowship activities give our youth the opportunity to build friendships, have fun, and strengthen their bonds within the church community through games, outings, and shared experiences.', images: [{ src: `${CDN}/images-ministries-middle%20n%20high-compressed-fellowship.jpg`, alt: 'Youth fellowship' }] },
+            { title: 'Youth Conference', description: "Our annual Youth Conference brings together students for an immersive experience of worship, Bible study, and community. It\u2019s a highlight of the year where young people are inspired and challenged in their faith.", images: [{ src: `${CDN}/compressed-jbfhbf%20conference.jpg`, alt: 'Youth conference' }] },
           ],
         },
       },
@@ -2134,11 +2154,11 @@ async function main() {
         content: {
           heading: 'Snippets from the Ministry',
           images: [
-            { src: '/images/compressed/ministries/middle%20n%20high/compressed-header.jpg', alt: 'Youth ministry moment 1' },
-            { src: '/images/compressed/ministries/middle%20n%20high/compressed-introduction.jpg', alt: 'Youth ministry moment 2' },
-            { src: '/images/compressed/ministries/middle%20n%20high/compressed-praise%20night.jpg', alt: 'Youth ministry moment 3' },
-            { src: '/images/compressed/ministries/middle%20n%20high/compressed-fellowship.jpg', alt: 'Youth ministry moment 4' },
-            { src: '/images/compressed/ministries/middle%20n%20high/compressed-jbfhbf%20conference.jpg', alt: 'Youth ministry moment 5' },
+            { src: `${CDN}/images-ministries-middle%20n%20high-compressed-header.jpg`, alt: 'Youth ministry moment 1' },
+            { src: `${CDN}/images-ministries-middle%20n%20high-compressed-introduction.jpg`, alt: 'Youth ministry moment 2' },
+            { src: `${CDN}/compressed-praise%20night.jpg`, alt: 'Youth ministry moment 3' },
+            { src: `${CDN}/images-ministries-middle%20n%20high-compressed-fellowship.jpg`, alt: 'Youth ministry moment 4' },
+            { src: `${CDN}/compressed-jbfhbf%20conference.jpg`, alt: 'Youth ministry moment 5' },
           ],
         },
       },
@@ -2150,9 +2170,9 @@ async function main() {
           overline: 'JBF & HBF',
           heading: 'Meet Our Team',
           members: [
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Leader name' } },
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05299.jpg', alt: 'Leader name' } },
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC01195.jpg', alt: 'Leader name' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Leader name' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05299.jpg`, alt: 'Leader name' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC01195.jpg`, alt: 'Leader name' } },
           ],
         },
       },
@@ -2197,7 +2217,7 @@ async function main() {
           overline: 'MINISTRY',
           heading: 'Children',
           headingStyle: 'sans',
-          heroImage: { src: '/images/compressed/ministries/compressed-children.webp', alt: 'Children ministry group photo' },
+          heroImage: { src: `${CDN}/compressed-children.webp`, alt: 'Children ministry group photo' },
         },
       },
       {
@@ -2208,7 +2228,7 @@ async function main() {
           overline: 'INTRODUCTION',
           heading: 'CBF',
           description: "CBF (Children\u2019s Bible Fellowship) is our ministry for children, where they can learn about God\u2019s Word in a safe, engaging, and age-appropriate environment while building friendships and growing in faith.",
-          image: { src: '/images/compressed/ministries/children/compressed-introduction.png', alt: 'Children bible fellowship' },
+          image: { src: `${CDN}/compressed-introduction.png`, alt: 'Children bible fellowship' },
         },
       },
       {
@@ -2221,7 +2241,7 @@ async function main() {
           timeValue: 'Every Sunday\n@ 1:30 PM (after lunch)',
           address: ['11625 Paramount Boulevard,', 'Downey, CA'],
           directionsUrl: 'https://maps.google.com/?q=11625+Paramount+Boulevard+Downey+CA',
-          image: { src: '/images/compressed/ministries/children/compressed-service.png', alt: 'Children sunday service' },
+          image: { src: `${CDN}/compressed-service.png`, alt: 'Children sunday service' },
         },
       },
       {
@@ -2232,9 +2252,9 @@ async function main() {
           overline: '',
           heading: 'What We Do',
           items: [
-            { title: 'Singspiration', description: "Singspiration is a time for children to sing, dance, and share music\u2019s simple joy. It helps them learn about God\u2019s love through song, building worship skills early on.", images: [{ src: '/images/compressed/ministries/children/compressed-singspiration.jpg', alt: 'Children singspiration' }] },
-            { title: "Children\u2019s Bible Class", description: "In Children\u2019s Bible Class, kids learn about the Bible through lessons designed to be fun, interactive, and easy to understand for their age.", images: [{ src: '/images/compressed/ministries/children/compressed-class.jpg', alt: 'Children bible class' }] },
-            { title: 'Child Care During Sunday Service', description: 'We also offer child care during the Sunday worship service, providing a safe and engaging space for children so parents can attend the adult service with peace of mind.', images: [{ src: '/images/compressed/ministries/children/compressed-child%20care.jpg', alt: 'Child care during service' }] },
+            { title: 'Singspiration', description: "Singspiration is a time for children to sing, dance, and share music\u2019s simple joy. It helps them learn about God\u2019s love through song, building worship skills early on.", images: [{ src: `${CDN}/compressed-singspiration.jpg`, alt: 'Children singspiration' }] },
+            { title: "Children\u2019s Bible Class", description: "In Children\u2019s Bible Class, kids learn about the Bible through lessons designed to be fun, interactive, and easy to understand for their age.", images: [{ src: `${CDN}/compressed-class.jpg`, alt: 'Children bible class' }] },
+            { title: 'Child Care During Sunday Service', description: 'We also offer child care during the Sunday worship service, providing a safe and engaging space for children so parents can attend the adult service with peace of mind.', images: [{ src: `${CDN}/compressed-child%20care.jpg`, alt: 'Child care during service' }] },
           ],
         },
       },
@@ -2246,9 +2266,9 @@ async function main() {
           overline: 'CBF',
           heading: 'Meet Our Team',
           members: [
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Leader name' } },
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05299.jpg', alt: 'Leader name' } },
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC01195.jpg', alt: 'Leader name' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Leader name' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05299.jpg`, alt: 'Leader name' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC01195.jpg`, alt: 'Leader name' } },
           ],
         },
       },
@@ -2290,9 +2310,9 @@ async function main() {
 
   const sharedCampusOtherGrid = {
     decorativeImages: [
-      { src: '/images/compressed/ministries/join-campus-ministry-section/compressed-1.jpg', alt: 'Campus group photo' },
-      { src: '/images/compressed/ministries/join-campus-ministry-section/compressed-2.jpg', alt: 'Bible study outdoors' },
-      { src: '/images/compressed/ministries/join-campus-ministry-section/compressed-3.png', alt: 'Fellowship event' },
+      { src: `${CDN}/images-ministries-join-campus-ministry-section-compressed-1.jpg`, alt: 'Campus group photo' },
+      { src: `${CDN}/images-ministries-join-campus-ministry-section-compressed-2.jpg`, alt: 'Bible study outdoors' },
+      { src: `${CDN}/compressed-3.png`, alt: 'Fellowship event' },
     ],
     heading: 'Check out other campuses',
     campuses: [
@@ -2336,7 +2356,7 @@ async function main() {
             { platform: 'Facebook', href: 'https://www.facebook.com/lbcctruevine/' },
             { platform: 'Website', href: 'https://lbcctruevine.org/' },
           ],
-          heroImage: { src: '/images/compressed/ministries/lbcc/compressed-lbcc-truevineclub.jpg', alt: 'LBCC True Vine Club campus ministry' },
+          heroImage: { src: `${CDN}/compressed-lbcc-truevineclub.jpg`, alt: 'LBCC True Vine Club campus ministry' },
         },
       },
       {
@@ -2375,9 +2395,9 @@ async function main() {
           overline: 'LBCC TRUE VINE CLUB',
           heading: 'Meet Our Team',
           members: [
-            { name: 'William Larsen', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'William Larsen' } },
-            { name: 'Troy Segale', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05299.jpg', alt: 'Troy Segale' } },
-            { name: 'Joey Fishman', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC01195.jpg', alt: 'Joey Fishman' } },
+            { name: 'William Larsen', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'William Larsen' } },
+            { name: 'Troy Segale', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05299.jpg`, alt: 'Troy Segale' } },
+            { name: 'Joey Fishman', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC01195.jpg`, alt: 'Joey Fishman' } },
           ],
         },
       },
@@ -2421,7 +2441,7 @@ async function main() {
           socialLinks: [
             { platform: 'Instagram', href: 'https://www.instagram.com/truevine_csulb/' },
           ],
-          heroImage: { src: '/images/compressed/ministries/csulb/compressed-hero.jpg', alt: 'CSULB True Vine Club campus ministry' },
+          heroImage: { src: `${CDN}/compressed-hero.jpg`, alt: 'CSULB True Vine Club campus ministry' },
         },
       },
       {
@@ -2459,8 +2479,8 @@ async function main() {
           overline: 'CSULB TRUE VINE CLUB',
           heading: 'Meet Our Team',
           members: [
-            { name: 'Robert Fishman', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Robert Fishman' } },
-            { name: 'Jorge Lau', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05299.jpg', alt: 'Jorge Lau' } },
+            { name: 'Robert Fishman', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Robert Fishman' } },
+            { name: 'Jorge Lau', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05299.jpg`, alt: 'Jorge Lau' } },
           ],
         },
       },
@@ -2541,8 +2561,8 @@ async function main() {
           overline: 'CSUF',
           heading: 'Meet Our Team',
           members: [
-            { name: 'Daniel Shim', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Daniel Shim' } },
-            { name: 'Joseph Cho', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05299.jpg', alt: 'Joseph Cho' } },
+            { name: 'Daniel Shim', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Daniel Shim' } },
+            { name: 'Joseph Cho', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05299.jpg`, alt: 'Joseph Cho' } },
           ],
         },
       },
@@ -2619,7 +2639,7 @@ async function main() {
           overline: 'UCLA',
           heading: 'Meet Our Team',
           members: [
-            { name: 'Peace Oh', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Peace Oh' } },
+            { name: 'Peace Oh', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Peace Oh' } },
           ],
         },
       },
@@ -2698,7 +2718,7 @@ async function main() {
           overline: 'USC',
           heading: 'Meet Our Team',
           members: [
-            { name: 'David Park', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'David Park' } },
+            { name: 'David Park', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'David Park' } },
           ],
         },
       },
@@ -2775,9 +2795,9 @@ async function main() {
           overline: 'CSUDH',
           heading: 'Meet Our Team',
           members: [
-            { name: 'Augustine Kim', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Augustine Kim' } },
-            { name: 'Paul Lim', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05299.jpg', alt: 'Paul Lim' } },
-            { name: 'Moses Han', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC01195.jpg', alt: 'Moses Han' } },
+            { name: 'Augustine Kim', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Augustine Kim' } },
+            { name: 'Paul Lim', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05299.jpg`, alt: 'Paul Lim' } },
+            { name: 'Moses Han', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC01195.jpg`, alt: 'Moses Han' } },
           ],
         },
       },
@@ -2854,7 +2874,7 @@ async function main() {
           overline: 'CERRITOS COLLEGE',
           heading: 'Meet Our Team',
           members: [
-            { name: 'Paul Lim', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Paul Lim' } },
+            { name: 'Paul Lim', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Paul Lim' } },
           ],
         },
       },
@@ -2931,7 +2951,7 @@ async function main() {
           overline: 'MT. SAC',
           heading: 'Meet Our Team',
           members: [
-            { name: 'Jason Koch', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Jason Koch' } },
+            { name: 'Jason Koch', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Jason Koch' } },
           ],
         },
       },
@@ -3008,7 +3028,7 @@ async function main() {
           overline: 'GOLDEN WEST COLLEGE',
           heading: 'Meet Our Team',
           members: [
-            { name: 'Frank Holman', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Frank Holman' } },
+            { name: 'Frank Holman', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Frank Holman' } },
           ],
         },
       },
@@ -3085,7 +3105,7 @@ async function main() {
           overline: 'CYPRESS COLLEGE',
           heading: 'Meet Our Team',
           members: [
-            { name: 'David Cho', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'David Cho' } },
+            { name: 'David Cho', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'David Cho' } },
           ],
         },
       },
@@ -3162,7 +3182,7 @@ async function main() {
           overline: 'CAL POLY POMONA',
           heading: 'Meet Our Team',
           members: [
-            { name: 'Andrew Cuevas', role: '', bio: 'Bio here', image: { src: '/pics-temp/DSC05222.jpg', alt: 'Andrew Cuevas' } },
+            { name: 'Andrew Cuevas', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Andrew Cuevas' } },
           ],
         },
       },
@@ -3202,12 +3222,12 @@ async function main() {
           primaryButton: { label: 'Plan Your Visit', href: '#plan-visit', visible: true },
           secondaryButton: { label: 'FREQUENTLY ASKED QUESTIONS', href: '#faq', visible: true },
           floatingImages: [
-            { src: "/images/compressed/i'm%20new/header%20photos/compressed-baptism.jpg", alt: 'Baptism', width: 219, height: 146 },
-            { src: "/images/compressed/i'm%20new/header%20photos/compressed-beach%20camp.jpg", alt: 'Beach camp', width: 186, height: 133 },
-            { src: "/images/compressed/i'm%20new/header%20photos/compressed-face%20paint.jpg", alt: 'Community event', width: 311, height: 249 },
-            { src: "/images/compressed/i'm%20new/header%20photos/compressed-josh.jpg", alt: 'Fellowship', width: 133, height: 106 },
-            { src: "/images/compressed/i'm%20new/header%20photos/compressed-sports.jpg", alt: 'Sports fellowship', width: 216, height: 144 },
-            { src: "/images/compressed/i'm%20new/header%20photos/compressed-worship.jpg", alt: 'Worship service', width: 288, height: 199 },
+            { src: `${CDN}/compressed-baptism.jpg`, alt: 'Baptism', width: 219, height: 146 },
+            { src: `${CDN}/compressed-beach%20camp.jpg`, alt: 'Beach camp', width: 186, height: 133 },
+            { src: `${CDN}/compressed-face%20paint.jpg`, alt: 'Community event', width: 311, height: 249 },
+            { src: `${CDN}/compressed-josh.jpg`, alt: 'Fellowship', width: 133, height: 106 },
+            { src: `${CDN}/compressed-sports.jpg`, alt: 'Sports fellowship', width: 216, height: 144 },
+            { src: `${CDN}/compressed-worship.jpg`, alt: 'Worship service', width: 288, height: 199 },
           ],
         },
       },
@@ -3243,7 +3263,7 @@ async function main() {
         content: {
           overline: 'SUNDAY SERVICE',
           heading: 'What to Expect on Sunday',
-          imageSrc: '/images/compressed/home/compressed-visit-us.jpg',
+          imageSrc: `${CDN}/compressed-visit-us.jpg`,
           imageAlt: 'LA UBF church building',
           items: [
             { time: '10:00 am', title: 'Bible Studies & Gathering', description: "Personal Bible studies take place before worship. Let us know you\u2019re interested and we\u2019ll help you connect." },
@@ -3264,7 +3284,7 @@ async function main() {
           address: ['11625 Paramount Boulevard,', 'Downey, CA'],
           directionsUrl: 'https://maps.google.com/?q=11625+Paramount+Boulevard+Downey+CA',
           directionsLabel: 'Get Directions',
-          images: [{ src: "/images/compressed/i'm%20new/compressed-laubf-location.png", alt: 'LA UBF building exterior' }],
+          images: [{ src: `${CDN}/compressed-laubf-location.png`, alt: 'LA UBF building exterior' }],
         },
       },
       {
@@ -3276,9 +3296,9 @@ async function main() {
           heading: 'Join a Campus Ministry',
           description: 'We have bible study clubs all across different college campuses. Join us for weekly group bible studies and get to know each other through fellowship.',
           decorativeImages: [
-            { src: '/images/compressed/ministries/join-campus-ministry-section/compressed-1.jpg', alt: 'Campus group photo' },
-            { src: '/images/compressed/ministries/join-campus-ministry-section/compressed-2.jpg', alt: 'Bible study outdoors' },
-            { src: '/images/compressed/ministries/join-campus-ministry-section/compressed-3.png', alt: 'Fellowship event' },
+            { src: `${CDN}/images-ministries-join-campus-ministry-section-compressed-1.jpg`, alt: 'Campus group photo' },
+            { src: `${CDN}/images-ministries-join-campus-ministry-section-compressed-2.jpg`, alt: 'Bible study outdoors' },
+            { src: `${CDN}/compressed-3.png`, alt: 'Fellowship event' },
           ],
           campuses: [
             { id: 'lbcc', abbreviation: 'LBCC', fullName: 'Long Beach City College', href: '/ministries/campus/lbcc' },
@@ -3920,7 +3940,225 @@ async function main() {
     console.log('  Created person notes')
   }
 
+  // ============================================================
+  // 13. MEDIA ASSETS (R2 initial-setup files)
+  // ============================================================
+  console.log('Seeding media assets...')
+  {
+    const MEDIA_ASSETS: Array<{ path: string; mimeType: string; fileSize: number }> = [
+      { path: 'images-compressed-campus-ministry.jpg', mimeType: 'image/jpeg', fileSize: 15360 },
+      { path: 'compressed-cross.png', mimeType: 'image/png', fileSize: 1024 },
+      { path: 'compressed-event-1.jpg', mimeType: 'image/jpeg', fileSize: 9216 },
+      { path: 'compressed-event-2.jpg', mimeType: 'image/jpeg', fileSize: 8192 },
+      { path: 'compressed-event-3.jpg', mimeType: 'image/jpeg', fileSize: 8192 },
+      { path: 'compressed-hero-bg.jpg', mimeType: 'image/jpeg', fileSize: 28672 },
+      { path: 'compressed-next-step-1.jpg', mimeType: 'image/jpeg', fileSize: 12288 },
+      { path: 'compressed-next-step-2.jpg', mimeType: 'image/jpeg', fileSize: 12288 },
+      { path: 'compressed-next-step-3.jpg', mimeType: 'image/jpeg', fileSize: 12288 },
+      { path: 'compressed-next-step-4.jpg', mimeType: 'image/jpeg', fileSize: 12288 },
+      { path: 'compressed-sermon-thumbnail.jpg', mimeType: 'image/jpeg', fileSize: 16384 },
+      { path: 'compressed-video-1.jpg', mimeType: 'image/jpeg', fileSize: 6144 },
+      { path: 'compressed-video-2.jpg', mimeType: 'image/jpeg', fileSize: 7168 },
+      { path: 'compressed-video-3.jpg', mimeType: 'image/jpeg', fileSize: 6144 },
+      { path: 'compressed-visit-us-bg.jpg', mimeType: 'image/jpeg', fileSize: 29696 },
+      { path: 'compressed-who-we-are-1.jpg', mimeType: 'image/jpeg', fileSize: 7168 },
+      { path: 'compressed-who-we-are-2.jpg', mimeType: 'image/jpeg', fileSize: 11264 },
+      { path: 'compressed-who-we-are-3.jpg', mimeType: 'image/jpeg', fileSize: 6144 },
+      { path: 'images-home-compressed-bible-study.png', mimeType: 'image/png', fileSize: 1210368 },
+      { path: 'images-home-compressed-campus-ministry-list.png', mimeType: 'image/png', fileSize: 1606656 },
+      { path: 'images-home-compressed-campus-ministry.jpg', mimeType: 'image/jpeg', fileSize: 290816 },
+      { path: 'images-home-compressed-event-christmas.png', mimeType: 'image/png', fileSize: 772096 },
+      { path: 'images-home-compressed-fellowship.jpg', mimeType: 'image/jpeg', fileSize: 1147904 },
+      { path: 'images-home-compressed-sunday-worship.jpg', mimeType: 'image/jpeg', fileSize: 1155072 },
+      { path: 'compressed-visit-us.jpg', mimeType: 'image/jpeg', fileSize: 987136 },
+      { path: 'images-home-rotatingwheel-compressed-bible-study.png', mimeType: 'image/png', fileSize: 1210368 },
+      { path: 'images-home-rotatingwheel-compressed-campus-ministry-list.png', mimeType: 'image/png', fileSize: 1606656 },
+      { path: 'images-home-rotatingwheel-compressed-campus-ministry.jpg', mimeType: 'image/jpeg', fileSize: 290816 },
+      { path: 'images-home-rotatingwheel-compressed-event-christmas.png', mimeType: 'image/png', fileSize: 772096 },
+      { path: 'images-home-rotatingwheel-compressed-fellowship.jpg', mimeType: 'image/jpeg', fileSize: 1147904 },
+      { path: 'images-home-rotatingwheel-compressed-sunday-worship.jpg', mimeType: 'image/jpeg', fileSize: 1155072 },
+      { path: 'compressed-laubf-location.png', mimeType: 'image/png', fileSize: 1661952 },
+      { path: 'compressed-baptism.jpg', mimeType: 'image/jpeg', fileSize: 1408000 },
+      { path: 'compressed-beach camp.jpg', mimeType: 'image/jpeg', fileSize: 358400 },
+      { path: 'compressed-face paint.jpg', mimeType: 'image/jpeg', fileSize: 1206272 },
+      { path: 'compressed-josh.jpg', mimeType: 'image/jpeg', fileSize: 810000 },
+      { path: 'compressed-sports.jpg', mimeType: 'image/jpeg', fileSize: 2439168 },
+      { path: 'compressed-worship.jpg', mimeType: 'image/jpeg', fileSize: 987136 },
+      { path: 'compressed-adults.webp', mimeType: 'image/webp', fileSize: 201728 },
+      { path: 'compressed-children.webp', mimeType: 'image/webp', fileSize: 851968 },
+      { path: 'compressed-congregation.jpg', mimeType: 'image/jpeg', fileSize: 1645568 },
+      { path: 'compressed-middle n high.jpg', mimeType: 'image/jpeg', fileSize: 2979840 },
+      { path: 'compressed-young adults.jpg', mimeType: 'image/jpeg', fileSize: 1289216 },
+      { path: 'compressed-disciples.jpg', mimeType: 'image/jpeg', fileSize: 1841152 },
+      { path: 'compressed-growing.jpg', mimeType: 'image/jpeg', fileSize: 1110016 },
+      { path: 'images-ministries-adults-compressed-introduction.jpg', mimeType: 'image/jpeg', fileSize: 1094656 },
+      { path: 'images-ministries-adults-compressed-serving.jpg', mimeType: 'image/jpeg', fileSize: 290816 },
+      { path: 'compressed-child care.jpg', mimeType: 'image/jpeg', fileSize: 1429504 },
+      { path: 'compressed-class.jpg', mimeType: 'image/jpeg', fileSize: 1615872 },
+      { path: 'compressed-introduction.png', mimeType: 'image/png', fileSize: 781312 },
+      { path: 'compressed-service.png', mimeType: 'image/png', fileSize: 1661952 },
+      { path: 'compressed-singspiration.jpg', mimeType: 'image/jpeg', fileSize: 1002496 },
+      { path: 'compressed-IMG_1407.jpg', mimeType: 'image/jpeg', fileSize: 290816 },
+      { path: 'compressed-IMG_1408.jpg', mimeType: 'image/jpeg', fileSize: 216064 },
+      { path: 'compressed-IMG_1409.jpg', mimeType: 'image/jpeg', fileSize: 76800 },
+      { path: 'compressed-IMG_1411.jpg', mimeType: 'image/jpeg', fileSize: 332800 },
+      { path: 'compressed-IMG_1413.jpg', mimeType: 'image/jpeg', fileSize: 113664 },
+      { path: 'compressed-hero.jpg', mimeType: 'image/jpeg', fileSize: 318464 },
+      { path: 'compressed-waving.jpg', mimeType: 'image/jpeg', fileSize: 218112 },
+      { path: 'images-ministries-join-campus-ministry-section-compressed-1.jpg', mimeType: 'image/jpeg', fileSize: 318464 },
+      { path: 'images-ministries-join-campus-ministry-section-compressed-2.jpg', mimeType: 'image/jpeg', fileSize: 358400 },
+      { path: 'compressed-3.png', mimeType: 'image/png', fileSize: 1046528 },
+      { path: 'compressed-lbcc-truevineclub.jpg', mimeType: 'image/jpeg', fileSize: 295936 },
+      { path: 'images-ministries-middle n high-compressed-fellowship.jpg', mimeType: 'image/jpeg', fileSize: 1143808 },
+      { path: 'images-ministries-middle n high-compressed-header.jpg', mimeType: 'image/jpeg', fileSize: 2979840 },
+      { path: 'images-ministries-middle n high-compressed-introduction.jpg', mimeType: 'image/jpeg', fileSize: 1221632 },
+      { path: 'compressed-jbfhbf conference.jpg', mimeType: 'image/jpeg', fileSize: 101376 },
+      { path: 'compressed-praise night.jpg', mimeType: 'image/jpeg', fileSize: 748544 },
+      { path: 'compressed-fellowship.png', mimeType: 'image/png', fileSize: 1606656 },
+      { path: 'images-ministries-young adults-compressed-serving.jpg', mimeType: 'image/jpeg', fileSize: 1206272 },
+      { path: 'compressed-yam.png', mimeType: 'image/png', fileSize: 1046528 },
+      { path: 'images-ministries-young adults-carousel-compressed-1.jpg', mimeType: 'image/jpeg', fileSize: 1147904 },
+      { path: 'images-ministries-young adults-carousel-compressed-2.jpg', mimeType: 'image/jpeg', fileSize: 810000 },
+      { path: 'compressed-3.jpg', mimeType: 'image/jpeg', fileSize: 1551360 },
+      { path: 'compressed-4.jpg', mimeType: 'image/jpeg', fileSize: 499712 },
+      { path: 'compressed-5.jpg', mimeType: 'image/jpeg', fileSize: 3102720 },
+      { path: 'compressed-6.jpg', mimeType: 'image/jpeg', fileSize: 1078272 },
+      { path: 'compressed-7.jpg', mimeType: 'image/jpeg', fileSize: 748544 },
+      { path: 'compressed-8.jpg', mimeType: 'image/jpeg', fileSize: 1145856 },
+      { path: 'compressed-9.jpg', mimeType: 'image/jpeg', fileSize: 2439168 },
+      { path: 'compressed-10.jpg', mimeType: 'image/jpeg', fileSize: 216064 },
+      { path: 'compressed-bible study.jpg', mimeType: 'image/jpeg', fileSize: 1221632 },
+      { path: 'compressed-discipleship.jpg', mimeType: 'image/jpeg', fileSize: 1841152 },
+      { path: 'images-who we are-compressed-fellowship.jpg', mimeType: 'image/jpeg', fileSize: 1147904 },
+      { path: 'images-who we are-compressed-header.jpg', mimeType: 'image/jpeg', fileSize: 358400 },
+      { path: 'laubf-logo-blue.svg', mimeType: 'image/svg+xml', fileSize: 3072 },
+      { path: 'laubf-logo-colored.png', mimeType: 'image/png', fileSize: 4096 },
+      { path: 'laubf-logo.svg', mimeType: 'image/svg+xml', fileSize: 2302 },
+      { path: 'DSC01195.jpg', mimeType: 'image/jpeg', fileSize: 1058816 },
+      { path: 'DSC05222.jpg', mimeType: 'image/jpeg', fileSize: 2770944 },
+      { path: 'DSC05299.jpg', mimeType: 'image/jpeg', fileSize: 2224128 },
+      { path: 'compressed-hero-vid.mp4', mimeType: 'video/mp4', fileSize: 17378304 },
+      { path: 'compressed-hero-vid.webm', mimeType: 'video/webm', fileSize: 3316736 },
+    ]
+
+    const FOLDER_NAME = 'initial-setup'
+
+    // Ensure single folder
+    await prisma.mediaFolder.upsert({
+      where: { churchId_name: { churchId, name: FOLDER_NAME } },
+      update: {},
+      create: { churchId, name: FOLDER_NAME },
+    })
+
+    // Create media assets (skip if URL already exists)
+    const existingUrls = new Set(
+      (await prisma.mediaAsset.findMany({ where: { churchId }, select: { url: true } }))
+        .map(m => m.url)
+    )
+
+    let created = 0
+    for (const asset of MEDIA_ASSETS) {
+      const url = `${CDN}/${asset.path}`
+      if (existingUrls.has(url)) continue
+
+      const alt = asset.path
+        .replace(/^(images-|images-home-|images-home-rotatingwheel-|images-ministries-[^-]*-|images-who we are-)/, '')
+        .replace(/^compressed-/, '')
+        .replace(/\.[^.]+$/, '')
+        .replace(/[-_]/g, ' ')
+        .replace(/\b\w/g, (c: string) => c.toUpperCase())
+        .trim()
+
+      await prisma.mediaAsset.create({
+        data: {
+          churchId,
+          filename: asset.path,
+          url,
+          mimeType: asset.mimeType,
+          fileSize: asset.fileSize,
+          alt,
+          folder: FOLDER_NAME,
+        },
+      })
+      created++
+    }
+    console.log(`  Created ${created} media assets in "${FOLDER_NAME}" folder (${MEDIA_ASSETS.length - created} already existed)`)
+  }
+
+  // ── Bible Verses (global, not church-scoped) ─────────────────
+  await seedBibleVerses()
+
   console.log('\nSeed complete!')
+}
+
+// ================================================================
+// Seed BibleVerse table from compressed TSV
+// ================================================================
+async function seedBibleVerses() {
+  const existing = await prisma.bibleVerse.count()
+  if (existing > 0) {
+    console.log(`\nBibleVerse table already has ${existing} rows — skipping.`)
+    return
+  }
+
+  console.log('\nSeeding Bible verses from compressed TSV...')
+  const filePath = join(import.meta.dirname!, 'data', 'bible-verses.tsv.gz')
+
+  const rows: { book: string; chapter: number; verse: number; version: string; text: string }[] = []
+
+  await new Promise<void>((resolve, reject) => {
+    const gunzip = createGunzip()
+    const stream = createReadStream(filePath).pipe(gunzip)
+    const rl = createInterface({ input: stream })
+
+    rl.on('line', (line) => {
+      const parts = line.split('\t')
+      if (parts.length >= 5) {
+        const text = parts[4]
+          .replace(/\\n/g, '\n')
+          .replace(/\\t/g, '\t')
+          .replace(/\\\\/g, '\\')
+        rows.push({
+          book: parts[0],
+          chapter: parseInt(parts[1]),
+          verse: parseInt(parts[2]),
+          version: parts[3],
+          text,
+        })
+      }
+    })
+
+    rl.on('close', () => resolve())
+    rl.on('error', reject)
+    stream.on('error', reject)
+  })
+
+  console.log(`  Parsed ${rows.length} verses`)
+
+  // Batch insert
+  const BATCH_SIZE = 5000
+  let inserted = 0
+
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const batch = rows.slice(i, i + BATCH_SIZE)
+    await prisma.bibleVerse.createMany({
+      data: batch.map((r) => ({
+        book: r.book as any,
+        chapter: r.chapter,
+        verse: r.verse,
+        text: r.text,
+        version: r.version,
+      })),
+      skipDuplicates: true,
+    })
+    inserted += batch.length
+    if (inserted % 50000 === 0 || i + BATCH_SIZE >= rows.length) {
+      console.log(`  Inserted ${inserted}/${rows.length} verses...`)
+    }
+  }
+
+  const total = await prisma.bibleVerse.count()
+  console.log(`  Bible verses seeded: ${total} total`)
 }
 
 main()

@@ -30,7 +30,7 @@ export default function FeatureBreakdownSection({ content, enableAnimations, col
       {/* Background watermark logo */}
       <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-[0.08] pointer-events-none">
         <Image
-          src="/logo/laubf-logo-blue.svg"
+          src="https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/initial-setup/laubf-logo-blue.svg"
           alt=""
           width={400}
           height={400}

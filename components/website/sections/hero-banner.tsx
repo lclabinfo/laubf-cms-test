@@ -6,7 +6,7 @@ import CTAButton from "@/components/website/shared/cta-button"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
 
-const COMPRESSED_VIDEO = "/videos/compressed-hero-vid.webm"
+const COMPRESSED_VIDEO = "https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/initial-setup/compressed-hero-vid.webm"
 const LG_BREAKPOINT = 1024
 
 interface HeroBannerContent {

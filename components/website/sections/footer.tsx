@@ -33,7 +33,7 @@ interface Props {
 }
 
 export default function FooterSection({ content, logoUrl, logoAlt, siteName }: Props) {
-  const resolvedLogoUrl = logoUrl || "/logo/laubf-logo.svg"
+  const resolvedLogoUrl = logoUrl || "https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/initial-setup/laubf-logo.svg"
   const resolvedLogoAlt = logoAlt || siteName || "Logo"
 
   return (

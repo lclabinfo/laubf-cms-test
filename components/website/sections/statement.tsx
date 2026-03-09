@@ -118,11 +118,11 @@ export default function StatementSection({ content, enableAnimations, colorSchem
             role="img"
             aria-hidden="true"
             style={{
-              maskImage: "url(/images/compressed/compressed-cross.png)",
+              maskImage: "url(https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/initial-setup/compressed-cross.png)",
               maskSize: "contain",
               maskRepeat: "no-repeat",
               maskPosition: "center",
-              WebkitMaskImage: "url(/images/compressed/compressed-cross.png)",
+              WebkitMaskImage: "url(https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/initial-setup/compressed-cross.png)",
               WebkitMaskSize: "contain",
               WebkitMaskRepeat: "no-repeat",
               WebkitMaskPosition: "center",
