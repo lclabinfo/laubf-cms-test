@@ -52,6 +52,8 @@ export function GoogleAlbumsTable({ albums, onDelete }: GoogleAlbumsTableProps) 
                   <img
                     src={album.coverUrl}
                     alt={album.name}
+                    loading="lazy"
+                    decoding="async"
                     className="size-full object-cover"
                   />
                 </div>

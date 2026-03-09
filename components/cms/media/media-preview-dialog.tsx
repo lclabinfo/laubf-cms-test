@@ -517,7 +517,7 @@ function PreviewContent({
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                     Used in{usages.length > 0 ? ` (${usages.length})` : ""}
                   </span>
-                  {usages.length > 3 && (
+                  {usages.length >= 3 && (
                     <Button
                       variant="link"
                       size="sm"
@@ -539,7 +539,7 @@ function PreviewContent({
                         <UsageItem key={u.id} usage={u} />
                       ))}
                     </div>
-                    {usages.length > 3 && (
+                    {usages.length >= 3 && (
                       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-6 rounded-b-md bg-gradient-to-t from-muted/60 to-transparent" />
                     )}
                   </div>
@@ -623,7 +623,7 @@ function UsageItem({ usage: u }: { usage: UsageEntry }) {
   if (u.type === "event") {
     return (
       <Link
-        href={`/cms/events/${u.slug}`}
+        href={`/cms/events/${u.id}`}
         className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm hover:bg-accent transition-colors group"
       >
         <Calendar className="size-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />

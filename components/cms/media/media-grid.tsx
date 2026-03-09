@@ -145,14 +145,27 @@ export function MediaGrid({
           >
             {/* Thumbnail — fills the entire square */}
             <div className="absolute inset-0 bg-muted">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={item.url}
-                alt={item.name}
-                className="size-full object-cover"
-                draggable={false}
-              />
-
+              {item.type === "video" ? (
+                /* eslint-disable-next-line jsx-a11y/media-has-caption */
+                <video
+                  src={`${item.url}#t=0.5`}
+                  preload="metadata"
+                  muted
+                  playsInline
+                  className="size-full object-cover"
+                  draggable={false}
+                />
+              ) : (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img
+                  src={item.url}
+                  alt={item.name}
+                  loading="lazy"
+                  decoding="async"
+                  className="size-full object-cover"
+                  draggable={false}
+                />
+              )}
               {item.type === "video" && (
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                   <div className="flex items-center justify-center size-8 rounded-full bg-black/40">

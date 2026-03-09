@@ -85,18 +85,24 @@ export const columns: ColumnDef<MediaTableRow>[] = [
       return (
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative size-10 shrink-0 rounded overflow-hidden bg-muted">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={item.url}
-              alt={item.name}
-              className="size-full object-cover"
-            />
-            {item.type === "video" && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="flex items-center justify-center size-5 rounded-full bg-black/40">
-                  <Play className="size-3 text-white fill-white" />
-                </div>
-              </div>
+            {item.type === "video" ? (
+              /* eslint-disable-next-line jsx-a11y/media-has-caption */
+              <video
+                src={`${item.url}#t=0.5`}
+                preload="metadata"
+                muted
+                playsInline
+                className="size-full object-cover"
+              />
+            ) : (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={item.url}
+                alt={item.name}
+                loading="lazy"
+                decoding="async"
+                className="size-full object-cover"
+              />
             )}
           </div>
           <div className="min-w-0">

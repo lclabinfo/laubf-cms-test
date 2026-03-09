@@ -5,6 +5,7 @@ import { createInterface } from 'readline'
 import { join } from 'path'
 import pg from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { S3Client, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
 const adapter = new PrismaPg(pool)
@@ -17,6 +18,63 @@ const prisma = new PrismaClient({ adapter })
 // CDN base URL for initial website assets (R2 media bucket)
 // ============================================================
 const CDN = 'https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/initial-setup'
+
+// ============================================================
+// R2 client for looking up real file sizes during seed
+// ============================================================
+const r2 = new S3Client({
+  region: 'auto',
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+  },
+})
+
+const R2_ATT_BUCKET = process.env.R2_ATTACHMENTS_BUCKET_NAME!
+const R2_ATT_PUBLIC = (process.env.R2_ATTACHMENTS_PUBLIC_URL || process.env.R2_PUBLIC_URL || '').replace(/\/+$/, '')
+const R2_MEDIA_BUCKET = process.env.R2_MEDIA_BUCKET_NAME || ''
+const R2_MEDIA_PREFIX = 'la-ubf/initial-setup/'
+
+/** Get actual file size from R2 attachments bucket. Returns null if object doesn't exist. */
+async function getR2FileSize(url: string): Promise<number | null> {
+  if (!url.startsWith(R2_ATT_PUBLIC)) return null
+  const key = url.slice(R2_ATT_PUBLIC.length + 1)
+  try {
+    const head = await r2.send(new HeadObjectCommand({ Bucket: R2_ATT_BUCKET, Key: key }))
+    return head.ContentLength ?? null
+  } catch {
+    return null
+  }
+}
+
+/** List all objects in R2 media bucket and return a map of filename → real size. */
+async function getR2MediaSizeMap(): Promise<Map<string, number>> {
+  const sizeMap = new Map<string, number>()
+  if (!R2_MEDIA_BUCKET) return sizeMap
+  try {
+    let token: string | undefined
+    do {
+      const res = await r2.send(new ListObjectsV2Command({
+        Bucket: R2_MEDIA_BUCKET,
+        Prefix: R2_MEDIA_PREFIX,
+        ContinuationToken: token,
+      }))
+      for (const obj of res.Contents ?? []) {
+        if (obj.Key && obj.Size !== undefined) {
+          // Extract just the filename (after prefix)
+          const filename = obj.Key.slice(R2_MEDIA_PREFIX.length)
+          sizeMap.set(filename, obj.Size)
+        }
+      }
+      token = res.IsTruncated ? res.NextContinuationToken : undefined
+    } while (token)
+    console.log(`  Fetched real sizes for ${sizeMap.size} R2 media objects`)
+  } catch (err) {
+    console.warn('  ⚠ Could not fetch R2 media sizes, using fallback estimates:', (err as Error).message)
+  }
+  return sizeMap
+}
 
 // ============================================================
 // Helper: slugify
@@ -532,14 +590,15 @@ async function main() {
       // Derive attachment type from actual file extension
       const ext = filename.split('.').pop()?.toLowerCase() || ''
       const attType = ext === 'docx' ? 'DOCX' : ext === 'doc' ? 'DOC' : ext === 'rtf' ? 'RTF' : ext === 'pdf' ? 'PDF' : ext === 'ppt' || ext === 'pptx' ? 'OTHER' : 'DOC'
-      const estSize = attType === 'PDF' ? 245000 : attType === 'DOCX' ? 185000 : attType === 'DOC' ? 150000 : attType === 'RTF' ? 120000 : 150000
+      // Get real file size from R2 (falls back to null if not found)
+      const realSize = await getR2FileSize(url)
       await prisma.bibleStudyAttachment.create({
         data: {
           bibleStudyId: studyId,
           name: att.name,
           url,
           type: attType as any,
-          fileSize: estSize,
+          fileSize: realSize,
           sortOrder: i,
         },
       })
@@ -4050,6 +4109,9 @@ async function main() {
       create: { churchId, name: FOLDER_NAME },
     })
 
+    // Fetch real file sizes from R2 (single ListObjects call, not 93 HEAD requests)
+    const mediaSizeMap = await getR2MediaSizeMap()
+
     // Create media assets (skip if URL already exists)
     const existingUrls = new Set(
       (await prisma.mediaAsset.findMany({ where: { churchId }, select: { url: true } }))
@@ -4060,6 +4122,10 @@ async function main() {
     for (const asset of MEDIA_ASSETS) {
       const url = `${CDN}/${asset.path}`
       if (existingUrls.has(url)) continue
+
+      // Use real R2 size if available, otherwise fall back to hardcoded estimate
+      const realSize = mediaSizeMap.get(asset.path)
+      const fileSize = realSize ?? asset.fileSize
 
       const alt = asset.path
         .replace(/^(images-|images-home-|images-home-rotatingwheel-|images-ministries-[^-]*-|images-who we are-)/, '')
@@ -4075,7 +4141,7 @@ async function main() {
           filename: asset.path,
           url,
           mimeType: asset.mimeType,
-          fileSize: asset.fileSize,
+          fileSize,
           alt,
           folder: FOLDER_NAME,
         },
