@@ -41,8 +41,8 @@ interface EventFilters {
 }
 
 const VALID_TABS: TabView[] = ["event", "meeting", "program"]
-const INITIAL_COUNT = 9
-const LOAD_MORE_COUNT = 9
+const INITIAL_COUNT = 50
+const LOAD_MORE_COUNT = 50
 
 interface Props {
   events: SimpleEvent[]
@@ -63,6 +63,7 @@ export default function AllEventsClient({ events, heading }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("card")
   const [search, setSearch] = useState("")
   const [filters, setFilters] = useState<EventFilters>({})
+  const [yearFilter, setYearFilter] = useState("")
   const [displayCount, setDisplayCount] = useState(INITIAL_COUNT)
   const [sortField, setSortField] = useState("date")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
@@ -72,6 +73,7 @@ export default function AllEventsClient({ events, heading }: Props) {
     if (activeTab !== tab) {
       setTab(activeTab)
       setFilters({})
+      setYearFilter("")
       setSearch("")
       setDisplayCount(INITIAL_COUNT)
     }
@@ -98,6 +100,15 @@ export default function AllEventsClient({ events, heading }: Props) {
     const campuses = new Set<string>()
     events.forEach((e) => { if (e.campus) campuses.add(e.campus) })
     return Array.from(campuses).sort()
+  }, [events])
+
+  const availableYears = useMemo(() => {
+    const years = new Set<number>()
+    events.forEach((e) => {
+      const y = parseInt(e.dateStart.slice(0, 4), 10)
+      if (!isNaN(y)) years.add(y)
+    })
+    return Array.from(years).sort((a, b) => b - a)
   }, [events])
 
   /* -- Filtering & Sorting -- */
@@ -146,6 +157,17 @@ export default function AllEventsClient({ events, heading }: Props) {
     value: EventFilters[K],
   ) {
     setFilters((prev) => ({ ...prev, [key]: value }))
+    if (key === "dateFrom" || key === "dateTo") setYearFilter("")
+    setDisplayCount(INITIAL_COUNT)
+  }
+
+  function handleYearChange(year: string) {
+    setYearFilter(year)
+    if (year && year !== "all") {
+      setFilters((prev) => ({ ...prev, dateFrom: `${year}-01-01`, dateTo: `${year}-12-31` }))
+    } else {
+      setFilters((prev) => ({ ...prev, dateFrom: undefined, dateTo: undefined }))
+    }
     setDisplayCount(INITIAL_COUNT)
   }
 
@@ -220,6 +242,11 @@ export default function AllEventsClient({ events, heading }: Props) {
               ]
             : []),
         ]}
+        yearFilter={{
+          value: yearFilter,
+          years: availableYears,
+          onChange: handleYearChange,
+        }}
         dateRange={{
           fromLabel: "From",
           toLabel: "To",
@@ -245,6 +272,7 @@ export default function AllEventsClient({ events, heading }: Props) {
         onReset={() => {
           setSearch("")
           setFilters({})
+          setYearFilter("")
           setDisplayCount(INITIAL_COUNT)
         }}
         className="mb-8"

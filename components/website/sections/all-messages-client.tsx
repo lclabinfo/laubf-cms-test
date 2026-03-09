@@ -36,8 +36,8 @@ interface MessageFilters {
   dateTo?: string
 }
 
-const INITIAL_COUNT = 9
-const LOAD_MORE_COUNT = 9
+const INITIAL_COUNT = 50
+const LOAD_MORE_COUNT = 50
 
 function formatDate(dateStr: string) {
   const date = new Date(dateStr + "T00:00:00")
@@ -59,6 +59,7 @@ export default function AllMessagesClient({ messages, heading }: Props) {
   const [viewMode, setViewMode] = useState<ViewMode>("card")
   const [search, setSearch] = useState("")
   const [filters, setFilters] = useState<MessageFilters>({})
+  const [yearFilter, setYearFilter] = useState("")
   const [displayCount, setDisplayCount] = useState(INITIAL_COUNT)
   const [sortField, setSortField] = useState("date")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
@@ -94,6 +95,15 @@ export default function AllMessagesClient({ messages, heading }: Props) {
     () => speakerList.map((s) => ({ value: s, label: s })),
     [speakerList],
   )
+
+  const availableYears = useMemo(() => {
+    const years = new Set<number>()
+    messages.forEach((m) => {
+      const y = parseInt(m.dateFor.slice(0, 4), 10)
+      if (!isNaN(y)) years.add(y)
+    })
+    return Array.from(years).sort((a, b) => b - a)
+  }, [messages])
 
   /* ---- Filtering & Sorting ---- */
   const filteredMessages = useMemo(() => {
@@ -142,6 +152,17 @@ export default function AllMessagesClient({ messages, heading }: Props) {
     value: MessageFilters[K],
   ) {
     setFilters((prev) => ({ ...prev, [key]: value }))
+    if (key === "dateFrom" || key === "dateTo") setYearFilter("")
+    setDisplayCount(INITIAL_COUNT)
+  }
+
+  function handleYearChange(year: string) {
+    setYearFilter(year)
+    if (year && year !== "all") {
+      setFilters((prev) => ({ ...prev, dateFrom: `${year}-01-01`, dateTo: `${year}-12-31` }))
+    } else {
+      setFilters((prev) => ({ ...prev, dateFrom: undefined, dateTo: undefined }))
+    }
     setDisplayCount(INITIAL_COUNT)
   }
 
@@ -149,6 +170,7 @@ export default function AllMessagesClient({ messages, heading }: Props) {
   function switchToAllWithFilter(key: keyof MessageFilters, value: string) {
     setTab("all")
     setFilters({ [key]: value })
+    setYearFilter("")
     setSearch("")
     setDisplayCount(INITIAL_COUNT)
   }
@@ -216,6 +238,11 @@ export default function AllMessagesClient({ messages, heading }: Props) {
               }]
             : []),
         ] : undefined}
+        yearFilter={tab === "all" ? {
+          value: yearFilter,
+          years: availableYears,
+          onChange: handleYearChange,
+        } : undefined}
         dateRange={tab === "all" ? {
           fromLabel: "From",
           toLabel: "To",
@@ -243,6 +270,7 @@ export default function AllMessagesClient({ messages, heading }: Props) {
         onReset={tab === "all" ? () => {
           setSearch("")
           setFilters({})
+          setYearFilter("")
           setDisplayCount(INITIAL_COUNT)
         } : undefined}
         className="mb-8"

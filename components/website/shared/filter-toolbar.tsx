@@ -42,6 +42,12 @@ export interface FilterDropdownConfig {
   searchable?: boolean;
 }
 
+export interface YearFilterConfig {
+  value: string;
+  years: number[];
+  onChange: (year: string) => void;
+}
+
 export interface DateRangeConfig {
   fromLabel?: string;
   toLabel?: string;
@@ -82,6 +88,7 @@ export interface FilterToolbarProps {
     placeholder?: string;
   };
   filters?: FilterDropdownConfig[];
+  yearFilter?: YearFilterConfig;
   dateRange?: DateRangeConfig;
   sort?: {
     options: SortOption[];
@@ -118,6 +125,7 @@ export default function FilterToolbar({
   viewModes,
   search,
   filters,
+  yearFilter,
   dateRange,
   sort,
   onReset,
@@ -229,7 +237,7 @@ export default function FilterToolbar({
     }
   }, [isMobile]);
 
-  const hasFiltersRow = (filters && filters.length > 0) || dateRange;
+  const hasFiltersRow = (filters && filters.length > 0) || yearFilter || dateRange;
   const hasMobileControls = !!search || !!sort || hasFiltersRow || !!viewModes;
 
   // Count active filters for the badge
@@ -240,6 +248,7 @@ export default function FilterToolbar({
         if (f.value && f.value !== "all") count++;
       }
     }
+    if (yearFilter && yearFilter.value && yearFilter.value !== "all") count++;
     if (dateRange) {
       if (dateRange.fromValue) count++;
       if (dateRange.toValue) count++;
@@ -411,6 +420,21 @@ export default function FilterToolbar({
                 {filters?.map((filter) => (
                   <FilterDropdownButton key={filter.id} config={filter} />
                 ))}
+                {yearFilter && (
+                  <FilterDropdownButton
+                    config={{
+                      id: "_year",
+                      label: "Year",
+                      value: yearFilter.value || "all",
+                      options: [
+                        { value: "all", label: "All Years" },
+                        ...yearFilter.years.map((y) => ({ value: String(y), label: String(y) })),
+                      ],
+                      onChange: yearFilter.onChange,
+                      searchable: false,
+                    }}
+                  />
+                )}
                 {dateRange && (
                   <>
                     <FilterDatePicker
@@ -560,6 +584,7 @@ export default function FilterToolbar({
         onClose={() => setMobileSheetOpen(false)}
         sort={sort}
         filters={filters}
+        yearFilter={yearFilter}
         dateRange={dateRange}
         onReset={onReset}
         activeFilterCount={activeFilterCount}
@@ -1186,6 +1211,7 @@ function MobileBottomSheet({
   onClose,
   sort,
   filters,
+  yearFilter,
   dateRange,
   onReset,
   activeFilterCount,
@@ -1195,6 +1221,7 @@ function MobileBottomSheet({
   onClose: () => void;
   sort?: FilterToolbarProps["sort"];
   filters?: FilterDropdownConfig[];
+  yearFilter?: YearFilterConfig;
   dateRange?: DateRangeConfig;
   onReset?: () => void;
   activeFilterCount: number;
@@ -1287,6 +1314,28 @@ function MobileBottomSheet({
                   <MobileFilterSelect key={filter.id} config={filter} />
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Year filter section */}
+          {yearFilter && (
+            <div className="mb-6">
+              <p className="text-[12px] font-semibold text-black-3 uppercase tracking-[0.5px] mb-3">
+                Year
+              </p>
+              <MobileFilterSelect
+                config={{
+                  id: "_year",
+                  label: "Year",
+                  value: yearFilter.value || "all",
+                  options: [
+                    { value: "all", label: "All Years" },
+                    ...yearFilter.years.map((y) => ({ value: String(y), label: String(y) })),
+                  ],
+                  onChange: yearFilter.onChange,
+                  searchable: false,
+                }}
+              />
             </div>
           )}
 
