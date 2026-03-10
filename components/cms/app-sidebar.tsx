@@ -18,6 +18,7 @@ import {
   UsersIcon,
   UserPlusIcon,
   ShieldIcon,
+  KeyRoundIcon,
   ChevronsUpDownIcon,
   LogOutIcon,
   SettingsIcon,
@@ -65,6 +66,8 @@ type NavItem = {
   href: string
   icon: LucideIcon
   items?: { title: string; href: string }[]
+  /** Minimum role required to see this item. Defaults to VIEWER (visible to all). */
+  minRole?: "VIEWER" | "EDITOR" | "ADMIN" | "OWNER"
 }
 
 type NavGroup = {
@@ -126,6 +129,12 @@ const navGroups: NavGroup[] = [
         icon: ShieldIcon,
       },
       {
+        title: "Users",
+        href: "/cms/people/users",
+        icon: KeyRoundIcon,
+        minRole: "ADMIN",
+      },
+      {
         title: "Ministries",
         href: "/cms/people/ministries",
         icon: Building2Icon,
@@ -144,6 +153,7 @@ const navGroups: NavGroup[] = [
         title: "Builder",
         href: "/cms/website/builder",
         icon: PenToolIcon,
+        minRole: "ADMIN",
       },
       {
         title: "Pages",
@@ -164,18 +174,28 @@ const navGroups: NavGroup[] = [
         title: "Domains",
         href: "/cms/website/domains",
         icon: GlobeIcon,
+        minRole: "OWNER",
       },
       {
         title: "Settings",
         href: "/cms/website/settings",
         icon: SettingsIcon,
+        minRole: "ADMIN",
       },
     ],
   },
 ]
 
+const ROLE_LEVEL: Record<string, number> = {
+  VIEWER: 0,
+  EDITOR: 1,
+  ADMIN: 2,
+  OWNER: 3,
+}
+
 export function AppSidebar({ session, ...props }: { session: CmsSessionData } & React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+  const userLevel = ROLE_LEVEL[session.role] ?? 0
 
   const initials = session.user.name
     .split(" ")
@@ -240,6 +260,10 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
         </SidebarGroup>
 
         {navGroups.map((group) => {
+          const visibleItems = group.items.filter(
+            (item) => !item.minRole || userLevel >= (ROLE_LEVEL[item.minRole] ?? 0),
+          )
+          if (visibleItems.length === 0) return null
           const isGroupActive = activeGroup?.label === group.label
           return (
           <Collapsible
@@ -263,7 +287,7 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
               <CollapsibleContent forceMount>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {group.items.map((item) =>
+                    {visibleItems.map((item) =>
                       item.items ? (
                         <CollapsibleNavItem
                           key={item.title}

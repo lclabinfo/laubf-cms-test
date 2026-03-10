@@ -197,8 +197,9 @@ export function BuilderTopbar({
           size="sm"
           className="gap-1.5 text-muted-foreground"
           onClick={() => {
-            const path = page.isHomepage ? "/website" : `/website/${page.slug}`
-            window.open(path, "_blank")
+            const base = process.env.NEXT_PUBLIC_WEBSITE_URL || '/website'
+            const path = page.isHomepage ? '' : `/${page.slug}`
+            window.open(`${base}${path}`, "_blank")
           }}
         >
           <ExternalLink className="size-3.5" />
