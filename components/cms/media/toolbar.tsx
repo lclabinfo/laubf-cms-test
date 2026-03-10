@@ -1,6 +1,6 @@
 "use client"
 
-import { Search, LayoutGrid, List, Trash2, FolderInput, Upload, Video, Cloud, Plus } from "lucide-react"
+import { Search, LayoutGrid, List, Trash2, FolderInput, Upload, Video, Cloud, Plus, Pencil } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
@@ -36,12 +36,15 @@ interface ToolbarProps {
   onViewModeChange: (mode: "grid" | "list") => void
   activeFolderId: ActiveFilterId
   selectedCount: number
+  selectedFolderCount?: number
   onClearSelection: () => void
   onUploadPhotos: () => void
   onAddVideo: () => void
   onConnectAlbum: () => void
   onBulkMove: () => void
   onBulkDelete: () => void
+  onBulkRenameFolder?: () => void
+  onBulkDeleteFolders?: () => void
 }
 
 export function Toolbar({
@@ -53,12 +56,15 @@ export function Toolbar({
   onViewModeChange,
   activeFolderId,
   selectedCount,
+  selectedFolderCount = 0,
   onClearSelection,
   onUploadPhotos,
   onAddVideo,
   onConnectAlbum,
   onBulkMove,
   onBulkDelete,
+  onBulkRenameFolder,
+  onBulkDeleteFolders,
 }: ToolbarProps) {
   const showViewToggle = activeFolderId !== "google-albums"
 
@@ -116,31 +122,63 @@ export function Toolbar({
       )}
 
       {/* Bulk actions or Add New */}
-      {selectedCount > 0 ? (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-muted/50 px-3 py-1">
-          <span className="text-sm font-medium whitespace-nowrap">
-            {selectedCount} selected
-          </span>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" onClick={onBulkMove}>
-              <FolderInput className="size-3.5" />
-              Move to...
-            </Button>
-            <Button variant="destructive" size="sm" onClick={onBulkDelete}>
-              <Trash2 className="size-3.5" />
-              Delete
+      {(selectedCount > 0 || selectedFolderCount > 0) ? (() => {
+        const totalSelected = selectedCount + selectedFolderCount
+        const hasMedia = selectedCount > 0
+        const hasFolders = selectedFolderCount > 0
+        const foldersOnly = hasFolders && !hasMedia
+        const mediaOnly = hasMedia && !hasFolders
+
+        // Build a human-readable label
+        const parts: string[] = []
+        if (hasMedia) parts.push(`${selectedCount} item${selectedCount > 1 ? "s" : ""}`)
+        if (hasFolders) parts.push(`${selectedFolderCount} folder${selectedFolderCount > 1 ? "s" : ""}`)
+        const label = parts.join(", ")
+
+        return (
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-muted/50 px-3 py-1">
+            <span className="text-sm font-medium whitespace-nowrap">
+              {label} selected
+            </span>
+            <div className="flex items-center gap-1">
+              {/* Media-only actions */}
+              {mediaOnly && (
+                <Button variant="outline" size="sm" onClick={onBulkMove}>
+                  <FolderInput className="size-3.5" />
+                  Move to...
+                </Button>
+              )}
+              {/* Single folder action: rename */}
+              {foldersOnly && selectedFolderCount === 1 && onBulkRenameFolder && (
+                <Button variant="outline" size="sm" onClick={onBulkRenameFolder}>
+                  <Pencil className="size-3.5" />
+                  Rename
+                </Button>
+              )}
+              {/* Delete — works for any selection */}
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  if (hasMedia) onBulkDelete()
+                  if (hasFolders && onBulkDeleteFolders) onBulkDeleteFolders()
+                }}
+              >
+                <Trash2 className="size-3.5" />
+                Delete{totalSelected > 1 ? ` (${totalSelected})` : ""}
+              </Button>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="ml-auto whitespace-nowrap"
+              onClick={onClearSelection}
+            >
+              Clear selection
             </Button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto whitespace-nowrap"
-            onClick={onClearSelection}
-          >
-            Clear selection
-          </Button>
-        </div>
-      ) : (
+        )
+      })() : (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button>

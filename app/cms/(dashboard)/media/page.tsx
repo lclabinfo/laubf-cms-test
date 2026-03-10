@@ -17,6 +17,7 @@ import { MediaGrid } from "@/components/cms/media/media-grid"
 import { MediaSidebar, type ActiveFilterId } from "@/components/cms/media/media-sidebar"
 import { GoogleAlbumsTable } from "@/components/cms/media/google-albums-table"
 import { CreateFolderDialog } from "@/components/cms/media/create-folder-dialog"
+import { RenameFolderDialog } from "@/components/cms/media/rename-folder-dialog"
 import { UploadPhotoDialog } from "@/components/cms/media/upload-photo-dialog"
 import { AddVideoDialog } from "@/components/cms/media/add-video-dialog"
 import { ConnectAlbumDialog } from "@/components/cms/media/connect-album-dialog"
@@ -70,6 +71,7 @@ export default function MediaPage() {
   const [sort, setSort] = useState<SortOption>("newest")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set())
 
   // Dialog states
   const [createFolderOpen, setCreateFolderOpen] = useState(false)
@@ -80,6 +82,8 @@ export default function MediaPage() {
   const [movingIds, setMovingIds] = useState<string[]>([])
   const [previewItem, setPreviewItem] = useState<MediaItem | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<{ ids: string[]; mode: "single" | "bulk"; usages?: Array<{ type: string; title: string }> } | null>(null)
+  const [renameFolderDialogOpen, setRenameFolderDialogOpen] = useState(false)
+  const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null)
 
   // ---------------------------------------------------------------------------
   // Data fetching
@@ -485,6 +489,22 @@ export default function MediaPage() {
     }
   }
 
+  // Bulk folder actions from toolbar
+  function handleBulkRenameFolder() {
+    const id = Array.from(selectedFolderIds)[0]
+    if (!id) return
+    setRenamingFolderId(id)
+    setRenameFolderDialogOpen(true)
+  }
+
+  async function handleBulkDeleteFolders() {
+    const ids = Array.from(selectedFolderIds)
+    for (const id of ids) {
+      await handleDeleteFolder(id)
+    }
+    setSelectedFolderIds(new Set())
+  }
+
   // ---------------------------------------------------------------------------
   // Upload handler — receives already-created MediaItems from the dialog
   // ---------------------------------------------------------------------------
@@ -497,23 +517,59 @@ export default function MediaPage() {
   }
 
   // ---------------------------------------------------------------------------
-  // Video / Album handlers (local-only for now — future features)
+  // Video / Album handlers
   // ---------------------------------------------------------------------------
-  function handleAddVideo({ url, name }: { url: string; name: string }) {
+  async function handleAddVideo({ url, name }: { url: string; name: string }) {
     const isYouTube = /youtube\.com|youtu\.be/i.test(url)
+    const currentFolders = foldersRef.current
     const folderId = isRealFolder(activeFolderId) ? activeFolderId : null
+    const folderName = folderId ? currentFolders.find((f) => f.id === folderId)?.name ?? "/" : "/"
+
+    // Optimistic local item
+    const tempId = crypto.randomUUID()
     const newItem: MediaItem = {
-      id: crypto.randomUUID(),
+      id: tempId,
       name,
       type: "video",
       format: isYouTube ? "YouTube" : "Vimeo",
-      url: "",
+      url,
       videoUrl: url,
       size: "-",
       folderId,
       dateAdded: new Date().toISOString().slice(0, 10),
     }
     setMediaItems((prev) => [newItem, ...prev])
+
+    // Persist to DB
+    try {
+      const res = await fetch("/api/v1/media", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: name,
+          url,
+          mimeType: isYouTube ? "video/youtube" : "video/vimeo",
+          fileSize: 0,
+          folder: folderName,
+        }),
+      })
+      const json = await res.json()
+      if (json.success && json.data) {
+        // Replace temp item with real DB record
+        const nameToId: Record<string, string> = {}
+        for (const f of currentFolders) nameToId[f.name] = f.id
+        const realItem = mediaAssetToItem(json.data, nameToId)
+        setMediaItems((prev) => prev.map((i) => (i.id === tempId ? realItem : i)))
+      }
+    } catch (err) {
+      console.error("Failed to save video:", err)
+      toast.error("Failed to save video to library")
+      // Remove optimistic item on failure
+      setMediaItems((prev) => prev.filter((i) => i.id !== tempId))
+    }
+
+    // Refresh folder counts
+    fetchFolders()
   }
 
   function handleConnectAlbum({ url }: { url: string }) {
@@ -608,22 +664,39 @@ export default function MediaPage() {
     })
   }
 
+  function handleToggleFolderSelect(id: string) {
+    setSelectedFolderIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   function handleSelectAll(selected: boolean) {
     if (selected) {
       setSelectedIds(new Set(filteredItems.map((i) => i.id)))
     } else {
       setSelectedIds(new Set())
     }
+    setSelectedFolderIds(new Set())
+  }
+
+  function clearAllSelections() {
+    setSelectedIds(new Set())
+    setSelectedFolderIds(new Set())
   }
 
   function handleViewModeChange(mode: "grid" | "list") {
     setViewMode(mode)
     setSelectedIds(new Set())
+    setSelectedFolderIds(new Set())
   }
 
   function handleSelectFolder(id: ActiveFilterId) {
     setActiveFolderId(id)
     setSelectedIds(new Set())
+    setSelectedFolderIds(new Set())
     setSearch("")
   }
 
@@ -658,12 +731,15 @@ export default function MediaPage() {
         onViewModeChange={handleViewModeChange}
         activeFolderId={activeFolderId}
         selectedCount={selectedIds.size}
-        onClearSelection={() => setSelectedIds(new Set())}
+        selectedFolderCount={selectedFolderIds.size}
+        onClearSelection={clearAllSelections}
         onUploadPhotos={() => setUploadPhotoOpen(true)}
         onAddVideo={() => setAddVideoOpen(true)}
         onConnectAlbum={() => setConnectAlbumOpen(true)}
         onBulkMove={handleBulkMove}
         onBulkDelete={requestBulkDelete}
+        onBulkRenameFolder={handleBulkRenameFolder}
+        onBulkDeleteFolders={handleBulkDeleteFolders}
       />
 
       {/* Two-column layout */}
@@ -695,7 +771,9 @@ export default function MediaPage() {
               folders={activeFolderId === "all" ? folders : undefined}
               folderCounts={activeFolderId === "all" ? folderCounts : undefined}
               selectedIds={selectedIds}
+              selectedFolderIds={selectedFolderIds}
               onToggleSelect={handleToggleSelect}
+              onToggleFolderSelect={handleToggleFolderSelect}
               onSelectAll={handleSelectAll}
               onFolderClick={handleSelectFolder}
               onEdit={(id) => {
@@ -768,6 +846,17 @@ export default function MediaPage() {
         open={createFolderOpen}
         onOpenChange={setCreateFolderOpen}
         onSubmit={handleCreateFolder}
+      />
+      <RenameFolderDialog
+        open={renameFolderDialogOpen}
+        onOpenChange={setRenameFolderDialogOpen}
+        currentName={renamingFolderId ? (folders.find((f) => f.id === renamingFolderId)?.name ?? "") : ""}
+        onSubmit={(newName) => {
+          if (renamingFolderId) {
+            handleRenameFolder(renamingFolderId, newName)
+            setSelectedFolderIds(new Set())
+          }
+        }}
       />
       <UploadPhotoDialog
         open={uploadPhotoOpen}

@@ -68,8 +68,14 @@ export function mediaAssetToItem(asset: MediaAsset, folderNameToId?: Record<stri
   const isAudio = asset.mimeType.startsWith('audio/')
   const isPdf = asset.mimeType === 'application/pdf'
 
+  // Detect YouTube/Vimeo URLs (stored in url field with special mimeTypes)
+  const isYouTubeUrl = /youtube\.com|youtu\.be/i.test(asset.url) || asset.mimeType === 'video/youtube'
+  const isVimeoUrl = /vimeo\.com/i.test(asset.url) || asset.mimeType === 'video/vimeo'
+
   let format: MediaFormat = 'JPG'
-  if (ext === 'PNG') format = 'PNG'
+  if (isYouTubeUrl) format = 'YouTube'
+  else if (isVimeoUrl) format = 'Vimeo'
+  else if (ext === 'PNG') format = 'PNG'
   else if (ext === 'WEBP') format = 'WEBP'
   else if (ext === 'GIF') format = 'GIF'
   else if (ext === 'MP4' || isVideo) format = 'MP4'
@@ -77,14 +83,16 @@ export function mediaAssetToItem(asset: MediaAsset, folderNameToId?: Record<stri
   else if (ext === 'PDF' || isPdf) format = 'PDF'
 
   let type: MediaType = 'image'
-  if (isVideo) type = 'video'
+  if (isYouTubeUrl || isVimeoUrl || isVideo) type = 'video'
   else if (isAudio) type = 'audio'
   else if (isPdf) type = 'document'
 
   const sizeMB = asset.fileSize / (1024 * 1024)
-  const sizeStr = sizeMB >= 1
-    ? `${sizeMB.toFixed(1)} MB`
-    : `${(asset.fileSize / 1024).toFixed(0)} KB`
+  const sizeStr = (isYouTubeUrl || isVimeoUrl)
+    ? '-'
+    : sizeMB >= 1
+      ? `${sizeMB.toFixed(1)} MB`
+      : `${(asset.fileSize / 1024).toFixed(0)} KB`
 
   return {
     id: asset.id,
@@ -92,6 +100,7 @@ export function mediaAssetToItem(asset: MediaAsset, folderNameToId?: Record<stri
     type,
     format,
     url: asset.url,
+    videoUrl: (isYouTubeUrl || isVimeoUrl) ? asset.url : undefined,
     size: sizeStr,
     folderId: asset.folder === '/' ? null : (folderNameToId?.[asset.folder] ?? asset.folder),
     dateAdded: asset.createdAt instanceof Date

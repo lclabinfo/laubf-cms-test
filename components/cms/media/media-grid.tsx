@@ -1,10 +1,9 @@
 "use client"
 
 import { useState, useCallback } from "react"
-import { Play, MoreHorizontal, ImageIcon, Pencil, FolderInput, Trash2, Folder } from "lucide-react"
+import { Play, MoreHorizontal, ImageIcon, Pencil, FolderInput, Trash2, Folder, Check } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +19,9 @@ interface MediaGridProps {
   folders?: MediaFolder[]
   folderCounts?: Map<string, number>
   selectedIds: Set<string>
+  selectedFolderIds?: Set<string>
   onToggleSelect: (id: string) => void
+  onToggleFolderSelect?: (id: string) => void
   onSelectAll: (selected: boolean) => void
   onFolderClick: (folderId: string) => void
   onEdit: (id: string) => void
@@ -35,7 +36,9 @@ export function MediaGrid({
   folders,
   folderCounts,
   selectedIds,
+  selectedFolderIds,
   onToggleSelect,
+  onToggleFolderSelect,
   onFolderClick,
   onEdit,
   onMove,
@@ -107,25 +110,47 @@ export function MediaGrid({
       {folders?.map((folder) => {
         const count = folderCounts?.get(folder.id) ?? 0
         const isDragOver = dragOverFolderId === folder.id
+        const isFolderSelected = selectedFolderIds?.has(folder.id) ?? false
         return (
-          <button
+          <div
             key={folder.id}
+            className={`group relative aspect-square rounded-lg border bg-muted overflow-hidden transition-all cursor-pointer flex flex-col items-center justify-center ${
+              isFolderSelected
+                ? "ring-2 ring-primary border-primary"
+                : isDragOver
+                  ? "ring-2 ring-primary border-primary bg-primary/10"
+                  : "hover:border-foreground/20"
+            }`}
             onClick={() => onFolderClick(folder.id)}
             onDragOver={(e) => handleFolderDragOver(e, folder.id)}
             onDragLeave={handleFolderDragLeave}
             onDrop={(e) => handleFolderDrop(e, folder.id)}
-            className={`group relative aspect-square rounded-lg border bg-muted overflow-hidden transition-all text-left flex flex-col items-center justify-center ${
-              isDragOver
-                ? "ring-2 ring-primary border-primary bg-primary/10"
-                : "hover:border-foreground/20"
-            }`}
           >
+            {/* Select circle */}
+            {onToggleFolderSelect && (
+              <button
+                type="button"
+                className={`absolute top-2.5 left-2.5 z-10 size-6 rounded-full flex items-center justify-center transition-all ${
+                  isFolderSelected
+                    ? "bg-primary shadow-sm"
+                    : "border-[2.5px] border-foreground/25 opacity-0 group-hover:opacity-100"
+                }`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onToggleFolderSelect(folder.id)
+                }}
+                aria-label={`Select folder ${folder.name}`}
+              >
+                {isFolderSelected && <Check className="size-3.5 text-primary-foreground" strokeWidth={3} />}
+              </button>
+            )}
+
             <Folder className={`size-8 mb-1 ${isDragOver ? "text-primary" : "text-muted-foreground/60"}`} />
             <span className="text-sm font-medium truncate max-w-[90%]">{folder.name}</span>
             <span className="text-xs text-muted-foreground">
               {count} item{count !== 1 ? "s" : ""}
             </span>
-          </button>
+          </div>
         )
       })}
 
@@ -175,18 +200,27 @@ export function MediaGrid({
               )}
             </div>
 
-            {/* Checkbox */}
+            {/* Top gradient on hover / selected */}
             <div
-              className={`absolute top-2 left-2 z-10 ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
-              onClick={(e) => e.stopPropagation()}
+              className={`absolute inset-x-0 top-0 z-[5] h-14 bg-gradient-to-b from-black/50 to-transparent pointer-events-none transition-opacity ${isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}
+            />
+
+            {/* Select circle */}
+            <button
+              type="button"
+              className={`absolute top-2.5 left-2.5 z-10 size-6 rounded-full flex items-center justify-center transition-all ${
+                isSelected
+                  ? "bg-primary shadow-md shadow-black/30"
+                  : "border-[2.5px] border-white/70 shadow-md shadow-black/40 opacity-0 group-hover:opacity-100"
+              }`}
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleSelect(item.id)
+              }}
+              aria-label={`Select ${item.name}`}
             >
-              <Checkbox
-                checked={isSelected}
-                onCheckedChange={() => onToggleSelect(item.id)}
-                aria-label={`Select ${item.name}`}
-                className="bg-background/80 backdrop-blur-sm"
-              />
-            </div>
+              {isSelected && <Check className="size-3.5 text-primary-foreground" strokeWidth={3} />}
+            </button>
 
             {/* Footer — overlaid at bottom */}
             <div className="absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-black/90 via-black/60 to-transparent pt-10 pb-2 px-2.5 pointer-events-none">
