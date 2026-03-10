@@ -393,6 +393,8 @@ export async function convertDocToHtml(
         /<li>([\s\S]*?)<\/li>/g,
         (fullMatch, inner: string) => {
           if (/<li>/.test(inner)) return fullMatch
+          // Skip if already wrapped with font-family span
+          if (inner.trimStart().startsWith(`<span style="font-family:`)) return fullMatch
           return `<li><span style="font-family: ${serifFontFamily}">${inner}</span></li>`
         },
       )
