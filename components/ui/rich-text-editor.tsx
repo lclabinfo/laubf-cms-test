@@ -79,6 +79,8 @@ import {
   Heading2,
   Heading3,
   Heading4,
+  Maximize2,
+  Minimize2,
 } from "lucide-react"
 
 /** Custom icon: horizontal lines with vertical double-arrow (line/paragraph spacing) */
@@ -124,6 +126,8 @@ export function RichTextEditor({
   minHeight = "300px",
   maxHeight = "70vh",
 }: RichTextEditorProps) {
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
   const editor = useEditor({
     extensions: [...getExtensions(placeholder), ImageUpload],
     content: parseContent(content),
@@ -153,7 +157,38 @@ export function RichTextEditor({
     }
   }, [content, editor])
 
+  // Close fullscreen on Escape key
+  useEffect(() => {
+    if (!isFullscreen) return
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setIsFullscreen(false)
+    }
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [isFullscreen])
+
   if (!editor) return null
+
+  if (isFullscreen) {
+    return (
+      <>
+        {/* Placeholder to preserve layout space while fullscreen */}
+        <div className={cn("rounded-lg border bg-muted/30", className)} style={{ minHeight }} />
+        {/* Fullscreen overlay */}
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm" onClick={() => setIsFullscreen(false)} />
+        <div className="fixed inset-4 z-50 flex flex-col rounded-lg border bg-background shadow-2xl overflow-hidden">
+          <TooltipProvider delayDuration={300}>
+            <EditorToolbar editor={editor} isFullscreen={isFullscreen} onToggleFullscreen={() => setIsFullscreen(false)} />
+          </TooltipProvider>
+          <Separator />
+          <EditorContent
+            editor={editor}
+            className="tiptap-wrapper flex-1 overflow-y-auto"
+          />
+        </div>
+      </>
+    )
+  }
 
   return (
     <div
@@ -161,7 +196,7 @@ export function RichTextEditor({
       style={{ minHeight, maxHeight }}
     >
       <TooltipProvider delayDuration={300}>
-        <EditorToolbar editor={editor} />
+        <EditorToolbar editor={editor} isFullscreen={isFullscreen} onToggleFullscreen={() => setIsFullscreen(true)} />
       </TooltipProvider>
       <Separator />
       <EditorContent
@@ -320,7 +355,7 @@ const BLOCK_TYPES = [
   { label: "Heading 4", icon: Heading4, action: "heading" as const, level: 4 as const },
 ]
 
-function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
+function EditorToolbar({ editor, isFullscreen, onToggleFullscreen }: { editor: ReturnType<typeof useEditor>; isFullscreen?: boolean; onToggleFullscreen?: () => void }) {
   // Subscribe to editor state changes so toolbar active states update on selection change
   useEditorState({
     editor,
@@ -739,6 +774,21 @@ function EditorToolbar({ editor }: { editor: ReturnType<typeof useEditor> }) {
       <div className="flex items-center shrink-0">
         <SourceHtmlButton editor={editor} />
       </div>
+
+      {/* ── 8. Fullscreen toggle (pushed to right edge) ── */}
+      {onToggleFullscreen && (
+        <div className="flex items-center shrink-0 ml-auto">
+          <ToolbarTooltip label={isFullscreen ? "Exit Fullscreen" : "Fullscreen"} shortcut="Esc">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onToggleFullscreen}
+            >
+              {isFullscreen ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+            </Button>
+          </ToolbarTooltip>
+        </div>
+      )}
 
       {/* ── Table editing controls (shown only when inside a table) ── */}
       {editor.isActive("table") && (
