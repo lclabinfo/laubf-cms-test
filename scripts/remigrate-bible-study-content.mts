@@ -19,16 +19,10 @@
  */
 import 'dotenv/config'
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'fs'
-import { promises as fsPromises } from 'fs'
-import { resolve, extname, join } from 'path'
-import { tmpdir } from 'os'
-import { execFile } from 'child_process'
-import { promisify } from 'util'
+import { resolve, extname } from 'path'
 import pg from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { JSDOM } from 'jsdom'
-
-const execFileAsync = promisify(execFile)
 
 // ── Set up DOM globals for TipTap ──
 const dom = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>')
@@ -41,129 +35,13 @@ const dom = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>')
 const { convertDocxToHtml } = await import('../lib/docx-import.ts')
 const { convertDocToHtml } = await import('../lib/doc-convert.ts')
 const { generateJSON } = await import('@tiptap/html')
-const { fixOrderedListContinuation } = await import('../lib/tiptap.ts')
+const { fixOrderedListContinuation, getParseExtensions } = await import('../lib/tiptap.ts')
 
-// TipTap extensions (mirror getExtensions() from lib/tiptap.ts)
-const { default: StarterKit } = await import('@tiptap/starter-kit')
-const { default: Underline } = await import('@tiptap/extension-underline')
-const { default: Superscript } = await import('@tiptap/extension-superscript')
-const { default: Subscript } = await import('@tiptap/extension-subscript')
-const { default: TextAlign } = await import('@tiptap/extension-text-align')
-const { default: Link } = await import('@tiptap/extension-link')
-const { default: Image } = await import('@tiptap/extension-image')
-const { Table } = await import('@tiptap/extension-table')
-const { TableRow } = await import('@tiptap/extension-table-row')
-const { TableHeader } = await import('@tiptap/extension-table-header')
-const { TableCell } = await import('@tiptap/extension-table-cell')
-const { TextStyle } = await import('@tiptap/extension-text-style')
-const { default: FontFamily } = await import('@tiptap/extension-font-family')
-const { default: Color } = await import('@tiptap/extension-color')
-const { default: Highlight } = await import('@tiptap/extension-highlight')
-const { Extension } = await import('@tiptap/core')
-
-// Recreate Indent extension (from lib/tiptap.ts)
-const Indent = Extension.create({
-  name: 'indent',
-  addGlobalAttributes() {
-    return [{
-      types: ['paragraph', 'heading'],
-      attributes: {
-        indent: {
-          default: 0,
-          parseHTML: (element: HTMLElement) => {
-            const ml = element.style.marginLeft
-            if (ml) { const px = parseFloat(ml); if (px > 0) return Math.round(px / 40) }
-            return 0
-          },
-          renderHTML: (attributes: Record<string, any>) => {
-            if (!attributes.indent) return {}
-            const styles = [`margin-left: ${attributes.indent * 40}px`]
-            if (attributes.hangingIndent) styles.push(`text-indent: -${attributes.indent * 40}px`)
-            return { style: styles.join('; ') }
-          },
-        },
-        hangingIndent: {
-          default: false,
-          parseHTML: (element: HTMLElement) => {
-            const ti = element.style.textIndent
-            if (ti) { const px = parseFloat(ti); if (px < 0) return true }
-            return false
-          },
-          renderHTML: () => ({}),
-        },
-      },
-    }]
-  },
-})
-
-// Recreate LineSpacing extension (from lib/tiptap.ts)
-const LineSpacing = Extension.create({
-  name: 'lineSpacing',
-  addGlobalAttributes() {
-    return [{
-      types: ['paragraph', 'heading'],
-      attributes: {
-        lineHeight: {
-          default: null,
-          parseHTML: (element: HTMLElement) => {
-            const lh = element.style.lineHeight
-            if (!lh) return null
-            const val = parseFloat(lh)
-            if (isNaN(val)) return null
-            return String(Math.round(val * 100) / 100)
-          },
-          renderHTML: (attributes: Record<string, any>) => {
-            if (!attributes.lineHeight) return {}
-            return { style: `line-height: ${attributes.lineHeight}` }
-          },
-        },
-        spacingBefore: {
-          default: null,
-          parseHTML: (element: HTMLElement) => {
-            const mt = element.style.marginTop
-            if (!mt) return null
-            if (mt.endsWith('rem')) return mt.replace('rem', '')
-            if (mt.endsWith('px')) { const px = parseFloat(mt); return String(Math.round(px / 16 * 100) / 100) }
-            if (mt.endsWith('pt')) { const pt = parseFloat(mt); return String(Math.round(pt / 12 * 100) / 100) }
-            return null
-          },
-          renderHTML: (attributes: Record<string, any>) => {
-            if (attributes.spacingBefore === null || attributes.spacingBefore === undefined) return {}
-            return { style: `margin-top: ${attributes.spacingBefore}rem` }
-          },
-        },
-        spacingAfter: {
-          default: null,
-          parseHTML: (element: HTMLElement) => {
-            const mb = element.style.marginBottom
-            if (!mb) return null
-            if (mb.endsWith('rem')) return mb.replace('rem', '')
-            if (mb.endsWith('px')) { const px = parseFloat(mb); return String(Math.round(px / 16 * 100) / 100) }
-            if (mb.endsWith('pt')) { const pt = parseFloat(mb); return String(Math.round(pt / 12 * 100) / 100) }
-            return null
-          },
-          renderHTML: (attributes: Record<string, any>) => {
-            if (attributes.spacingAfter === null || attributes.spacingAfter === undefined) return {}
-            return { style: `margin-bottom: ${attributes.spacingAfter}rem` }
-          },
-        },
-      },
-    }]
-  },
-})
-
-const tiptapExtensions = [
-  StarterKit.configure({ heading: { levels: [1, 2, 3, 4] } }),
-  Underline, Superscript, Subscript, Indent,
-  TextAlign.configure({ types: ['heading', 'paragraph'] }),
-  Link.configure({ openOnClick: false, HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' } }),
-  Image.configure({ inline: false, allowBase64: true }),
-  Table.configure({ resizable: true, HTMLAttributes: { class: 'tiptap-table' } }),
-  TableRow, TableHeader, TableCell,
-  TextStyle, FontFamily, Color,
-  Highlight.configure({ multicolor: true }),
-  LineSpacing,
-]
+// Use the parse-only extension list from lib/tiptap.ts.
+// Schema-compatible with the editor (includes fontFamily on orderedList/bulletList,
+// Indent + LineSpacing global attributes) but without ProseMirror runtime plugins
+// that require an active editor instance.
+const tiptapExtensions = getParseExtensions()
 
 // ── Font helpers ──
 
@@ -182,6 +60,10 @@ function addFontToTextNodes(node: any, fontFamily: string): void {
       marks.push({ type: 'textStyle', attrs: { fontFamily } })
     }
     node.marks = marks
+  }
+  // Also set fontFamily on list nodes so markers render in the correct font
+  if (node.type === 'orderedList' || node.type === 'bulletList') {
+    node.attrs = { ...(node.attrs || {}), fontFamily }
   }
   if (node.content) {
     for (const child of node.content) addFontToTextNodes(child, fontFamily)
@@ -219,44 +101,11 @@ function detectFontFromHtml(html: string): { dominantFont: string | null; isSeri
   return { dominantFont, isSerifDoc, serifFontFamily }
 }
 
-// ── RTF conversion via textutil ──
+// ── WordPerfect detection ──
 
-async function convertRtfToHtml(filepath: string): Promise<{ html: string; isSerifDoc: boolean; serifFontFamily: string | null; dominantFont: string | null }> {
-  const tempOutput = join(tmpdir(), `rtf-out-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.html`)
-  try {
-    await execFileAsync('textutil', ['-convert', 'html', '-output', tempOutput, filepath], { timeout: 30_000 })
-    const fullHtml = await fsPromises.readFile(tempOutput, 'utf-8')
-    await fsPromises.unlink(tempOutput).catch(() => {})
-
-    const fontInfo = detectFontFromHtml(fullHtml)
-
-    let bodyHtml: string
-    const bodyMatch = fullHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i)
-    if (bodyMatch) {
-      bodyHtml = bodyMatch[1].trim()
-      const styleMatch = fullHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/i)
-      if (styleMatch) {
-        const ruleRegex = /(?:\w+\.)?([A-Za-z][\w-]*)\s*\{([^}]+)\}/g
-        let ruleMatch: RegExpExecArray | null
-        const classStyles = new Map<string, string>()
-        while ((ruleMatch = ruleRegex.exec(styleMatch[1])) !== null) {
-          classStyles.set(ruleMatch[1], ruleMatch[2].trim())
-        }
-        for (const [cls, styles] of classStyles) {
-          bodyHtml = bodyHtml.replace(new RegExp(`(<\\w+)\\s+class="${cls}"`, 'g'), `$1 style="${styles}"`)
-        }
-      }
-      bodyHtml = bodyHtml.replace(/<span style="white-space:pre">\t<\/span>/g, '\u2003\u2003')
-      bodyHtml = bodyHtml.replace(/<span class="Apple-converted-space">\s*<\/span>/g, '')
-    } else {
-      bodyHtml = fullHtml
-    }
-
-    return { html: bodyHtml, ...fontInfo }
-  } catch (err) {
-    await fsPromises.unlink(tempOutput).catch(() => {})
-    throw err
-  }
+function isWordPerfectFile(buffer: Buffer): boolean {
+  // WordPerfect 5.x/6.x files start with magic bytes: 0xFF 'W' 'P' 'C'
+  return buffer.length >= 4 && buffer[0] === 0xFF && buffer[1] === 0x57 && buffer[2] === 0x50 && buffer[3] === 0x43
 }
 
 // ── Unified file conversion → TipTap JSON ──
@@ -283,17 +132,18 @@ async function convertFile(filepath: string, filename: string): Promise<Conversi
       html = result.html; isSerifDoc = result.isSerifDoc
       serifFontFamily = result.serifFontFamily; dominantFont = result.dominantFont
       method = 'docx-mammoth'
-    } else if (ext === '.doc') {
+    } else if (ext === '.doc' || ext === '.rtf') {
       const buffer = readFileSync(filepath)
+      // Skip WordPerfect files (magic: 0xFF 'W' 'P' 'C') — they produce garbled output
+      if (isWordPerfectFile(buffer)) {
+        console.error(`  ✗ ${filename}: WordPerfect 5.x format — skipping (no converter available)`)
+        return null
+      }
+      // textutil handles both .doc (Word binary) and .rtf natively
       const result = await convertDocToHtml(buffer, filename)
       html = result.html; isSerifDoc = result.isSerifDoc
       serifFontFamily = result.serifFontFamily; dominantFont = result.dominantFont
-      method = 'doc-textutil'
-    } else if (ext === '.rtf') {
-      const result = await convertRtfToHtml(filepath)
-      html = result.html; isSerifDoc = result.isSerifDoc
-      serifFontFamily = result.serifFontFamily; dominantFont = result.dominantFont
-      method = 'rtf-textutil'
+      method = ext === '.rtf' ? 'rtf-textutil' : 'doc-textutil'
     } else {
       return null
     }
@@ -444,7 +294,7 @@ async function main() {
 
   for (let i = 0; i < allStudies.length; i++) {
     const study = allStudies[i]
-    if (i % 100 === 0) {
+    if (i % 10 === 0) {
       console.log(`  Processing ${i}/${allStudies.length}... (${study.title.slice(0, 50)})`)
     }
 
