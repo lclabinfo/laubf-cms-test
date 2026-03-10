@@ -14,8 +14,10 @@ import { Table } from "@tiptap/extension-table"
 import { TableRow } from "@tiptap/extension-table-row"
 import { TableHeader } from "@tiptap/extension-table-header"
 import { TableCell } from "@tiptap/extension-table-cell"
+import OrderedList from "@tiptap/extension-ordered-list"
+import BulletList from "@tiptap/extension-bullet-list"
 import { generateHTML } from "@tiptap/html"
-import { Extension } from "@tiptap/core"
+import { Extension, wrappingInputRule } from "@tiptap/core"
 import { Plugin, PluginKey } from "@tiptap/pm/state"
 import type { Extensions } from "@tiptap/react"
 import type { JSONContent } from "@tiptap/core"
@@ -43,10 +45,16 @@ const Indent = Extension.create({
             },
             renderHTML: (attributes) => {
               if (!attributes.indent) return {}
-              const styles = [`margin-left: ${(attributes.indent as number) * 40}px`]
-              // Hanging indent: pull first line back so numbers align with left edge
+              const indentPx = (attributes.indent as number) * 40
+              const styles = [`margin-left: ${indentPx}px`]
               if (attributes.hangingIndent) {
-                styles.push(`text-indent: -${(attributes.indent as number) * 40}px`)
+                // Hanging indent: pull first line back so numbers sit at the left edge.
+                // white-space: pre-wrap + tab-size ensures tab characters advance to
+                // the indent position, aligning first-line text with continuation lines
+                // (replicating Word's fixed-position tab stops).
+                styles.push(`text-indent: -${indentPx}px`)
+                styles.push("white-space: pre-wrap")
+                styles.push(`tab-size: ${indentPx}px`)
               }
               return { style: styles.join("; ") }
             },
@@ -218,6 +226,313 @@ const ListContinuation = Extension.create({
 })
 
 /**
+ * Helper: extract fontFamily from the editor's current textStyle marks.
+ * Checks multiple sources: storedMarks (pending marks for next input),
+ * selection marks ($from.marks()), and getAttributes (text at cursor).
+ */
+function getEditorFontFamily(editor: any): string | null {
+  try {
+    // 1. Check storedMarks (set by setFontFamily before typing)
+    const storedMarks = editor.state.storedMarks
+    if (storedMarks) {
+      const ts = storedMarks.find((m: any) => m.type.name === "textStyle")
+      if (ts?.attrs?.fontFamily) return ts.attrs.fontFamily
+    }
+
+    // 2. Check marks at the current cursor position
+    const { $from } = editor.state.selection
+    const cursorMarks = $from.marks()
+    if (cursorMarks.length) {
+      const ts = cursorMarks.find((m: any) => m.type.name === "textStyle")
+      if (ts?.attrs?.fontFamily) return ts.attrs.fontFamily
+    }
+
+    // 3. Fallback: getAttributes (works when cursor is inside marked text)
+    const attrs = editor.getAttributes("textStyle")
+    return attrs?.fontFamily || null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Shared fontFamily attribute definition for list nodes.
+ * Parses font-family from <ol>/<ul> style (set by doc-convert.ts for imports)
+ * and renders it back so list markers inherit the font via CSS inheritance.
+ */
+const listFontFamilyAttribute = {
+  default: null,
+  parseHTML: (element: HTMLElement) => element.style.fontFamily || null,
+  renderHTML: (attributes: Record<string, any>) => {
+    if (!attributes.fontFamily) return {}
+    return { style: `font-family: ${attributes.fontFamily}` }
+  },
+}
+
+// Regex patterns (same as TipTap uses internally)
+const orderedListInputRegex = /^(\d+)\.\s$/
+const bulletListInputRegex = /^\s*([-+*])\s$/
+
+/**
+ * Extended OrderedList with fontFamily attribute, custom input rule, and
+ * command override. When the user types "1. " or clicks the ordered list
+ * button with a serif font active, the fontFamily is set on the <ol> node
+ * so list markers render in the correct font.
+ *
+ * Three mechanisms ensure font propagation:
+ *   1. Input rule: passes fontFamily from editor's textStyle to the list node
+ *   2. Toggle command: reads fontFamily from textStyle and applies to list node
+ *   3. ListFontPropagation plugin: syncs font from text content to list node
+ */
+const StyledOrderedList = OrderedList.extend({
+  addOptions() {
+    return {
+      ...(this.parent?.() ?? {}),
+      keepMarks: true,
+      keepAttributes: true,
+    } as any
+  },
+
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      fontFamily: listFontFamilyAttribute,
+    }
+  },
+
+  addInputRules() {
+    return [
+      wrappingInputRule({
+        find: orderedListInputRegex,
+        type: this.type,
+        keepMarks: true,
+        keepAttributes: true,
+        getAttributes: (match) => ({
+          start: +match[1],
+          fontFamily: getEditorFontFamily(this.editor),
+        }),
+        joinPredicate: (match, node) =>
+          node.childCount + node.attrs.start === +match[1],
+        editor: this.editor,
+      }),
+    ]
+  },
+
+  addCommands() {
+    return {
+      ...this.parent?.(),
+      toggleOrderedList:
+        () =>
+        ({ chain }) => {
+          const fontFamily = getEditorFontFamily(this.editor)
+          return chain()
+            .toggleList(this.name, this.options.itemTypeName, true)
+            .updateAttributes("listItem", this.editor.getAttributes("textStyle"))
+            .command(({ tr, state }) => {
+              // Find the orderedList node at the current selection and set fontFamily
+              const { $from } = state.selection
+              for (let depth = $from.depth; depth > 0; depth--) {
+                const node = $from.node(depth)
+                if (node.type.name === "orderedList") {
+                  const pos = $from.before(depth)
+                  tr.setNodeMarkup(pos, undefined, {
+                    ...node.attrs,
+                    fontFamily,
+                  })
+                  return true
+                }
+              }
+              return true
+            })
+            .run()
+        },
+    }
+  },
+})
+
+const StyledBulletList = BulletList.extend({
+  addOptions() {
+    return {
+      ...(this.parent?.() ?? {}),
+      keepMarks: true,
+      keepAttributes: true,
+    } as any
+  },
+
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      fontFamily: listFontFamilyAttribute,
+    }
+  },
+
+  addInputRules() {
+    return [
+      wrappingInputRule({
+        find: bulletListInputRegex,
+        type: this.type,
+        keepMarks: true,
+        keepAttributes: true,
+        getAttributes: () => ({
+          fontFamily: getEditorFontFamily(this.editor),
+        }),
+        editor: this.editor,
+      }),
+    ]
+  },
+
+  addCommands() {
+    return {
+      ...this.parent?.(),
+      toggleBulletList:
+        () =>
+        ({ chain }) => {
+          const fontFamily = getEditorFontFamily(this.editor)
+          return chain()
+            .toggleList(this.name, this.options.itemTypeName, true)
+            .updateAttributes("listItem", this.editor.getAttributes("textStyle"))
+            .command(({ tr, state }) => {
+              const { $from } = state.selection
+              for (let depth = $from.depth; depth > 0; depth--) {
+                const node = $from.node(depth)
+                if (node.type.name === "bulletList") {
+                  const pos = $from.before(depth)
+                  tr.setNodeMarkup(pos, undefined, {
+                    ...node.attrs,
+                    fontFamily,
+                  })
+                  return true
+                }
+              }
+              return true
+            })
+            .run()
+        },
+    }
+  },
+})
+
+/**
+ * ProseMirror plugin that propagates font-family from list item text to the
+ * parent list node. Serves as a safety net for cases not covered by the
+ * input rules and commands above (e.g., pasting content, changing font on
+ * existing list text, programmatic insertions).
+ */
+const listFontPluginKey = new PluginKey("listFontPropagation")
+
+const ListFontPropagation = Extension.create({
+  name: "listFontPropagation",
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: listFontPluginKey,
+        appendTransaction(transactions, oldState, newState) {
+          const { doc, tr, selection, storedMarks } = newState
+          let modified = false
+
+          doc.forEach((node, offset) => {
+            if (node.type.name !== "orderedList" && node.type.name !== "bulletList") return
+
+            // Collect all fontFamily values from text nodes in this list
+            let font: string | null | undefined = undefined // undefined = not yet seen
+            let consistent = true
+            let hasText = false
+
+            node.descendants((child) => {
+              if (!consistent) return false
+              if (child.isText) {
+                hasText = true
+                const textStyleMark = child.marks.find(m => m.type.name === "textStyle")
+                const childFont = textStyleMark?.attrs?.fontFamily || null
+                if (font === undefined) {
+                  font = childFont
+                } else if (font !== childFont) {
+                  consistent = false
+                }
+              }
+              return true
+            })
+
+            // If list has no text content (empty items), check multiple sources
+            // for the font to apply. wrappingInputRule's keepMarks sets storedMarks
+            // via ensureMarks on the wrapping transaction, but a subsequent
+            // chain().updateAttributes().run() transaction may clear them from
+            // newState. We check: 1) newState.storedMarks, 2) individual transaction
+            // storedMarks, 3) old state marks (from text that was deleted by the
+            // input rule), 4) current selection marks.
+            const listEnd = offset + node.nodeSize
+            if (!hasText && selection.$from.pos >= offset && selection.$from.pos <= listEnd) {
+              let resolvedFont: string | null = null
+
+              // Source 1: newState.storedMarks
+              if (storedMarks) {
+                const ts = storedMarks.find((m: any) => m.type.name === "textStyle")
+                if (ts?.attrs?.fontFamily) resolvedFont = ts.attrs.fontFamily
+              }
+
+              // Source 2: individual transactions' storedMarks
+              // (catches marks set by wrappingInputRule's ensureMarks that were
+              // overwritten by a subsequent chain() transaction)
+              if (!resolvedFont) {
+                for (const txn of transactions) {
+                  if (txn.storedMarks) {
+                    const ts = (txn.storedMarks as any[]).find((m: any) => m.type.name === "textStyle")
+                    if (ts?.attrs?.fontFamily) {
+                      resolvedFont = ts.attrs.fontFamily
+                      break
+                    }
+                  }
+                }
+              }
+
+              // Source 3: old state marks (text "1. " existed with textStyle marks
+              // before the input rule deleted it and wrapped the paragraph)
+              if (!resolvedFont) {
+                const oldMarks = oldState.storedMarks || oldState.selection.$from.marks()
+                if (oldMarks) {
+                  const ts = oldMarks.find((m: any) => m.type.name === "textStyle")
+                  if (ts?.attrs?.fontFamily) resolvedFont = ts.attrs.fontFamily
+                }
+              }
+
+              // Source 4: current selection marks
+              if (!resolvedFont) {
+                const curMarks = selection.$from.marks()
+                if (curMarks.length) {
+                  const ts = curMarks.find((m: any) => m.type.name === "textStyle")
+                  if (ts?.attrs?.fontFamily) resolvedFont = ts.attrs.fontFamily
+                }
+              }
+
+              // If no font found from any source, preserve the existing fontFamily
+              // on the node. This prevents appendTransaction from clearing a fontFamily
+              // that was just set in a previous round (appendTransaction re-runs after
+              // each modification, and mark sources are ephemeral).
+              font = resolvedFont ?? node.attrs.fontFamily ?? null
+              consistent = true
+            }
+
+            if (!consistent) {
+              // Mixed fonts — clear list fontFamily
+              if (node.attrs.fontFamily !== null) {
+                tr.setNodeMarkup(offset, undefined, { ...node.attrs, fontFamily: null })
+                modified = true
+              }
+            } else if (font !== undefined && font !== node.attrs.fontFamily) {
+              tr.setNodeMarkup(offset, undefined, { ...node.attrs, fontFamily: font })
+              modified = true
+            }
+          })
+
+          return modified ? tr : null
+        },
+      }),
+    ]
+  },
+})
+
+/**
  * Shared TipTap extension configuration.
  * Used by both the editor component and HTML generation to ensure parity.
  */
@@ -225,7 +540,15 @@ export function getExtensions(placeholder?: string): Extensions {
   return [
     StarterKit.configure({
       heading: { levels: [1, 2, 3, 4] },
+      orderedList: false,
+      bulletList: false,
+      // StarterKit v3.20+ includes Link and Underline — disable them here
+      // since we configure them separately below with custom options.
+      link: false,
+      underline: false,
     }),
+    StyledOrderedList,
+    StyledBulletList,
     Underline,
     Superscript,
     Subscript,
@@ -254,9 +577,64 @@ export function getExtensions(placeholder?: string): Extensions {
     Highlight.configure({ multicolor: true }),
     LineSpacing,
     ListContinuation,
+    ListFontPropagation,
     ...(placeholder
       ? [Placeholder.configure({ placeholder })]
       : []),
+  ]
+}
+
+/**
+ * Schema-only extension list for static HTML ↔ JSON conversion (generateJSON / generateHTML).
+ * Includes all node types, mark types, and attributes (including fontFamily on list nodes)
+ * but excludes ProseMirror runtime plugins (ListContinuation, ListFontPropagation),
+ * input rules, and commands that require an active editor instance.
+ *
+ * Used by: migration scripts, seed generation, server-side rendering.
+ * For editor use, call getExtensions() instead.
+ */
+export function getParseExtensions(): Extensions {
+  // Lightweight list extensions with fontFamily attribute but no plugins/commands
+  const ParseOrderedList = OrderedList.extend({
+    addAttributes() {
+      return { ...this.parent?.(), fontFamily: listFontFamilyAttribute }
+    },
+  })
+  const ParseBulletList = BulletList.extend({
+    addAttributes() {
+      return { ...this.parent?.(), fontFamily: listFontFamilyAttribute }
+    },
+  })
+
+  return [
+    StarterKit.configure({
+      heading: { levels: [1, 2, 3, 4] },
+      orderedList: false,
+      bulletList: false,
+      link: false,
+      underline: false,
+    }),
+    ParseOrderedList,
+    ParseBulletList,
+    Underline,
+    Superscript,
+    Subscript,
+    Indent,
+    TextAlign.configure({ types: ["heading", "paragraph"] }),
+    Link.configure({
+      openOnClick: false,
+      HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
+    }),
+    Image.configure({ inline: false, allowBase64: true }),
+    Table.configure({ resizable: true, HTMLAttributes: { class: "tiptap-table" } }),
+    TableRow,
+    TableHeader,
+    TableCell,
+    TextStyle,
+    FontFamily,
+    Color,
+    Highlight.configure({ multicolor: true }),
+    LineSpacing,
   ]
 }
 
@@ -266,7 +644,7 @@ export function getExtensions(placeholder?: string): Extensions {
 export function tiptapJsonToHtml(jsonString: string): string {
   try {
     const json = JSON.parse(jsonString) as JSONContent
-    let html = generateHTML(json, getExtensions())
+    let html = generateHTML(json, getParseExtensions())
     // Empty paragraphs from TipTap come as <p></p> which collapse in browsers
     // (no line box = zero height). Insert <br> to give them visible height.
     html = html.replace(/<p([^>]*)><\/p>/g, "<p$1><br></p>")
