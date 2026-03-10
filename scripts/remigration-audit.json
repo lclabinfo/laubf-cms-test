@@ -1,15 +1,15 @@
 {
-  "timestamp": "2026-03-07T22:49:38.222Z",
+  "timestamp": "2026-03-10T01:04:45.412Z",
   "stats": {
     "totalProcessed": 1180,
-    "questionsUpdated": 1154,
-    "answersUpdated": 908,
+    "questionsUpdated": 1153,
+    "answersUpdated": 906,
     "transcriptsUpdated": 628,
     "rtfConverted": 80,
-    "docConverted": 1439,
+    "docConverted": 1436,
     "docxConverted": 1204,
     "filesMissing": 4,
-    "conversionErrors": 4,
+    "conversionErrors": 7,
     "htmlFallback": 0,
     "dbUpdated": 1171,
     "htmlInPlaceConverted": 0,
@@ -25,7 +25,10 @@
     "7826:Lk2b_2014M.pdf",
     "8329:Eze37_2009M",
     "8440:Mat3-2008N",
-    "8443:Mat2-2008N"
+    "8443:Mat2-2008N",
+    "8773:Js5b2003Q.doc",
+    "8774:Js5a2003N.doc",
+    "8778:Lk19a2003N.doc"
   ],
   "rtfFiles": [
     "Eph2_2013Q.rtf",
