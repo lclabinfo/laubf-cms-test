@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { toast } from "sonner"
 import { Plus, Upload, FileText, AlertCircle, Paperclip, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -36,6 +36,63 @@ interface StudyTabProps {
   attachments?: Attachment[]
   /** Bible version selector — lives on the Study tab since it's about study materials */
   bibleVersionSlot?: React.ReactNode
+}
+
+/** Sliding-indicator tabs for study sections (Questions / Answers / Transcript) */
+function SlidingTabsList({
+  sections,
+  activeSection,
+  onSelect,
+}: {
+  sections: { id: string; title: string }[]
+  activeSection: string
+  onSelect: (id: string) => void
+}) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [indicator, setIndicator] = useState({ left: 0, width: 0 })
+
+  const updateIndicator = useCallback(() => {
+    const container = containerRef.current
+    if (!container) return
+    const activeEl = container.querySelector<HTMLElement>(`[data-tab-id="${activeSection}"]`)
+    if (!activeEl) return
+    setIndicator({
+      left: activeEl.offsetLeft,
+      width: activeEl.offsetWidth,
+    })
+  }, [activeSection])
+
+  useEffect(() => {
+    updateIndicator()
+  }, [updateIndicator])
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative inline-flex items-center bg-muted rounded-lg p-1 h-9"
+    >
+      {/* Sliding background indicator */}
+      <div
+        className="absolute top-1 bottom-1 rounded-md bg-background shadow-sm border border-border dark:border-[oklch(0.45_0_0)] transition-all duration-200 ease-out"
+        style={{ left: indicator.left, width: indicator.width }}
+      />
+      {sections.map((section) => (
+        <button
+          key={section.id}
+          type="button"
+          data-tab-id={section.id}
+          onClick={() => onSelect(section.id)}
+          className={`relative z-10 rounded-md px-4 py-1.5 text-xs font-medium transition-colors duration-150 ${
+            activeSection === section.id
+              ? "text-foreground"
+              : "text-muted-foreground hover:text-foreground/80"
+          }`}
+        >
+          {section.title}
+        </button>
+      ))}
+    </div>
+  )
 }
 
 function formatBytes(bytes: number): string {
@@ -340,17 +397,7 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, attachme
       {bibleVersionSlot}
       <Tabs defaultValue={defaultTab} key={defaultTab} value={activeSection} onValueChange={setActiveSection}>
         <div className="flex items-center gap-2">
-          <TabsList className="bg-muted p-0.5 rounded-lg h-8">
-            {sections.map((section) => (
-              <TabsTrigger
-                key={section.id}
-                value={section.id}
-                className="rounded-md px-3 text-xs h-7 text-muted-foreground/70 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:shadow-sm"
-              >
-                {section.title}
-              </TabsTrigger>
-            ))}
-          </TabsList>
+          <SlidingTabsList sections={sections} activeSection={activeSection} onSelect={setActiveSection} />
           <div className="flex-1" />
           <Button
             variant="outline"
