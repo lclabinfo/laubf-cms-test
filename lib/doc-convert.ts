@@ -188,7 +188,7 @@ function detectFontFromHtml(html: string): {
   let serifFontFamily: string | null = null
   if (isSerifDoc) {
     const originalCase = dominantFont!.replace(/\b\w/g, c => c.toUpperCase())
-    serifFontFamily = `"${originalCase}", Georgia, serif`
+    serifFontFamily = `'${originalCase}', Georgia, serif`
   }
 
   return { dominantFont, isSerifDoc, serifFontFamily }
@@ -286,11 +286,13 @@ export async function convertDocToHtml(
       }
     }
 
-    // Convert Apple-tab-span tabs to em-spaces for consistent rendering.
-    // Raw \t with white-space:pre may not render in all contexts (e.g., TipTap editor).
+    // Convert Apple-tab-span tabs to raw tab characters.
+    // For hanging-indent paragraphs, the tab will be preserved via
+    // white-space: pre-wrap + tab-size CSS (replicating Word tab stops).
+    // For other paragraphs, tabs are converted to em-spaces below.
     bodyHtml = bodyHtml.replace(
       /<span style="white-space:pre">\t<\/span>/g,
-      "\u2003\u2003"  // two em-spaces ≈ one tab stop
+      "\t"
     )
 
     // Convert Apple-converted-space trailing spaces
@@ -303,8 +305,9 @@ export async function convertDocToHtml(
     // textutil sometimes formats numbered questions (e.g., "5. [tab] text") with
     // p3 (no indent) instead of p4 (hanging indent). Detect the pattern and apply
     // consistent hanging indent to paragraphs starting with "N. " that lack it.
+    // Note: \t matches the raw tab character from the conversion above.
     bodyHtml = bodyHtml.replace(
-      /<p style="([^"]*)">((\d+\.\s*\u2003)[\s\S]*?)<\/p>/g,
+      /<p style="([^"]*)">((\d+\.[ ]*\t)[\s\S]*?)<\/p>/g,
       (_match, style: string, inner: string) => {
         // Only fix paragraphs that don't already have hanging indent
         if (!style.includes("text-indent") &&
@@ -319,26 +322,64 @@ export async function convertDocToHtml(
       }
     )
 
-    // Strip em-spaces after numbers in hanging-indent paragraphs.
-    // textutil converts tab stops between "N." and text to em-spaces (\u2003),
-    // but hanging indent (margin-left + text-indent) already provides the spacing.
-    // The em-spaces create an extra visual gap between the number and text.
-    // Note: \s matches \u2003 in JS, so use [ ] for regular space only.
+    // For hanging-indent paragraphs (negative text-indent), add
+    // white-space: pre-wrap + tab-size so that:
+    //   1. Tab characters are preserved during TipTap JSON parsing
+    //   2. Tabs advance to the indent position (replicating Word tab stops)
+    //   3. First-line text aligns with continuation lines
+    // tab-size is derived from the paragraph's actual margin-left value,
+    // not hardcoded, since different documents use different indent widths.
     bodyHtml = bodyHtml.replace(
-      /<p style="([^"]*text-indent[^"]*)">([ ]*\d+\.[ ]*)\u2003+/g,
-      (_match, style: string, numberPrefix: string) => {
-        return `<p style="${style}">${numberPrefix}`
+      /<p style="([^"]*text-indent:\s*-[\d.]+px[^"]*)">/g,
+      (_match, style: string) => {
+        // Extract margin-left value for tab-size (shorthand or longhand)
+        const mlMatch = style.match(/margin-left:\s*([\d.]+)px/)
+          || style.match(/margin:\s*[\d.]+px\s+[\d.]+px\s+[\d.]+px\s+([\d.]+)px/)
+        const tabSize = mlMatch ? parseFloat(mlMatch[1]) : 40
+        return `<p style="${style}; white-space: pre-wrap; tab-size: ${tabSize}px">`
+      }
+    )
+
+    // For non-hanging-indent paragraphs, convert remaining tabs to em-spaces
+    // (e.g., title paragraphs that use tab for centering offset).
+    bodyHtml = bodyHtml.replace(
+      /<p([^>]*)>([\s\S]*?)<\/p>/g,
+      (fullMatch, attrs: string, inner: string) => {
+        if (attrs.includes("pre-wrap")) return fullMatch
+        if (inner.includes("\t")) {
+          return `<p${attrs}>${inner.replace(/\t/g, "\u2003\u2003")}</p>`
+        }
+        return fullMatch
       }
     )
   } else {
     bodyHtml = html
   }
 
-  // For serif documents, ensure list item text has inline font-family so that
-  // TipTap's generateJSON() picks up the font on text nodes inside lists.
-  // TipTap's FontFamily extension only reads font-family from inline elements
-  // like <span>, not from block-level parents like <ol>/<ul>.
+  // For serif documents, ensure text has inline font-family so that TipTap's
+  // generateJSON() picks up the font on text nodes. TipTap's FontFamily
+  // extension only reads font-family from inline <span> elements, not from
+  // block-level parents like <p>, <ol>, or <ul>. The textutil `font:` shorthand
+  // (e.g., `font: 12.0px 'Times New Roman'`) is not parsed by TipTap either.
   if (isSerifDoc && serifFontFamily) {
+    // Wrap content inside <p> elements with font-family span.
+    // For serif documents, ALL paragraphs get the font — including empty/br-only
+    // ones — so that when the user places their cursor in a spacer paragraph
+    // and starts typing, the text will be in the document's serif font.
+    bodyHtml = bodyHtml.replace(
+      /<p([^>]*)>([\s\S]*?)<\/p>/g,
+      (fullMatch, attrs: string, inner: string) => {
+        if (inner.includes("font-family")) return fullMatch
+        const trimmed = inner.trim()
+        if (!trimmed || trimmed === "<br>") {
+          // Empty paragraph — insert a font-styled <br> so TipTap preserves
+          // the font mark for subsequent typing
+          return `<p${attrs}><span style="font-family: ${serifFontFamily}"><br></span></p>`
+        }
+        return `<p${attrs}><span style="font-family: ${serifFontFamily}">${inner}</span></p>`
+      },
+    )
+
     // Add font-family to list containers (for marker rendering)
     bodyHtml = bodyHtml.replace(/<ol/g, `<ol style="font-family: ${serifFontFamily}"`)
     bodyHtml = bodyHtml.replace(/<ul/g, `<ul style="font-family: ${serifFontFamily}"`)
