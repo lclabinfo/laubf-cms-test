@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react"
 import { useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { signIn } from "next-auth/react"
 import { ChurchIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -42,12 +43,15 @@ function GoogleIcon() {
 function getErrorMessage(error: string | null): string | null {
   if (!error) return null
   if (error === "CredentialsSignin") return "Invalid email or password."
+  if (error === "InvalidToken") return "Verification link is invalid or expired."
+  if (error === "RateLimited") return "Too many attempts. Please try again later."
   return "Something went wrong. Please try again."
 }
 
 function LoginForm() {
   const searchParams = useSearchParams()
   const error = searchParams.get("error")
+  const verified = searchParams.get("verified")
   const callbackUrl = searchParams.get("callbackUrl") || "/cms/dashboard"
   const errorMessage = getErrorMessage(error)
 
@@ -128,6 +132,12 @@ function LoginForm() {
             />
           </div>
 
+          {verified && (
+            <p className="text-sm text-green-600 text-center">
+              Email verified! You can now sign in.
+            </p>
+          )}
+
           {errorMessage && (
             <p className="text-sm text-destructive text-center">
               {errorMessage}
@@ -137,7 +147,23 @@ function LoginForm() {
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? "Signing in..." : "Sign In"}
           </Button>
+
+          <div className="text-center">
+            <Link
+              href="/cms/forgot-password"
+              className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
         </form>
+
+        <p className="text-center text-sm text-muted-foreground">
+          Don&apos;t have an account?{" "}
+          <Link href="/cms/signup" className="text-primary underline-offset-4 hover:underline">
+            Sign up
+          </Link>
+        </p>
       </CardContent>
     </Card>
   )

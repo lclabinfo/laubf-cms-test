@@ -22,9 +22,10 @@ export default function NoAccessPage() {
           </div>
           <CardTitle>No Church Access</CardTitle>
           <CardDescription>
-            Your account is not associated with any church, or your session has
-            expired. Try signing out and signing back in. If the issue persists,
-            contact your church administrator.
+            Your account is not yet associated with any church. A church
+            administrator needs to invite you before you can access the CMS.
+            If you believe this is an error, contact your church administrator
+            and ask them to add your email address.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">

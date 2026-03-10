@@ -30,12 +30,17 @@ export const authConfig: NextAuthConfig = {
         const password = credentials?.password as string | undefined
 
         if (!email || !password) return null
+        // Prevent bcrypt DoS with oversized passwords
+        if (password.length > 128) return null
 
         const user = await prisma.user.findUnique({
-          where: { email },
+          where: { email: email.trim().toLowerCase() },
         })
 
         if (!user || !user.passwordHash) return null
+
+        // Block unverified email accounts from logging in
+        if (!user.emailVerified) return null
 
         const isValid = await bcrypt.compare(password, user.passwordHash)
         if (!isValid) return null
@@ -62,30 +67,44 @@ export const authConfig: NextAuthConfig = {
         })
 
         if (!existingUser) {
-          const newUser = await prisma.user.create({
-            data: {
-              email: user.email,
-              firstName: user.name?.split(' ')[0] || '',
-              lastName: user.name?.split(' ').slice(1).join(' ') || '',
-              avatarUrl: user.image,
-              emailVerified: true,
-              accounts: {
-                create: {
-                  type: account.type,
-                  provider: account.provider,
-                  providerAccountId: account.providerAccountId,
-                  refresh_token: account.refresh_token,
-                  access_token: account.access_token,
-                  expires_at: account.expires_at,
-                  token_type: account.token_type,
-                  scope: account.scope,
-                  id_token: account.id_token,
-                  session_state: account.session_state as string | undefined,
+          try {
+            const newUser = await prisma.user.create({
+              data: {
+                email: user.email,
+                firstName: user.name?.split(' ')[0] || '',
+                lastName: user.name?.split(' ').slice(1).join(' ') || '',
+                avatarUrl: user.image,
+                emailVerified: true,
+                accounts: {
+                  create: {
+                    type: account.type,
+                    provider: account.provider,
+                    providerAccountId: account.providerAccountId,
+                    refresh_token: account.refresh_token,
+                    access_token: account.access_token,
+                    expires_at: account.expires_at,
+                    token_type: account.token_type,
+                    scope: account.scope,
+                    id_token: account.id_token,
+                    session_state: account.session_state as string | undefined,
+                  },
                 },
               },
-            },
-          })
-          user.id = newUser.id
+            })
+            user.id = newUser.id
+          } catch (err) {
+            // Handle race condition: another request created this user simultaneously
+            if (typeof err === 'object' && err !== null && 'code' in err && (err as { code: string }).code === 'P2002') {
+              const raceUser = await prisma.user.findUnique({ where: { email: user.email! } })
+              if (raceUser) {
+                user.id = raceUser.id
+              } else {
+                return false
+              }
+            } else {
+              throw err
+            }
+          }
         } else {
           const hasGoogleAccount = existingUser.accounts.some(
             (a) => a.provider === 'google'

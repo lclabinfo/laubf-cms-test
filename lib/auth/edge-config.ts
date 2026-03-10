@@ -26,17 +26,17 @@ export const edgeAuthConfig: NextAuthConfig = {
       const { pathname } = request.nextUrl
       const isAuthenticated = !!auth
 
-      // CMS routes require authentication (except login/no-access)
-      if (pathname.startsWith('/cms') && !pathname.startsWith('/cms/login') && !pathname.startsWith('/cms/no-access')) {
+      // CMS routes require authentication (except public auth pages)
+      const publicCmsPages = ['/cms/login', '/cms/signup', '/cms/no-access', '/cms/verify-email', '/cms/forgot-password', '/cms/reset-password', '/cms/accept-invite']
+      if (pathname.startsWith('/cms') && !publicCmsPages.some(p => pathname.startsWith(p))) {
         return isAuthenticated
       }
 
       // API v1 routes require authentication (except public endpoints)
       if (pathname.startsWith('/api/v1')) {
-        // Bible text endpoint is used by the public website
-        if (pathname.startsWith('/api/v1/bible')) {
-          return true
-        }
+        // Public endpoints: bible text, auth flows, form submissions
+        if (pathname.startsWith('/api/v1/bible')) return true
+        if (pathname.startsWith('/api/v1/auth/')) return true
         return isAuthenticated
       }
 
