@@ -240,16 +240,30 @@ export async function convertDocxToHtml(
   // Build serif font-family value
   let serifFontFamily: string | null = null
   if (isSerifDoc) {
-    serifFontFamily = `"${allFonts.find(f => f.toLowerCase() === dominantFont) || "Times New Roman"}", Georgia, serif`
-    // For serif documents, set font-family on list containers so list markers
-    // (numbers/bullets) also render in serif, not just the text spans inside.
+    serifFontFamily = `'${allFonts.find(f => f.toLowerCase() === dominantFont) || "Times New Roman"}', Georgia, serif`
+
+    // Wrap content inside <p>/<h> elements with font-family span so TipTap's
+    // FontFamily extension (which only reads from inline <span>) picks up the font.
+    // mammoth doesn't output font-family on paragraphs.
+    // ALL paragraphs get the font — including empty ones — so that spacer
+    // paragraphs inherit the document's font when the user starts typing.
+    html = html.replace(
+      /<(p|h[1-4])([^>]*)>([\s\S]*?)<\/\1>/g,
+      (fullMatch, tag: string, attrs: string, inner: string) => {
+        if (inner.includes("font-family")) return fullMatch
+        const trimmed = inner.trim()
+        if (!trimmed || trimmed === "\u00A0" || trimmed === "<br>") {
+          return `<${tag}${attrs}><span style="font-family: ${serifFontFamily}"><br></span></${tag}>`
+        }
+        return `<${tag}${attrs}><span style="font-family: ${serifFontFamily}">${inner}</span></${tag}>`
+      },
+    )
+
+    // Set font-family on list containers so list markers render in serif
     html = html.replace(/<ol/g, `<ol style="font-family: ${serifFontFamily}"`)
     html = html.replace(/<ul/g, `<ul style="font-family: ${serifFontFamily}"`)
 
-    // Also wrap text inside <li> elements with a font-family span so that
-    // TipTap's generateJSON() picks up the font on text nodes (TipTap's
-    // FontFamily extension only reads font-family from inline elements like
-    // <span>, not from block-level parents like <ol>/<ul>).
+    // Wrap text inside <li> elements with font-family span
     html = addFontSpanToListItems(html, serifFontFamily)
   }
 
@@ -520,6 +534,8 @@ function addFontSpanToListItems(html: string, fontFamily: string): string {
       (fullMatch, inner: string) => {
         // Skip if this <li> contains a nested <li> (will be handled in next pass)
         if (/<li>/.test(inner)) return fullMatch
+        // Skip if already wrapped with font-family span
+        if (inner.trimStart().startsWith(`<span style="font-family:`)) return fullMatch
         return `<li><span style="font-family: ${fontFamily}">${inner}</span></li>`
       },
     )
