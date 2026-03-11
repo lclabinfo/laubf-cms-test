@@ -26,6 +26,7 @@ import {
   MapPinIcon,
   HardDriveIcon,
   InboxIcon,
+  EyeOffIcon,
   type LucideIcon,
 } from "lucide-react"
 
@@ -59,6 +60,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { signOut } from "next-auth/react"
 import type { CmsSessionData } from "@/components/cms/cms-shell"
@@ -71,6 +77,10 @@ type NavItem = {
   items?: { title: string; href: string }[]
   /** Permission required to see this item. If omitted, visible to all authenticated users. */
   requiredPermission?: Permission
+  /** If true, only visible to developer accounts (info@lclab.io). Used for WIP pages. */
+  devOnly?: boolean
+  /** Short hint shown to dev users explaining why this item is hidden from others. */
+  devHint?: string
 }
 
 type NavGroup = {
@@ -134,11 +144,6 @@ const navGroups: NavGroup[] = [
         icon: UserPlusIcon,
       },
       {
-        title: "Roles",
-        href: "/cms/people/roles",
-        icon: ShieldIcon,
-      },
-      {
         title: "Ministries",
         href: "/cms/people/ministries",
         icon: Building2Icon,
@@ -163,16 +168,22 @@ const navGroups: NavGroup[] = [
         title: "Pages",
         href: "/cms/website/pages",
         icon: FileTextIcon,
+        devOnly: true,
+        devHint: "Moving into Builder",
       },
       {
         title: "Navigation",
         href: "/cms/website/navigation",
         icon: NavigationIcon,
+        devOnly: true,
+        devHint: "Moving into Builder",
       },
       {
         title: "Theme",
         href: "/cms/website/theme",
         icon: PaletteIcon,
+        devOnly: true,
+        devHint: "Moving into Builder",
       },
       {
         title: "Domains",
@@ -185,6 +196,8 @@ const navGroups: NavGroup[] = [
         href: "/cms/website/settings",
         icon: SettingsIcon,
         requiredPermission: "website.settings.edit",
+        devOnly: true,
+        devHint: "Moving into Builder",
       },
     ],
   },
@@ -211,6 +224,7 @@ const navGroups: NavGroup[] = [
 export function AppSidebar({ session, ...props }: { session: CmsSessionData } & React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const userPerms = React.useMemo(() => new Set(session.permissions ?? []), [session.permissions])
+  const isDev = session.user.email === "info@lclab.io"
   const [unreadSubmissions, setUnreadSubmissions] = React.useState(0)
 
   React.useEffect(() => {
@@ -287,7 +301,9 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
         {navGroups.map((group) => {
           if (group.requiredPermission && !userPerms.has(group.requiredPermission)) return null
           const visibleItems = group.items.filter(
-            (item) => !item.requiredPermission || userPerms.has(item.requiredPermission),
+            (item) =>
+              (!item.requiredPermission || userPerms.has(item.requiredPermission)) &&
+              (!item.devOnly || isDev),
           )
           if (visibleItems.length === 0) return null
           const isGroupActive = activeGroup?.label === group.label
@@ -335,6 +351,16 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
                                 <Badge variant="default" className="ml-auto h-5 min-w-5 px-1.5 text-[10px] font-semibold justify-center">
                                   {unreadSubmissions}
                                 </Badge>
+                              )}
+                              {item.devOnly && item.devHint && (
+                                <Tooltip>
+                                  <TooltipTrigger asChild onClick={(e) => e.preventDefault()}>
+                                    <EyeOffIcon className="ml-auto size-3 text-muted-foreground/50 shrink-0" />
+                                  </TooltipTrigger>
+                                  <TooltipContent side="right" className="text-xs">
+                                    {item.devHint}
+                                  </TooltipContent>
+                                </Tooltip>
                               )}
                             </Link>
                           </SidebarMenuButton>
