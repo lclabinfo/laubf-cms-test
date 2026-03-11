@@ -767,7 +767,7 @@ export function ProfileForm({ initialData, onSave }: ProfileFormProps) {
                               onChange={(e) =>
                                 setService(i, "startTime", e.target.value)
                               }
-                              className="w-28"
+                              className="w-36 [&::-webkit-calendar-picker-indicator]:dark:invert [&::-webkit-calendar-picker-indicator]:opacity-50"
                             />
                           </div>
                           <div className="space-y-2">
@@ -778,7 +778,7 @@ export function ProfileForm({ initialData, onSave }: ProfileFormProps) {
                               onChange={(e) =>
                                 setService(i, "endTime", e.target.value)
                               }
-                              className="w-28"
+                              className="w-36 [&::-webkit-calendar-picker-indicator]:dark:invert [&::-webkit-calendar-picker-indicator]:opacity-50"
                             />
                           </div>
                         </div>

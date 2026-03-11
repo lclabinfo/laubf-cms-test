@@ -433,6 +433,23 @@ async function main() {
       facebookUrl: 'https://facebook.com/losangelesubf',
       instagramUrl: 'https://instagram.com/la.ubf',
       youtubeUrl: 'https://www.youtube.com/channel/UC1SRAeGrnVlvoEEMZ-htVlA',
+      settings: {
+        description: 'LA UBF (Los Angeles University Bible Fellowship) is a Bible-centered community raising lifelong disciples on college campuses and beyond.',
+        emails: [{ label: 'General', value: 'laubf.downey@gmail.com' }],
+        phones: [{ label: 'Main', value: '(562) 396-6350' }],
+        worshipServices: [
+          { day: 'Sunday', startTime: '11:00', endTime: '12:30', description: 'Sunday Worship Service' },
+          { day: 'Monday', startTime: '06:00', endTime: '', description: 'Daily Bread & Prayer Meeting' },
+          { day: 'Tuesday', startTime: '06:00', endTime: '', description: 'Daily Bread & Prayer Meeting' },
+          { day: 'Wednesday', startTime: '06:00', endTime: '', description: 'Daily Bread & Prayer Meeting' },
+          { day: 'Thursday', startTime: '06:00', endTime: '', description: 'Daily Bread & Prayer Meeting' },
+          { day: 'Friday', startTime: '06:00', endTime: '', description: 'Daily Bread & Prayer Meeting' },
+          { day: 'Saturday', startTime: '08:00', endTime: '', description: "Men's Bible Study" },
+        ],
+        extraSocialLinks: [
+          { platform: 'tiktok', url: 'https://www.tiktok.com/@la.ubf' },
+        ],
+      },
     },
   })
   const churchId = church.id
@@ -994,7 +1011,7 @@ async function main() {
       youtubeUrl: 'https://www.youtube.com/channel/UC1SRAeGrnVlvoEEMZ-htVlA',
       tiktokUrl: 'https://www.tiktok.com/@la.ubf',
       serviceTimes: [
-        { day: 'Sunday', time: '11:00 AM', label: 'Sunday Worship Service' },
+        { day: 'Sunday', time: '11:00 AM – 12:30 PM', label: 'Sunday Worship Service' },
         { day: 'Monday-Friday', time: '6:00 AM', label: 'Daily Bread & Prayer Meeting' },
         { day: 'Daily', time: '7:30 PM', label: 'Evening Prayer Meeting' },
         { day: 'Saturday', time: '8:00 AM', label: "Men's Bible Study" },

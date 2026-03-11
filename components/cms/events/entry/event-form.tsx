@@ -489,6 +489,7 @@ export function EventForm({ mode, event }: EventFormProps) {
                   type="time"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
+                  className="[&::-webkit-calendar-picker-indicator]:dark:invert [&::-webkit-calendar-picker-indicator]:opacity-50"
                 />
               </div>
 
@@ -505,6 +506,7 @@ export function EventForm({ mode, event }: EventFormProps) {
                   type="time"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
+                  className="[&::-webkit-calendar-picker-indicator]:dark:invert [&::-webkit-calendar-picker-indicator]:opacity-50"
                 />
               </div>
 

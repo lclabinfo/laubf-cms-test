@@ -214,7 +214,7 @@ export function MetadataSidebar({
                   type="time"
                   value={publishTime}
                   onChange={(e) => handlePublishTimeChange(e.target.value)}
-                  className="w-32 h-9"
+                  className="w-32 h-9 [&::-webkit-calendar-picker-indicator]:dark:invert [&::-webkit-calendar-picker-indicator]:opacity-50"
                 />
               </div>
               <p className="text-xs text-muted-foreground">
