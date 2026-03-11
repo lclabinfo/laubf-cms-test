@@ -11,7 +11,6 @@ import {
   List,
   Folder,
   ArrowLeft,
-  Play,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -26,6 +25,7 @@ import { cn } from "@/lib/utils"
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
 const ACCEPTED_TYPES_STRING = ACCEPTED_TYPES.join(",")
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+const FETCH_LIMIT = 200 // Fetch up to 200 items per folder view
 
 interface MediaPickerDialogProps {
   open: boolean
@@ -102,7 +102,9 @@ export function MediaPickerDialog({
   // Folders
   const [folders, setFolders] = useState<FolderInfo[]>([])
   const [totalCount, setTotalCount] = useState(0)
-  const [activeFolder, setActiveFolder] = useState<string | null>(null) // null = "All Media"
+  const [activeFolder, setActiveFolder] = useState<string | null>(
+    folder ?? null
+  )
   const [foldersLoading, setFoldersLoading] = useState(false)
 
   // Media items
@@ -115,6 +117,9 @@ export function MediaPickerDialog({
   // Upload
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Abort controller ref for cancelling stale fetches
+  const abortRef = useRef<AbortController | null>(null)
 
   // ---------------------------------------------------------------------------
   // Reset on open
@@ -160,42 +165,63 @@ export function MediaPickerDialog({
   }, [open])
 
   // ---------------------------------------------------------------------------
-  // Fetch media items when folder or dialog changes
+  // Fetch media items when folder changes
   // ---------------------------------------------------------------------------
-  const fetchItems = useCallback(async () => {
-    setItemsLoading(true)
-    try {
-      const params = new URLSearchParams({ type: "image" })
-      if (activeFolder) {
-        params.set("folder", activeFolder)
-      }
-      const res = await fetch(`/api/v1/media?${params.toString()}`)
-      const json = await res.json()
-      if (json.success && json.data?.items) {
-        setItems(
-          json.data.items.map((item: Record<string, unknown>) => ({
-            id: item.id as string,
-            url: item.url as string,
-            filename: item.filename as string,
-            alt: (item.alt as string | null) ?? null,
-            mimeType: (item.mimeType as string) ?? undefined,
-            fileSize: (item.fileSize as number) ?? undefined,
-            createdAt: (item.createdAt as string) ?? undefined,
-            folder: (item.folder as string) ?? undefined,
-          }))
-        )
-      }
-    } catch {
-      // silent
-    } finally {
-      setItemsLoading(false)
-    }
-  }, [activeFolder])
+  const fetchItems = useCallback(
+    async (folderValue: string | null) => {
+      // Cancel any in-flight fetch
+      abortRef.current?.abort()
+      const controller = new AbortController()
+      abortRef.current = controller
 
+      setItemsLoading(true)
+      try {
+        const params = new URLSearchParams({
+          type: "image",
+          limit: String(FETCH_LIMIT),
+        })
+        if (folderValue) {
+          params.set("folder", folderValue)
+        }
+        const res = await fetch(`/api/v1/media?${params.toString()}`, {
+          signal: controller.signal,
+        })
+        const json = await res.json()
+        if (json.success && json.data?.items) {
+          setItems(
+            json.data.items.map((item: Record<string, unknown>) => ({
+              id: item.id as string,
+              url: item.url as string,
+              filename: item.filename as string,
+              alt: (item.alt as string | null) ?? null,
+              mimeType: (item.mimeType as string) ?? undefined,
+              fileSize: (item.fileSize as number) ?? undefined,
+              createdAt: (item.createdAt as string) ?? undefined,
+              folder: (item.folder as string) ?? undefined,
+            }))
+          )
+        }
+      } catch (err) {
+        // Ignore abort errors, silence others
+        if (err instanceof DOMException && err.name === "AbortError") return
+      } finally {
+        // Only clear loading if this controller wasn't aborted
+        if (!controller.signal.aborted) {
+          setItemsLoading(false)
+        }
+      }
+    },
+    []
+  )
+
+  // Fetch items when dialog opens or active folder changes
   useEffect(() => {
     if (!open) return
-    fetchItems()
-  }, [open, fetchItems])
+    fetchItems(activeFolder)
+    return () => {
+      abortRef.current?.abort()
+    }
+  }, [open, activeFolder, fetchItems])
 
   // ---------------------------------------------------------------------------
   // Ensure folder exists (for upload)
@@ -307,7 +333,7 @@ export function MediaPickerDialog({
           const fJson = await fRes.json()
           if (fJson.success) {
             setFolders(fJson.data.folders ?? [])
-            setTotalCount(fJson.data.mediaCounts?.total ?? 0)
+            setTotalCount(fJson.data.mediaCounts?.all ?? 0)
           }
         } catch {
           // silent
