@@ -349,19 +349,12 @@ const DAILY_BREADS = [
   { slug: "kiss-the-son", title: "Kiss The Son", date: "2026-02-09", passage: "Psalm 2:1-12", keyVerse: "12", author: "P. Abraham Kim", body: "<p>The kings of this world rule as if they could control the world. But in reality, the One enthroned in heaven has power over all things.</p><p>The author advises us to \"kiss the Son\" (12). Let us fear his greatness and rejoice in his victory over death.</p><p><strong>Prayer:</strong> Father, thank you for giving us your Son Jesus.</p><p><strong>One Word:</strong> Kiss the Son, Jesus</p>" },
 ]
 
-// --- Events (trimmed for seed) ---
+// --- Events (recurring meetings only — matches Quick Links on live site) ---
 const EVENTS = [
-  { slug: "friday-night-bible-study", title: "Friday Night Bible Study", type: "meeting", dateStart: "2026-01-30", startTime: "7:00 PM", endTime: "9:00 PM", location: "LA UBF Main Center", description: "Weekly Bible study for young adults.", ministry: "young-adult", campus: "all", isRecurring: false, isFeatured: true, meetingUrl: "https://zoom.us/j/1234567890" },
-  { slug: "sunday-livestream", title: "Sunday Livestream", type: "meeting", dateStart: "2026-02-01", startTime: "11:00 AM", location: "LA UBF Main Center / YouTube Live", description: "Join our Sunday worship service in person or watch the livestream.", ministry: "church-wide", campus: "all", isRecurring: true, meetingUrl: "https://www.youtube.com/@LAUBF/streams", recurrenceType: "weekly", recurrenceDays: ["SUN"], recurrenceSchedule: "Every Sunday" },
-  { slug: "new-year-prayer-meeting-2026", title: "New Year Prayer Meeting", type: "event", dateStart: "2026-01-01", startTime: "10:00 AM", endTime: "12:00 PM", location: "LA UBF Main Center", description: "Begin 2026 in prayer.", ministry: "church-wide", isRecurring: false },
-  { slug: "csulb-welcome-week-spring-2026", title: "CSULB Welcome Week Outreach", type: "event", dateStart: "2026-02-12", dateEnd: "2026-02-14", startTime: "10:00 AM", endTime: "2:00 PM", location: "CSULB Student Union Lawn", description: "Spring semester welcome week.", ministry: "young-adult", campus: "csulb", isRecurring: false, isFeatured: true },
-  { slug: "easter-celebration-2026", title: "Easter Celebration Service", type: "event", dateStart: "2026-03-01", startTime: "10:00 AM", endTime: "12:30 PM", location: "LA UBF Main Center", description: "Celebrate the resurrection of Jesus Christ.", ministry: "church-wide", isRecurring: false, isFeatured: true },
-  { slug: "daily-bread-meeting", title: "Daily Bread & Prayer Meeting", type: "meeting", dateStart: "2026-02-01", startTime: "6:00 AM", location: "LA UBF Main Center", description: "Start your morning in the Word.", ministry: "church-wide", isRecurring: true, meetingUrl: "https://us02web.zoom.us/j/86540458764", recurrenceType: "weekly", recurrenceDays: ["MON", "TUE", "WED", "THU", "FRI"], recurrenceSchedule: "Mon-Fri @ 6 AM" },
-  { slug: "mens-bible-study", title: "Men's Bible Study", type: "meeting", dateStart: "2026-02-01", startTime: "8:00 AM", location: "LA UBF Main Center", description: "A weekly gathering for men to study Scripture.", ministry: "church-wide", isRecurring: true, recurrenceType: "weekly", recurrenceDays: ["SAT"], recurrenceSchedule: "Sat @ 8 AM" },
+  { slug: "daily-bread-meeting", title: "Daily Bread & Prayer Meeting", type: "meeting", dateStart: "2026-02-01", startTime: "6:00 AM", location: "LA UBF Main Center", description: "Start your morning in the Word.", ministry: "church-wide", isRecurring: true, meetingUrl: "https://us02web.zoom.us/j/86540458764?pwd=ZDVUUjZDOVZ4WlJFc1VvNVlzd2tkQT09", recurrenceType: "weekly", recurrenceDays: ["MON", "TUE", "WED", "THU", "FRI"], recurrenceSchedule: "Mon-Fri @ 6 AM" },
   { slug: "evening-prayer-meeting", title: "Evening Prayer Meeting", type: "meeting", dateStart: "2026-02-01", startTime: "7:30 PM", location: "LA UBF Main Center", description: "A daily evening prayer meeting.", ministry: "church-wide", isRecurring: true, meetingUrl: "https://meet.google.com/pgm-trah-moc", recurrenceType: "daily", recurrenceDays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"], recurrenceSchedule: "Every Day @ 7:30 PM" },
-  { slug: "winter-bible-academy-2026", title: "Winter Bible Academy", type: "program", dateStart: "2026-01-09", dateEnd: "2026-01-11", startTime: "9:00 AM", endTime: "4:00 PM", location: "LA UBF Main Center", description: "A three-day intensive study of the Book of Romans.", ministry: "church-wide", isRecurring: false, isFeatured: true, registrationUrl: "https://forms.google.com/winter-bible-academy-2026" },
-  { slug: "ya-discipleship-program-spring-2026", title: "Young Adult Discipleship Program", type: "program", dateStart: "2026-02-21", dateEnd: "2026-05-16", startTime: "10:00 AM", endTime: "12:00 PM", location: "LA UBF Main Center", description: "A 12-week discipleship track for young adults.", ministry: "young-adult", campus: "all", isRecurring: false, registrationUrl: "https://forms.google.com/ya-discipleship-2026" },
-  { slug: "vacation-bible-school-2026", title: "Vacation Bible School", type: "program", dateStart: "2026-06-22", dateEnd: "2026-06-26", startTime: "9:00 AM", endTime: "12:30 PM", location: "LA UBF Main Center", description: "A week-long summer program for children ages 5-12.", ministry: "children", isRecurring: false, isFeatured: true, registrationUrl: "https://forms.google.com/vbs-2026" },
+  { slug: "mens-bible-study", title: "Men's Bible Study", type: "meeting", dateStart: "2026-02-01", startTime: "8:00 AM", location: "LA UBF Main Center", description: "A weekly gathering for men to study Scripture.", ministry: "church-wide", isRecurring: true, recurrenceType: "weekly", recurrenceDays: ["SAT"], recurrenceSchedule: "Sat @ 8 AM" },
+  { slug: "sunday-livestream", title: "Sunday Livestream", type: "meeting", dateStart: "2026-02-01", startTime: "11:00 AM", location: "LA UBF Main Center / YouTube Live", description: "Join our Sunday worship service in person or watch the livestream.", ministry: "church-wide", campus: "all", isRecurring: true, meetingUrl: "https://www.youtube.com/@LAUBF/streams", recurrenceType: "weekly", recurrenceDays: ["SUN"], recurrenceSchedule: "Every Sunday" },
 ]
 
 // --- Ministry labels ---
@@ -427,16 +420,19 @@ async function main() {
     data: {
       name: 'LA UBF',
       slug: 'la-ubf',
-      email: 'info@laubf.org',
-      address: '1020 S. Anaheim Blvd',
-      city: 'Anaheim',
+      email: 'laubf.downey@gmail.com',
+      phone: '(562) 396-6350',
+      address: '11625 Paramount Blvd',
+      city: 'Downey',
       state: 'CA',
-      zipCode: '92805',
+      zipCode: '90241',
       country: 'US',
       timezone: 'America/Los_Angeles',
       locale: 'en-US',
-      youtubeUrl: 'https://www.youtube.com/@LAUBF',
       websiteUrl: 'https://laubf.org',
+      facebookUrl: 'https://facebook.com/losangelesubf',
+      instagramUrl: 'https://instagram.com/la.ubf',
+      youtubeUrl: 'https://www.youtube.com/channel/UC1SRAeGrnVlvoEEMZ-htVlA',
     },
   })
   const churchId = church.id
@@ -992,10 +988,11 @@ async function main() {
       faviconUrl: '/favicon.ico',
       contactEmail: 'laubf.downey@gmail.com',
       contactPhone: '(562) 396-6350',
-      contactAddress: '11625 Paramount Boulevard, Downey, CA',
+      contactAddress: '11625 Paramount Blvd, Downey, CA 90241',
       instagramUrl: 'https://instagram.com/la.ubf',
       facebookUrl: 'https://facebook.com/losangelesubf',
-      youtubeUrl: 'https://youtube.com/@laubf',
+      youtubeUrl: 'https://www.youtube.com/channel/UC1SRAeGrnVlvoEEMZ-htVlA',
+      tiktokUrl: 'https://www.tiktok.com/@la.ubf',
       serviceTimes: [
         { day: 'Sunday', time: '11:00 AM', label: 'Sunday Worship Service' },
         { day: 'Monday-Friday', time: '6:00 AM', label: 'Daily Bread & Prayer Meeting' },
@@ -1349,7 +1346,7 @@ async function main() {
     { label: 'Chicago UBF', href: 'https://www.chicagoubf.org/' },
     { label: 'Korea UBF', href: 'https://www.ubf.kr/' },
     { label: 'UBF HQ YouTube', href: 'https://www.youtube.com/user/ubfwebdev' },
-    { label: 'LA UBF YouTube', href: 'https://www.youtube.com/channel/UCj419CtzNGrJ-1vtT2-DCQw' },
+    { label: 'LA UBF YouTube', href: 'https://www.youtube.com/channel/UC1SRAeGrnVlvoEEMZ-htVlA' },
     { label: 'Daily Bread YouTube', href: 'https://www.youtube.com/c/ubfdailybread' },
   ]
   for (let i = 0; i < resourceLinks.length; i++) {
@@ -2298,7 +2295,7 @@ async function main() {
           heading: "Children\u2019s\nSunday Service",
           headingStyle: 'script',
           timeValue: 'Every Sunday\n@ 1:30 PM (after lunch)',
-          address: ['11625 Paramount Boulevard,', 'Downey, CA'],
+          address: ['11625 Paramount Blvd,', 'Downey, CA 90241'],
           directionsUrl: 'https://maps.google.com/?q=11625+Paramount+Boulevard+Downey+CA',
           image: { src: `${CDN}/compressed-service.png`, alt: 'Children sunday service' },
         },
@@ -3340,7 +3337,7 @@ async function main() {
           timeLabel: 'Time',
           timeValue: 'Every Sunday\n@ 11 AM',
           locationLabel: 'Location',
-          address: ['11625 Paramount Boulevard,', 'Downey, CA'],
+          address: ['11625 Paramount Blvd,', 'Downey, CA 90241'],
           directionsUrl: 'https://maps.google.com/?q=11625+Paramount+Boulevard+Downey+CA',
           directionsLabel: 'Get Directions',
           images: [{ src: `${CDN}/compressed-laubf-location.png`, alt: 'LA UBF building exterior' }],
