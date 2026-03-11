@@ -115,7 +115,7 @@ export function MediaSidebar({
 
   return (
     <>
-      <div className="w-64 shrink-0 flex flex-col border rounded-xl overflow-hidden">
+      <div className="w-64 shrink-0 flex flex-col border rounded-xl overflow-hidden h-full">
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto p-3 space-y-6">
           {/* Smart filters */}

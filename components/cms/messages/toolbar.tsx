@@ -62,7 +62,7 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
   const hasFilters = filterCount > 0
 
   return (
-    <div className="flex flex-wrap items-center gap-2 min-h-[38px]">
+    <div data-tutorial="msg-toolbar" className="flex flex-wrap items-center gap-2 min-h-[38px]">
         {/* Search */}
         <div className="relative w-full sm:w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -198,7 +198,7 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
             </Button>
           </div>
         ) : (
-          <Button asChild>
+          <Button asChild data-tutorial="msg-new-btn">
             <Link href="/cms/messages/new">
               <Plus />
               <span className="hidden sm:inline">New Message</span>

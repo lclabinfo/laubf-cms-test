@@ -165,6 +165,7 @@ function apiSeriesToCms(apiSeries: any): Series {
     id: apiSeries.id,
     name: apiSeries.name,
     imageUrl: apiSeries.imageUrl ?? undefined,
+    messageCount: apiSeries._count?.messageSeries ?? 0,
   }
 }
 
@@ -429,6 +430,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       id: `s${Date.now()}`,
       name: data.name,
       imageUrl: data.imageUrl,
+      messageCount: 0,
     }
     setSeries((prev) => [...prev, tempSeries])
 

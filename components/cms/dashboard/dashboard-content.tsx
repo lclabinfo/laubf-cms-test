@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { PageHeader } from "@/components/cms/page-header"
 import {
   MessageSquare,
   CalendarPlus,
@@ -57,6 +58,7 @@ type RecentActivityItem = {
 }
 
 type DashboardContentProps = {
+  userId: string
   counts: DashboardCounts
   health: {
     videos: HealthStatus
@@ -153,6 +155,7 @@ const statusBadgeVariant: Record<string, "success" | "warning" | "secondary" | "
 // ---------- Component ----------
 
 export function DashboardContent({
+  userId,
   counts,
   health,
   healthDetail,
@@ -163,23 +166,31 @@ export function DashboardContent({
   return (
     <div className="pt-5 space-y-6 pb-6">
       {/* Page header */}
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground text-sm">
-          Overview of your church website and content.
-        </p>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="Overview of your church website and content."
+        tutorialId="dashboard"
+        userId={userId}
+      />
 
       {/* Quick Actions — prominent shortcut buttons */}
-      <QuickActions />
+      <div data-tutorial="dash-actions">
+        <QuickActions />
+      </div>
 
       {/* Stats + Health — merged visual overview */}
-      <StatsOverview counts={counts} health={health} healthDetail={healthDetail} healthCounts={healthCounts} />
+      <div data-tutorial="dash-health">
+        <StatsOverview counts={counts} health={health} healthDetail={healthDetail} healthCounts={healthCounts} />
+      </div>
 
       {/* Bottom section: stacks on mobile/tablet, side-by-side on desktop */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <UpcomingEventsWidget events={upcomingEvents} />
-        <RecentActivityWidget items={recentActivity} />
+        <div data-tutorial="dash-events">
+          <UpcomingEventsWidget events={upcomingEvents} />
+        </div>
+        <div data-tutorial="dash-activity">
+          <RecentActivityWidget items={recentActivity} />
+        </div>
       </div>
     </div>
   )

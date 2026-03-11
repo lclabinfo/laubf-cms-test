@@ -59,4 +59,5 @@ export type Series = {
   id: string
   name: string
   imageUrl?: string
+  messageCount: number
 }

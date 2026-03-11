@@ -8,7 +8,7 @@ import { SeriesFormDialog } from "./form-dialog"
 import { useMessages } from "@/lib/messages-context"
 
 export function SeriesTab() {
-  const { series, messages, addSeries } = useMessages()
+  const { series, addSeries } = useMessages()
 
   const [search, setSearch] = useState("")
   const [viewMode, setViewMode] = useState<ViewMode>("card")
@@ -21,11 +21,7 @@ export function SeriesTab() {
     const withCount = series
       .filter((s) => !q || s.name.toLowerCase().includes(q))
       .map((s) => {
-        const seriesMessages = messages.filter((m) => m.seriesId === s.id)
-        const latestDate = seriesMessages.reduce((max, m) => {
-          return m.date > max ? m.date : max
-        }, "")
-        return { ...s, count: seriesMessages.length, latestDate }
+        return { ...s, count: s.messageCount, latestDate: "" }
       })
 
     switch (sort) {
@@ -47,7 +43,7 @@ export function SeriesTab() {
     }
 
     return withCount
-  }, [series, messages, search, sort])
+  }, [series, search, sort])
 
   return (
     <div className="space-y-4">

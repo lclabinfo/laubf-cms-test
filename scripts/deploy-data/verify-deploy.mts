@@ -91,16 +91,12 @@ check('Series', seriesCount, 5)
 
 // ── Events ─────────────────────────────────────────────────
 console.log('\nEvents:')
-const [eventTotal, eventRecurring, eventOneOff, eventPrograms] = await Promise.all([
+const [eventTotal, eventRecurring] = await Promise.all([
   prisma.event.count({ where: { churchId, deletedAt: null } }),
   prisma.event.count({ where: { churchId, deletedAt: null, isRecurring: true } }),
-  prisma.event.count({ where: { churchId, deletedAt: null, type: 'EVENT' as any } }),
-  prisma.event.count({ where: { churchId, deletedAt: null, type: 'PROGRAM' as any } }),
 ])
-check('Total events', eventTotal, 9)
+check('Total events', eventTotal, 4)
 check('Recurring meetings', eventRecurring, 4)
-check('One-off events', eventOneOff, 3)
-check('Programs', eventPrograms, 2)
 
 // ── People & CRM ───────────────────────────────────────────
 console.log('\nPeople & CRM:')

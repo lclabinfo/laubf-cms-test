@@ -52,6 +52,16 @@ export async function updateChurch(
   const prismaData = { ...data }
   if (prismaData.settings === null) {
     (prismaData as Record<string, unknown>).settings = Prisma.DbNull
+  } else if (prismaData.settings && typeof prismaData.settings === 'object') {
+    // Merge incoming settings with existing settings to avoid overwriting unrelated keys
+    const existing = await prisma.church.findUnique({
+      where: { id: churchId },
+      select: { settings: true },
+    })
+    const existingSettings = (existing?.settings && typeof existing.settings === 'object' && !Array.isArray(existing.settings))
+      ? existing.settings as Record<string, unknown>
+      : {}
+    prismaData.settings = { ...existingSettings, ...(prismaData.settings as Record<string, unknown>) }
   }
 
   return prisma.church.update({

@@ -1,6 +1,9 @@
 "use client"
 
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
+import { useSearchParams } from "next/navigation"
+import { useCmsSession } from "@/components/cms/cms-shell"
+import { PageHeader } from "@/components/cms/page-header"
 import {
   useReactTable,
   getCoreRowModel,
@@ -51,6 +54,8 @@ function isRealFolder(id: ActiveFilterId): id is string {
 type ApiFolderItem = { id: string; name: string; count: number }
 
 export default function MediaPage() {
+  const { user } = useCmsSession()
+  const searchParams = useSearchParams()
   // Data state
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([])
   const [folders, setFolders] = useState<MediaFolder[]>([])
@@ -188,6 +193,32 @@ export default function MediaPage() {
     fetchFolders()
     fetchStorageUsage()
   }, [fetchFolders, fetchStorageUsage])
+
+  // Deep-link: open a specific asset's preview dialog via ?assetId=
+  const deepLinkHandled = useRef(false)
+  useEffect(() => {
+    const assetId = searchParams.get("assetId")
+    if (!assetId || deepLinkHandled.current) return
+    // Wait for media to load, then find the asset (or fetch it directly)
+    if (isLoading) return
+    deepLinkHandled.current = true
+    const found = mediaItems.find((m) => m.id === assetId)
+    if (found) {
+      setPreviewItem(found)
+    } else {
+      // Asset may be in a different folder — fetch it directly
+      fetch(`/api/v1/media/${assetId}`)
+        .then((r) => r.json())
+        .then((json) => {
+          if (json.success && json.data) {
+            const nameToId: Record<string, string> = {}
+            for (const f of foldersRef.current) nameToId[f.name] = f.id
+            setPreviewItem(mediaAssetToItem(json.data, nameToId))
+          }
+        })
+        .catch(() => {})
+    }
+  }, [searchParams, isLoading, mediaItems])
 
   // Server-side media counts (all/photos/videos)
   const [mediaCounts, setMediaCounts] = useState({ all: 0, photos: 0, videos: 0 })
@@ -715,50 +746,54 @@ export default function MediaPage() {
   return (
     <div className="flex flex-col gap-4 flex-1 min-h-0 pt-5">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Media</h1>
-        <p className="text-muted-foreground text-sm">
-          Upload and manage photos, videos, and documents.
-        </p>
-      </div>
-
-      <Toolbar
-        search={search}
-        onSearchChange={setSearch}
-        sort={sort}
-        onSortChange={setSort}
-        viewMode={viewMode}
-        onViewModeChange={handleViewModeChange}
-        activeFolderId={activeFolderId}
-        selectedCount={selectedIds.size}
-        selectedFolderCount={selectedFolderIds.size}
-        onClearSelection={clearAllSelections}
-        onUploadPhotos={() => setUploadPhotoOpen(true)}
-        onAddVideo={() => setAddVideoOpen(true)}
-        onConnectAlbum={() => setConnectAlbumOpen(true)}
-        onBulkMove={handleBulkMove}
-        onBulkDelete={requestBulkDelete}
-        onBulkRenameFolder={handleBulkRenameFolder}
-        onBulkDeleteFolders={handleBulkDeleteFolders}
+      <PageHeader
+        title="Media"
+        description="Upload and manage photos, videos, and documents."
+        tutorialId="media"
+        userId={user.id}
       />
+
+      <div data-tutorial="media-toolbar">
+        <Toolbar
+          search={search}
+          onSearchChange={setSearch}
+          sort={sort}
+          onSortChange={setSort}
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+          activeFolderId={activeFolderId}
+          selectedCount={selectedIds.size}
+          selectedFolderCount={selectedFolderIds.size}
+          onClearSelection={clearAllSelections}
+          onUploadPhotos={() => setUploadPhotoOpen(true)}
+          onAddVideo={() => setAddVideoOpen(true)}
+          onConnectAlbum={() => setConnectAlbumOpen(true)}
+          onBulkMove={handleBulkMove}
+          onBulkDelete={requestBulkDelete}
+          onBulkRenameFolder={handleBulkRenameFolder}
+          onBulkDeleteFolders={handleBulkDeleteFolders}
+        />
+      </div>
 
       {/* Two-column layout */}
       <div className="flex flex-1 gap-6 min-h-0">
-        <MediaSidebar
-          folders={folders}
-          activeFolderId={activeFolderId}
-          onSelectFolder={handleSelectFolder}
-          onCreateFolder={() => setCreateFolderOpen(true)}
-          onRenameFolder={handleRenameFolder}
-          onDeleteFolder={handleDeleteFolder}
-          onDropOnFolder={handleDropOnFolder}
-          mediaCounts={mediaCounts}
-          folderCounts={folderCounts}
-          storageUsed={storageUsed}
-          storageQuota={storageQuota}
-          storagePercent={storagePercent}
-        />
-        <div className="flex-1 min-w-0 overflow-y-auto p-0.5 -m-0.5">
+        <div data-tutorial="media-sidebar">
+          <MediaSidebar
+            folders={folders}
+            activeFolderId={activeFolderId}
+            onSelectFolder={handleSelectFolder}
+            onCreateFolder={() => setCreateFolderOpen(true)}
+            onRenameFolder={handleRenameFolder}
+            onDeleteFolder={handleDeleteFolder}
+            onDropOnFolder={handleDropOnFolder}
+            mediaCounts={mediaCounts}
+            folderCounts={folderCounts}
+            storageUsed={storageUsed}
+            storageQuota={storageQuota}
+            storagePercent={storagePercent}
+          />
+        </div>
+        <div data-tutorial="media-content" className="flex-1 min-w-0 overflow-y-auto p-0.5 -m-0.5">
           {isGoogleAlbums ? (
             <GoogleAlbumsTable albums={albums} onDelete={handleDeleteAlbum} />
           ) : isLoading ? (

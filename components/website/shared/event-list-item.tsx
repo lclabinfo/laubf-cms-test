@@ -57,30 +57,32 @@ export default function EventListItem({
         className
       )}
     >
-      {/* Date column — hidden on mobile */}
-      <div className="hidden sm:flex items-center gap-0">
-        <div className="flex w-12 flex-col items-center">
-          <span className="text-pill text-black-3">
-            {formatMonth(data.dateStart)}
-          </span>
-          <span className="text-body-1 font-medium text-black-1">
-            {formatDay(data.dateStart)}
-          </span>
+      {/* Date column — hidden on mobile, hidden for recurring events */}
+      {!data.recurrenceSchedule && (
+        <div className="hidden sm:flex items-center gap-0">
+          <div className="flex w-12 flex-col items-center">
+            <span className="text-pill text-black-3">
+              {formatMonth(data.dateStart)}
+            </span>
+            <span className="text-body-1 font-medium text-black-1">
+              {formatDay(data.dateStart)}
+            </span>
+          </div>
+          {hasDateRange && data.dateEnd && (
+            <>
+              <div className="mx-1 h-[2px] w-2 bg-black-3" />
+              <div className="flex w-12 flex-col items-center">
+                <span className="text-pill text-black-3">
+                  {formatMonth(data.dateEnd)}
+                </span>
+                <span className="text-body-1 font-medium text-black-1">
+                  {formatDay(data.dateEnd)}
+                </span>
+              </div>
+            </>
+          )}
         </div>
-        {hasDateRange && data.dateEnd && (
-          <>
-            <div className="mx-1 h-[2px] w-2 bg-black-3" />
-            <div className="flex w-12 flex-col items-center">
-              <span className="text-pill text-black-3">
-                {formatMonth(data.dateEnd)}
-              </span>
-              <span className="text-body-1 font-medium text-black-1">
-                {formatDay(data.dateEnd)}
-              </span>
-            </div>
-          </>
-        )}
-      </div>
+      )}
 
       {/* Info column */}
       <div className="flex flex-1 flex-col gap-1 min-w-0">

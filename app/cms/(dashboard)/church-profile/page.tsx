@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { ProfileForm } from "@/components/cms/church-profile/profile-form"
+import { useCmsSession } from "@/components/cms/cms-shell"
 import type { ChurchProfile } from "@/lib/church-profile-data"
 
 const emptyProfile: ChurchProfile = {
@@ -110,6 +111,7 @@ function profileToApi(profile: ChurchProfile) {
 }
 
 export default function ChurchProfilePage() {
+  const { user } = useCmsSession()
   const [profile, setProfile] = useState<ChurchProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -155,6 +157,7 @@ export default function ChurchProfilePage() {
   return (
     <ProfileForm
       initialData={profile!}
+      userId={user.id}
       onSave={async (data) => {
         const res = await fetch("/api/v1/church", {
           method: "PATCH",

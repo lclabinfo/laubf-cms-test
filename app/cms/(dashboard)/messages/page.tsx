@@ -3,6 +3,8 @@
 import { Suspense, useState, useCallback, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
+import { useCmsSession } from "@/components/cms/cms-shell"
+import { PageHeader } from "@/components/cms/page-header"
 import {
   ChevronLeft,
   ChevronRight,
@@ -192,6 +194,7 @@ function ServerPagination({
 function MessagesPageContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { user } = useCmsSession()
   const defaultTab = searchParams.get("tab") === "series" ? "series" : "all"
   const {
     messages,
@@ -280,17 +283,17 @@ function MessagesPageContent() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Bible Studies</h1>
-        <p className="text-muted-foreground text-sm">
-          Manage sermons, Bible studies, and other messages.
-        </p>
-      </div>
+      <PageHeader
+        title="Bible Studies"
+        description="Manage sermons, Bible studies, and other messages."
+        tutorialId="messages"
+        userId={user.id}
+      />
 
       <Tabs defaultValue={defaultTab} key={defaultTab}>
         <TabsList variant="line">
           <TabsTrigger value="all">All Entries</TabsTrigger>
-          <TabsTrigger value="series">Series</TabsTrigger>
+          <TabsTrigger value="series" data-tutorial="msg-series-tab">Series</TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="space-y-4">
@@ -310,7 +313,7 @@ function MessagesPageContent() {
           {loading ? (
             <MessagesTableSkeleton />
           ) : (
-            <div className={cn("transition-opacity duration-150", reloading && "opacity-50 pointer-events-none")}>
+            <div data-tutorial="msg-table" className={cn("transition-opacity duration-150", reloading && "opacity-50 pointer-events-none")}>
               <DataTable
                 columns={columns}
                 table={table}

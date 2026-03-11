@@ -52,12 +52,6 @@ await prisma.church.update({
       phones: [{ label: 'Main', value: '(562) 396-6350' }],
       worshipServices: [
         { day: 'Sunday', startTime: '11:00', endTime: '12:30', description: 'Sunday Worship Service' },
-        { day: 'Monday', startTime: '06:00', endTime: '', description: 'Daily Bread & Prayer Meeting' },
-        { day: 'Tuesday', startTime: '06:00', endTime: '', description: 'Daily Bread & Prayer Meeting' },
-        { day: 'Wednesday', startTime: '06:00', endTime: '', description: 'Daily Bread & Prayer Meeting' },
-        { day: 'Thursday', startTime: '06:00', endTime: '', description: 'Daily Bread & Prayer Meeting' },
-        { day: 'Friday', startTime: '06:00', endTime: '', description: 'Daily Bread & Prayer Meeting' },
-        { day: 'Saturday', startTime: '08:00', endTime: '', description: "Men's Bible Study" },
       ],
       extraSocialLinks: [
         { platform: 'tiktok', url: 'https://www.tiktok.com/@la.ubf' },

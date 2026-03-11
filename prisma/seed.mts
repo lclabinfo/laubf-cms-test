@@ -456,12 +456,6 @@ async function main() {
         phones: [{ label: 'Main', value: '(562) 396-6350' }],
         worshipServices: [
           { day: 'Sunday', startTime: '11:00', endTime: '12:30', description: 'Sunday Worship Service' },
-          { day: 'Monday', startTime: '06:00', endTime: '', description: 'Daily Bread & Prayer Meeting' },
-          { day: 'Tuesday', startTime: '06:00', endTime: '', description: 'Daily Bread & Prayer Meeting' },
-          { day: 'Wednesday', startTime: '06:00', endTime: '', description: 'Daily Bread & Prayer Meeting' },
-          { day: 'Thursday', startTime: '06:00', endTime: '', description: 'Daily Bread & Prayer Meeting' },
-          { day: 'Friday', startTime: '06:00', endTime: '', description: 'Daily Bread & Prayer Meeting' },
-          { day: 'Saturday', startTime: '08:00', endTime: '', description: "Men's Bible Study" },
         ],
         extraSocialLinks: [
           { platform: 'tiktok', url: 'https://www.tiktok.com/@la.ubf' },
@@ -491,14 +485,16 @@ async function main() {
 
   // ── 3. Create Series ──────────────────────────────────────
   console.log('Creating series...')
-  const seriesNames = new Set<string>()
-  for (const m of MESSAGES) seriesNames.add(m.series)
-  for (const b of BIBLE_STUDIES) seriesNames.add(b.series)
-  // Also ensure "Events" series exists (some messages use it)
-  seriesNames.add('Events')
+  const SEED_SERIES = [
+    'Sunday Service',
+    'Wednesday Bible Study',
+    'Conference',
+    'Prayer Meeting',
+    '16 Steps Bible Study',
+  ]
 
   const seriesMap = new Map<string, string>() // name -> id
-  for (const name of seriesNames) {
+  for (const name of SEED_SERIES) {
     const s = await prisma.series.create({
       data: {
         churchId,
@@ -574,7 +570,7 @@ async function main() {
         passage: bs.passage,
         datePosted: new Date(bs.dateFor),
         dateFor: new Date(bs.dateFor),
-        seriesId: seriesMap.get(bs.series) || null,
+        seriesId: seriesMap.get('Sunday Service') || null,
         speakerId: null,
         keyVerseRef: null,
         keyVerseText: null,
@@ -673,8 +669,8 @@ async function main() {
       },
     })
 
-    // Create MessageSeries join record
-    const seriesId = seriesMap.get(msg.series)
+    // Create MessageSeries join record — all seeded messages go under Sunday Service
+    const seriesId = seriesMap.get('Sunday Service')
     if (seriesId) {
       await prisma.messageSeries.create({
         data: {

@@ -34,12 +34,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DataTable } from "@/components/ui/data-table"
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from "@/components/ui/sheet"
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog"
 import {
   Select,
   SelectContent,
@@ -161,11 +161,20 @@ function formatFieldLabel(key: string): string {
     .trim()
 }
 
+function humanizeSlug(s: string): string {
+  return s
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim()
+}
+
 function formatFieldValue(value: unknown): string {
   if (value == null) return "-"
-  if (Array.isArray(value)) return value.join(", ")
+  if (Array.isArray(value)) return value.map((v) => humanizeSlug(String(v))).join(", ")
   if (typeof value === "boolean") return value ? "Yes" : "No"
-  return String(value)
+  const str = String(value)
+  if (/^[a-z0-9]+[-_][a-z0-9]/.test(str)) return humanizeSlug(str)
+  return str
 }
 
 // ---------------------------------------------------------------------------
@@ -535,38 +544,53 @@ export default function FormSubmissionsPage() {
       enableHiding: false,
     },
     {
-      id: "readDot",
-      header: "",
-      size: 28,
-      cell: ({ row }) =>
-        !row.original.isRead ? (
-          <div className="flex items-center justify-center">
-            <Circle className="size-2.5 fill-primary text-primary" />
-          </div>
-        ) : null,
-    },
-    {
       accessorKey: "name",
       header: "Name",
       cell: ({ row }) => (
-        <span
-          className={cn(
-            "text-sm truncate block max-w-[180px]",
-            !row.original.isRead && "font-semibold text-foreground",
+        <div className="flex items-center gap-2 min-w-0">
+          {!row.original.isRead && (
+            <Circle className="size-2 fill-primary text-primary shrink-0" />
           )}
-        >
-          {row.original.name}
-        </span>
+          <span
+            className={cn(
+              "text-sm truncate",
+              !row.original.isRead && "font-semibold text-foreground",
+            )}
+          >
+            {row.original.name}
+          </span>
+        </div>
       ),
     },
     {
       accessorKey: "email",
       header: "Email",
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground truncate block max-w-[200px]">
+        <span className="text-sm text-muted-foreground truncate block max-w-[220px]">
           {row.original.email}
         </span>
       ),
+    },
+    {
+      accessorKey: "formType",
+      header: "Type",
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground whitespace-nowrap">
+          {capitalize(row.original.formType || "contact")}
+        </span>
+      ),
+    },
+    {
+      id: "preview",
+      header: "Message",
+      cell: ({ row }) => {
+        const text = row.original.subject || row.original.message || ""
+        return (
+          <span className="text-sm text-muted-foreground truncate block max-w-[250px]">
+            {text || "-"}
+          </span>
+        )
+      },
     },
     {
       id: "statusBadge",
@@ -881,18 +905,18 @@ export default function FormSubmissionsPage() {
       </div>
 
       {/* ----------------------------------------------------------------- */}
-      {/* Preview Sheet                                                      */}
+      {/* Preview Dialog                                                     */}
       {/* ----------------------------------------------------------------- */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right" className="sm:max-w-lg overflow-y-auto">
+      <Dialog open={sheetOpen} onOpenChange={setSheetOpen}>
+        <DialogContent className="sm:max-w-2xl w-[90vw] h-[80vh] flex flex-col overflow-hidden">
           {selectedSubmission && (
-            <div className="flex flex-col h-full">
+            <>
               {/* Header */}
-              <SheetHeader className="border-b pb-4">
-                <div className="flex items-start gap-2 pr-8">
-                  <SheetTitle className="text-lg leading-tight">
+              <DialogHeader>
+                <div className="flex items-start gap-2">
+                  <DialogTitle className="text-lg leading-tight">
                     {selectedSubmission.name}
-                  </SheetTitle>
+                  </DialogTitle>
                   <Badge
                     variant={
                       STATUS_BADGE_VARIANT[selectedSubmission.status] ??
@@ -903,7 +927,7 @@ export default function FormSubmissionsPage() {
                     {capitalize(selectedSubmission.status || "new")}
                   </Badge>
                 </div>
-                <SheetDescription className="flex items-center gap-1.5 text-xs mt-1">
+                <DialogDescription className="flex items-center gap-1.5 text-xs mt-1">
                   <Clock className="size-3" />
                   {formatRelativeDate(selectedSubmission.createdAt)}
                   {" \u00b7 "}
@@ -918,11 +942,11 @@ export default function FormSubmissionsPage() {
                       minute: "2-digit",
                     },
                   )}
-                </SheetDescription>
-              </SheetHeader>
+                </DialogDescription>
+              </DialogHeader>
 
-              {/* Body */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-6">
+              {/* Scrollable body */}
+              <div className="flex-1 overflow-y-auto space-y-6 py-2">
                 {/* Contact info */}
                 <div className="space-y-2">
                   <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -1104,7 +1128,7 @@ export default function FormSubmissionsPage() {
               </div>
 
               {/* Footer actions */}
-              <div className="border-t p-4 space-y-2">
+              <div className="border-t pt-4 space-y-2">
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
@@ -1151,10 +1175,10 @@ export default function FormSubmissionsPage() {
                   <ChevronRight className="size-4" />
                 </Button>
               </div>
-            </div>
+            </>
           )}
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       {/* ----------------------------------------------------------------- */}
       {/* Delete Confirmation Dialog                                         */}

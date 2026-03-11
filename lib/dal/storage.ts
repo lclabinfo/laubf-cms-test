@@ -94,7 +94,11 @@ export async function getStorageBreakdown(churchId: string) {
         url: true,
         createdAt: true,
         bibleStudy: {
-          select: { slug: true, title: true },
+          select: {
+            slug: true,
+            title: true,
+            relatedMessage: { select: { id: true } },
+          },
         },
       },
     }),
@@ -126,6 +130,7 @@ export async function getStorageBreakdown(churchId: string) {
         folder: a.folder,
         createdAt: a.createdAt.toISOString(),
         context: a.folder === '/' ? 'Media Library' : `Media / ${a.folder}`,
+        linkHref: `/cms/media?assetId=${a.id}`,
       })),
       ...topAttachments.map((a) => ({
         id: a.id,
@@ -139,6 +144,9 @@ export async function getStorageBreakdown(churchId: string) {
         context: a.bibleStudy
           ? `Bible Study: ${a.bibleStudy.title}`
           : 'Bible Study Attachment',
+        linkHref: a.bibleStudy?.relatedMessage?.id
+          ? `/cms/messages/${a.bibleStudy.relatedMessage.id}?section=attachments`
+          : null,
       })),
     ]
       .sort((a, b) => b.fileSize - a.fileSize)

@@ -94,7 +94,10 @@ export async function getUpcomingEvents(
       churchId,
       deletedAt: null,
       status: ContentStatus.PUBLISHED,
-      dateStart: { gte: today },
+      OR: [
+        { dateStart: { gte: today } },
+        { isRecurring: true },
+      ],
     },
     include: eventListInclude,
     orderBy: { dateStart: 'asc' },

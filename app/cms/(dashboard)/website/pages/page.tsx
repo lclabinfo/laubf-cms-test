@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from "react"
+import { useCmsSession } from "@/components/cms/cms-shell"
+import { PageHeader } from "@/components/cms/page-header"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import {
@@ -96,6 +98,7 @@ function globalFilterFn(
 
 export default function WebsitePagesPage() {
   const router = useRouter()
+  const { user } = useCmsSession()
   const [pages, setPages] = useState<PageRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [globalFilter, setGlobalFilter] = useState("")
@@ -273,15 +276,15 @@ export default function WebsitePagesPage() {
 
   return (
     <div className="pt-5 space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Pages</h1>
-        <p className="text-muted-foreground text-sm">
-          Manage your website pages and content.
-        </p>
-      </div>
+      <PageHeader
+        title="Pages"
+        description="Manage your website pages and content."
+        tutorialId="website"
+        userId={user.id}
+      />
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 min-h-[38px]">
+      <div data-tutorial="web-toolbar" className="flex flex-wrap items-center gap-2 min-h-[38px]">
         <div className="relative w-full sm:w-sm">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input

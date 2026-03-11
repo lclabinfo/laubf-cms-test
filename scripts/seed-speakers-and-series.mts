@@ -142,7 +142,7 @@ async function main() {
         slug: personSlug,
         firstName: speaker.firstName,
         lastName: speaker.lastName,
-        membershipStatus: 'VISITOR',
+        membershipStatus: 'MEMBER',
         source: 'Speaker seed script',
       },
     })

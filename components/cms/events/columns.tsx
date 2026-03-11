@@ -52,7 +52,8 @@ function formatTime(time: string) {
   return `${hour}:${m.toString().padStart(2, "0")} ${suffix}`
 }
 
-function isPast(dateStr: string) {
+function isPast(dateStr: string, isRecurring?: boolean) {
+  if (isRecurring) return false
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const date = new Date(dateStr + "T00:00:00")
@@ -159,7 +160,7 @@ export function createColumns(options?: { onDelete?: (id: string) => void }): Co
       <SortableHeader column={column}>Event</SortableHeader>
     ),
     cell: ({ row }) => {
-      const past = isPast(row.original.date)
+      const past = isPast(row.original.date, row.original.recurrence !== "none")
       return (
         <div className={cn("flex items-center gap-2 min-w-0", past && "opacity-60")}>
           {/* TODO: Re-enable featured star once the featured curation flow is implemented.
@@ -210,7 +211,7 @@ export function createColumns(options?: { onDelete?: (id: string) => void }): Co
     ),
     cell: ({ row }) => {
       const event = row.original
-      const past = isPast(event.date)
+      const past = isPast(event.date, event.recurrence !== "none")
       const schedule = computeRecurrenceSchedule(event)
 
       // Recurring events: show schedule instead of single date

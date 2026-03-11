@@ -3,10 +3,13 @@ import { Prisma, type Series } from '@/lib/generated/prisma/client'
 
 type SeriesRecord = Series
 
-export async function getAllSeries(churchId: string): Promise<SeriesRecord[]> {
+export async function getAllSeries(churchId: string) {
   return prisma.series.findMany({
     where: { churchId, deletedAt: null, isActive: true },
     orderBy: { sortOrder: 'asc' },
+    include: {
+      _count: { select: { messageSeries: true } },
+    },
   })
 }
 

@@ -19,6 +19,7 @@ import {
   Download,
   Eye,
   Trash2,
+  HelpCircleIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -61,6 +62,13 @@ import { toast } from "sonner"
 import { generateSlug } from "@/lib/utils"
 import { useMessages } from "@/lib/messages-context"
 import { isTiptapContentEmpty } from "@/lib/tiptap"
+import { useCmsSession } from "@/components/cms/cms-shell"
+import {
+  SpotlightTour,
+  isSpotlightComplete,
+  resetSpotlight,
+} from "@/components/cms/tutorial/spotlight-tour"
+import { SPOTLIGHT_TOURS } from "@/components/cms/tutorial/spotlight-tours"
 import type {
   Message,
   TranscriptSegment,
@@ -84,6 +92,9 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const pathname = usePathname()
+  const { user } = useCmsSession()
+  const editorTour = SPOTLIGHT_TOURS["message-editor"]
+  const [tourActive, setTourActive] = useState(false)
   const { series, messages: allMessages, addSeries, addMessage, updateMessage } = useMessages()
 
   // Church-wide Bible version config
@@ -145,7 +156,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
   // Reusable attachments section (shown on details + study tabs, not video)
   const attachmentsSection = (
-    <div>
+    <div id="attachments-section" data-tutorial="editor-attachments">
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
           Attachments
@@ -218,7 +229,19 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
   // Tab state with URL sync
   const initialTab = searchParams.get("tab") || "details"
+  const sectionParam = searchParams.get("section")
   const [activeTab, setActiveTab] = useState(initialTab)
+
+  // Scroll to a specific section when linked from another page (e.g. storage → attachments)
+  useEffect(() => {
+    if (sectionParam === "attachments") {
+      // Small delay to let the tab content render
+      const timer = setTimeout(() => {
+        document.getElementById("attachments-section")?.scrollIntoView({ behavior: "smooth", block: "center" })
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [sectionParam])
 
   // Content detection (does content exist, separate from publish state)
   const videoContentExists = !!videoUrl
@@ -613,6 +636,25 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload)
   }, [isDirty])
 
+  // Auto-start editor tour on first visit (or when ?dev-tutorial=true)
+  useEffect(() => {
+    if (!editorTour) return
+    const devForce =
+      process.env.NODE_ENV === "development" &&
+      new URLSearchParams(window.location.search).get("dev-tutorial") === "true"
+    if (devForce || !isSpotlightComplete(editorTour.id, user.id)) {
+      const timer = setTimeout(() => setTourActive(true), 800)
+      return () => clearTimeout(timer)
+    }
+  }, [editorTour, user.id])
+
+  // Map editor tour step index → tab. Must match step order in spotlight-tours.ts
+  const editorStepToTab = useCallback((stepIndex: number) => {
+    const tabMap: Record<number, string> = { 0: "details", 1: "details", 2: "video", 3: "study" }
+    const tab = tabMap[stepIndex]
+    if (tab && tab !== activeTab) setActiveTab(tab)
+  }, [activeTab])
+
   return (
     <div className="flex flex-col -mx-6">
       {/* Tabs — wraps both the sticky header and tab content */}
@@ -644,6 +686,24 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                   {videoState === "published" ? "Video Live" : videoState === "draft" ? "Video Draft" : "No Video"}
                 </Badge>
               </div>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground/50 hover:text-muted-foreground shrink-0"
+                    onClick={() => {
+                      resetSpotlight(editorTour.id, user.id)
+                      setTourActive(true)
+                    }}
+                  >
+                    <HelpCircleIcon className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p className="text-xs">View guide</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
             <div className="flex items-center gap-2 ml-auto shrink-0">
               <Button variant="outline" onClick={handleCancel}>
@@ -703,7 +763,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
             )}
 
             {/* Main fields card */}
-            <div className="rounded-xl border p-6 space-y-5">
+            <div className="rounded-xl border p-6 space-y-5" data-tutorial="editor-title">
               {/* Title */}
               <div id="field-title" className="space-y-2">
                 <Label htmlFor="message-title" className="text-sm text-muted-foreground">
@@ -842,7 +902,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
         {/* Bible Study Tab */}
         <TabsContent value="study" className="px-6 pt-4">
-          <div className="max-w-3xl mx-auto space-y-5">
+          <div className="max-w-3xl mx-auto space-y-5" data-tutorial="editor-study">
             {/* Inline publish toggle */}
             <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
               <div className="flex items-center gap-2">
@@ -892,7 +952,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
         {/* Video Tab */}
         <TabsContent value="video" className="px-6 pt-4">
-          <div className="space-y-5">
+          <div className="space-y-5" data-tutorial="editor-video">
             {/* Inline publish toggle */}
             <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
               <div className="flex items-center gap-2">
@@ -1217,6 +1277,14 @@ export function EntryForm({ mode, message }: EntryFormProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      <SpotlightTour
+        tour={editorTour}
+        userId={user.id}
+        active={tourActive}
+        onEnd={() => setTourActive(false)}
+        onBeforeStep={editorStepToTab}
+      />
     </div>
   )
 }

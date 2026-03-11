@@ -3,6 +3,8 @@
 import { useState, useCallback, useMemo } from "react"
 import { useSessionState } from "@/lib/hooks/use-session-state"
 import { useRouter } from "next/navigation"
+import { useCmsSession } from "@/components/cms/cms-shell"
+import { PageHeader } from "@/components/cms/page-header"
 import Link from "next/link"
 import { toast } from "sonner"
 import { Loader2, Star, MapPin, Globe, CalendarDays, ImageIcon } from "lucide-react"
@@ -81,16 +83,83 @@ function getEventDateLabel(event: ChurchEvent): string {
   return formatDateFull(event.date)
 }
 
-/* ── Calendar helper: get all dates an event falls on ── */
+/* ── Calendar helper: get all dates an event falls on within a month ── */
 
-function getEventDates(event: ChurchEvent): Date[] {
+const dayOfWeekIndex: Record<string, number> = {
+  sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6,
+}
+
+function getEventDatesForMonth(event: ChurchEvent, month: Date): Date[] {
+  // Visible range: first day of month to last day of month
+  const rangeStart = new Date(month.getFullYear(), month.getMonth(), 1)
+  const rangeEnd = new Date(month.getFullYear(), month.getMonth() + 1, 0) // last day
+
+  const eventStart = new Date(event.date + "T00:00:00")
+
+  // Determine recurrence end date (if any)
+  let recurrenceEnd: Date | null = null
+  if (event.recurrenceEndType === "on-date" && event.recurrenceEndDate) {
+    recurrenceEnd = new Date(event.recurrenceEndDate + "T00:00:00")
+  }
+
+  // Non-recurring: return dates in the start-end range that overlap with month
+  if (event.recurrence === "none") {
+    const dates: Date[] = []
+    const end = event.endDate ? new Date(event.endDate + "T00:00:00") : eventStart
+    const current = new Date(Math.max(rangeStart.getTime(), eventStart.getTime()))
+    const limit = new Date(Math.min(rangeEnd.getTime(), end.getTime()))
+    while (current <= limit) {
+      dates.push(new Date(current))
+      current.setDate(current.getDate() + 1)
+    }
+    return dates
+  }
+
+  // Recurring: generate occurrences within the visible month
   const dates: Date[] = []
-  const start = new Date(event.date + "T00:00:00")
-  const end = event.endDate ? new Date(event.endDate + "T00:00:00") : start
+  const current = new Date(rangeStart)
 
-  const current = new Date(start)
-  while (current <= end) {
-    dates.push(new Date(current))
+  // Don't generate dates before the event starts
+  if (current < eventStart) current.setTime(eventStart.getTime())
+
+  // Don't generate dates after recurrence ends
+  const effectiveEnd = recurrenceEnd && recurrenceEnd < rangeEnd ? recurrenceEnd : rangeEnd
+
+  while (current <= effectiveEnd) {
+    const dow = current.getDay()
+    let include = false
+
+    if (event.recurrence === "daily") {
+      include = true
+    } else if (event.recurrence === "weekday") {
+      include = dow >= 1 && dow <= 5
+    } else if (event.recurrence === "weekly") {
+      if (event.recurrenceDays.length > 0) {
+        include = event.recurrenceDays.some(d => dayOfWeekIndex[d] === dow)
+      } else {
+        // Weekly with no specific days: same day of week as start
+        include = dow === eventStart.getDay()
+      }
+    } else if (event.recurrence === "monthly") {
+      include = current.getDate() === eventStart.getDate()
+    } else if (event.recurrence === "yearly") {
+      include = current.getDate() === eventStart.getDate() && current.getMonth() === eventStart.getMonth()
+    } else if (event.recurrence === "custom" && event.customRecurrence) {
+      const cr = event.customRecurrence
+      if (cr.days.length > 0) {
+        include = cr.days.some(d => dayOfWeekIndex[d] === dow)
+      }
+      // For custom interval > 1, check week alignment
+      if (include && cr.interval > 1) {
+        const msPerWeek = 7 * 24 * 60 * 60 * 1000
+        const weeksDiff = Math.floor((current.getTime() - eventStart.getTime()) / msPerWeek)
+        include = weeksDiff % cr.interval === 0
+      }
+    }
+
+    if (include) {
+      dates.push(new Date(current))
+    }
     current.setDate(current.getDate() + 1)
   }
 
@@ -103,6 +172,7 @@ function dateKey(d: Date): string {
 
 export default function EventsPage() {
   const router = useRouter()
+  const { user } = useCmsSession()
   const { events, loading, deleteEvent } = useEvents()
 
   const handleDelete = useCallback((id: string) => {
@@ -126,7 +196,7 @@ export default function EventsPage() {
   const [view, setView] = useSessionState<"list" | "card">("cms:events:view", "list")
   const [dateFrom, setDateFrom] = useSessionState("cms:events:dateFrom", "")
   const [dateTo, setDateTo] = useSessionState("cms:events:dateTo", "")
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date())
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date())
 
   // Filter by date range
@@ -197,7 +267,7 @@ export default function EventsPage() {
   const eventDateMap = useMemo(() => {
     const map = new Map<string, ChurchEvent[]>()
     for (const event of events) {
-      const dates = getEventDates(event)
+      const dates = getEventDatesForMonth(event, calendarMonth)
       for (const d of dates) {
         const key = dateKey(d)
         const existing = map.get(key) ?? []
@@ -206,7 +276,7 @@ export default function EventsPage() {
       }
     }
     return map
-  }, [events])
+  }, [events, calendarMonth])
 
   // Dates that have events (for calendar modifiers)
   const eventDates = useMemo(() => {
@@ -228,15 +298,15 @@ export default function EventsPage() {
 
   return (
     <div className="pt-5 space-y-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">Events</h1>
-        <p className="text-muted-foreground text-sm">
-          Create and manage church events, meetings, and programs.
-        </p>
-      </div>
+      <PageHeader
+        title="Events"
+        description="Create and manage church events, meetings, and programs."
+        tutorialId="events"
+        userId={user.id}
+      />
 
       <Tabs defaultValue="list">
-        <TabsList variant="line">
+        <TabsList variant="line" data-tutorial="evt-tabs">
           <TabsTrigger value="list">List View</TabsTrigger>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
         </TabsList>

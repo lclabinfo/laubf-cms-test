@@ -278,6 +278,7 @@ export default async function DashboardPage() {
       roleName={session.roleName ?? ""}
     />
     <DashboardContent
+      userId={session.user?.id ?? ""}
       counts={{
         messages: {
           total: messageCountAll,

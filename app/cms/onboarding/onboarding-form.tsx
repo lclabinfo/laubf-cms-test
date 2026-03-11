@@ -20,6 +20,7 @@ interface OnboardingFormProps {
   userEmail: string
   churchName: string
   roleName: string
+  devMode?: boolean
 }
 
 export function OnboardingForm({
@@ -27,6 +28,7 @@ export function OnboardingForm({
   userEmail,
   churchName,
   roleName,
+  devMode,
 }: OnboardingFormProps) {
   const router = useRouter()
   const [firstName, setFirstName] = useState(userName.firstName)
@@ -55,6 +57,15 @@ export function OnboardingForm({
     setError(null)
     setIsLoading(true)
 
+    // Dev mode: skip API call, just show success
+    if (devMode) {
+      setSuccess(true)
+      setTimeout(() => {
+        router.push("/cms")
+      }, 1500)
+      return
+    }
+
     try {
       const res = await fetch("/api/v1/auth/complete-onboarding", {
         method: "POST",
@@ -81,6 +92,12 @@ export function OnboardingForm({
   }
 
   return (
+    <>
+    {devMode && (
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-center text-xs text-amber-700 dark:text-amber-400 backdrop-blur-sm">
+        Dev Preview — no data will be saved
+      </div>
+    )}
     <Card className="w-full max-w-sm">
       <CardHeader className="text-center">
         <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 mb-4">
@@ -154,5 +171,6 @@ export function OnboardingForm({
         </form>
       </CardContent>
     </Card>
+    </>
   )
 }

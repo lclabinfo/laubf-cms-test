@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo, useCallback } from "react"
+import { PageHeader } from "@/components/cms/page-header"
 import {
   Building2,
   MapPin,
@@ -12,6 +13,7 @@ import {
   Pencil,
   X,
   Check,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,8 +40,10 @@ type SectionKey = "identity" | "location" | "contact" | "worship" | "social"
 // ─── Helpers ─────────────────────────────────────────────────────
 
 function formatTime(time: string) {
+  if (!time || !time.includes(":")) return ""
   const [h, m] = time.split(":")
   const hour = parseInt(h, 10)
+  if (isNaN(hour)) return ""
   const ampm = hour >= 12 ? "PM" : "AM"
   const displayHour = hour % 12 || 12
   return `${displayHour}:${m} ${ampm}`
@@ -66,6 +70,7 @@ function SectionHeader({
   icon: Icon,
   title,
   editing,
+  saving,
   onEdit,
   onSave,
   onCancel,
@@ -73,6 +78,7 @@ function SectionHeader({
   icon: React.ComponentType<{ className?: string }>
   title: string
   editing: boolean
+  saving?: boolean
   onEdit: () => void
   onSave: () => void
   onCancel: () => void
@@ -87,14 +93,15 @@ function SectionHeader({
             variant="ghost"
             size="sm"
             onClick={onCancel}
+            disabled={saving}
             className="h-7 gap-1 text-muted-foreground"
           >
             <X className="size-3.5" />
             Cancel
           </Button>
-          <Button size="sm" onClick={onSave} className="h-7 gap-1">
-            <Check className="size-3.5" />
-            Save
+          <Button size="sm" onClick={onSave} disabled={saving} className="h-7 gap-1">
+            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+            {saving ? "Saving..." : "Save"}
           </Button>
         </div>
       ) : (
@@ -137,10 +144,11 @@ function ReadOnlyField({
 
 interface ProfileFormProps {
   initialData: ChurchProfile
+  userId?: string
   onSave?: (data: ChurchProfile) => Promise<void>
 }
 
-export function ProfileForm({ initialData, onSave }: ProfileFormProps) {
+export function ProfileForm({ initialData, userId, onSave }: ProfileFormProps) {
   // Saved state = last "committed" state; profile = working copy
   const [saved, setSaved] = useState<ChurchProfile>(initialData)
   const [profile, setProfile] = useState<ChurchProfile>(initialData)
@@ -197,8 +205,23 @@ export function ProfileForm({ initialData, onSave }: ProfileFormProps) {
     [saved]
   )
 
+  const [sectionSaving, setSectionSaving] = useState<SectionKey | null>(null)
+
   const saveSection = useCallback(
-    (section: SectionKey) => {
+    async (section: SectionKey) => {
+      // Persist to DB via onSave, then commit to local saved state
+      if (onSave) {
+        setSectionSaving(section)
+        try {
+          await onSave(profile)
+        } catch (err) {
+          console.error("Section save failed:", err)
+          setSectionSaving(null)
+          return // Don't close edit mode on failure
+        }
+        setSectionSaving(null)
+      }
+
       // Commit current profile's section data to saved
       setSaved((prev) => {
         const updated = { ...prev }
@@ -231,7 +254,7 @@ export function ProfileForm({ initialData, onSave }: ProfileFormProps) {
         return next
       })
     },
-    [profile]
+    [profile, onSave]
   )
 
   const isEditing = useCallback(
@@ -366,26 +389,23 @@ export function ProfileForm({ initialData, onSave }: ProfileFormProps) {
   return (
     <div className="pt-5 flex flex-col gap-6 flex-1 min-h-0">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">
-            Church Profile
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Manage your church identity, location, contacts, and social links.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title="Church Profile"
+        description="Manage your church identity, location, contacts, and social links."
+        tutorialId="church-profile"
+        userId={userId}
+      />
 
       {/* Scrollable content */}
       <div className="flex-1 min-h-0 overflow-y-auto p-0.5 -m-0.5">
         <div className="max-w-3xl mx-auto space-y-6 pb-20">
           {/* ── 1. Identity & Description ── */}
-          <section className="rounded-xl border bg-card">
+          <section data-tutorial="prof-identity" className="rounded-xl border bg-card">
             <SectionHeader
               icon={Building2}
               title="Identity & Description"
               editing={isEditing("identity")}
+              saving={sectionSaving === "identity"}
               onEdit={() => startEditing("identity")}
               onSave={() => saveSection("identity")}
               onCancel={() => cancelEditing("identity")}
@@ -432,11 +452,12 @@ export function ProfileForm({ initialData, onSave }: ProfileFormProps) {
           </section>
 
           {/* ── 2. Location ── */}
-          <section className="rounded-xl border bg-card">
+          <section data-tutorial="prof-location" className="rounded-xl border bg-card">
             <SectionHeader
               icon={MapPin}
               title="Location"
               editing={isEditing("location")}
+              saving={sectionSaving === "location"}
               onEdit={() => startEditing("location")}
               onSave={() => saveSection("location")}
               onCancel={() => cancelEditing("location")}
@@ -534,6 +555,7 @@ export function ProfileForm({ initialData, onSave }: ProfileFormProps) {
               icon={Mail}
               title="Contact Information"
               editing={isEditing("contact")}
+              saving={sectionSaving === "contact"}
               onEdit={() => startEditing("contact")}
               onSave={() => saveSection("contact")}
               onCancel={() => cancelEditing("contact")}
@@ -700,11 +722,12 @@ export function ProfileForm({ initialData, onSave }: ProfileFormProps) {
           </section>
 
           {/* ── 4. Worship Services ── */}
-          <section className="rounded-xl border bg-card">
+          <section data-tutorial="prof-services" className="rounded-xl border bg-card">
             <SectionHeader
               icon={Clock}
               title="Worship Services"
               editing={isEditing("worship")}
+              saving={sectionSaving === "worship"}
               onEdit={() => startEditing("worship")}
               onSave={() => saveSection("worship")}
               onCancel={() => cancelEditing("worship")}
@@ -812,8 +835,8 @@ export function ProfileForm({ initialData, onSave }: ProfileFormProps) {
                             {item.description || "Untitled Service"}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            {item.day} &middot; {formatTime(item.startTime)}{" "}
-                            &ndash; {formatTime(item.endTime)}
+                            {item.day} &middot; {formatTime(item.startTime)}
+                            {formatTime(item.endTime) && ` – ${formatTime(item.endTime)}`}
                           </p>
                         </div>
                       </div>
@@ -830,6 +853,7 @@ export function ProfileForm({ initialData, onSave }: ProfileFormProps) {
               icon={Globe}
               title="Social Media"
               editing={isEditing("social")}
+              saving={sectionSaving === "social"}
               onEdit={() => startEditing("social")}
               onSave={() => saveSection("social")}
               onCancel={() => cancelEditing("social")}

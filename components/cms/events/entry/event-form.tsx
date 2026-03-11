@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import Link from "next/link"
@@ -21,6 +21,7 @@ import {
   Ticket,
   Upload,
   X,
+  HelpCircleIcon,
 } from "lucide-react"
 import { EventContactList } from "./event-contact-list"
 import { Button } from "@/components/ui/button"
@@ -44,6 +45,18 @@ import { cn } from "@/lib/utils"
 import { CustomRecurrenceDialog } from "./custom-recurrence-dialog"
 import { AddressAutocomplete } from "./address-autocomplete"
 import { MediaPickerDialog } from "@/components/cms/media/media-picker-dialog"
+import { useCmsSession } from "@/components/cms/cms-shell"
+import {
+  SpotlightTour,
+  isSpotlightComplete,
+  resetSpotlight,
+} from "@/components/cms/tutorial/spotlight-tour"
+import { SPOTLIGHT_TOURS } from "@/components/cms/tutorial/spotlight-tours"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useEvents } from "@/lib/events-context"
 import { statusDisplay } from "@/lib/status"
 import type { ContentStatus } from "@/lib/status"
@@ -116,7 +129,12 @@ function getNthWeekdayLabel(dateStr: string): string {
 
 export function EventForm({ mode, event }: EventFormProps) {
   const router = useRouter()
+  const { user } = useCmsSession()
   const { addEvent, updateEvent } = useEvents()
+
+  // Tutorial tour
+  const editorTour = SPOTLIGHT_TOURS["event-editor"]
+  const [tourActive, setTourActive] = useState(false)
 
   // Dynamic ministry/campus options fetched from API
   const [ministryOptions, setMinistryOptions] = useState<{ value: MinistryTag; label: string }[]>([])
@@ -406,6 +424,18 @@ export function EventForm({ mode, event }: EventFormProps) {
     router.push("/cms/events")
   }
 
+  // Auto-start tour on first visit (or when ?dev-tutorial=true)
+  useEffect(() => {
+    if (!editorTour) return
+    const devForce =
+      process.env.NODE_ENV === "development" &&
+      new URLSearchParams(window.location.search).get("dev-tutorial") === "true"
+    if (devForce || !isSpotlightComplete(editorTour.id, user.id)) {
+      const timer = setTimeout(() => setTourActive(true), 800)
+      return () => clearTimeout(timer)
+    }
+  }, [editorTour, user.id])
+
   function handleCancel() {
     router.push("/cms/events")
   }
@@ -425,6 +455,24 @@ export function EventForm({ mode, event }: EventFormProps) {
               {mode === "create" ? "New Event" : "Edit Event"}
             </h1>
             <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-7 w-7 text-muted-foreground/50 hover:text-muted-foreground shrink-0"
+                  onClick={() => {
+                    resetSpotlight(editorTour.id, user.id)
+                    setTourActive(true)
+                  }}
+                >
+                  <HelpCircleIcon className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="text-xs">View guide</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
           <div className="flex items-center gap-2 ml-auto shrink-0">
             <Button variant="outline" onClick={handleCancel}>
@@ -443,7 +491,7 @@ export function EventForm({ mode, event }: EventFormProps) {
         <div className="max-w-3xl mx-auto space-y-6">
 
           {/* 1. Title zone (no card) */}
-          <div className="space-y-3">
+          <div data-tutorial="evt-form-title" className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="event-title" className="text-sm text-muted-foreground">
                 Title <span className="text-destructive">*</span>
@@ -471,7 +519,7 @@ export function EventForm({ mode, event }: EventFormProps) {
           </div>
 
           {/* 2. Schedule card */}
-          <section className="rounded-xl border bg-card">
+          <section data-tutorial="evt-section-schedule" className="rounded-xl border bg-card">
             <div className="px-5 py-3 border-b flex items-center gap-2">
               <CalendarIcon className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">Schedule</h2>
@@ -626,7 +674,7 @@ export function EventForm({ mode, event }: EventFormProps) {
           </section>
 
           {/* 3. Location card */}
-          <section className="rounded-xl border bg-card">
+          <section data-tutorial="evt-section-location" className="rounded-xl border bg-card">
             <div className="px-5 py-3 border-b flex items-center gap-2">
               <MapPin className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">Location</h2>
@@ -745,7 +793,7 @@ export function EventForm({ mode, event }: EventFormProps) {
           </section>
 
           {/* 4. Details card */}
-          <section className="rounded-xl border bg-card">
+          <section data-tutorial="evt-section-details" className="rounded-xl border bg-card">
             <div className="px-5 py-3 border-b flex items-center gap-2">
               <FileText className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">Details</h2>
@@ -887,7 +935,7 @@ export function EventForm({ mode, event }: EventFormProps) {
           </section>
 
           {/* 6. Settings card */}
-          <section className="rounded-xl border bg-card">
+          <section data-tutorial="evt-section-settings" className="rounded-xl border bg-card">
             <div className="px-5 py-3 border-b flex items-center gap-2">
               <Settings className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">Settings</h2>
@@ -1162,6 +1210,13 @@ export function EventForm({ mode, event }: EventFormProps) {
         onOpenChange={setCustomRecurrenceOpen}
         initialValue={customRecurrence}
         onSubmit={handleCustomRecurrenceSubmit}
+      />
+
+      <SpotlightTour
+        tour={editorTour}
+        userId={user.id}
+        active={tourActive}
+        onEnd={() => setTourActive(false)}
       />
     </div>
   )

@@ -1,7 +1,7 @@
 # Deployment Roadmap
 
 Generated: 2026-03-07
-Last updated: 2026-03-10
+Last updated: 2026-03-11
 
 This document organizes all remaining work into prioritized categories. Tasks are broken down into actionable sub-tasks and ordered by deployment criticality.
 
@@ -17,17 +17,19 @@ This document organizes all remaining work into prioritized categories. Tasks ar
 
 | Area | Status |
 |------|--------|
-| Contact form / Visit Us (public form, API, CMS viewer) | **In progress** (form UI done, API + CMS + email in dev) |
-| CMS core (Messages, Events, Media, People) | ~90% complete |
+| Contact form / Visit Us (public form, API, CMS viewer, email, batch ops) | **100% complete** |
+| CMS core (Messages, Events, Media, People) | ~95% complete |
 | Website rendering (42 section types, theme, fonts) | ~98% complete |
 | Website builder v1 (pages, sections, menus, domains) | 100% complete |
-| Authentication (Google SSO + credentials + password reset) | ~90% complete |
+| Authentication (Google SSO + credentials + password reset + onboarding) | **100% complete** |
+| Custom roles & granular permissions (49 permissions, priority hierarchy) | **100% complete** |
+| User management (list, invite, roles, deactivate, person linking) | **100% complete** |
 | R2 storage (attachments + media) | 100% complete |
-| Database (32 models, 22 enums, seed data) | ~95% complete |
-| API routes (70+ endpoints) | ~95% complete |
-| People management (members, groups, roles, households) | ~90% complete |
-| Domain routing (proxy.ts + subdomain support) | ~85% complete |
-| Production deployment (VM + PM2 + nginx) | **In progress** (config ready, deploy script exists) |
+| Database (32 models, 22 enums, seed data) | ~98% complete |
+| API routes (75+ endpoints) | ~98% complete |
+| People management (members, groups, roles, households) | ~95% complete |
+| Domain routing (proxy.ts + subdomain support) | ~90% complete |
+| Production deployment (VM + PM2 + nginx) | **Ready to deploy** (config, scripts, deploy-data all prepared) |
 | Multi-tenant platform | 0% |
 
 ---
@@ -46,7 +48,7 @@ The Church model and SiteSettings have correct schemas. Seed data uses real LA U
 - [x] **1.2 Update Church record** — Correct values: name "LA UBF", address 11625 Paramount Blvd Downey CA 90241, phone (562) 396-6350, email laubf.downey@gmail.com, timezone America/Los_Angeles.
 - [x] **1.3 Update SiteSettings record** — All values correct: siteName, tagline, description, contact info, social URLs (Instagram, Facebook, YouTube, TikTok), 4 service times.
 - [x] **1.4 Wire Church profile to website metadata** — `generateMetadata()` added to `app/website/layout.tsx` using SiteSettings for title template, description, OG tags. *(2026-03-10)*
-- [ ] **1.5 Wire service times** — Service times stored in SiteSettings JSON and rendered in RECURRING_SCHEDULE section content. Verify footer also reads from SiteSettings.
+- [x] **1.5 Wire service times** — Service times in SiteSettings JSON, rendered in RECURRING_SCHEDULE section. Footer reads from SiteSettings. *(2026-03-10)*
 - [x] **1.6 Update seed script** — `prisma/seed.mts` produces correct LA UBF data out of the box.
 - [x] **1.7 Test CMS church profile editor** — `/cms/church-profile` fully functional with bidirectional apiToProfile/profileToApi mapping.
 
@@ -76,9 +78,9 @@ Remove deprecated columns and fix schema issues identified during development.
   - `Church.settings` JSON — **Actively used** by church profile CMS page + DAL. Must keep.
   - `ContentTag` model — **Safe to drop.** Never queried or written to in any DAL/API.
   - `ApiKey` model — **Safe to drop.** Zero usage anywhere in app code.
-- [ ] **3.2 Create migration for column drops** — Drop `ContentTag` and `ApiKey` models. Keep `legacyId` fields for now (seed depends on them).
+- [x] **3.2 Create migration for column drops** — Migration `20260311012320_drop_unused_contenttag_apikey_models` applied. *(2026-03-10)*
 - [x] **3.3 Event schema gaps** — All fields exist: `slug`, `directionsUrl`, `shortDescription`, `campus`, `tags`.
-- [ ] **3.4 Clean up seed data** — Remove ContentTag/ApiKey cleanup from seed if models are dropped.
+- [x] **3.4 Clean up seed data** — ContentTag/ApiKey references removed from seed. *(2026-03-10)*
 - [ ] **3.5 Test migration on fresh DB** — `npx prisma migrate reset` → verify clean state → seed → verify CMS works.
 
 ---
@@ -103,8 +105,8 @@ Fix rendering issues on the public-facing website before launch.
 - [x] **4.5 Image loading** — All images use Next.js `<Image>`. remotePatterns configured for R2 buckets + YouTube thumbnails.
 - [ ] **4.6 Navigation** — Verify header menu links work, footer links work, mobile menu opens/closes, external links open in new tab.
 - [x] **4.7 SEO basics** — `generateMetadata()` added to website layout + all detail pages. *(2026-03-10)*
-- [ ] **4.8 404 page** — Need custom `not-found.tsx` (currently falls through to unstyled Next.js default).
-- [ ] **4.9 Fix ContactSubmission persistence** — **In progress** (2026-03-10). See #10.
+- [x] **4.8 404 page** — Custom `app/website/not-found.tsx` created with styled page. *(2026-03-10)*
+- [x] **4.9 Fix ContactSubmission persistence** — Full pipeline: API persistence, DAL, CMS pages, email notifications. See #10. *(2026-03-10)*
 
 ---
 
@@ -121,11 +123,11 @@ The public website currently lives at `/website/*` (a regular directory). For la
 - [x] **5.1 Proxy-based routing** — `proxy.ts` rewrites church subdomain requests to `/website/...` paths internally. No directory rename needed.
 - [x] **5.2 Verify CMS routes** — CMS at `/cms/*` works via admin subdomain routing in proxy.
 - [x] **5.3 Proxy handles domain routing** — `proxy.ts` inspects hostname, routes to website or CMS, handles auth gating via `NextAuth(edgeAuthConfig)`.
-- [ ] **5.4 Update env vars** — Configure `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_ADMIN_URL` for production.
-- [ ] **5.5 Update internal links** — Some `/website/` prefixed hrefs in components may need fixing depending on proxy behavior. *(Under review 2026-03-10)*
+- [x] **5.4 Update env vars** — Production env vars configured on VM. *(2026-03-11)*
+- [x] **5.5 Update internal links** — All hardcoded `/website/` hrefs replaced with `resolveHref()` helper. *(2026-03-10)*
 - [ ] **5.6 Update seed data** — Verify MenuItem href values work with proxy routing.
 - [x] **5.7 Handle localhost development** — Proxy falls back to path-based routing in dev mode.
-- [ ] **5.8 Test both domains** — Verify after VM deployment: public site loads, CMS loads, API accessible, auth cookies work.
+- [ ] **5.8 Test both domains** — Verify: public site loads at `laubf.lclab.io`, CMS loads at `admin.laubf.lclab.io`, API accessible, auth cookies work across subdomains.
 
 <details>
 <summary>AI Prompt: Domain Routing & Route Group Restructure</summary>
@@ -187,7 +189,7 @@ All website images must be served from the media library (R2) and converted to W
   }
   ```
 - [ ] **6.7 Verify WebP serving** — After deployment, use browser DevTools Network tab to confirm images are served as `image/webp` or `image/avif` (check `Content-Type` response header).
-- [ ] **6.8 Handle user-uploaded images** — When users upload PNG/JPG via CMS media library, the original format is stored in R2. Next.js `<Image>` automatically converts on-the-fly when serving. No server-side pre-conversion needed.
+- [x] **6.8 Handle user-uploaded images** — Media library uploads to R2; Next.js `<Image>` auto-converts to WebP/AVIF on-the-fly. *(2026-03-09)*
 - [ ] **6.9 Image size limits** — Verify large hero images are reasonably sized. Consider adding `sizes` prop to `<Image>` components for responsive srcset (e.g., `sizes="(max-width: 768px) 100vw, 50vw"`).
 
 <details>
@@ -238,15 +240,12 @@ Files to check:
 Get LA UBF live on a real server.
 
 - [x] **7.1 Choose hosting** — **Azure VM with nginx + PM2.** `ecosystem.config.js` configured, `output: 'standalone'` set in next.config.ts. Deploy script exists at `scripts/deploy.sh`.
-- [ ] **7.2 Set up production database** — PostgreSQL on VM (existing infrastructure).
-  - [ ] Run `prisma migrate deploy`
-  - [ ] Run `npx prisma db seed`
-  - [ ] Verify data integrity
-- [ ] **7.3 Configure R2 for production** — Verify R2 buckets, CORS rules for production domain (laubf.lclab.io).
-- [ ] **7.4 Environment variables** — `.env` file on VM (do not overwrite if exists). Key vars: DATABASE_URL, AUTH_SECRET, AUTH_GOOGLE_*, R2_*, CHURCH_SLUG=la-ubf, SENDGRID_API_KEY, NOTIFICATION_EMAIL.
-- [ ] **7.5 DNS setup** — Namecheap A records for `laubf.lclab.io` and `admin.laubf.lclab.io` → VM public IP.
-- [ ] **7.6 SSL certificate** — certbot + nginx (`certbot --nginx -d laubf.lclab.io -d admin.laubf.lclab.io`).
-- [ ] **7.7 Build & deploy** — Run `scripts/deploy.sh` → PM2 starts on port 3001 (avoid conflict with existing service) → verify → transition to port 3000.
+- [x] **7.2 Set up production database** — PostgreSQL on VM. Migrations applied, seed data deployed. *(2026-03-11)*
+- [x] **7.3 Configure R2 for production** — R2 buckets configured with CORS for production domain. *(2026-03-11)*
+- [x] **7.4 Environment variables** — `.env` configured on VM with all required vars. *(2026-03-11)*
+- [x] **7.5 DNS setup** — DNS records configured for `laubf.lclab.io` and `admin.laubf.lclab.io`. *(2026-03-11)*
+- [x] **7.6 SSL certificate** — SSL configured for production domains. *(2026-03-11)*
+- [x] **7.7 Build & deploy** — Production build deployed and running via PM2. *(2026-03-11)*
 - [ ] **7.8 Smoke test production** — Visit every page, test CMS login, test file upload, test form submission.
 - [ ] **7.9 Error tracking** — Set up Sentry (future — not blocking launch).
 
@@ -259,7 +258,7 @@ Get LA UBF live on a real server.
 Current auth works for Google SSO + credentials but is missing critical flows for production.
 
 - [x] **8.1 Password reset flow** — Full end-to-end: forgot-password page → JWT token with nonce → reset-password page. Rate-limited per IP+email.
-- [ ] **8.2 Secure session config** — Cookie domain should be `.lclab.io` for subdomain sharing. Currently using Auth.js defaults.
+- [x] **8.2 Secure session config** — Cookies hardened: secure, sameSite:lax, httpOnly, 7-day maxAge. Cookie domain for subdomain sharing configured. *(2026-03-10)*
 - [x] **8.3 Rate limiting on auth endpoints** — `lib/rate-limit.ts` applied to forgot-password, reset-password, signup, verify-email, accept-invite. In-memory store (per-process). Credentials login callback not yet rate-limited.
 - [x] **8.4 CSRF protection** — NextAuth CSRF token automatic.
 - [x] **8.5 Logout** — `signOut({ callbackUrl: "/cms/login" })` in sidebar + no-access page.
@@ -332,23 +331,17 @@ Existing files to reference:
 
 ### 10. Visit Us / Contact Form (P0)
 
-The public website has a "Visit Us" form section (`FormSection` component) that collects visitor info (name, email, phone, interests, campus, comments, bible teacher request). The form UI is fully built and submits to `POST /api/v1/form-submissions`, but **the API route only logs to console — it doesn't persist to the database**. The `ContactSubmission` model exists in the Prisma schema with all needed fields (`formType`, `name`, `email`, `phone`, `fields` JSONB, `isRead`, `assignedTo`, `notes`). No CMS page exists to view submissions.
+Full pipeline implemented: public form → API with rate limiting + honeypot → DB persistence → SendGrid email notification → CMS inbox-style viewer with batch operations, status workflow, activity log, and Sheet preview panel.
 
-**What exists:**
-- `components/website/sections/form-section.tsx` — Full form UI (name, email, phone, interests, campus, comments, bible teacher checkbox)
-- `app/api/v1/form-submissions/route.ts` — API route (has TODO, only `console.log`s)
-- `prisma/schema.prisma` — `ContactSubmission` model with indexes on `churchId+isRead`, `churchId+formType`, `churchId+createdAt`
-- Section is already wired in the website builder section catalog
+**Implementation status (2026-03-10): COMPLETE.**
 
-**Implementation status (2026-03-10): IN PROGRESS — all items being built by agent team.**
-
-- [ ] **10.1 Fix form submission persistence** — `POST /api/v1/form-submissions` → `prisma.contactSubmission.create()`. Maps firstName+lastName → name, stores extras in `fields` JSONB.
-- [ ] **10.2 Email notification on submission** — SendGrid via `lib/email/send-email.ts`. Sends to `NOTIFICATION_EMAIL` env var (testing: `info@lclab.io`, production: LA UBF email). CMS configurable recipient list planned.
-- [ ] **10.3 CMS form submissions list page** — `/cms/form-submissions` with DataTable, read/unread filter, search, pagination.
-- [ ] **10.4 CMS submission detail view** — Full detail card, mark read/unread, internal notes, delete with confirmation.
-- [ ] **10.5 DAL module** — `lib/dal/form-submissions.ts` with list, get, markAsRead, markAsUnread, update, delete, getUnreadCount.
-- [ ] **10.6 API routes** — GET list, GET/PATCH/DELETE `[id]`. CMS routes use `requireApiAuth('VIEWER')`.
-- [ ] **10.7 Unread badge in CMS sidebar** — Inbox icon with count badge.
+- [x] **10.1 Fix form submission persistence** — `POST /api/v1/form-submissions` creates DB record with input validation, rate limiting (5/min per IP), honeypot anti-spam. *(2026-03-10)*
+- [x] **10.2 Email notification on submission** — SendGrid via `lib/email/notification.ts`. Recipients from DB (`SiteSettings.notificationEmails`) → env var fallback. CMS configurable in website settings. *(2026-03-10)*
+- [x] **10.3 CMS form submissions list page** — `/cms/form-submissions` with email-inbox UI: DataTable with row selection, Sheet preview, status badges, search with debounce, filters popover, batch operations (mark read/unread, set status, delete). *(2026-03-10)*
+- [x] **10.4 CMS submission detail view** — `/cms/form-submissions/[id]` with 2-column layout, inline status selector, activity timeline with author attribution, notes with Cmd+Enter. *(2026-03-10)*
+- [x] **10.5 DAL module** — `lib/dal/form-submissions.ts` with list (paginated + status filter), get, update, batchUpdate, addActivityLog, getUnreadCount. *(2026-03-10)*
+- [x] **10.6 API routes** — GET/POST list, GET/PATCH/DELETE `[id]`, POST `/batch`. Permission-gated with `submissions.view`/`submissions.manage`. *(2026-03-10)*
+- [x] **10.7 Unread badge in CMS sidebar** — Inbox icon with count badge, permission-gated. *(2026-03-10)*
 - [ ] **10.8 Reply-by-email (optional)** — Future. Not blocking launch.
 
 <details>
@@ -414,21 +407,19 @@ Ship within 2-4 weeks after launch.
 
 ---
 
-### 11. User Management & Roles (P1)
+### 11. User Management, Roles & Onboarding (P1 → COMPLETE)
 
-The ChurchMember model exists with OWNER/ADMIN/EDITOR/VIEWER roles, but there's no admin UI for managing users.
+Fully implemented with custom roles system (not hardcoded OWNER/ADMIN/EDITOR/VIEWER). 49 granular permissions across 17 groups. Priority-based role hierarchy. Centralized onboarding flow for new members.
 
-- [ ] **11.1 User list page** — `/cms/settings/users` showing all ChurchMember records for the church. Columns: name, email, role, last login, status.
-- [ ] **11.2 Invite user flow** — Button to invite by email. Creates User + ChurchMember record. Sends invitation email (or shows a link to share).
-- [ ] **11.3 Change user role** — Dropdown to change ADMIN/EDITOR/VIEWER. Only OWNER can promote to ADMIN.
-- [ ] **11.4 Deactivate user** — Soft-disable a user's access without deleting their account.
-- [ ] **11.5 Connect to Person records** — Link ChurchMember (auth user) to Person (member directory) so logged-in members see their profile.
-- [ ] **11.6 Role-based UI gating** — Hide CMS sidebar items based on role:
-  - VIEWER: read-only access to all content
-  - EDITOR: can edit content but not settings/users
-  - ADMIN: full access except ownership transfer
-  - OWNER: full access including billing and ownership
-- [ ] **11.7 Role-based API gating** — `requireApiAuth()` already accepts roles. Audit all API routes to ensure correct role requirements.
+- [x] **11.1 User list page** — `/cms/people/users` with DataTable: name, email, role, last login, status, actions. *(2026-03-10)*
+- [x] **11.2 Invite user flow** — Invite by email via SendGrid. Creates User + ChurchMember (PENDING). Invitation link with JWT token. Accept-invite page. *(2026-03-10)*
+- [x] **11.3 Change user role** — Role dropdown with custom roles (not fixed enum). Priority-based: can only assign roles with lower priority than own. *(2026-03-10)*
+- [x] **11.4 Deactivate user** — ChurchMember.status: ACTIVE/INACTIVE/PENDING. Deactivate/reactivate UI actions. *(2026-03-10)*
+- [x] **11.5 Connect to Person records** — Link/Unlink person API endpoints. Auto-link on invite by email. *(2026-03-10)*
+- [x] **11.6 Role-based UI gating** — Sidebar items gated by `requiredPermission`. Session includes `permissions[]` array from JWT. *(2026-03-10)*
+- [x] **11.7 Role-based API gating** — `requireApiAuth('permission.string')` checks JWT-cached permissions. All API routes audited and gated. *(2026-03-10)*
+- [x] **11.8 Custom roles CRUD** — `/cms/admin/roles` page + `/api/v1/member-roles/` API. System roles (Owner, Admin, Editor, Viewer) + custom roles. Color + icon per role. *(2026-03-10)*
+- [x] **11.9 Centralized onboarding** — `/cms/onboarding` for PENDING members. `POST /api/v1/auth/complete-onboarding` with atomic activation. Dashboard checks memberStatus. WelcomeBanner with localStorage dismissal. *(2026-03-10)*
 
 ---
 
@@ -439,7 +430,7 @@ Expand auth beyond admin-only to support member login.
 - [ ] **12.1 Public sign-up page** — `/sign-up` page for church members (not CMS admins). Creates User with no ChurchMember role (member-only access).
 - [ ] **12.2 Email verification** — Send verification email on sign-up. Block login until verified. Schema has `emailVerified` field.
 - [ ] **12.3 Member portal** — `/member` dashboard after login showing: my profile, my groups, prayer requests, giving history (future).
-- [ ] **12.4 Choose email provider** — Resend (recommended in docs), SendGrid, or AWS SES for transactional emails (verification, password reset, invitations).
+- [x] **12.4 Choose email provider** — **SendGrid** integrated via `lib/email/send-email.ts`. Used for form notifications, user invitations, password reset. *(2026-03-10)*
 - [ ] **12.5 2FA (optional)** — Schema has `twoFactorEnabled` and `twoFactorSecret`. Implement TOTP-based 2FA for admin accounts.
 
 ---
@@ -734,10 +725,10 @@ Make LA UBF-specific models work for any church.
 10. Production Deployment (#7)
 
 ### Phase 2: Post-Launch Sprint (P1 items)
-11. User Management & Roles (#11)
-12. Login & Sign-Up (#12)
-13. Announcements CMS (#15)
-14. CMS Dashboard (#16)
+~~11. User Management & Roles (#11) — DONE (2026-03-10)~~
+12. Login & Sign-Up (#12) — public sign-up, email verification, member portal
+~~13. CMS Dashboard (#16) — DONE (2026-03-10)~~
+14. Announcements CMS (#15)
 15. Transcript AI Workflow (#13)
 16. Video Clipping (#14)
 
@@ -757,9 +748,9 @@ Make LA UBF-specific models work for any church.
 | Image Pipeline (#6) | R2 media bucket configured | Need actual images uploaded |
 | Production Deployment (#7) | #1, #3, #5, #6, #8 | Can't deploy with wrong data/routes |
 | Daily Bread (#9) | Route group restructure (#5) | Page path depends on `/(website)` |
-| Visit Us Form (#10) | None | Schema exists, quick to wire up |
-| Contact Form Email (#10.2) | Email Provider (#25.1) | Need email sending capability |
-| User Management (#11) | Auth Hardening (#8) | Need solid auth before adding users |
+| ~~Visit Us Form (#10)~~ | ~~None~~ | **DONE** (2026-03-10) |
+| ~~Contact Form Email (#10.2)~~ | ~~Email Provider (#25.1)~~ | **DONE** — SendGrid integrated |
+| ~~User Management (#11)~~ | ~~Auth Hardening (#8)~~ | **DONE** (2026-03-10) |
 | Login & Sign-Up (#12) | Email Provider (#25.1) | Need transactional email for verification |
 | Transcript AI (#13) | Azure OpenAI, YouTube API key | External service config |
 | Video Clipping (#14) | Requirements definition | Need to decide approach first |
@@ -774,11 +765,11 @@ Make LA UBF-specific models work for any church.
 These small tasks can be knocked out quickly between larger work:
 
 - [ ] Wire bulk action handlers on messages list (publish/archive/delete)
-- [ ] Add "View Page" button in website builder → opens public URL
+- [x] ~~Add "View Page" button in website builder → opens public URL~~ (done in 2.7)
 - [ ] Add sitemap.xml generation
 - [ ] Set up Sentry error tracking
 - [ ] Add `robots.txt` for SEO
-- [ ] Verify 404 page renders correctly for invalid slugs
+- [x] ~~Verify 404 page renders correctly for invalid slugs~~ (done in 4.8)
 - [ ] Wire AuditLog writes on CMS create/edit/delete actions
 - [ ] Add loading skeletons to CMS pages that flash blank
 - [ ] Add `sizes` prop to `<Image>` components for responsive srcset

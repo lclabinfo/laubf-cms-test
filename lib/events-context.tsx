@@ -127,7 +127,7 @@ function apiEventToCms(apiEvt: any): ChurchEvent {
     startTime: apiEvt.startTime ?? "00:00",
     endTime: apiEvt.endTime ?? "00:00",
     recurrence: recurrenceFromApi[apiEvt.recurrence] ?? "none",
-    recurrenceDays: apiEvt.recurrenceDays ?? [],
+    recurrenceDays: (apiEvt.recurrenceDays ?? []).map((d: string) => d.toLowerCase()),
     recurrenceEndType: recurrenceEndTypeFromApi[apiEvt.recurrenceEndType] ?? "never",
     recurrenceEndDate: apiEvt.recurrenceEndDate ? new Date(apiEvt.recurrenceEndDate).toISOString().slice(0, 10) : undefined,
     customRecurrence: apiEvt.customRecurrence ?? undefined,

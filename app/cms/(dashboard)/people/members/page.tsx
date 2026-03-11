@@ -4,6 +4,8 @@ import { Suspense, useState, useCallback, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Loader2, Users } from "lucide-react"
+import { useCmsSession } from "@/components/cms/cms-shell"
+import { PageHeader } from "@/components/cms/page-header"
 import {
   useReactTable,
   getCoreRowModel,
@@ -67,6 +69,7 @@ const sortedRowModel = getSortedRowModel()
 
 function MembersPageContent() {
   const router = useRouter()
+  const { user } = useCmsSession()
   const isWideScreen = useIsWideScreen()
   const { members, loading, deleteMember, addMember, updateMemberStatus, refresh } = useMembers()
 
@@ -213,21 +216,19 @@ function MembersPageContent() {
     <>
       {/* Main content — table */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-semibold tracking-tight">Members</h1>
-              {!loading && (
-                <Badge variant="secondary" className="text-xs">
-                  {members.length}
-                </Badge>
-              )}
-            </div>
-            <p className="text-muted-foreground text-sm">
-              View and manage church member profiles.
-            </p>
-          </div>
-        </div>
+        <PageHeader
+          title="Members"
+          description="View and manage church member profiles."
+          tutorialId="people"
+          userId={user.id}
+          actions={
+            !loading ? (
+              <Badge variant="secondary" className="text-xs">
+                {members.length}
+              </Badge>
+            ) : undefined
+          }
+        />
 
         <MembersToolbar
           table={table}
@@ -267,12 +268,14 @@ function MembersPageContent() {
             </div>
           </div>
         ) : (
-          <DataTable
-            columns={columns}
-            table={table}
-            onRowClick={handleRowClick}
-            activeRowId={showPreview ? selectedMemberId : undefined}
-          />
+          <div data-tutorial="ppl-table">
+            <DataTable
+              columns={columns}
+              table={table}
+              onRowClick={handleRowClick}
+              activeRowId={showPreview ? selectedMemberId : undefined}
+            />
+          </div>
         )}
       </div>
 

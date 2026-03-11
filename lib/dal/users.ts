@@ -260,3 +260,80 @@ export async function reactivateUser(churchId: string, memberId: string) {
     data: { status: 'ACTIVE' },
   })
 }
+
+export interface CurrentUserProfile {
+  id: string
+  email: string
+  firstName: string
+  lastName: string
+  avatarUrl: string | null
+  role: string
+  roleName: string | null
+  churchName: string
+  linkedPersonId: string | null
+}
+
+export async function getCurrentUserProfile(churchId: string, userId: string): Promise<CurrentUserProfile | null> {
+  const member = await prisma.churchMember.findFirst({
+    where: { churchId, userId },
+    include: {
+      user: {
+        select: { id: true, email: true, firstName: true, lastName: true, avatarUrl: true },
+      },
+      church: { select: { name: true } },
+      customRole: { select: { name: true } },
+    },
+  })
+  if (!member) return null
+
+  const linkedPerson = await prisma.person.findFirst({
+    where: { churchId, userId, deletedAt: null },
+    select: { id: true },
+  })
+
+  return {
+    id: member.user.id,
+    email: member.user.email,
+    firstName: member.user.firstName,
+    lastName: member.user.lastName,
+    avatarUrl: member.user.avatarUrl,
+    role: member.role,
+    roleName: member.customRole?.name ?? null,
+    churchName: member.church.name,
+    linkedPersonId: linkedPerson?.id ?? null,
+  }
+}
+
+export async function updateCurrentUserProfile(
+  churchId: string,
+  userId: string,
+  data: { firstName?: string; lastName?: string },
+) {
+  // Update the User record
+  const updated = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...(data.firstName !== undefined && { firstName: data.firstName }),
+      ...(data.lastName !== undefined && { lastName: data.lastName }),
+    },
+    select: { id: true, email: true, firstName: true, lastName: true, avatarUrl: true },
+  })
+
+  // Sync to linked Person record if one exists
+  const linkedPerson = await prisma.person.findFirst({
+    where: { churchId, userId, deletedAt: null },
+    select: { id: true },
+  })
+
+  if (linkedPerson) {
+    await prisma.person.update({
+      where: { id: linkedPerson.id },
+      data: {
+        ...(data.firstName !== undefined && { firstName: data.firstName }),
+        ...(data.lastName !== undefined && { lastName: data.lastName }),
+      },
+    })
+  }
+
+  return { ...updated, linkedPersonSynced: !!linkedPerson }
+}

@@ -52,6 +52,7 @@ type TopFile = {
   folder: string | null
   createdAt: string
   context: string
+  linkHref: string | null
 }
 
 type StorageDetail = {
@@ -359,22 +360,48 @@ export default function StoragePage() {
               </TableHeader>
               <TableBody>
                 {topFiles.map((file) => (
-                  <TableRow key={`${file.source}-${file.id}`}>
+                  <TableRow
+                    key={`${file.source}-${file.id}`}
+                    className={file.linkHref ? "cursor-pointer hover:bg-muted/50" : undefined}
+                    onClick={file.linkHref ? () => window.location.href = file.linkHref! : undefined}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-2 min-w-0">
                         {getFileIcon(file.type)}
-                        <span className="truncate max-w-[300px]" title={file.name}>
-                          {file.name}
-                        </span>
+                        {file.linkHref ? (
+                          <Link
+                            href={file.linkHref}
+                            className="truncate max-w-[300px] hover:underline"
+                            title={file.name}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {file.name}
+                          </Link>
+                        ) : (
+                          <span className="truncate max-w-[300px]" title={file.name}>
+                            {file.name}
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs whitespace-nowrap">
                         {file.source === "media" ? "Media" : "Attachment"}
                       </Badge>
-                      <span className="ml-2 text-xs text-muted-foreground truncate max-w-[200px] inline-block align-middle" title={file.context}>
-                        {file.context}
-                      </span>
+                      {file.linkHref ? (
+                        <Link
+                          href={file.linkHref}
+                          className="ml-2 text-xs text-muted-foreground hover:text-foreground hover:underline truncate max-w-[200px] inline-block align-middle"
+                          title={file.context}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {file.context}
+                        </Link>
+                      ) : (
+                        <span className="ml-2 text-xs text-muted-foreground truncate max-w-[200px] inline-block align-middle" title={file.context}>
+                          {file.context}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm">
                       {file.fileSizeFormatted}

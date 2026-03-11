@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef, useEffect } from "react"
+import { useState, useCallback, useRef, useEffect, type RefObject } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
@@ -65,6 +65,132 @@ function useNavbarScroll() {
   }, [pathname])
 
   return isScrolled
+}
+
+/* ── Dropdown trigger with auto-clamped positioning ── */
+
+function NavDropdownTrigger({
+  item,
+  isScrolled,
+  isActive,
+  onOpen,
+  onToggle,
+  onMouseLeave,
+  onClose,
+}: {
+  item: MenuItemData
+  isScrolled: boolean
+  isActive: boolean
+  onOpen: () => void
+  onToggle: () => void
+  onMouseLeave: () => void
+  onClose: () => void
+}) {
+  const triggerRef = useRef<HTMLDivElement>(null)
+
+  const triggerClasses = cn(
+    "flex items-center gap-1.5 pl-3 pr-2 py-3 rounded-xl text-nav transition-colors duration-150",
+    isScrolled
+      ? cn(
+          "text-black-1",
+          isActive ? "bg-white-1-5" : "hover:bg-white-1-5",
+        )
+      : cn(
+          "text-white-1",
+          isActive ? "bg-white-0/10" : "hover:bg-white-0/10",
+        ),
+  )
+
+  return (
+    <div
+      ref={triggerRef}
+      className="relative"
+      onMouseEnter={onOpen}
+      onMouseLeave={onMouseLeave}
+    >
+      {item.href ? (
+        <Link href={resolveHref(item.href)} className={triggerClasses}>
+          {item.label}
+          <ChevronDown
+            className={cn(
+              "size-[18px] transition-transform duration-200",
+              isActive && "rotate-180",
+            )}
+            strokeWidth={2}
+          />
+        </Link>
+      ) : (
+        <button onClick={onToggle} className={triggerClasses}>
+          {item.label}
+          <ChevronDown
+            className={cn(
+              "size-[18px] transition-transform duration-200",
+              isActive && "rotate-180",
+            )}
+            strokeWidth={2}
+          />
+        </button>
+      )}
+      {isActive && (
+        <AutoClampedDropdown triggerRef={triggerRef}>
+          <DropdownMenu item={item} onClose={onClose} />
+        </AutoClampedDropdown>
+      )}
+    </div>
+  )
+}
+
+/* ── Auto-clamped dropdown wrapper ── */
+
+function AutoClampedDropdown({
+  triggerRef,
+  children,
+}: {
+  triggerRef: RefObject<HTMLDivElement | null>
+  children: React.ReactNode
+}) {
+  const dropdownRef = useRef<HTMLDivElement>(null)
+  const [offsetX, setOffsetX] = useState("-50%")
+
+  useEffect(() => {
+    const trigger = triggerRef.current
+    const dropdown = dropdownRef.current
+    if (!trigger || !dropdown) return
+
+    const triggerRect = trigger.getBoundingClientRect()
+    const dropdownWidth = dropdown.offsetWidth
+    const triggerCenter = triggerRect.left + triggerRect.width / 2
+    const viewportWidth = window.innerWidth
+
+    // Where the dropdown left edge would be if centered
+    const idealLeft = triggerCenter - dropdownWidth / 2
+    const idealRight = triggerCenter + dropdownWidth / 2
+    const margin = 16 // min distance from viewport edge
+
+    if (idealLeft < margin) {
+      // Would overflow left — shift right
+      const shift = triggerCenter - margin
+      const pct = (shift / dropdownWidth) * 100
+      setOffsetX(`-${Math.max(0, pct).toFixed(1)}%`)
+    } else if (idealRight > viewportWidth - margin) {
+      // Would overflow right — shift left
+      const shift = viewportWidth - margin - triggerCenter
+      const pct = 100 - (shift / dropdownWidth) * 100
+      setOffsetX(`-${Math.min(100, pct).toFixed(1)}%`)
+    } else {
+      setOffsetX("-50%")
+    }
+  }, [triggerRef])
+
+  return (
+    <div
+      ref={dropdownRef}
+      className="absolute top-full left-1/2 z-[100] pt-1"
+      style={{ transform: `translateX(${offsetX})` }}
+    >
+      {children}
+    </div>
+  )
 }
 
 /* ── Navbar ── */
@@ -179,87 +305,20 @@ export function WebsiteNavbar({
           {/* Desktop nav */}
           <nav className="hidden lg:flex items-center gap-5">
             {dropdownItems.map((item) => (
-              <div
+              <NavDropdownTrigger
                 key={item.id}
-                className="relative"
-                onMouseEnter={() => openDropdown(item.id)}
+                item={item}
+                isScrolled={isScrolled}
+                isActive={activeDropdown === item.id}
+                onOpen={() => openDropdown(item.id)}
+                onToggle={() =>
+                  setActiveDropdown((prev) =>
+                    prev === item.id ? null : item.id,
+                  )
+                }
                 onMouseLeave={scheduleClose}
-              >
-                {item.href ? (
-                  <Link
-                    href={resolveHref(item.href)}
-                    className={cn(
-                      "flex items-center gap-1.5 pl-3 pr-2 py-3 rounded-xl text-nav transition-colors duration-150",
-                      isScrolled
-                        ? cn(
-                            "text-black-1",
-                            activeDropdown === item.id
-                              ? "bg-white-1-5"
-                              : "hover:bg-white-1-5",
-                          )
-                        : cn(
-                            "text-white-1",
-                            activeDropdown === item.id
-                              ? "bg-white-0/10"
-                              : "hover:bg-white-0/10",
-                          ),
-                    )}
-                  >
-                    {item.label}
-                    <ChevronDown
-                      className={cn(
-                        "size-[18px] transition-transform duration-200",
-                        activeDropdown === item.id && "rotate-180",
-                      )}
-                      strokeWidth={2}
-                    />
-                  </Link>
-                ) : (
-                  <button
-                    onClick={() =>
-                      setActiveDropdown((prev) =>
-                        prev === item.id ? null : item.id,
-                      )
-                    }
-                    className={cn(
-                      "flex items-center gap-1.5 pl-3 pr-2 py-3 rounded-xl text-nav transition-colors duration-150",
-                      isScrolled
-                        ? cn(
-                            "text-black-1",
-                            activeDropdown === item.id
-                              ? "bg-white-1-5"
-                              : "hover:bg-white-1-5",
-                          )
-                        : cn(
-                            "text-white-1",
-                            activeDropdown === item.id
-                              ? "bg-white-0/10"
-                              : "hover:bg-white-0/10",
-                          ),
-                    )}
-                  >
-                    {item.label}
-                    <ChevronDown
-                      className={cn(
-                        "size-[18px] transition-transform duration-200",
-                        activeDropdown === item.id && "rotate-180",
-                      )}
-                      strokeWidth={2}
-                    />
-                  </button>
-                )}
-                {activeDropdown === item.id && (
-                  <div
-                    className="absolute top-full left-1/2 z-[100] pt-1"
-                    style={{ transform: "translateX(-50%)" }}
-                  >
-                    <DropdownMenu
-                      item={item}
-                      onClose={closeDropdown}
-                    />
-                  </div>
-                )}
-              </div>
+                onClose={closeDropdown}
+              />
             ))}
             {directItems.map((item) => (
               <Link

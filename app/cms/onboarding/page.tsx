@@ -2,7 +2,11 @@ import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import { OnboardingForm } from "./onboarding-form"
 
-export default async function OnboardingPage() {
+interface Props {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}
+
+export default async function OnboardingPage({ searchParams }: Props) {
   const session = await auth()
 
   if (!session?.user) {
@@ -13,7 +17,13 @@ export default async function OnboardingPage() {
     redirect("/cms/no-access")
   }
 
-  if (session.memberStatus !== "PENDING") {
+  // Dev preview mode: skip PENDING check in development
+  const params = await searchParams
+  const devMode =
+    process.env.NODE_ENV === "development" &&
+    params["dev-onboarding"] === "true"
+
+  if (!devMode && session.memberStatus !== "PENDING") {
     redirect("/cms")
   }
 
@@ -28,6 +38,7 @@ export default async function OnboardingPage() {
       userEmail={session.user.email ?? ""}
       churchName={session.churchName}
       roleName={session.roleName}
+      devMode={devMode}
     />
   )
 }
