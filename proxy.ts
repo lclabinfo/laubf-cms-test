@@ -42,6 +42,13 @@ export async function proxy(req: NextRequest) {
     }
   }
 
+  // --- Block /website on admin subdomain ---
+
+  const isAdmin = hostname.startsWith('admin.')
+  if (isAdmin && pathname.startsWith('/website')) {
+    return NextResponse.redirect(new URL('/cms', req.url))
+  }
+
   // --- Auth gating (CMS + API routes) ---
 
   if (pathname.startsWith('/cms') || pathname.startsWith('/api/v1')) {
