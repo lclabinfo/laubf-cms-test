@@ -1,6 +1,6 @@
 import { requireAuth } from "@/lib/auth/require-auth"
 import { prisma } from "@/lib/db"
-import { getLatestMessage } from "@/lib/dal/messages"
+import { getLatestPublishedDates } from "@/lib/dal/messages"
 import { getUpcomingEvents } from "@/lib/dal/events"
 import { DashboardContent } from "@/components/cms/dashboard/dashboard-content"
 
@@ -13,11 +13,13 @@ export default async function DashboardPage() {
 
   // Fetch all dashboard data in parallel
   const [
-    latestMessage,
+    latestPublishedDates,
     upcomingEvents,
     messageCountAll,
     messageCountPublished,
     messageCountDraft,
+    videoPublishedCount,
+    studyPublishedCount,
     eventCountUpcoming,
     eventCountPast,
     pageCountAll,
@@ -29,8 +31,8 @@ export default async function DashboardPage() {
     recentPages,
     pagesForHealth,
   ] = await Promise.all([
-    // Latest message for health check
-    getLatestMessage(churchId),
+    // Latest published dates for health check (video + study separately)
+    getLatestPublishedDates(churchId),
 
     // Upcoming events (next 5)
     getUpcomingEvents(churchId, 5),
@@ -42,6 +44,12 @@ export default async function DashboardPage() {
     }),
     prisma.message.count({
       where: { churchId, deletedAt: null, hasVideo: false, hasStudy: false },
+    }),
+    prisma.message.count({
+      where: { churchId, deletedAt: null, hasVideo: true },
+    }),
+    prisma.message.count({
+      where: { churchId, deletedAt: null, hasStudy: true },
     }),
 
     // Event counts (upcoming vs past)
@@ -117,19 +125,18 @@ export default async function DashboardPage() {
   // Build health statuses
   const now = new Date()
 
-  // Message health: based on latest published message date
-  // For new churches with no messages, show neutral "Get started" instead of alarming red
-  let messageHealth: "green" | "yellow" | "red" | "neutral" = "green"
-  if (latestMessage) {
-    const daysSinceLastMessage = Math.floor(
-      (now.getTime() - new Date(latestMessage.dateFor).getTime()) /
-        (1000 * 60 * 60 * 24)
-    )
-    if (daysSinceLastMessage > 30) messageHealth = "red"
-    else if (daysSinceLastMessage > 14) messageHealth = "yellow"
-  } else {
-    messageHealth = messageCountAll === 0 ? "neutral" : "red"
+  // Health computation helper
+  function computeHealth(latestDate: Date | null, totalCount: number): "green" | "yellow" | "red" | "neutral" {
+    if (!latestDate) return totalCount === 0 ? "neutral" : "red"
+    const days = Math.floor((Date.now() - latestDate.getTime()) / (1000 * 60 * 60 * 24))
+    if (days > 30) return "red"
+    if (days > 14) return "yellow"
+    return "green"
   }
+
+  // Separate video and study health
+  const videoHealth = computeHealth(latestPublishedDates.latestVideo, messageCountAll)
+  const studyHealth = computeHealth(latestPublishedDates.latestStudy, messageCountAll)
 
   // Event health: based on upcoming event count
   // For new churches with no events at all, show neutral instead of red
@@ -182,7 +189,7 @@ export default async function DashboardPage() {
       type: "page" as const,
       status: p.isPublished ? ("PUBLISHED" as const) : ("DRAFT" as const),
       updatedAt: p.updatedAt.toISOString(),
-      href: `/cms/website/pages`,
+      href: `/cms/website/builder/${p.id}`,
     })),
   ]
     .sort(
@@ -218,14 +225,24 @@ export default async function DashboardPage() {
     return `${Math.floor(days / 365)}+ years ago`
   }
 
-  let messageHealthDetail: string
-  if (latestMessage) {
+  let videoHealthDetail: string
+  if (latestPublishedDates.latestVideo) {
     const daysSince = Math.floor(
-      (now.getTime() - new Date(latestMessage.dateFor).getTime()) / (1000 * 60 * 60 * 24)
+      (now.getTime() - latestPublishedDates.latestVideo.getTime()) / (1000 * 60 * 60 * 24)
     )
-    messageHealthDetail = `Last posted ${formatDaysAgo(daysSince)}`
+    videoHealthDetail = `Last posted ${formatDaysAgo(daysSince)}`
   } else {
-    messageHealthDetail = "No messages yet"
+    videoHealthDetail = "No videos yet"
+  }
+
+  let studyHealthDetail: string
+  if (latestPublishedDates.latestStudy) {
+    const daysSince = Math.floor(
+      (now.getTime() - latestPublishedDates.latestStudy.getTime()) / (1000 * 60 * 60 * 24)
+    )
+    studyHealthDetail = `Last posted ${formatDaysAgo(daysSince)}`
+  } else {
+    studyHealthDetail = "No studies yet"
   }
 
   let eventHealthDetail: string
@@ -258,6 +275,8 @@ export default async function DashboardPage() {
           total: messageCountAll,
           published: messageCountPublished,
           draft: messageCountDraft,
+          videoPublished: videoPublishedCount,
+          studyPublished: studyPublishedCount,
         },
         events: {
           upcoming: eventCountUpcoming,
@@ -273,19 +292,22 @@ export default async function DashboardPage() {
         },
       }}
       health={{
-        messages: messageHealth,
+        videos: videoHealth,
+        studies: studyHealth,
         events: eventHealth,
         pages: pageHealth,
         media: videoCountAll === 0 ? "neutral" : "green",
       }}
       healthDetail={{
-        messages: messageHealthDetail,
+        videos: videoHealthDetail,
+        studies: studyHealthDetail,
         events: eventHealthDetail,
         pages: pageHealthDetail,
         media: mediaHealthDetail,
       }}
       healthCounts={{
-        messages: messageCountAll,
+        videos: videoPublishedCount,
+        studies: studyPublishedCount,
         events: eventCountUpcoming,
         pages: pageCountAll,
         media: videoCountAll,

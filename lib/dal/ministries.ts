@@ -16,8 +16,8 @@ export async function getMinistryBySlug(
   churchId: string,
   slug: string,
 ): Promise<MinistryRecord | null> {
-  return prisma.ministry.findUnique({
-    where: { churchId_slug: { churchId, slug } },
+  return prisma.ministry.findFirst({
+    where: { churchId, slug, deletedAt: null },
   })
 }
 

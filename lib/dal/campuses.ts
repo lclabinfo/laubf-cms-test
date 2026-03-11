@@ -14,8 +14,8 @@ export async function getCampusBySlug(
   churchId: string,
   slug: string,
 ): Promise<CampusRecord | null> {
-  return prisma.campus.findUnique({
-    where: { churchId_slug: { churchId, slug } },
+  return prisma.campus.findFirst({
+    where: { churchId, slug, deletedAt: null },
   })
 }
 

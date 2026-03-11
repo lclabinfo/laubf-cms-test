@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button"
 type HealthStatus = "green" | "yellow" | "red" | "neutral"
 
 type DashboardCounts = {
-  messages: { total: number; published: number; draft: number }
+  messages: { total: number; published: number; draft: number; videoPublished: number; studyPublished: number }
   events: { upcoming: number; past: number }
   pages: { total: number; published: number; draft: number }
   videos: { total: number }
@@ -56,19 +56,22 @@ type RecentActivityItem = {
 type DashboardContentProps = {
   counts: DashboardCounts
   health: {
-    messages: HealthStatus
+    videos: HealthStatus
+    studies: HealthStatus
     events: HealthStatus
     pages: HealthStatus
     media: HealthStatus
   }
   healthDetail: {
-    messages: string
+    videos: string
+    studies: string
     events: string
     pages: string
     media: string
   }
   healthCounts: {
-    messages: number
+    videos: number
+    studies: number
     events: number
     pages: number
     media: number
@@ -251,11 +254,19 @@ function ContentHealth({
 }) {
   const items = [
     {
-      label: "Messages",
+      label: "Videos",
+      icon: Film,
+      count: healthCounts.videos,
+      detail: healthDetail.videos,
+      status: health.videos,
+      href: "/cms/messages",
+    },
+    {
+      label: "Studies",
       icon: BookOpen,
-      count: healthCounts.messages,
-      detail: healthDetail.messages,
-      status: health.messages,
+      count: healthCounts.studies,
+      detail: healthDetail.studies,
+      status: health.studies,
       href: "/cms/messages",
     },
     {
@@ -289,7 +300,7 @@ function ContentHealth({
       <h2 className="text-sm font-medium text-muted-foreground mb-3">
         Content Health
       </h2>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {items.map((item) => {
           const badge = healthBadge[item.status]
           return (
@@ -323,7 +334,7 @@ function AtAGlance({ counts }: { counts: DashboardCounts }) {
     {
       label: "Messages",
       value: counts.messages.total,
-      detail: `${counts.messages.published} published, ${counts.messages.draft} draft`,
+      detail: `${counts.messages.videoPublished} videos \u00b7 ${counts.messages.studyPublished} studies \u00b7 ${counts.messages.draft} drafts`,
     },
     {
       label: "Events",

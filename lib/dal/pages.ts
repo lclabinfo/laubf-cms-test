@@ -41,6 +41,21 @@ export async function createPage(
   churchId: string,
   data: Omit<Prisma.PageUncheckedCreateInput, 'churchId'>,
 ) {
+  // When creating a new homepage, unset any existing homepage first.
+  if (data.isHomepage === true) {
+    const [, created] = await prisma.$transaction([
+      prisma.page.updateMany({
+        where: { churchId, isHomepage: true },
+        data: { isHomepage: false },
+      }),
+      prisma.page.create({
+        data: { ...data, churchId },
+        include: { sections: { orderBy: { sortOrder: 'asc' } } },
+      }),
+    ])
+    return created
+  }
+
   return prisma.page.create({
     data: { ...data, churchId },
     include: { sections: { orderBy: { sortOrder: 'asc' } } },
@@ -52,6 +67,23 @@ export async function updatePage(
   id: string,
   data: Prisma.PageUncheckedUpdateInput,
 ) {
+  // When setting a page as homepage, use a transaction to ensure only one
+  // page is the homepage at a time for this church.
+  if (data.isHomepage === true) {
+    const [, updated] = await prisma.$transaction([
+      prisma.page.updateMany({
+        where: { churchId, isHomepage: true, id: { not: id } },
+        data: { isHomepage: false },
+      }),
+      prisma.page.update({
+        where: { id, churchId },
+        data,
+        include: { sections: { orderBy: { sortOrder: 'asc' } } },
+      }),
+    ])
+    return updated
+  }
+
   return prisma.page.update({
     where: { id, churchId },
     data,

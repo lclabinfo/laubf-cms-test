@@ -138,10 +138,32 @@ export async function getLatestMessage(
   churchId: string,
 ): Promise<MessageWithRelations | null> {
   return prisma.message.findFirst({
-    where: { churchId, deletedAt: null, hasVideo: true },
+    where: { churchId, deletedAt: null, OR: [{ hasVideo: true }, { hasStudy: true }] },
     include: messageListInclude,
     orderBy: { dateFor: 'desc' },
   })
+}
+
+export async function getLatestPublishedDates(churchId: string): Promise<{
+  latestVideo: Date | null
+  latestStudy: Date | null
+}> {
+  const [latestVideo, latestStudy] = await Promise.all([
+    prisma.message.findFirst({
+      where: { churchId, deletedAt: null, hasVideo: true },
+      orderBy: { dateFor: 'desc' },
+      select: { dateFor: true },
+    }),
+    prisma.message.findFirst({
+      where: { churchId, deletedAt: null, hasStudy: true },
+      orderBy: { dateFor: 'desc' },
+      select: { dateFor: true },
+    }),
+  ])
+  return {
+    latestVideo: latestVideo?.dateFor ?? null,
+    latestStudy: latestStudy?.dateFor ?? null,
+  }
 }
 
 /**

@@ -8,7 +8,7 @@
 
 ## Remaining Work
 
-- [x] Create `middleware.ts` for subdomain-based routing
+- [x] Create `proxy.ts` for subdomain-based routing (Next.js 16 convention, replaces deprecated `middleware.ts`)
 - [x] Add `NEXT_PUBLIC_ROOT_DOMAIN`, `WEBSITE_URL`, `CMS_URL` env vars
 - [x] Create `lib/url.ts` — dynamic URL helper (`getWebsiteUrl()`, `getCmsUrl()`)
 - [x] Update builder topbar "View Site" to open real domain
@@ -47,13 +47,13 @@ laubf.lclab.io                → Currently another service (needs to be switche
 ### Target State (MVP)
 
 ```
-laubf.lclab.io/              → Public website (middleware rewrites to /website/...)
-laubf.lclab.io/about          → Public page  (middleware rewrites to /website/about)
-laubf.lclab.io/messages/...   → Public page  (middleware rewrites to /website/messages/...)
-admin.laubf.lclab.io/cms/...  → CMS admin    (middleware passes through)
+laubf.lclab.io/              → Public website (proxy rewrites to /website/...)
+laubf.lclab.io/about          → Public page  (proxy rewrites to /website/about)
+laubf.lclab.io/messages/...   → Public page  (proxy rewrites to /website/messages/...)
+admin.laubf.lclab.io/cms/...  → CMS admin    (proxy passes through)
 ```
 
-**Key insight:** A Next.js middleware rewrite is invisible to the browser. `laubf.lclab.io/about` stays exactly as `laubf.lclab.io/about` in the URL bar, Google, and all links. The `/website` prefix is purely internal routing — it never appears publicly.
+**Key insight:** A Next.js proxy rewrite is invisible to the browser. `laubf.lclab.io/about` stays exactly as `laubf.lclab.io/about` in the URL bar, Google, and all links. The `/website` prefix is purely internal routing — it never appears publicly.
 
 ### Target State (Multi-Tenant — Future)
 
@@ -66,11 +66,11 @@ admin.grace.lclab.io/cms/     → Grace CMS (or grace.lclab.io/cms)
 lclab.io/                     → Marketing site (future)
 ```
 
-The MVP middleware is designed so that multi-tenant is a configuration change, not an architecture change.
+The MVP proxy is designed so that multi-tenant is a configuration change, not an architecture change.
 
 ---
 
-## 2. How the Middleware Works
+## 2. How the Proxy Works
 
 ### Domain Routing Logic
 
@@ -99,15 +99,15 @@ Request arrives at hostname
 
 ### What Stays the Same
 
-- **CMS routes (`/cms/*`)**: No rewriting. Middleware only checks auth (existing behavior).
+- **CMS routes (`/cms/*`)**: No rewriting. Proxy only checks auth (existing behavior).
 - **API routes (`/api/*`)**: No rewriting. Pass through directly.
-- **Static assets (`/_next/*`, `/favicon.ico`)**: Skip middleware entirely.
+- **Static assets (`/_next/*`, `/favicon.ico`)**: Skip proxy entirely.
 - **Auth flow**: No changes. Auth.js callbacks, JWT tokens, session — all unchanged.
 
 ### What Changes
 
 - **Website routes**: Requests to `laubf.lclab.io/about` get rewritten to `/website/about` internally.
-- **Tenant context**: `lib/tenant/context.ts` reads `x-tenant-slug` header (already supported — currently unused because there's no middleware setting it).
+- **Tenant context**: `lib/tenant/context.ts` reads `x-tenant-slug` header (already supported — currently unused because there's no proxy setting it).
 
 ---
 
@@ -117,7 +117,7 @@ Request arrives at hostname
 
 ```env
 # Domain Configuration
-NEXT_PUBLIC_ROOT_DOMAIN=lclab.io           # Platform root domain (used by middleware)
+NEXT_PUBLIC_ROOT_DOMAIN=lclab.io           # Platform root domain (used by proxy)
 WEBSITE_URL=https://laubf.lclab.io         # Public website URL (for emails, OG tags, sitemaps)
 CMS_URL=https://admin.laubf.lclab.io       # CMS admin URL (for internal redirects)
 
@@ -132,7 +132,7 @@ AUTH_URL=https://admin.laubf.lclab.io       # Auth.js base URL (must match CMS d
 | `WEBSITE_URL` | Email templates, OG meta, sitemaps, "View Site" button | `https://laubf.lclab.io` | The public-facing URL visitors see |
 | `CMS_URL` | Auth callbacks, internal redirects, admin links | `https://admin.laubf.lclab.io` | CMS lives on a different subdomain |
 | `AUTH_URL` | Auth.js config (NextAuth) | `https://admin.laubf.lclab.io` | Auth.js needs to know its own origin |
-| `NEXT_PUBLIC_ROOT_DOMAIN` | Middleware (subdomain extraction) | `lclab.io` | Edge runtime — no DB access, needs to be fast |
+| `NEXT_PUBLIC_ROOT_DOMAIN` | Proxy (subdomain extraction) | `lclab.io` | Runs on every request, needs to be fast |
 
 ### Development vs Production
 
@@ -150,11 +150,11 @@ CMS_URL=https://admin.laubf.lclab.io
 AUTH_URL=https://admin.laubf.lclab.io
 ```
 
-In development, there's no subdomain routing — `/website/...` is accessed directly. The middleware detects `localhost` and skips rewriting.
+In development, there's no subdomain routing — `/website/...` is accessed directly. The proxy detects `localhost` and skips rewriting.
 
 ### Multi-Tenant Future
 
-When church #2 arrives, `WEBSITE_URL` and `CMS_URL` become dynamic (resolved per-tenant from DB). `NEXT_PUBLIC_ROOT_DOMAIN` stays the same — it's the platform constant. The middleware already handles multiple subdomains by design. The only changes needed:
+When church #2 arrives, `WEBSITE_URL` and `CMS_URL` become dynamic (resolved per-tenant from DB). `NEXT_PUBLIC_ROOT_DOMAIN` stays the same — it's the platform constant. The proxy already handles multiple subdomains by design. The only changes needed:
 
 1. Remove hardcoded `WEBSITE_URL` from env — compute it from `slug + ROOT_DOMAIN`
 2. Update `getWebsiteUrl()` helper to accept a churchSlug parameter
@@ -168,7 +168,7 @@ When church #2 arrives, `WEBSITE_URL` and `CMS_URL` become dynamic (resolved per
 
 | File | Purpose |
 |------|---------|
-| `middleware.ts` | Domain routing — subdomain detection, rewrite to `/website/...` |
+| `proxy.ts` | Domain routing — subdomain detection, rewrite to `/website/...` (Next.js 16 convention) |
 | `lib/url.ts` | URL helpers: `getWebsiteUrl()`, `getCmsUrl()`, `getPageUrl()` |
 | `scripts/deploy.sh` | Server deployment script (build, upload, restart) |
 | `scripts/nginx/laubf.conf` | nginx config template for production |
@@ -180,7 +180,7 @@ When church #2 arrives, `WEBSITE_URL` and `CMS_URL` become dynamic (resolved per
 | `.env` / `.env.example` | Add `NEXT_PUBLIC_ROOT_DOMAIN`, `WEBSITE_URL`, `CMS_URL` |
 | `next.config.ts` | Add `output: 'standalone'` |
 | `lib/email/templates.ts` | Use `WEBSITE_URL` instead of `AUTH_URL` for email links |
-| `lib/auth/edge-config.ts` | Integrate with new middleware (minimal changes) |
+| `lib/auth/edge-config.ts` | Integrate with proxy (minimal changes) |
 | `lib/tenant/context.ts` | Read `x-tenant-slug` → resolve to churchId |
 | `components/cms/website/builder/builder-topbar.tsx` | "View Site" opens real domain URL |
 | `app/cms/(dashboard)/website/domains/page.tsx` | Dynamic subdomain, gate custom domains |
@@ -190,7 +190,7 @@ When church #2 arrives, `WEBSITE_URL` and `CMS_URL` become dynamic (resolved per
 
 | File | Why No Changes |
 |------|---------------|
-| `app/website/**` | Routes stay at `/website/...` — middleware handles the rewrite |
+| `app/website/**` | Routes stay at `/website/...` — proxy handles the rewrite |
 | `app/cms/**` | CMS routes unchanged — served on `admin.` subdomain |
 | `app/api/**` | API routes unchanged — no rewriting needed |
 | `lib/dal/**` | DAL functions unchanged — `churchId` resolution happens upstream |
@@ -199,17 +199,19 @@ When church #2 arrives, `WEBSITE_URL` and `CMS_URL` become dynamic (resolved per
 
 ---
 
-## 5. Middleware Implementation
+## 5. Proxy Implementation (Next.js 16+)
 
-### middleware.ts
+> **Note:** Next.js 16 renamed `middleware.ts` → `proxy.ts` and the exported function from `middleware` → `proxy`. The file runs in Node.js runtime (not Edge). See [nextjs.org/docs/messages/middleware-to-proxy](https://nextjs.org/docs/messages/middleware-to-proxy).
+
+### proxy.ts
 
 ```typescript
-// middleware.ts (project root)
+// proxy.ts (project root)
 import { NextRequest, NextResponse } from 'next/server'
 
 const ROOT_DOMAIN = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost:3000'
 
-export default function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const hostname = req.headers.get('host') || ''
   const { pathname } = req.nextUrl
 
@@ -267,31 +269,17 @@ export const config = {
 
 ### Key Design Decisions
 
-1. **No database calls in middleware.** The middleware runs on every request in Edge Runtime. For MVP, the slug is extracted from the subdomain — no DB lookup needed. Custom domain resolution (future) will use Redis/KV cache.
+1. **No database calls in proxy.** The proxy runs on every request in Node.js runtime. For MVP, the slug is extracted from the subdomain — no DB lookup needed. Custom domain resolution (future) will use Redis/KV cache.
 
-2. **CMS routes are NOT rewritten.** The `admin.` subdomain serves CMS pages directly. No `/cms` → `/admin/cms` rewriting or anything like that. The existing auth middleware in `edge-config.ts` handles CMS auth as before.
+2. **CMS routes are NOT rewritten.** The `admin.` subdomain serves CMS pages directly. No `/cms` → `/admin/cms` rewriting or anything like that. The auth gating in `edge-config.ts` handles CMS auth as before.
 
-3. **Auth.js middleware compatibility.** Auth.js currently runs its own middleware via `edge-config.ts`. The new `middleware.ts` handles domain routing FIRST, then Auth.js authorized callback runs on the resulting route. Auth.js needs no changes — it already skips website routes and only gates `/cms/*` and `/api/v1/*`.
+3. **Auth.js integration.** The proxy calls Auth.js `auth()` (from `edge-config.ts`) for `/cms/*` and `/api/v1/*` routes only. Domain routing runs first; auth gating runs second. Auth.js needs no changes — it already skips website routes.
 
-4. **`/website` direct access works in dev.** When developing locally, you access `/website/...` directly at `localhost:3000/website/about`. The middleware detects localhost and skips rewriting.
+4. **`/website` direct access works in dev.** When developing locally, you access `/website/...` directly at `localhost:3000/website/about`. The proxy detects localhost and skips rewriting.
 
-### How Auth.js Middleware Integrates
+### How Auth.js Integrates with Proxy
 
-Currently auth is configured in `edge-config.ts` with an `authorized` callback. Auth.js creates its own middleware wrapper. We need to combine them:
-
-```typescript
-// middleware.ts — combined approach
-import { auth } from '@/lib/auth/edge-config'  // This wraps NextAuth middleware
-
-// The auth() wrapper from Auth.js calls our authorized callback
-// We chain our domain routing before it
-export default auth((req) => {
-  // Domain routing logic runs after auth check
-  // ...rewrite logic from above...
-})
-```
-
-**Or simpler (recommended for MVP):** Keep domain routing and auth as separate concerns. Auth.js `authorized` callback already returns `true` for non-CMS routes. The middleware rewrite happens before auth checks the path, so `/website/about` (rewritten) is a public route — auth passes it through.
+The proxy (`proxy.ts`) handles both domain routing AND auth gating in a single function. Auth.js `authorized` callback is invoked via `auth(req)` only for CMS/API routes. This is the **implemented approach** — domain routing and auth are combined in one file, with auth delegated to `edge-config.ts` for the actual token check.
 
 ---
 
@@ -601,10 +589,10 @@ Alternatively, create an API endpoint (`GET /api/v1/site-info`) that returns the
 
 When church #2 arrives, here's what changes:
 
-### Middleware Changes (Small)
+### Proxy Changes (Small)
 
 ```diff
-// middleware.ts
+// proxy.ts
 - // Only handles laubf subdomain
 + // Handles any *.lclab.io subdomain
   if (hostname.endsWith(`.${ROOT_DOMAIN}`)) {
@@ -644,7 +632,7 @@ When church #2 arrives, here's what changes:
 - A  laubf        <VM IP>    # Single subdomain
 - A  admin.laubf  <VM IP>    # Single admin subdomain
 + A  *            <VM IP>    # Wildcard — all subdomains
-+ A  admin.*      <VM IP>    # Admin subdomains (or handle in middleware)
++ A  admin.*      <VM IP>    # Admin subdomains (or handle in proxy)
 ```
 
 ### URL Helper Changes
@@ -672,7 +660,7 @@ When church #2 arrives, here's what changes:
 - Website rendering (already uses `getChurchId()` from tenant context)
 
 **The architecture is already multi-tenant at the data layer.** The only single-tenant pieces are:
-1. The `CHURCH_SLUG` env var fallback (removed when middleware sets headers)
+1. The `CHURCH_SLUG` env var fallback (removed when proxy sets headers)
 2. Hardcoded URLs (fixed by `lib/url.ts` helpers)
 3. DNS (upgraded from single A record to wildcard)
 
@@ -698,14 +686,14 @@ You mentioned another service is currently using `laubf.lclab.io`. The switchove
 
 ### Phase 1: Code Changes (no server needed)
 
-1. Create `middleware.ts`
+1. Create `proxy.ts`
 2. Create `lib/url.ts`
 3. Add env vars to `.env` and `.env.example`
 4. Update builder topbar "View Site"
 5. Update domains page (dynamic subdomain + gate custom domains)
 6. Add `output: 'standalone'` to `next.config.ts`
 7. Add `laubf-test/` to `.gitignore`
-8. Test locally: verify middleware rewrites work, `/website/...` still works directly
+8. Test locally: verify proxy rewrites work, `/website/...` still works directly
 
 ### Phase 2: Server Preparation (needs SSH access)
 
@@ -743,7 +731,7 @@ These need your input:
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| Middleware breaks CMS auth | Low | High | Middleware explicitly skips `/cms/*` and `admin.` subdomain |
+| Proxy breaks CMS auth | Low | High | Proxy explicitly skips `/cms/*` and `admin.` subdomain |
 | SSL cert issues during switchover | Medium | Medium | Certbot handles this; Cloudflare proxy as backup |
 | Email links point to wrong domain | Low | Medium | Email links go to CMS routes which are on `admin.` — unchanged |
 | Session cookies scoped wrong | Medium | High | Set `AUTH_URL` to `admin.laubf.lclab.io`; cookies auto-scope to that domain |

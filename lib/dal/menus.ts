@@ -73,19 +73,39 @@ export async function createMenuItem(
 }
 
 export async function updateMenuItem(
+  churchId: string,
   id: string,
   data: Prisma.MenuItemUncheckedUpdateInput,
 ) {
+  // Verify the menu item belongs to a menu owned by this church
+  const item = await prisma.menuItem.findFirst({
+    where: { id, menu: { churchId } },
+  })
+  if (!item) throw new Error('Menu item not found')
   return prisma.menuItem.update({ where: { id }, data })
 }
 
-export async function deleteMenuItem(id: string) {
+export async function deleteMenuItem(churchId: string, id: string) {
+  // Verify the menu item belongs to a menu owned by this church
+  const item = await prisma.menuItem.findFirst({
+    where: { id, menu: { churchId } },
+  })
+  if (!item) throw new Error('Menu item not found')
   // Delete children first, then parent
   await prisma.menuItem.deleteMany({ where: { parentId: id } })
   return prisma.menuItem.delete({ where: { id } })
 }
 
-export async function reorderMenuItems(menuId: string, itemIds: string[]) {
+export async function reorderMenuItems(
+  churchId: string,
+  menuId: string,
+  itemIds: string[],
+) {
+  // Verify the menu belongs to this church
+  const menu = await prisma.menu.findFirst({
+    where: { id: menuId, churchId },
+  })
+  if (!menu) throw new Error('Menu not found')
   const updates = itemIds.map((id, index) =>
     prisma.menuItem.update({ where: { id }, data: { sortOrder: index } }),
   )

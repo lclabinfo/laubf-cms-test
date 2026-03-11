@@ -1,7 +1,8 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from "react"
 import type { MembershipStatus, Gender, MaritalStatus } from "@/lib/generated/prisma/client"
+import { toast } from "sonner"
 
 export type MemberPerson = {
   id: string
@@ -30,7 +31,7 @@ interface MembersContextValue {
   loading: boolean
   error: string | null
   addMember: (data: AddMemberPayload) => Promise<MemberPerson | null>
-  updateMemberStatus: (ids: string[], status: MembershipStatus) => void
+  updateMemberStatus: (ids: string[], status: MembershipStatus) => Promise<void>
   deleteMember: (id: string) => void
   refresh: () => void
 }
@@ -169,21 +170,51 @@ export function MembersProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  const updateMemberStatus = useCallback((ids: string[], status: MembershipStatus) => {
+  const membersRef = useRef(members)
+  membersRef.current = members
+
+  const updateMemberStatus = useCallback(async (ids: string[], status: MembershipStatus) => {
+    // Save previous state for rollback
+    const previousMembers = membersRef.current
+
     // Optimistic update
     setMembers((prev) =>
       prev.map((m) => (ids.includes(m.id) ? { ...m, membershipStatus: status } : m))
     )
 
-    // Fire API calls
-    for (const id of ids) {
-      fetch(`/api/v1/people/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ membershipStatus: status }),
-      }).catch((err) => {
-        console.error("updateMemberStatus error:", err)
-      })
+    // Execute all API calls
+    const results = await Promise.allSettled(
+      ids.map((id) =>
+        fetch(`/api/v1/people/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ membershipStatus: status }),
+        }).then((res) => {
+          if (!res.ok) throw new Error(`Failed to update ${id}`)
+          return id
+        })
+      )
+    )
+
+    // Check for failures
+    const failed = results.filter((r) => r.status === "rejected")
+    if (failed.length > 0) {
+      // Rollback the failed ones
+      const succeededIds = results
+        .filter((r): r is PromiseFulfilledResult<string> => r.status === "fulfilled")
+        .map((r) => r.value)
+
+      setMembers((prev) =>
+        prev.map((m) => {
+          if (ids.includes(m.id) && !succeededIds.includes(m.id)) {
+            const original = previousMembers.find((pm) => pm.id === m.id)
+            return original ?? m
+          }
+          return m
+        })
+      )
+
+      toast.error(`Failed to update ${failed.length} member${failed.length === 1 ? "" : "s"}`)
     }
   }, [])
 

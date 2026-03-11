@@ -10,6 +10,29 @@ import type {
 } from "./messages-data"
 import { generateSlug } from "@/lib/utils"
 
+/**
+ * Lightweight check for empty TipTap JSON content.
+ * Mirrors isTiptapContentEmpty() from lib/tiptap.ts but without the heavy
+ * TipTap extension imports (this file is bundled client-side).
+ */
+function isStudySectionEmpty(content: string): boolean {
+  if (!content || !content.trim()) return true
+  try {
+    const json = JSON.parse(content)
+    if (!json.content || json.content.length === 0) return true
+    // A doc with only empty paragraphs is considered empty
+    return json.content.every((node: { type: string; content?: unknown[] }) => {
+      if (node.type === "paragraph") {
+        return !node.content || node.content.length === 0
+      }
+      return false
+    })
+  } catch {
+    // Legacy plain text — check if it has non-whitespace
+    return !content.trim()
+  }
+}
+
 interface PaginationInfo {
   total: number
   page: number
@@ -159,8 +182,9 @@ function cmsMessageToApiCreate(data: Omit<Message, "id">) {
     passage: data.passage || null,
     bibleVersion: data.bibleVersion || "ESV",
     dateFor: data.date ? new Date(data.date + "T00:00:00").toISOString() : new Date().toISOString(),
-    hasVideo: data.videoPublished,
-    hasStudy: data.studyPublished,
+    hasVideo: data.videoPublished && !!data.videoUrl,
+    hasStudy: data.studyPublished && (data.studySections ?? []).length > 0 &&
+      (data.studySections ?? []).some((s) => s.content && s.content.trim() !== '' && !isStudySectionEmpty(s.content)),
     videoUrl: data.videoUrl || null,
     videoDescription: data.videoDescription || null,
     youtubeId: youtubeId || data.youtubeId || null,
@@ -200,7 +224,11 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
   if (data.videoPublished !== undefined || data.studyPublished !== undefined) {
     const hasVideoSource = !!(data.videoUrl ?? payload.videoUrl ?? payload.youtubeId)
     const vp = (data.videoPublished ?? false) && hasVideoSource
-    const sp = data.studyPublished ?? false
+    // Validate that study sections have actual content before allowing hasStudy=true
+    const sections = data.studySections ?? []
+    const hasStudyContent = sections.length > 0 &&
+      sections.some((s: StudySection) => s.content && s.content.trim() !== '' && !isStudySectionEmpty(s.content))
+    const sp = (data.studyPublished ?? false) && hasStudyContent
     payload.hasVideo = vp
     payload.hasStudy = sp
   }
