@@ -4020,7 +4020,7 @@ async function main() {
     console.log(`  Created ${created} media assets in "${FOLDER_NAME}" folder (${MEDIA_ASSETS.length - created} already existed)`)
 
     // ── Default Event Template Images (shared R2 prefix: defaults/event-templates/) ──
-    const EVENT_TEMPLATES_FOLDER = 'events'
+    const EVENT_TEMPLATES_FOLDER = 'Events'
     await prisma.mediaFolder.upsert({
       where: { churchId_name: { churchId, name: EVENT_TEMPLATES_FOLDER } },
       update: {},
