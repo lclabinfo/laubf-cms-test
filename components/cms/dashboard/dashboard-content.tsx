@@ -14,10 +14,14 @@ import {
   Clock,
   Globe,
   AlertCircle,
+  ArrowRight,
+  ImageIcon,
+  Activity,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 
 // ---------- Types ----------
 
@@ -82,14 +86,16 @@ type DashboardContentProps = {
 
 // ---------- Helpers ----------
 
-const healthBadge: Record<
+// Short labels that never wrap, even on small cards.
+// WCAG: keep labels concise so they don't need to shrink below 12px.
+const healthConfig: Record<
   HealthStatus,
-  { label: string; variant: "success" | "warning" | "destructive" | "secondary" }
+  { label: string; variant: "success" | "warning" | "destructive" | "secondary"; dotClass: string }
 > = {
-  green: { label: "Healthy", variant: "success" },
-  yellow: { label: "Needs attention", variant: "warning" },
-  red: { label: "Stale", variant: "destructive" },
-  neutral: { label: "Get started", variant: "secondary" },
+  green: { label: "Good", variant: "success", dotClass: "bg-emerald-500" },
+  yellow: { label: "Aging", variant: "warning", dotClass: "bg-amber-500" },
+  red: { label: "Stale", variant: "destructive", dotClass: "bg-red-500" },
+  neutral: { label: "Empty", variant: "secondary", dotClass: "bg-muted-foreground/40" },
 }
 
 function formatTime(time: string | null): string {
@@ -104,7 +110,8 @@ function formatDateBadge(dateStr: string) {
   const date = new Date(dateStr)
   const month = date.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" })
   const day = date.getUTCDate()
-  return { month, day }
+  const weekday = date.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" })
+  return { month, day, weekday }
 }
 
 function timeAgo(dateStr: string): string {
@@ -131,10 +138,10 @@ const eventTypeLabel: Record<string, string> = {
   PROGRAM: "Program",
 }
 
-const contentTypeIcon: Record<string, typeof MessageSquare> = {
-  message: BookOpen,
-  event: Calendar,
-  page: FileText,
+const contentTypeConfig: Record<string, { icon: typeof MessageSquare; color: string; label: string }> = {
+  message: { icon: BookOpen, color: "text-blue-500", label: "Message" },
+  event: { icon: Calendar, color: "text-emerald-500", label: "Event" },
+  page: { icon: FileText, color: "text-purple-500", label: "Page" },
 }
 
 const statusBadgeVariant: Record<string, "success" | "warning" | "secondary" | "info"> = {
@@ -155,7 +162,7 @@ export function DashboardContent({
   recentActivity,
 }: DashboardContentProps) {
   return (
-    <div className="pt-5 space-y-6">
+    <div className="pt-5 space-y-6 pb-6">
       {/* Page header */}
       <div>
         <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
@@ -164,54 +171,55 @@ export function DashboardContent({
         </p>
       </div>
 
-      {/* Widget 1: Quick Actions */}
+      {/* Quick Actions — prominent shortcut buttons */}
       <QuickActions />
 
-      {/* Widget 2: Content Health */}
-      <ContentHealth health={health} healthDetail={healthDetail} healthCounts={healthCounts} />
+      {/* Stats + Health — merged visual overview */}
+      <StatsOverview counts={counts} health={health} healthDetail={healthDetail} healthCounts={healthCounts} />
 
-      {/* Widget 3: At a Glance */}
-      <AtAGlance counts={counts} />
-
-      {/* Widget 4: Upcoming Events */}
-      <UpcomingEventsWidget events={upcomingEvents} />
-
-      {/* Widget 5: Recent Activity */}
-      <RecentActivityWidget items={recentActivity} />
+      {/* Bottom section: stacks on mobile/tablet, side-by-side on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <UpcomingEventsWidget events={upcomingEvents} />
+        <RecentActivityWidget items={recentActivity} />
+      </div>
     </div>
   )
 }
 
-// ---------- Widget 1: Quick Actions ----------
+// ---------- Quick Actions ----------
 
 const quickActions = [
   {
     title: "New Message",
-    description: "Add a sermon or Bible study",
     href: "/cms/messages/new",
     icon: MessageSquare,
-    color: "bg-blue-500/10 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400",
+    gradient: "from-blue-500/15 to-blue-500/5 dark:from-blue-500/20 dark:to-blue-500/5",
+    iconBg: "bg-blue-500 text-white",
+    borderColor: "border-l-blue-500",
   },
   {
     title: "New Event",
-    description: "Create a church event",
     href: "/cms/events/new",
     icon: CalendarPlus,
-    color: "bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400",
+    gradient: "from-emerald-500/15 to-emerald-500/5 dark:from-emerald-500/20 dark:to-emerald-500/5",
+    iconBg: "bg-emerald-500 text-white",
+    borderColor: "border-l-emerald-500",
   },
   {
     title: "Upload Media",
-    description: "Add photos or videos",
     href: "/cms/media",
     icon: Upload,
-    color: "bg-purple-500/10 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400",
+    gradient: "from-purple-500/15 to-purple-500/5 dark:from-purple-500/20 dark:to-purple-500/5",
+    iconBg: "bg-purple-500 text-white",
+    borderColor: "border-l-purple-500",
   },
   {
     title: "Edit Pages",
-    description: "Manage website pages",
     href: "/cms/website/pages",
     icon: FileEdit,
-    color: "bg-amber-500/10 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400",
+    gradient: "from-amber-500/15 to-amber-500/5 dark:from-amber-500/20 dark:to-amber-500/5",
+    iconBg: "bg-amber-500 text-white",
+    borderColor: "border-l-amber-500",
   },
 ]
 
@@ -220,312 +228,298 @@ function QuickActions() {
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {quickActions.map((action) => (
         <Link key={action.href} href={action.href} className="group">
-          <Card className="h-full transition-all hover:ring-foreground/20 hover:shadow-sm">
-            <CardContent className="flex items-start gap-3">
-              <div
-                className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${action.color}`}
-              >
-                <action.icon className="size-4.5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium leading-tight">{action.title}</p>
-                <p className="text-muted-foreground text-xs mt-0.5 leading-snug">
-                  {action.description}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <div
+            className={cn(
+              "relative flex items-center gap-2.5 rounded-xl border border-l-[3px] px-3 py-2.5",
+              "bg-gradient-to-r transition-all",
+              "hover:shadow-md hover:scale-[1.02] active:scale-[0.98]",
+              action.gradient,
+              action.borderColor,
+            )}
+          >
+            <div className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", action.iconBg)}>
+              <action.icon className="size-4" />
+            </div>
+            <p className="text-sm font-semibold leading-tight flex-1 min-w-0">{action.title}</p>
+            <ArrowRight className="size-3.5 shrink-0 text-muted-foreground/50 transition-transform group-hover:translate-x-0.5" />
+          </div>
         </Link>
       ))}
     </div>
   )
 }
 
-// ---------- Widget 2: Content Health ----------
+// ---------- Stats Overview (merged health + counts) ----------
 
-function ContentHealth({
+function StatsOverview({
+  counts,
   health,
   healthDetail,
   healthCounts,
 }: {
+  counts: DashboardCounts
   health: DashboardContentProps["health"]
   healthDetail: DashboardContentProps["healthDetail"]
   healthCounts: DashboardContentProps["healthCounts"]
 }) {
-  const items = [
+  const statCards: {
+    label: string
+    icon: typeof Film
+    value: number
+    subValue: string
+    healthStatus: HealthStatus
+    healthText: string
+    href: string
+    accent: string
+  }[] = [
     {
       label: "Videos",
       icon: Film,
-      count: healthCounts.videos,
-      detail: healthDetail.videos,
-      status: health.videos,
+      value: healthCounts.videos,
+      subValue: `of ${counts.messages.total} messages`,
+      healthStatus: health.videos,
+      healthText: healthDetail.videos,
       href: "/cms/messages",
+      accent: "text-blue-500",
     },
     {
       label: "Studies",
       icon: BookOpen,
-      count: healthCounts.studies,
-      detail: healthDetail.studies,
-      status: health.studies,
+      value: healthCounts.studies,
+      subValue: `${counts.messages.draft} drafts`,
+      healthStatus: health.studies,
+      healthText: healthDetail.studies,
       href: "/cms/messages",
+      accent: "text-indigo-500",
     },
     {
       label: "Events",
       icon: Calendar,
-      count: healthCounts.events,
-      detail: healthDetail.events,
-      status: health.events,
+      value: healthCounts.events,
+      subValue: `${counts.events.past} past`,
+      healthStatus: health.events,
+      healthText: healthDetail.events,
       href: "/cms/events",
+      accent: "text-emerald-500",
     },
     {
       label: "Pages",
       icon: FileText,
-      count: healthCounts.pages,
-      detail: healthDetail.pages,
-      status: health.pages,
+      value: counts.pages.published,
+      subValue: `${counts.pages.draft} drafts`,
+      healthStatus: health.pages,
+      healthText: healthDetail.pages,
       href: "/cms/website/pages",
+      accent: "text-purple-500",
     },
     {
       label: "Media",
-      icon: Film,
-      count: healthCounts.media,
-      detail: healthDetail.media,
-      status: health.media,
+      icon: ImageIcon,
+      value: healthCounts.media,
+      subValue: `${healthCounts.media} total`,
+      healthStatus: health.media,
+      healthText: healthDetail.media,
       href: "/cms/media",
+      accent: "text-amber-500",
     },
   ]
 
   return (
-    <section>
-      <h2 className="text-sm font-medium text-muted-foreground mb-3">
-        Content Health
-      </h2>
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        {items.map((item) => {
-          const badge = healthBadge[item.status]
-          return (
-            <Link key={item.label} href={item.href}>
-              <Card className="transition-all hover:ring-foreground/20 hover:shadow-sm" size="sm">
-                <CardContent className="flex items-center gap-3">
-                  <item.icon className="size-4 text-muted-foreground shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium">{item.label}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {item.count} total &middot; {item.detail}
-                    </p>
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+      {statCards.map((stat) => {
+        const hc = healthConfig[stat.healthStatus]
+        return (
+          <Link key={stat.label} href={stat.href} className="group">
+            <Card className="h-full transition-all hover:ring-foreground/20 hover:shadow-sm" size="sm">
+              <CardContent className="flex flex-col gap-3">
+                {/* Top: icon + health badge */}
+                <div className="flex items-center justify-between gap-2">
+                  <div className={cn("flex size-8 items-center justify-center rounded-lg bg-muted shrink-0", stat.accent)}>
+                    <stat.icon className="size-4" />
                   </div>
-                  <Badge variant={badge.variant} className="shrink-0">
-                    {badge.label}
+                  <Badge variant={hc.variant} className="text-xs">
+                    {hc.label}
                   </Badge>
-                </CardContent>
-              </Card>
-            </Link>
-          )
-        })}
-      </div>
-    </section>
+                </div>
+                {/* Middle: big number + label */}
+                <div>
+                  <p className="text-2xl font-bold tracking-tight leading-none">{stat.value}</p>
+                  <p className="text-sm font-medium text-muted-foreground mt-1">{stat.label}</p>
+                </div>
+                {/* Bottom: detail — truncated, never wraps */}
+                <p className="text-xs text-muted-foreground truncate" title={`${stat.healthText} · ${stat.subValue}`}>
+                  {stat.healthText}
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        )
+      })}
+    </div>
   )
 }
 
-// ---------- Widget 3: At a Glance ----------
-
-function AtAGlance({ counts }: { counts: DashboardCounts }) {
-  const metrics = [
-    {
-      label: "Messages",
-      value: counts.messages.total,
-      detail: `${counts.messages.videoPublished} videos \u00b7 ${counts.messages.studyPublished} studies \u00b7 ${counts.messages.draft} drafts`,
-    },
-    {
-      label: "Events",
-      value: counts.events.upcoming + counts.events.past,
-      detail: `${counts.events.upcoming} upcoming, ${counts.events.past} past`,
-    },
-    {
-      label: "Pages",
-      value: counts.pages.total,
-      detail: `${counts.pages.published} published, ${counts.pages.draft} draft`,
-    },
-    {
-      label: "Videos",
-      value: counts.videos.total,
-      detail: `${counts.videos.total} total`,
-    },
-  ]
-
-  return (
-    <section>
-      <h2 className="text-sm font-medium text-muted-foreground mb-3">
-        At a Glance
-      </h2>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {metrics.map((metric) => (
-          <Card key={metric.label} size="sm">
-            <CardContent>
-              <p className="text-2xl font-semibold tracking-tight">
-                {metric.value}
-              </p>
-              <p className="text-sm font-medium mt-1">{metric.label}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                {metric.detail}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-// ---------- Widget 4: Upcoming Events ----------
+// ---------- Upcoming Events ----------
 
 function UpcomingEventsWidget({ events }: { events: UpcomingEvent[] }) {
   return (
-    <section>
-      <Card>
-        <CardHeader>
-          <CardTitle>Upcoming Events</CardTitle>
-          <CardAction>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/cms/events">View all</Link>
+    <Card className="flex flex-col">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Calendar className="size-4 text-muted-foreground" />
+          Upcoming Events
+        </CardTitle>
+        <CardAction>
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/cms/events">View all</Link>
+          </Button>
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex-1">
+        {events.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-6 text-center">
+            <div className="flex size-10 items-center justify-center rounded-full bg-muted mb-2">
+              <Calendar className="size-5 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium">No upcoming events</p>
+            <p className="text-sm text-muted-foreground mt-0.5 mb-3">
+              Create an event to get started.
+            </p>
+            <Button size="sm" variant="outline" asChild>
+              <Link href="/cms/events/new">
+                <CalendarPlus className="size-3.5" />
+                Create Event
+              </Link>
             </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent>
-          {events.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <Calendar className="size-10 text-muted-foreground/40 mb-3" />
-              <p className="text-sm font-medium">No upcoming events</p>
-              <p className="text-xs text-muted-foreground mt-1 mb-3">
-                Create an event to get started.
-              </p>
-              <Button size="sm" asChild>
-                <Link href="/cms/events/new">Create Event</Link>
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {events.map((event) => {
-                const { month, day } = formatDateBadge(event.dateStart)
-                const isMissingInfo = !event.location || !event.shortDescription
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {events.map((event) => {
+              const { month, day } = formatDateBadge(event.dateStart)
+              const isMissingInfo = !event.location || !event.shortDescription
 
-                return (
-                  <Link
-                    key={event.id}
-                    href={`/cms/events/${event.slug}`}
-                    className="block"
-                  >
-                    <div className="flex items-center gap-3 rounded-lg px-2 py-2 -mx-2 transition-colors hover:bg-muted/50">
-                      {/* Date badge */}
-                      <div className="flex size-11 shrink-0 flex-col items-center justify-center rounded-lg bg-muted text-center">
-                        <span className="text-[10px] font-medium uppercase leading-none text-muted-foreground">
-                          {month}
-                        </span>
-                        <span className="text-lg font-semibold leading-tight">
-                          {day}
-                        </span>
-                      </div>
-
-                      {/* Event details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-sm font-medium truncate">
-                            {event.title}
-                          </span>
-                          {isMissingInfo && (
-                            <AlertCircle className="size-3.5 shrink-0 text-warning" />
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                          {event.startTime && (
-                            <span className="flex items-center gap-1">
-                              <Clock className="size-3" />
-                              {formatTime(event.startTime)}
-                              {event.endTime &&
-                                ` - ${formatTime(event.endTime)}`}
-                            </span>
-                          )}
-                          {event.location && (
-                            <span className="flex items-center gap-1 truncate">
-                              {event.locationType === "ONLINE" ? (
-                                <Globe className="size-3 shrink-0" />
-                              ) : (
-                                <MapPin className="size-3 shrink-0" />
-                              )}
-                              <span className="truncate">{event.location}</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Type badge */}
-                      <Badge variant="secondary" className="shrink-0 text-[10px]">
-                        {eventTypeLabel[event.type] ?? event.type}
-                      </Badge>
+              return (
+                <Link
+                  key={event.id}
+                  href={`/cms/events/${event.slug}`}
+                  className="block"
+                >
+                  <div className="flex items-center gap-3 rounded-lg px-2 py-2 -mx-2 transition-colors hover:bg-muted/50">
+                    {/* Date badge */}
+                    <div className="flex w-11 shrink-0 flex-col items-center justify-center rounded-lg bg-primary/10 py-1.5 text-center">
+                      <span className="text-xs font-semibold uppercase leading-none text-primary/70">
+                        {month}
+                      </span>
+                      <span className="text-lg font-bold leading-tight text-primary">
+                        {day}
+                      </span>
                     </div>
-                  </Link>
-                )
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </section>
+
+                    {/* Event details */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-medium truncate">
+                          {event.title}
+                        </span>
+                        {isMissingInfo && (
+                          <AlertCircle className="size-3.5 shrink-0 text-warning" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                        {event.startTime && (
+                          <span className="flex items-center gap-1 shrink-0">
+                            <Clock className="size-3" />
+                            {formatTime(event.startTime)}
+                            {event.endTime &&
+                              ` – ${formatTime(event.endTime)}`}
+                          </span>
+                        )}
+                        {event.location && (
+                          <span className="flex items-center gap-1 truncate">
+                            {event.locationType === "ONLINE" ? (
+                              <Globe className="size-3 shrink-0" />
+                            ) : (
+                              <MapPin className="size-3 shrink-0" />
+                            )}
+                            <span className="truncate">{event.location}</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Type badge — hidden on narrow screens to prevent crowding */}
+                    <Badge variant="secondary" className="shrink-0 hidden sm:inline-flex">
+                      {eventTypeLabel[event.type] ?? event.type}
+                    </Badge>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
-// ---------- Widget 5: Recent Activity ----------
+// ---------- Recent Activity ----------
 
 function RecentActivityWidget({ items }: { items: RecentActivityItem[] }) {
   return (
-    <section>
-      <Card>
-        <CardHeader>
-          <CardTitle>Recently Updated Content</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <Clock className="size-10 text-muted-foreground/40 mb-3" />
-              <p className="text-sm font-medium">No recent activity</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Content changes will appear here.
-              </p>
+    <Card className="flex flex-col">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Activity className="size-4 text-muted-foreground" />
+          Recent Activity
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex-1">
+        {items.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-6 text-center">
+            <div className="flex size-10 items-center justify-center rounded-full bg-muted mb-2">
+              <Clock className="size-5 text-muted-foreground" />
             </div>
-          ) : (
-            <div className="space-y-1">
-              {items.map((item) => {
-                const Icon = contentTypeIcon[item.type] ?? FileText
-                const variant = statusBadgeVariant[item.status] ?? "secondary"
+            <p className="text-sm font-medium">No recent activity</p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Content changes will appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-0.5">
+            {items.map((item) => {
+              const config = contentTypeConfig[item.type] ?? contentTypeConfig.page
+              const Icon = config.icon
+              const variant = statusBadgeVariant[item.status] ?? "secondary"
 
-                return (
-                  <Link
-                    key={`${item.type}-${item.id}`}
-                    href={item.href}
-                    className="block"
-                  >
-                    <div className="flex items-center gap-3 rounded-lg px-2 py-2 -mx-2 transition-colors hover:bg-muted/50">
-                      <Icon className="size-4 shrink-0 text-muted-foreground" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">
-                          {item.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Updated {timeAgo(item.updatedAt)}
-                        </p>
-                      </div>
-                      <Badge variant={variant} className="shrink-0">
-                        {item.status.charAt(0) +
-                          item.status.slice(1).toLowerCase()}
-                      </Badge>
+              return (
+                <Link
+                  key={`${item.type}-${item.id}`}
+                  href={item.href}
+                  className="block"
+                >
+                  <div className="flex items-center gap-3 rounded-lg px-2 py-2 -mx-2 transition-colors hover:bg-muted/50">
+                    <div className={cn("flex size-7 shrink-0 items-center justify-center rounded-md bg-muted", config.color)}>
+                      <Icon className="size-3.5" />
                     </div>
-                  </Link>
-                )
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </section>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate leading-tight">
+                        {item.title}
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-tight mt-0.5">
+                        {config.label} &middot; {timeAgo(item.updatedAt)}
+                      </p>
+                    </div>
+                    <Badge variant={variant} className="shrink-0">
+                      {item.status.charAt(0) +
+                        item.status.slice(1).toLowerCase()}
+                    </Badge>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
 }

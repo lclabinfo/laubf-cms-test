@@ -230,9 +230,9 @@ export default async function DashboardPage() {
     const daysSince = Math.floor(
       (now.getTime() - latestPublishedDates.latestVideo.getTime()) / (1000 * 60 * 60 * 24)
     )
-    videoHealthDetail = `Last posted ${formatDaysAgo(daysSince)}`
+    videoHealthDetail = `Posted ${formatDaysAgo(daysSince)}`
   } else {
-    videoHealthDetail = "No videos yet"
+    videoHealthDetail = "None yet"
   }
 
   let studyHealthDetail: string
@@ -240,32 +240,32 @@ export default async function DashboardPage() {
     const daysSince = Math.floor(
       (now.getTime() - latestPublishedDates.latestStudy.getTime()) / (1000 * 60 * 60 * 24)
     )
-    studyHealthDetail = `Last posted ${formatDaysAgo(daysSince)}`
+    studyHealthDetail = `Posted ${formatDaysAgo(daysSince)}`
   } else {
-    studyHealthDetail = "No studies yet"
+    studyHealthDetail = "None yet"
   }
 
   let eventHealthDetail: string
   if (eventCountUpcoming === 0) {
-    eventHealthDetail = "No upcoming events"
+    eventHealthDetail = "None upcoming"
   } else {
-    eventHealthDetail = `${eventCountUpcoming} upcoming event${eventCountUpcoming === 1 ? "" : "s"}`
+    eventHealthDetail = `${eventCountUpcoming} upcoming`
   }
 
   let pageHealthDetail: string
   if (pagesForHealth.length === 0) {
-    pageHealthDetail = "No pages yet"
+    pageHealthDetail = "None yet"
   } else {
     const oldestUpdate = Math.max(
       ...pagesForHealth.map((p) =>
         Math.floor((now.getTime() - new Date(p.updatedAt).getTime()) / (1000 * 60 * 60 * 24))
       )
     )
-    pageHealthDetail = `Oldest update ${formatDaysAgo(oldestUpdate)}`
+    pageHealthDetail = `Updated ${formatDaysAgo(oldestUpdate)}`
   }
 
   const mediaHealthDetail = videoCountAll === 0
-    ? "No media yet"
+    ? "None yet"
     : `${videoCountAll} video${videoCountAll === 1 ? "" : "s"}`
 
   return (
