@@ -1,3 +1,13 @@
+export type SavedAddress = {
+  id: string
+  label: string
+  address: string
+  city: string
+  state: string
+  zip: string
+  isPrimary: boolean
+}
+
 export type SocialLink = {
   platform: string
   url: string
