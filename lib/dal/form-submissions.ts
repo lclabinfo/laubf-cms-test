@@ -8,7 +8,16 @@ type ContactSubmission = Prisma.ContactSubmissionGetPayload<{}>
 export type FormSubmissionFilters = {
   isRead?: boolean
   formType?: string
+  status?: string
   search?: string
+}
+
+export type ActivityLogEntry = {
+  userId: string
+  userName: string
+  action: string
+  content?: string
+  createdAt: string
 }
 
 export async function listSubmissions(
@@ -21,6 +30,7 @@ export async function listSubmissions(
     churchId,
     ...(filters?.isRead !== undefined && { isRead: filters.isRead }),
     ...(filters?.formType && { formType: filters.formType }),
+    ...(filters?.status && { status: filters.status }),
     ...(filters?.search && {
       OR: [
         { name: { contains: filters.search, mode: 'insensitive' as const } },
@@ -75,7 +85,7 @@ export async function markAsUnread(churchId: string, id: string) {
 export async function updateSubmission(
   churchId: string,
   id: string,
-  data: { notes?: string; assignedTo?: string | null; isRead?: boolean },
+  data: { notes?: string; assignedTo?: string | null; isRead?: boolean; status?: string },
 ) {
   // Verify tenant ownership first
   const existing = await getSubmission(churchId, id)
@@ -84,6 +94,7 @@ export async function updateSubmission(
   const updateData: Prisma.ContactSubmissionUncheckedUpdateInput = {}
   if (data.notes !== undefined) updateData.notes = data.notes
   if (data.assignedTo !== undefined) updateData.assignedTo = data.assignedTo
+  if (data.status !== undefined) updateData.status = data.status
   if (data.isRead !== undefined) {
     updateData.isRead = data.isRead
     updateData.readAt = data.isRead ? new Date() : null
@@ -108,5 +119,56 @@ export async function deleteSubmission(churchId: string, id: string) {
 export async function getUnreadCount(churchId: string): Promise<number> {
   return prisma.contactSubmission.count({
     where: { churchId, isRead: false },
+  })
+}
+
+export async function batchUpdateSubmissions(
+  churchId: string,
+  ids: string[],
+  data: { isRead?: boolean; status?: string; delete?: boolean },
+) {
+  // Verify all IDs belong to this church
+  const count = await prisma.contactSubmission.count({
+    where: { id: { in: ids }, churchId },
+  })
+  if (count !== ids.length) {
+    throw new Error('One or more submissions not found or do not belong to this church')
+  }
+
+  if (data.delete) {
+    return prisma.contactSubmission.deleteMany({
+      where: { id: { in: ids }, churchId },
+    })
+  }
+
+  const updateData: Prisma.ContactSubmissionUncheckedUpdateManyInput = {}
+  if (data.isRead !== undefined) {
+    updateData.isRead = data.isRead
+    updateData.readAt = data.isRead ? new Date() : null
+  }
+  if (data.status !== undefined) {
+    updateData.status = data.status
+  }
+
+  return prisma.contactSubmission.updateMany({
+    where: { id: { in: ids }, churchId },
+    data: updateData,
+  })
+}
+
+export async function addActivityLog(
+  churchId: string,
+  id: string,
+  entry: ActivityLogEntry,
+) {
+  const existing = await getSubmission(churchId, id)
+  if (!existing) throw new Error('Submission not found')
+
+  const currentLog = (existing.activityLog as ActivityLogEntry[] | null) || []
+  const updatedLog = [...currentLog, entry]
+
+  return prisma.contactSubmission.update({
+    where: { id },
+    data: { activityLog: updatedLog },
   })
 }

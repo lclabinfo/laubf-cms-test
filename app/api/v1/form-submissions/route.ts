@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Fire email notification async — don't block response
-    sendContactNotificationEmail(submission).catch(console.error)
+    sendContactNotificationEmail(churchId, submission).catch(console.error)
 
     return NextResponse.json({ success: true })
   } catch (error) {
@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
       pageSize: searchParams.get('pageSize') ? Number(searchParams.get('pageSize')) : undefined,
       search: searchParams.get('search') ?? undefined,
       formType: searchParams.get('formType') ?? undefined,
+      status: searchParams.get('status') ?? undefined,
       isRead: searchParams.has('isRead')
         ? searchParams.get('isRead') === 'true'
         : undefined,

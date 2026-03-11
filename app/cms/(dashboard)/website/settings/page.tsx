@@ -78,6 +78,7 @@ interface SiteSettingsData {
   navCtaVisible: boolean
   customHeadHtml: string | null
   customBodyHtml: string | null
+  notificationEmails: string[]
   maintenanceMode: boolean
   maintenanceMessage: string | null
 }
@@ -111,6 +112,7 @@ function SiteSettingsPageContent() {
           setSettings({
             ...json.data,
             serviceTimes: json.data.serviceTimes ?? [],
+            notificationEmails: json.data.notificationEmails ?? [],
           })
         } else {
           // No settings exist yet, start with defaults
@@ -146,6 +148,7 @@ function SiteSettingsPageContent() {
             navCtaVisible: false,
             customHeadHtml: null,
             customBodyHtml: null,
+            notificationEmails: [],
             maintenanceMode: false,
             maintenanceMessage: null,
           })
@@ -450,6 +453,59 @@ function SiteSettingsPageContent() {
                 rows={2}
               />
             </div>
+          </div>
+        </section>
+
+        {/* Card 3b: Form Notification Recipients */}
+        <section className="rounded-xl border bg-card">
+          <div className="px-5 py-3 border-b">
+            <h2 className="text-sm font-semibold">Form Notification Recipients</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Email addresses that receive notifications when a visitor submits a form on your website.
+            </p>
+          </div>
+          <div className="p-5 space-y-3">
+            {(settings.notificationEmails ?? []).map((email, idx) => (
+              <div key={idx} className="flex items-center gap-2">
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    const updated = [...(settings.notificationEmails ?? [])]
+                    updated[idx] = e.target.value
+                    updateField("notificationEmails", updated)
+                  }}
+                  placeholder="recipient@example.com"
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                  onClick={() => {
+                    const updated = (settings.notificationEmails ?? []).filter((_, i) => i !== idx)
+                    updateField("notificationEmails", updated)
+                  }}
+                >
+                  <TrashIcon className="size-4" />
+                </Button>
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const updated = [...(settings.notificationEmails ?? []), ""]
+                updateField("notificationEmails", updated)
+              }}
+            >
+              <PlusIcon className="size-4 mr-1.5" />
+              Add Recipient
+            </Button>
+            {(settings.notificationEmails ?? []).length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                No recipients configured. Notifications will be sent to info@lclab.io by default.
+              </p>
+            )}
           </div>
         </section>
 

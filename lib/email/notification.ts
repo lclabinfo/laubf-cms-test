@@ -1,3 +1,4 @@
+import { prisma } from '@/lib/db'
 import { sendEmail } from './send-email'
 
 function escapeHtml(str: string): string {
@@ -39,7 +40,7 @@ function formatFieldValue(value: unknown): string {
   return escapeHtml(String(value))
 }
 
-export async function sendContactNotificationEmail(submission: {
+export async function sendContactNotificationEmail(churchId: string, submission: {
   id: string
   name: string
   email: string
@@ -49,7 +50,7 @@ export async function sendContactNotificationEmail(submission: {
   fields?: any
   createdAt: Date
 }): Promise<void> {
-  const recipients = getNotificationRecipients()
+  const recipients = await getNotificationRecipients(churchId)
   if (recipients.length === 0) {
     console.log('[Notification] No notification recipients configured, skipping email')
     return
@@ -132,10 +133,21 @@ export async function sendContactNotificationEmail(submission: {
   )
 }
 
-function getNotificationRecipients(): string[] {
+export async function getNotificationRecipients(churchId: string): Promise<string[]> {
+  // First check DB for configured recipients
+  try {
+    const settings = await prisma.siteSettings.findUnique({
+      where: { churchId },
+      select: { notificationEmails: true },
+    })
+    if (settings?.notificationEmails && settings.notificationEmails.length > 0) {
+      return settings.notificationEmails
+    }
+  } catch {
+    // Fall through to env var
+  }
+
+  // Fallback to env var
   const envRecipients = process.env.NOTIFICATION_EMAIL || 'info@lclab.io'
-  return envRecipients
-    .split(',')
-    .map((e) => e.trim())
-    .filter(Boolean)
+  return envRecipients.split(',').map((e) => e.trim()).filter(Boolean)
 }

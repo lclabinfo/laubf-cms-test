@@ -971,8 +971,10 @@ model ContactSubmission {
   // Processing
   isRead      Boolean  @default(false)
   readAt      DateTime?
+  status      String   @default("new") // new, reviewed, contacted, archived
   assignedTo  String?  @db.Uuid
   notes       String?  @db.Text
+  activityLog Json?    @db.JsonB // [{userId, userName, action, content?, createdAt}]
 
   createdAt   DateTime @default(now())
 
@@ -980,6 +982,7 @@ model ContactSubmission {
 
   @@index([churchId, isRead])
   @@index([churchId, formType])
+  @@index([churchId, status])
   @@index([churchId, createdAt(sort: Desc)])
 }
 
@@ -1057,6 +1060,9 @@ model SiteSettings {
   // Custom code injection
   customHeadHtml  String? @db.Text
   customBodyHtml  String? @db.Text
+
+  // Notification settings
+  notificationEmails String[] @default([])
 
   // Maintenance mode
   maintenanceMode    Boolean @default(false)
