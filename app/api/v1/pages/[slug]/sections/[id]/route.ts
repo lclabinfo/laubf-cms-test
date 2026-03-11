@@ -3,11 +3,15 @@ import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getPageBySlugOrId, updatePageSection, deletePageSection } from '@/lib/dal/pages'
 import { validateSectionContent, validateSectionUpdateFields } from '@/lib/api/validation'
+import { requireApiAuth } from '@/lib/api/require-auth'
 
 type Params = { params: Promise<{ slug: string; id: string }> }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
+    const authResult = await requireApiAuth('website.pages.edit')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const { slug, id } = await params
     const body = await request.json()
@@ -51,6 +55,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
+    const authResult = await requireApiAuth('website.pages.edit')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const { slug, id } = await params
 

@@ -15,7 +15,7 @@ const ROLE_LEVEL: Record<MemberRole, number> = {
 }
 
 export async function POST(request: Request) {
-  const authResult = await requireApiAuth('ADMIN')
+  const authResult = await requireApiAuth('users.invite')
   if (!authResult.authorized) return authResult.response
 
   let body: Record<string, unknown>

@@ -30,7 +30,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PUT(request: NextRequest, { params }: Params) {
   try {
-    const authResult = await requireApiAuth('ADMIN')
+    const authResult = await requireApiAuth('people.edit')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
@@ -59,7 +59,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    const authResult = await requireApiAuth('ADMIN')
+    const authResult = await requireApiAuth('people.edit')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
@@ -88,7 +88,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
-    const authResult = await requireApiAuth('ADMIN')
+    const authResult = await requireApiAuth('people.delete')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()

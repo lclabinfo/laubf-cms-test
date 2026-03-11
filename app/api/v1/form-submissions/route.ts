@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireApiAuth('VIEWER')
+    const authResult = await requireApiAuth('submissions.view')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()

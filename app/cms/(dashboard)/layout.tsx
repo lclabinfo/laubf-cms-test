@@ -26,6 +26,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
         churchName: session.churchName,
         churchSlug: session.churchSlug,
         role: session.role,
+        roleId: session.roleId ?? '',
+        roleName: session.roleName ?? '',
+        rolePriority: session.rolePriority ?? 0,
+        permissions: session.permissions ?? [],
       }}
     >
       {children}

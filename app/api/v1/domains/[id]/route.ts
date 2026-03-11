@@ -7,7 +7,7 @@ type Params = { params: Promise<{ id: string }> }
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
-    const authResult = await requireApiAuth('OWNER')
+    const authResult = await requireApiAuth('website.domains.manage')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()

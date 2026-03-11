@@ -14,6 +14,10 @@ declare module 'next-auth' {
     churchSlug: string
     churchName: string
     role: MemberRole
+    roleId: string
+    roleName: string
+    rolePriority: number
+    permissions: string[]
   }
 }
 
@@ -24,5 +28,9 @@ declare module '@auth/core/jwt' {
     churchSlug?: string
     churchName?: string
     role?: string
+    roleId?: string
+    roleName?: string
+    rolePriority?: number
+    permissions?: string[]
   }
 }

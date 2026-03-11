@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Loader2Icon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -22,6 +22,15 @@ import {
 } from "@/components/ui/select"
 import { toast } from "sonner"
 
+interface RoleOption {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  priority: number
+  isSystem: boolean
+}
+
 interface InviteUserDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -32,6 +41,27 @@ export function InviteUserDialog({ open, onOpenChange, onSuccess }: InviteUserDi
   const [email, setEmail] = useState("")
   const [role, setRole] = useState("EDITOR")
   const [isLoading, setIsLoading] = useState(false)
+  const [roles, setRoles] = useState<RoleOption[]>([])
+
+  useEffect(() => {
+    if (open && roles.length === 0) {
+      fetch("/api/v1/member-roles")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success) {
+            setRoles(data.data)
+          }
+        })
+        .catch(() => {
+          // Silently fail — the hardcoded fallback will be used
+        })
+    }
+  }, [open, roles.length])
+
+  // Filter to roles assignable for invite (exclude Owner — typically can't invite as Owner)
+  const assignableRoles = roles
+    .filter((r) => r.slug !== "owner")
+    .sort((a, b) => a.priority - b.priority)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -98,24 +128,37 @@ export function InviteUserDialog({ open, onOpenChange, onSuccess }: InviteUserDi
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="VIEWER">
-                  <div>
-                    <p className="font-medium">Viewer</p>
-                    <p className="text-xs text-muted-foreground">Read-only access</p>
-                  </div>
-                </SelectItem>
-                <SelectItem value="EDITOR">
-                  <div>
-                    <p className="font-medium">Editor</p>
-                    <p className="text-xs text-muted-foreground">Create and edit content</p>
-                  </div>
-                </SelectItem>
-                <SelectItem value="ADMIN">
-                  <div>
-                    <p className="font-medium">Admin</p>
-                    <p className="text-xs text-muted-foreground">Full content + site management</p>
-                  </div>
-                </SelectItem>
+                {assignableRoles.length > 0
+                  ? assignableRoles.map((r) => (
+                      <SelectItem
+                        key={r.id}
+                        value={r.slug.toUpperCase()}
+                        textValue={r.name}
+                        className="py-1.5"
+                      >
+                        <div>
+                          <p className="font-medium">{r.name}</p>
+                          {r.description && (
+                            <p className="text-xs text-muted-foreground">
+                              {r.description}
+                            </p>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))
+                  : /* Fallback if roles haven't loaded yet */
+                    [
+                      { value: "VIEWER", label: "Viewer", desc: "Read-only access" },
+                      { value: "EDITOR", label: "Editor", desc: "Create and edit content" },
+                      { value: "ADMIN", label: "Admin", desc: "Full content + site management" },
+                    ].map((r) => (
+                      <SelectItem key={r.value} value={r.value} textValue={r.label} className="py-1.5">
+                        <div>
+                          <p className="font-medium">{r.label}</p>
+                          <p className="text-xs text-muted-foreground">{r.desc}</p>
+                        </div>
+                      </SelectItem>
+                    ))}
               </SelectContent>
             </Select>
           </div>

@@ -20,7 +20,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireApiAuth('OWNER')
+    const authResult = await requireApiAuth('website.domains.manage')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()

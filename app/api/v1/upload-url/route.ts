@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { getChurchId } from '@/lib/api/get-church-id'
+import { requireApiAuth } from '@/lib/api/require-auth'
 import { getUploadUrl, getPublicUrl, getMediaPublicUrl, MEDIA_BUCKET } from '@/lib/storage/r2'
 import { checkStorageQuota, formatBytes } from '@/lib/dal/storage'
 
@@ -51,13 +51,8 @@ function formatMB(bytes: number): string {
 export async function POST(request: NextRequest) {
   try {
     // --- Authentication gate ---
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json(
-        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
-        { status: 401 },
-      )
-    }
+    const authResult = await requireApiAuth('media.upload')
+    if (!authResult.authorized) return authResult.response
 
     // Resolve church context
     const churchId = await getChurchId()

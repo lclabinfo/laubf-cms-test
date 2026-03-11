@@ -788,7 +788,7 @@ function SiteSettingsPageContent() {
 
 export default function SiteSettingsPage() {
   return (
-    <RoleGuard minRole="ADMIN">
+    <RoleGuard requiredPermission="website.settings.edit">
       <SiteSettingsPageContent />
     </RoleGuard>
   )

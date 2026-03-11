@@ -35,7 +35,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    const authResult = await requireApiAuth('EDITOR')
+    const authResult = await requireApiAuth('events.edit_own')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
@@ -149,7 +149,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
-    const authResult = await requireApiAuth('ADMIN')
+    const authResult = await requireApiAuth('events.delete')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()

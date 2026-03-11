@@ -20,6 +20,10 @@ export type CmsSessionData = {
   churchName: string
   churchSlug: string
   role: string
+  roleId: string
+  roleName: string
+  rolePriority: number
+  permissions: string[]
 }
 
 const CmsSessionContext = createContext<CmsSessionData | null>(null)

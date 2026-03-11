@@ -14,7 +14,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const authResult = await requireApiAuth('ADMIN')
+  const authResult = await requireApiAuth('users.edit_roles')
   if (!authResult.authorized) return authResult.response
   const { id: memberId } = await params
 
@@ -93,7 +93,7 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const authResult = await requireApiAuth('OWNER')
+  const authResult = await requireApiAuth('users.remove')
   if (!authResult.authorized) return authResult.response
   const { id: memberId } = await params
 

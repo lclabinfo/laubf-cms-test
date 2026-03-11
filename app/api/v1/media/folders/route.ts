@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { getChurchId } from '@/lib/api/get-church-id'
+import { requireApiAuth } from '@/lib/api/require-auth'
 import { listFolders, createFolder, getFolderCounts, getMediaCounts } from '@/lib/dal/media'
 
 // ---------------------------------------------------------------------------
@@ -9,13 +9,8 @@ import { listFolders, createFolder, getFolderCounts, getMediaCounts } from '@/li
 
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json(
-        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
-        { status: 401 },
-      )
-    }
+    const authResult = await requireApiAuth('media.view')
+    if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
     const [folders, folderCounts, mediaCounts] = await Promise.all([
@@ -49,13 +44,8 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json(
-        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
-        { status: 401 },
-      )
-    }
+    const authResult = await requireApiAuth('media.manage_folders')
+    if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
     const body = await request.json()

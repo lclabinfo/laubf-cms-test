@@ -2,7 +2,7 @@
 
 Generated: 2026-03-09
 Last audited: 2026-03-09
-Status: **Phase 1-3 IMPLEMENTED, Phase 4 PARTIAL — Audited 2026-03-10**
+Status: **Phase 1-4 IMPLEMENTED — Custom Roles System Added 2026-03-10**
 
 ---
 
@@ -11,9 +11,11 @@ Status: **Phase 1-3 IMPLEMENTED, Phase 4 PARTIAL — Audited 2026-03-10**
 Items that still need implementation or attention:
 
 - [ ] **Upstash Redis rate limiter** — Current in-memory rate limiter works for single-instance/development but is per-process. Before deploying to Vercel/serverless, swap `lib/rate-limit.ts` to use `@upstash/ratelimit` with sliding window. Requires: Upstash account, `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` env vars. See §2.3 for details.
-- [ ] **Google reCAPTCHA v3** — Replace Cloudflare Turnstile plan with Google reCAPTCHA v3 (invisible). Requires: Google reCAPTCHA admin console setup, `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` + `RECAPTCHA_SECRET_KEY` env vars. Add `<script src="https://www.google.com/recaptcha/api.js">` to signup/forgot-password pages, verify token server-side via `POST https://www.google.com/recaptcha/api/siteverify`. See §3 for details.
-- [ ] **`lastLogin` tracking** — Currently approximated with `updatedAt`; needs a dedicated `lastLogin DateTime?` field on User model, updated in Auth.js `signIn` callback
-- [ ] **Zod validation** — Plan specifies Zod schemas; current impl uses manual validation (functional but less type-safe)
+- [ ] **Google reCAPTCHA v3** — Invisible challenge for signup/forgot-password. Requires: `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` + `RECAPTCHA_SECRET_KEY` env vars. See §3 for details.
+- [ ] **`lastLogin` tracking** — Needs dedicated `lastLogin DateTime?` field on User model
+- [ ] **Zod validation** — Replace manual validation with Zod schemas
+- [ ] **Drop legacy `role` enum** — After confirming all code uses `roleId`/permissions, remove `ChurchMember.role` column and `MemberRole` enum (Phase 3 cleanup)
+- [ ] **Content ownership enforcement** — EDITOR-level permissions (`edit_own`) need `createdBy` checks in API routes to enforce "own content only"
 
 ---
 
@@ -225,56 +227,99 @@ Auth.js v5 built-in double-submit cookie pattern. No additional work needed.
 
 ---
 
-## 4. Role & Permission System [IMPLEMENTED]
+## 4. Role & Permission System [IMPLEMENTED — CUSTOM ROLES]
 
-### 4.1 Roles
+### 4.1 Architecture
 
-| Role | Level | Description |
-|---|---|---|
-| `VIEWER` | 0 | Read-only CMS access |
-| `EDITOR` | 1 | Create and edit content |
-| `ADMIN` | 2 | Full content + site management, invite users (≤ EDITOR) |
-| `OWNER` | 3 | Full access, invite all roles, remove users |
+The permission system uses **granular permission strings** stored on a `Role` model, with permissions cached in the JWT for zero-query runtime checks.
 
-### 4.2 Permission Matrix
+**Key files:**
+- `lib/permissions.ts` — Permission taxonomy (49 permissions), groups, default role definitions, helper functions
+- `lib/dal/roles.ts` — Roles CRUD DAL
+- `lib/api/require-auth.ts` — `requireApiAuth(permission)` checks permissions from JWT
+- `prisma/schema.prisma` — `Role` model with `String[]` permissions column
 
-| Feature Area | VIEWER | EDITOR | ADMIN | OWNER |
-|---|---|---|---|---|
-| Dashboard | View (read-only) | View + Quick Actions | Full | Full |
-| Messages/Bible Studies | View | Create, Edit own | Create, Edit all, Delete, Publish | Full |
-| Events | View | Create, Edit own | Create, Edit all, Delete, Publish | Full |
-| Media Library | View, Download | Upload, Edit own | Upload, Edit all, Delete, Folders | Full |
-| Members/People | View | View | Full CRUD | Full |
-| Website Builder | — | — | Edit pages, sections | Full |
-| Website Domains | — | — | View | Manage |
-| Site Settings | — | — | Edit | Full |
-| User Management | — | — | Invite (≤ EDITOR), Edit roles | Invite all, Edit all, Remove |
+### 4.2 Role Model
 
-### 4.3 Promote/Demote Rules [ENFORCED IN API]
+Each church has its own set of roles. Roles have:
+- **name/slug** — Display name and URL-safe identifier (unique per church)
+- **priority** — Integer for hierarchy (higher = more authority). Used for "who can manage whom"
+- **isSystem** — `true` for Owner and Viewer (cannot be deleted)
+- **permissions** — Array of permission strings (e.g., `["messages.create", "events.view"]`)
 
-| Actor | Can Invite As | Can Promote To | Can Demote To | Can Remove |
-|---|---|---|---|---|
-| OWNER | VIEWER, EDITOR, ADMIN | Up to ADMIN | Down to VIEWER | Yes (not self, not last OWNER) |
-| ADMIN | VIEWER, EDITOR | Up to EDITOR | Down to VIEWER | No |
-| EDITOR | — | — | — | No |
-| VIEWER | — | — | — | No |
+### 4.3 Default Roles
 
-### 4.4 Sidebar Role-Based Visibility [IMPLEMENTED]
+| Role | Priority | System? | Description |
+|---|---|---|---|
+| Owner | 1000 | Yes | All permissions. Cannot be deleted. |
+| Admin | 500 | No | Full content + site management. Editable/deletable. |
+| Editor | 200 | No | Create/edit own content. Editable/deletable. |
+| Viewer | 0 | Yes | Read-only. Cannot be deleted. |
 
-Nav items have optional `minRole` property. Items filtered based on session role:
-- `Users` → ADMIN+
-- `Builder` → ADMIN+
-- `Domains` → OWNER only
-- `Settings` → ADMIN+
-- All other items → visible to all roles
+Churches can create custom roles (e.g., "Ministry Leader", "Content Reviewer") with any combination of permissions and priority 1-999.
 
-### 4.5 Custom Roles (P1 — Future, not implemented)
+### 4.4 Permission Taxonomy (49 permissions)
 
-4-role system covers 95% of church use cases. Custom granular permissions can be added later.
+| Group | Permissions |
+|---|---|
+| Bible Studies | `messages.view`, `.create`, `.edit_own`, `.edit_all`, `.delete`, `.publish` |
+| Events | `events.view`, `.create`, `.edit_own`, `.edit_all`, `.delete`, `.publish` |
+| Media | `media.view`, `.upload`, `.edit_own`, `.edit_all`, `.delete`, `.manage_folders` |
+| Submissions | `submissions.view`, `.manage` |
+| Storage | `storage.view` |
+| People | `people.view`, `.create`, `.edit`, `.delete` |
+| Groups | `groups.view`, `.manage` |
+| Ministries | `ministries.view`, `.manage` |
+| Campuses | `campuses.view`, `.manage` |
+| Website Pages | `website.pages.view`, `.edit`, `.create`, `.delete` |
+| Navigation | `website.navigation.view`, `.edit` |
+| Theme | `website.theme.view`, `.edit` |
+| Site Settings | `website.settings.view`, `.edit` |
+| Domains | `website.domains.view`, `.manage` |
+| Users | `users.view`, `.invite`, `.edit_roles`, `.remove`, `.deactivate` |
+| Roles | `roles.view`, `.manage` |
+| Church Profile | `church.profile.view`, `.edit` |
 
-### 4.6 Ministry-Scoped Access (P1 — Future, not implemented)
+### 4.5 Hierarchy Rules
 
-Deferred from PRD P0 to P1. Full ministry scoping requires significant DAL changes.
+- **Priority-based**: A user can only create/edit/assign roles with priority lower than their own
+- **Permission escalation prevention**: Cannot assign permissions you don't have yourself (except Owner who has all)
+- **System role protection**: Owner and Viewer roles cannot be deleted; Owner permissions cannot be modified
+- **Self-modification prevention**: Cannot change your own role or remove yourself
+
+### 4.6 Auth Flow
+
+1. User logs in → JWT callback fetches `ChurchMember` with `customRole` relation
+2. Role's `permissions[]`, `priority`, and `name` are stored in the JWT
+3. `requireApiAuth('permission.string')` checks the JWT's permissions array — no DB query needed
+4. Sidebar and RoleGuard use `session.permissions` for visibility/access control
+5. If role is updated, user must re-login for changes to take effect
+
+### 4.7 API Routes
+
+| Method | Path | Permission | Description |
+|---|---|---|---|
+| GET | `/api/v1/roles` | `roles.view` | List church roles with member counts |
+| POST | `/api/v1/roles` | `roles.manage` | Create custom role |
+| GET | `/api/v1/roles/[id]` | `roles.view` | Get role details |
+| PATCH | `/api/v1/roles/[id]` | `roles.manage` | Update role |
+| DELETE | `/api/v1/roles/[id]` | `roles.manage` | Delete role (with fallback reassignment) |
+| GET | `/api/v1/permissions` | `roles.view` | Get permission taxonomy for UI |
+
+### 4.8 Sidebar Permission-Based Visibility [IMPLEMENTED]
+
+Nav items use `requiredPermission` instead of `minRole`:
+- Users → `users.view`
+- Roles → `roles.view`
+- Builder → `website.pages.edit`
+- Domains → `website.domains.manage`
+- Settings → `website.settings.edit`
+
+### 4.9 Migration Path (from enum to custom roles)
+
+**Phase 1 (done):** Added `Role` model + `roleId` column (nullable) alongside existing `role` enum.
+**Phase 2 (done):** Data migration — created default roles for all churches, assigned `roleId` to all members.
+**Phase 3 (pending):** Drop `role` enum column after confirming all code uses permissions.
 
 ---
 
@@ -338,14 +383,24 @@ AUTH_GOOGLE_SECRET=...       # Google OAuth Client Secret
 | `app/cms/(dashboard)/people/users/page.tsx` | CMS Users management page |
 | `components/cms/users/users-columns.tsx` | Users table column definitions |
 | `components/cms/users/invite-user-dialog.tsx` | Invite user dialog |
+| `lib/permissions.ts` | Permission taxonomy, groups, default roles, helper functions |
+| `lib/dal/roles.ts` | Roles CRUD DAL |
+| `app/api/v1/roles/route.ts` | List/create roles API |
+| `app/api/v1/roles/[id]/route.ts` | Get/update/delete role API |
+| `app/api/v1/permissions/route.ts` | Permission taxonomy API |
+| `prisma/migrate-roles.mts` | Data migration: enum → custom roles |
+| `components/cms/roles/role-editor-dialog.tsx` | Role create/edit dialog with permission picker |
+| `components/cms/roles/delete-role-dialog.tsx` | Delete role with fallback reassignment |
 
 ### Modified Files
 
 | File | Changes |
 |---|---|
-| `lib/auth/config.ts` | Added `emailVerified` check in credentials, Google OAuth race condition handling, max password length |
+| `lib/auth/config.ts` | Added `emailVerified` check in credentials, Google OAuth race condition handling, max password length; JWT/session callbacks include permissions from Role |
 | `lib/auth/edge-config.ts` | Added public CMS pages and `/api/v1/auth/*` to allowlist |
-| `components/cms/app-sidebar.tsx` | Added Users nav item, role-based visibility filtering (`minRole`) |
+| `lib/api/require-auth.ts` | Refactored from role-level to permission-based checks |
+| `components/cms/app-sidebar.tsx` | Added Users nav item; switched from `minRole` to `requiredPermission` |
+| `components/cms/role-guard.tsx` | Switched from role-level to permission-based |
 | `app/cms/login/page.tsx` | Added sign-up link, forgot-password link, verified success message |
 | `app/cms/no-access/page.tsx` | Improved messaging about admin invitation |
 | `.env` | Added SendGrid + reCAPTCHA vars |
@@ -415,3 +470,17 @@ Implemented all P1 items from audit:
 - Rate limiter migration path documented (in-memory → Upstash Redis)
 
 Remaining: Upstash Redis migration, reCAPTCHA integration, lastLogin field, Zod validation
+
+### 2026-03-10 — Custom Roles & Permissions System
+
+Replaced hardcoded 4-role enum with custom roles & granular permissions:
+- Created `Role` model with 49 granular permission strings across 17 groups
+- 4 default roles (Owner, Admin, Editor, Viewer) seeded per church
+- `requireApiAuth()` refactored from role names to permission strings
+- All ~30 API routes migrated to permission-based auth
+- Roles CRUD API (GET/POST/PATCH/DELETE /api/v1/roles)
+- Permissions metadata API (GET /api/v1/permissions)
+- Roles management UI with permission picker
+- Sidebar and RoleGuard use `session.permissions` instead of role levels
+- JWT includes permissions array for zero-query runtime checks
+- Data migration script for existing churches (prisma/migrate-roles.mts)

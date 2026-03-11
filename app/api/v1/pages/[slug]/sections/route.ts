@@ -9,7 +9,7 @@ type Params = { params: Promise<{ slug: string }> }
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
-    const authResult = await requireApiAuth('ADMIN')
+    const authResult = await requireApiAuth('website.pages.edit')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
 export async function PUT(request: NextRequest, { params }: Params) {
   try {
-    const authResult = await requireApiAuth('ADMIN')
+    const authResult = await requireApiAuth('website.pages.edit')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()

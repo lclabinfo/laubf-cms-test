@@ -3,32 +3,24 @@
 import { useCmsSession } from "@/components/cms/cms-shell"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
-
-const ROLE_LEVEL: Record<string, number> = {
-  VIEWER: 0,
-  EDITOR: 1,
-  ADMIN: 2,
-  OWNER: 3,
-}
+import type { Permission } from "@/lib/permissions"
+import { hasPermission } from "@/lib/permissions"
 
 interface RoleGuardProps {
-  minRole: "VIEWER" | "EDITOR" | "ADMIN" | "OWNER"
+  requiredPermission: Permission | Permission[]
   children: React.ReactNode
 }
 
-export function RoleGuard({ minRole, children }: RoleGuardProps) {
+export function RoleGuard({ requiredPermission, children }: RoleGuardProps) {
   const session = useCmsSession()
   const router = useRouter()
-  const userLevel = ROLE_LEVEL[session.role] ?? 0
-  const requiredLevel = ROLE_LEVEL[minRole] ?? 0
+  const allowed = hasPermission(session.permissions ?? [], requiredPermission)
 
   useEffect(() => {
-    if (userLevel < requiredLevel) {
-      router.replace("/cms/dashboard")
-    }
-  }, [userLevel, requiredLevel, router])
+    if (!allowed) router.replace("/cms/dashboard")
+  }, [allowed, router])
 
-  if (userLevel < requiredLevel) return null
+  if (!allowed) return null
 
   return <>{children}</>
 }

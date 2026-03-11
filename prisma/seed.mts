@@ -5,7 +5,7 @@ import { createInterface } from 'readline'
 import { join } from 'path'
 import pg from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
-import { S3Client, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
+import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3'
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
 const adapter = new PrismaPg(pool)
@@ -36,16 +36,33 @@ const R2_ATT_PUBLIC = (process.env.R2_ATTACHMENTS_PUBLIC_URL || process.env.R2_P
 const R2_MEDIA_BUCKET = process.env.R2_MEDIA_BUCKET_NAME || ''
 const R2_MEDIA_PREFIX = 'la-ubf/initial-setup/'
 
-/** Get actual file size from R2 attachments bucket. Returns null if object doesn't exist. */
-async function getR2FileSize(url: string): Promise<number | null> {
-  if (!url.startsWith(R2_ATT_PUBLIC)) return null
-  const key = url.slice(R2_ATT_PUBLIC.length + 1)
+/** Batch-list all objects in R2 attachments bucket under la-ubf/ prefix.
+ *  Returns a map of key → size. Uses ListObjectsV2 (~3-4 requests for ~3000 files)
+ *  instead of individual HeadObject per file, saving thousands of Class B ops. */
+async function getR2AttachmentSizeMap(): Promise<Map<string, number>> {
+  const sizeMap = new Map<string, number>()
+  if (!R2_ATT_BUCKET) return sizeMap
+  const prefix = 'la-ubf/'
   try {
-    const head = await r2.send(new HeadObjectCommand({ Bucket: R2_ATT_BUCKET, Key: key }))
-    return head.ContentLength ?? null
-  } catch {
-    return null
+    let token: string | undefined
+    do {
+      const res = await r2.send(new ListObjectsV2Command({
+        Bucket: R2_ATT_BUCKET,
+        Prefix: prefix,
+        ContinuationToken: token,
+      }))
+      for (const obj of res.Contents ?? []) {
+        if (obj.Key && obj.Size !== undefined) {
+          sizeMap.set(obj.Key, obj.Size)
+        }
+      }
+      token = res.IsTruncated ? res.NextContinuationToken : undefined
+    } while (token)
+    console.log(`  Fetched real sizes for ${sizeMap.size} R2 attachment objects`)
+  } catch (err) {
+    console.warn('  ⚠ Could not fetch R2 attachment sizes, fileSize will be null:', (err as Error).message)
   }
+  return sizeMap
 }
 
 /** List all objects in R2 media bucket and return a map of filename → real size. */
@@ -585,6 +602,8 @@ async function main() {
   // ── 6b. Create Bible Study Attachments ─────────────────────
   console.log('Creating bible study attachments...')
   const R2_BASE = process.env.R2_ATTACHMENTS_PUBLIC_URL || process.env.R2_PUBLIC_URL || 'https://pub-59a92027daa648c8a02f226cb5873645.r2.dev'
+  // Batch-fetch all attachment file sizes upfront (3-4 ListObjects requests vs thousands of HeadObject)
+  const attSizeMap = await getR2AttachmentSizeMap()
   let attachmentCount = 0
   // Build legacyId -> study.id map for attachment lookup
   const legacyIdToStudyId = new Map<number, string>()
@@ -599,12 +618,13 @@ async function main() {
       const att = bs.attachments[i]
       // Rewrite legacy URLs to R2 storage
       const filename = att.url.split('/').pop() || att.name
-      const url = `${R2_BASE}/la-ubf/${bs.slug}/${filename}`
+      const r2Key = `la-ubf/${bs.slug}/${filename}`
+      const url = `${R2_BASE}/${r2Key}`
       // Derive attachment type from actual file extension
       const ext = filename.split('.').pop()?.toLowerCase() || ''
       const attType = ext === 'docx' ? 'DOCX' : ext === 'doc' ? 'DOC' : ext === 'rtf' ? 'RTF' : ext === 'pdf' ? 'PDF' : ext === 'ppt' || ext === 'pptx' ? 'OTHER' : 'DOC'
-      // Get real file size from R2 (falls back to null if not found)
-      const realSize = await getR2FileSize(url)
+      // Look up file size from pre-fetched map
+      const realSize = attSizeMap.get(r2Key) ?? null
       await prisma.bibleStudyAttachment.create({
         data: {
           bibleStudyId: studyId,

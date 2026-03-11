@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { getChurchId } from '@/lib/api/get-church-id'
+import { requireApiAuth } from '@/lib/api/require-auth'
 import { prisma } from '@/lib/db'
 
 // ---------------------------------------------------------------------------
@@ -12,13 +12,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json(
-        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
-        { status: 401 },
-      )
-    }
+    const authResult = await requireApiAuth('media.view')
+    if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
     const { id } = await params

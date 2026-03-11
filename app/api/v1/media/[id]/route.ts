@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { requireApiAuth } from '@/lib/api/require-auth'
 import { getMediaAsset, updateMediaAsset, deleteMediaAsset } from '@/lib/dal/media'
@@ -13,13 +12,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json(
-        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
-        { status: 401 },
-      )
-    }
+    const authResult = await requireApiAuth('media.view')
+    if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
     const { id } = await params
@@ -51,7 +45,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const authResult = await requireApiAuth('EDITOR')
+    const authResult = await requireApiAuth('media.edit_own')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
@@ -95,7 +89,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
-    const authResult = await requireApiAuth('ADMIN')
+    const authResult = await requireApiAuth('media.delete')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()

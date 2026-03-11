@@ -87,8 +87,18 @@ export interface CurrentUser {
   role: string
 }
 
+export interface RoleOption {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  priority: number
+  isSystem: boolean
+}
+
 interface ColumnOptions {
   currentUser: CurrentUser
+  roles?: RoleOption[]
   onRoleChange: (memberId: string, newRole: string) => void
   onRemove: (memberId: string) => void
   onDeactivate: (memberId: string) => void
@@ -162,6 +172,26 @@ export function createUsersColumns(options: ColumnOptions): ColumnDef<UserRow>[]
         const canModify = canModifyUser(currentUser, u)
         const disabled = isSelf || !canModify
 
+        // Use dynamic roles if provided, fall back to hardcoded list
+        const roleItems = options.roles && options.roles.length > 0
+          ? options.roles
+              .sort((a, b) => b.priority - a.priority)
+              .map((r) => ({
+                value: r.slug.toUpperCase(),
+                label: r.name,
+                description: r.description ?? "",
+                canAssign: canAssignRole(currentUser, r.slug.toUpperCase()),
+              }))
+          : (["OWNER", "ADMIN", "EDITOR", "VIEWER"] as const).map((role) => {
+              const info = ROLE_DESCRIPTIONS[role]
+              return {
+                value: role,
+                label: info.label,
+                description: info.description,
+                canAssign: canAssignRole(currentUser, role),
+              }
+            })
+
         return (
           <Select
             value={u.role}
@@ -172,23 +202,22 @@ export function createUsersColumns(options: ColumnOptions): ColumnDef<UserRow>[]
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {(["OWNER", "ADMIN", "EDITOR", "VIEWER"] as const).map((role) => {
-                const info = ROLE_DESCRIPTIONS[role]
-                return (
-                  <SelectItem
-                    key={role}
-                    value={role}
-                    disabled={!canAssignRole(currentUser, role)}
-                    textValue={info.label}
-                    className="py-1.5"
-                  >
-                    <div>
-                      <p className="font-medium">{info.label}</p>
-                      <p className="text-xs text-muted-foreground">{info.description}</p>
-                    </div>
-                  </SelectItem>
-                )
-              })}
+              {roleItems.map((item) => (
+                <SelectItem
+                  key={item.value}
+                  value={item.value}
+                  disabled={!item.canAssign}
+                  textValue={item.label}
+                  className="py-1.5"
+                >
+                  <div>
+                    <p className="font-medium">{item.label}</p>
+                    {item.description && (
+                      <p className="text-xs text-muted-foreground">{item.description}</p>
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         )

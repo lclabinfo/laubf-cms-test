@@ -31,7 +31,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
-    const authResult = await requireApiAuth('ADMIN')
+    const authResult = await requireApiAuth('website.navigation.edit')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
 export async function PUT(request: NextRequest, { params }: Params) {
   try {
-    const authResult = await requireApiAuth('ADMIN')
+    const authResult = await requireApiAuth('website.navigation.edit')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()

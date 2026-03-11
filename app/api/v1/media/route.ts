@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { requireApiAuth } from '@/lib/api/require-auth'
 import { listMedia, createMediaAsset } from '@/lib/dal/media'
@@ -11,13 +10,8 @@ import { moveObject, deleteObject, isStagingKey, keyFromMediaUrl, getMediaPublic
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json(
-        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
-        { status: 401 },
-      )
-    }
+    const authResult = await requireApiAuth('media.view')
+    if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
     const { searchParams } = new URL(request.url)
@@ -53,7 +47,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireApiAuth('EDITOR')
+    const authResult = await requireApiAuth('media.upload')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()

@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireApiAuth('EDITOR')
+    const authResult = await requireApiAuth('messages.create')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()

@@ -7,7 +7,7 @@ type Params = { params: Promise<{ id: string }> }
 
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
-    const authResult = await requireApiAuth('VIEWER')
+    const authResult = await requireApiAuth('submissions.view')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
@@ -33,7 +33,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
-    const authResult = await requireApiAuth('EDITOR')
+    const authResult = await requireApiAuth('submissions.manage')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
@@ -66,7 +66,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
-    const authResult = await requireApiAuth('ADMIN')
+    const authResult = await requireApiAuth('submissions.manage')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()

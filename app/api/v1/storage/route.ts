@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { getChurchId } from '@/lib/api/get-church-id'
+import { requireApiAuth } from '@/lib/api/require-auth'
 import {
   getChurchStorageUsage,
   getStorageBreakdown,
@@ -15,13 +15,8 @@ import {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json(
-        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
-        { status: 401 },
-      )
-    }
+    const authResult = await requireApiAuth('storage.view')
+    if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
     const detail = request.nextUrl.searchParams.get('detail') === 'true'

@@ -22,7 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toast } from "sonner"
-import { createUsersColumns, type UserRow } from "@/components/cms/users/users-columns"
+import { createUsersColumns, type UserRow, type RoleOption } from "@/components/cms/users/users-columns"
 import { InviteUserDialog } from "@/components/cms/users/invite-user-dialog"
 import { useCmsSession } from "@/components/cms/cms-shell"
 import { RoleGuard } from "@/components/cms/role-guard"
@@ -38,6 +38,7 @@ function UsersPageContent() {
   const [roleFilter, setRoleFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [roles, setRoles] = useState<RoleOption[]>([])
 
   // Hide secondary columns on narrow screens
   useEffect(() => {
@@ -68,9 +69,22 @@ function UsersPageContent() {
     }
   }, [])
 
+  const fetchRoles = useCallback(async () => {
+    try {
+      const res = await fetch("/api/v1/member-roles")
+      const data = await res.json()
+      if (data.success) {
+        setRoles(data.data)
+      }
+    } catch {
+      // Silently fail — hardcoded fallback will be used
+    }
+  }, [])
+
   useEffect(() => {
     fetchUsers()
-  }, [fetchUsers])
+    fetchRoles()
+  }, [fetchUsers, fetchRoles])
 
   const handleRoleChange = useCallback(
     async (memberId: string, newRole: string) => {
@@ -205,6 +219,7 @@ function UsersPageContent() {
     () =>
       createUsersColumns({
         currentUser,
+        roles,
         onRoleChange: handleRoleChange,
         onRemove: handleRemove,
         onDeactivate: handleDeactivate,
@@ -212,7 +227,7 @@ function UsersPageContent() {
         onLinkPerson: handleLinkPerson,
         onUnlinkPerson: handleUnlinkPerson,
       }),
-    [currentUser, handleRoleChange, handleRemove, handleDeactivate, handleReactivate, handleLinkPerson, handleUnlinkPerson],
+    [currentUser, roles, handleRoleChange, handleRemove, handleDeactivate, handleReactivate, handleLinkPerson, handleUnlinkPerson],
   )
 
   const filteredUsers = useMemo(() => {
@@ -278,10 +293,19 @@ function UsersPageContent() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Roles</SelectItem>
-            <SelectItem value="OWNER">Owner</SelectItem>
-            <SelectItem value="ADMIN">Admin</SelectItem>
-            <SelectItem value="EDITOR">Editor</SelectItem>
-            <SelectItem value="VIEWER">Viewer</SelectItem>
+            {roles.length > 0
+              ? roles
+                  .sort((a, b) => b.priority - a.priority)
+                  .map((r) => (
+                    <SelectItem key={r.id} value={r.slug.toUpperCase()}>
+                      {r.name}
+                    </SelectItem>
+                  ))
+              : ["OWNER", "ADMIN", "EDITOR", "VIEWER"].map((r) => (
+                  <SelectItem key={r} value={r}>
+                    {r.charAt(0) + r.slice(1).toLowerCase()}
+                  </SelectItem>
+                ))}
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -316,7 +340,7 @@ function UsersPageContent() {
 
 export default function UsersPage() {
   return (
-    <RoleGuard minRole="ADMIN">
+    <RoleGuard requiredPermission="users.view">
       <div className="pt-5">
         <Suspense>
           <UsersPageContent />

@@ -5,7 +5,7 @@ import { requireApiAuth } from '@/lib/api/require-auth'
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireApiAuth('EDITOR')
+    const authResult = await requireApiAuth('messages.edit_own')
     if (!authResult.authorized) return authResult.response
 
     if (!isAzureConfigured()) {

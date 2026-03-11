@@ -13,6 +13,8 @@ export interface ChurchUser {
   lastName: string
   avatarUrl: string | null
   role: MemberRole
+  roleId: string | null
+  roleName: string | null
   status: string
   emailVerified: boolean
   joinedAt: Date
@@ -36,6 +38,9 @@ export async function listChurchUsers(churchId: string): Promise<ChurchUser[]> {
           emailVerified: true,
           updatedAt: true,
         },
+      },
+      customRole: {
+        select: { id: true, name: true },
       },
     },
     orderBy: { joinedAt: 'asc' },
@@ -63,6 +68,8 @@ export async function listChurchUsers(churchId: string): Promise<ChurchUser[]> {
       lastName: m.user.lastName,
       avatarUrl: m.user.avatarUrl,
       role: m.role,
+      roleId: m.customRole?.id ?? null,
+      roleName: m.customRole?.name ?? null,
       status: m.status,
       emailVerified: m.user.emailVerified,
       joinedAt: m.joinedAt,
@@ -115,10 +122,18 @@ export async function getChurchOwnerCount(churchId: string): Promise<number> {
   })
 }
 
+/** Map Role slugs to legacy MemberRole enum values */
+const SLUG_TO_LEGACY_ROLE: Record<string, MemberRole> = {
+  owner: 'OWNER',
+  admin: 'ADMIN',
+  editor: 'EDITOR',
+}
+
 export async function inviteUser(
   churchId: string,
   email: string,
   role: MemberRole,
+  roleId?: string,
 ): Promise<{ user: { id: string; email: string; firstName: string; lastName: string }; isNewUser: boolean; membershipId: string }> {
   const trimmedEmail = email.trim().toLowerCase()
 
@@ -131,6 +146,19 @@ export async function inviteUser(
   })
   if (existingMember) {
     throw new Error('User is already a member of this church.')
+  }
+
+  // If roleId is provided, look up the Role to determine legacy role equivalent
+  let legacyRole = role
+  const resolvedRoleId = roleId
+  if (roleId) {
+    const customRole = await prisma.role.findFirst({
+      where: { id: roleId, churchId },
+      select: { slug: true },
+    })
+    if (customRole) {
+      legacyRole = SLUG_TO_LEGACY_ROLE[customRole.slug] ?? 'VIEWER'
+    }
   }
 
   // Check if user exists
@@ -159,7 +187,8 @@ export async function inviteUser(
     data: {
       churchId,
       userId: user.id,
-      role,
+      role: legacyRole,
+      roleId: resolvedRoleId,
       status: 'PENDING',
       invitedAt: new Date(),
     },

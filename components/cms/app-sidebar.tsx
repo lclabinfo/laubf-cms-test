@@ -62,21 +62,22 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { signOut } from "next-auth/react"
 import type { CmsSessionData } from "@/components/cms/cms-shell"
+import type { Permission } from "@/lib/permissions"
 
 type NavItem = {
   title: string
   href: string
   icon: LucideIcon
   items?: { title: string; href: string }[]
-  /** Minimum role required to see this item. Defaults to VIEWER (visible to all). */
-  minRole?: "VIEWER" | "EDITOR" | "ADMIN" | "OWNER"
+  /** Permission required to see this item. If omitted, visible to all authenticated users. */
+  requiredPermission?: Permission
 }
 
 type NavGroup = {
   label: string
   items: NavItem[]
-  /** Minimum role required to see this entire group. Defaults to VIEWER (visible to all). */
-  minRole?: "VIEWER" | "EDITOR" | "ADMIN" | "OWNER"
+  /** Permission required to see this entire group. If omitted, visible to all authenticated users. */
+  requiredPermission?: Permission
 }
 
 // Items that are stubs / not yet implemented get reduced opacity
@@ -156,7 +157,7 @@ const navGroups: NavGroup[] = [
         title: "Builder",
         href: "/cms/website/builder",
         icon: PenToolIcon,
-        minRole: "ADMIN",
+        requiredPermission: "website.pages.edit",
       },
       {
         title: "Pages",
@@ -177,46 +178,39 @@ const navGroups: NavGroup[] = [
         title: "Domains",
         href: "/cms/website/domains",
         icon: GlobeIcon,
-        minRole: "OWNER",
+        requiredPermission: "website.domains.manage",
       },
       {
         title: "Settings",
         href: "/cms/website/settings",
         icon: SettingsIcon,
-        minRole: "ADMIN",
+        requiredPermission: "website.settings.edit",
       },
     ],
   },
   {
     label: "Admin",
-    minRole: "ADMIN",
+    requiredPermission: "users.view",
     items: [
       {
         title: "Users",
         href: "/cms/people/users",
         icon: KeyRoundIcon,
-        minRole: "ADMIN",
+        requiredPermission: "users.view",
       },
       {
         title: "Roles",
         href: "/cms/admin/roles",
         icon: ShieldIcon,
-        minRole: "ADMIN",
+        requiredPermission: "roles.view",
       },
     ],
   },
 ]
 
-const ROLE_LEVEL: Record<string, number> = {
-  VIEWER: 0,
-  EDITOR: 1,
-  ADMIN: 2,
-  OWNER: 3,
-}
-
 export function AppSidebar({ session, ...props }: { session: CmsSessionData } & React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
-  const userLevel = ROLE_LEVEL[session.role] ?? 0
+  const userPerms = React.useMemo(() => new Set(session.permissions ?? []), [session.permissions])
   const [unreadSubmissions, setUnreadSubmissions] = React.useState(0)
 
   React.useEffect(() => {
@@ -291,9 +285,9 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
         </SidebarGroup>
 
         {navGroups.map((group) => {
-          if (group.minRole && userLevel < (ROLE_LEVEL[group.minRole] ?? 0)) return null
+          if (group.requiredPermission && !userPerms.has(group.requiredPermission)) return null
           const visibleItems = group.items.filter(
-            (item) => !item.minRole || userLevel >= (ROLE_LEVEL[item.minRole] ?? 0),
+            (item) => !item.requiredPermission || userPerms.has(item.requiredPermission),
           )
           if (visibleItems.length === 0) return null
           const isGroupActive = activeGroup?.label === group.label

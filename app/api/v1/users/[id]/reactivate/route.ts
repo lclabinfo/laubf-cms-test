@@ -14,7 +14,7 @@ export async function POST(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const authResult = await requireApiAuth('ADMIN')
+  const authResult = await requireApiAuth('users.deactivate')
   if (!authResult.authorized) return authResult.response
   const { id: memberId } = await params
 

@@ -2,11 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { updateMenuItem, deleteMenuItem } from '@/lib/dal/menus'
+import { requireApiAuth } from '@/lib/api/require-auth'
 
 type Params = { params: Promise<{ id: string; itemId: string }> }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
+    const authResult = await requireApiAuth('website.navigation.edit')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const { itemId } = await params
     const body = await request.json()
@@ -28,6 +32,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
+    const authResult = await requireApiAuth('website.navigation.edit')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const { itemId } = await params
 

@@ -9,7 +9,7 @@ import { bulkSoftDelete } from '@/lib/dal/media'
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireApiAuth('ADMIN')
+    const authResult = await requireApiAuth('media.delete')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()

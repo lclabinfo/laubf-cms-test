@@ -158,6 +158,15 @@ export const authConfig: NextAuthConfig = {
                 name: true,
               },
             },
+            customRole: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                priority: true,
+                permissions: true,
+              },
+            },
           },
           orderBy: { joinedAt: 'asc' },
         })
@@ -167,6 +176,13 @@ export const authConfig: NextAuthConfig = {
           token.churchSlug = membership.church.slug
           token.churchName = membership.church.name
           token.role = membership.role
+
+          if (membership.customRole) {
+            token.roleId = membership.customRole.id
+            token.roleName = membership.customRole.name
+            token.rolePriority = membership.customRole.priority
+            token.permissions = membership.customRole.permissions
+          }
         }
       }
 
@@ -179,6 +195,10 @@ export const authConfig: NextAuthConfig = {
         churchSlug: string
         churchName: string
         role: MemberRole
+        roleId: string
+        roleName: string
+        rolePriority: number
+        permissions: string[]
       }
 
       if (token.userId && extSession.user) {
@@ -196,6 +216,11 @@ export const authConfig: NextAuthConfig = {
       if (token.role) {
         extSession.role = token.role as MemberRole
       }
+
+      extSession.roleId = (token.roleId as string) ?? ''
+      extSession.roleName = (token.roleName as string) ?? ''
+      extSession.rolePriority = (token.rolePriority as number) ?? 0
+      extSession.permissions = (token.permissions as string[]) ?? []
 
       return extSession
     },

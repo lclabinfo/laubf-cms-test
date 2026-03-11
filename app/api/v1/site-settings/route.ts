@@ -21,7 +21,7 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const authResult = await requireApiAuth('ADMIN')
+    const authResult = await requireApiAuth('website.settings.edit')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
