@@ -65,10 +65,18 @@ function formatDateFull(dateStr: string) {
 }
 
 function formatTime(time: string) {
-  const [h, m] = time.split(":").map(Number)
+  if (!time) return ""
+  // Already in 12hr format (e.g. "6:00 AM")
+  if (/[ap]m/i.test(time)) return time.trim()
+  // 24hr format (e.g. "18:00")
+  const match = time.match(/^(\d{1,2}):(\d{2})/)
+  if (!match) return time
+  let h = parseInt(match[1], 10)
+  const m = match[2]
   const suffix = h >= 12 ? "PM" : "AM"
-  const hour = h % 12 || 12
-  return `${hour}:${m.toString().padStart(2, "0")} ${suffix}`
+  if (h === 0) h = 12
+  else if (h > 12) h -= 12
+  return `${h}:${m} ${suffix}`
 }
 
 function getEventDateLabel(event: ChurchEvent): string {
@@ -278,12 +286,21 @@ export default function EventsPage() {
     return map
   }, [events, calendarMonth])
 
-  // Dates that have events (for calendar modifiers)
-  const eventDates = useMemo(() => {
-    return Array.from(eventDateMap.keys()).map((key) => {
+  // Split dates into two sets: dates with one-off events (prominent) vs only recurring (faded)
+  const { eventDatesOneOff, eventDatesRecurringOnly } = useMemo(() => {
+    const oneOff: Date[] = []
+    const recurringOnly: Date[] = []
+    for (const [key, evts] of eventDateMap) {
       const [y, m, d] = key.split("-").map(Number)
-      return new Date(y, m - 1, d)
-    })
+      const date = new Date(y, m - 1, d)
+      const hasOneOff = evts.some((e) => e.recurrence === "none")
+      if (hasOneOff) {
+        oneOff.push(date)
+      } else {
+        recurringOnly.push(date)
+      }
+    }
+    return { eventDatesOneOff: oneOff, eventDatesRecurringOnly: recurringOnly }
   }, [eventDateMap])
 
   // Events for the selected date
@@ -354,9 +371,13 @@ export default function EventsPage() {
                     onSelect={setSelectedDate}
                     month={calendarMonth}
                     onMonthChange={setCalendarMonth}
-                    modifiers={{ hasEvent: eventDates }}
+                    modifiers={{
+                      hasEvent: eventDatesOneOff,
+                      hasRecurring: eventDatesRecurringOnly,
+                    }}
                     modifiersClassNames={{
                       hasEvent: "relative after:absolute after:bottom-0.5 after:left-1/2 after:-translate-x-1/2 after:size-1 after:rounded-full after:bg-primary",
+                      hasRecurring: "relative after:absolute after:bottom-0.5 after:left-1/2 after:-translate-x-1/2 after:size-1 after:rounded-full after:bg-muted-foreground/30",
                     }}
                     className="[--cell-size:--spacing(10)]"
                   />

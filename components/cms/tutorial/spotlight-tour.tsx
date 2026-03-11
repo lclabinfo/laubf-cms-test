@@ -144,6 +144,19 @@ function clampY(t: number, vh: number, popH: number) {
 // ---------------------------------------------------------------------------
 
 const TRANSITION_MS = 350 // spotlight CSS transition duration
+const SCROLL_SETTLE_MS = 400 // wait for smooth scroll to finish before measuring
+
+/** Scroll element into view, temporarily lifting the body scroll lock if needed. */
+function scrollToTarget(el: Element) {
+  // Temporarily allow body scroll so scrollIntoView works on all containers
+  const prev = document.body.style.overflow
+  document.body.style.overflow = ""
+  el.scrollIntoView({ behavior: "smooth", block: "center" })
+  // Re-lock after the browser has queued the scroll
+  requestAnimationFrame(() => {
+    document.body.style.overflow = prev
+  })
+}
 
 export function SpotlightTour({ tour, userId, active, onEnd, onBeforeStep }: SpotlightTourProps) {
   const [step, setStep] = useState(0)
@@ -195,7 +208,7 @@ export function SpotlightTour({ tour, userId, active, onEnd, onBeforeStep }: Spo
     if (!isNewStep) {
       // Initial mount or same step — just measure and show
       const el = document.querySelector(current.target)
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" })
+      if (el) scrollToTarget(el)
       const t = setTimeout(() => {
         measure()
         setDisplayStep(step)
@@ -214,9 +227,9 @@ export function SpotlightTour({ tour, userId, active, onEnd, onBeforeStep }: Spo
     // 3. After DOM settles, scroll into view and move spotlight
     const domTimer = setTimeout(() => {
       const el = document.querySelector(current.target)
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "nearest" })
+      if (el) scrollToTarget(el)
 
-      // 4. After scroll, measure new position (spotlight starts animating via CSS)
+      // 4. After scroll settles, measure new position (spotlight starts animating via CSS)
       const scrollTimer = setTimeout(() => {
         measure()
 
@@ -227,7 +240,7 @@ export function SpotlightTour({ tour, userId, active, onEnd, onBeforeStep }: Spo
         }, TRANSITION_MS)
 
         return () => clearTimeout(transTimer)
-      }, 120)
+      }, SCROLL_SETTLE_MS)
 
       return () => clearTimeout(scrollTimer)
     }, 200)

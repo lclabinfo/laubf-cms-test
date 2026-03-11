@@ -64,6 +64,21 @@ function sameYear(a: string, b: string) {
   return new Date(a + "T00:00:00").getFullYear() === new Date(b + "T00:00:00").getFullYear()
 }
 
+/**
+ * Returns an effective sort date string for an event.
+ * - Recurring events get today's date so they sort among upcoming events.
+ * - One-off events use their actual date (or endDate for multi-day events still in progress).
+ */
+function getEffectiveSortDate(event: ChurchEvent): string {
+  const isRecurring = event.recurrence !== "none"
+  if (isRecurring) {
+    // Use today's date so recurring events sort as "upcoming"
+    const today = new Date()
+    return today.toISOString().split("T")[0]
+  }
+  return event.date
+}
+
 function EventActionsCell({ row, onDelete }: { row: { original: ChurchEvent }; onDelete?: (id: string) => void }) {
   const [deleteOpen, setDeleteOpen] = useState(false)
 
@@ -209,6 +224,13 @@ export function createColumns(options?: { onDelete?: (id: string) => void }): Co
     header: ({ column }) => (
       <SortableHeader column={column}>Date &amp; Time</SortableHeader>
     ),
+    sortingFn: (rowA, rowB, columnId) => {
+      const a = rowA.original as ChurchEvent
+      const b = rowB.original as ChurchEvent
+      const dateA = getEffectiveSortDate(a)
+      const dateB = getEffectiveSortDate(b)
+      return dateA.localeCompare(dateB)
+    },
     cell: ({ row }) => {
       const event = row.original
       const past = isPast(event.date, event.recurrence !== "none")
