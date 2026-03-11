@@ -61,7 +61,7 @@ export async function updateChurch(
     const existingSettings = (existing?.settings && typeof existing.settings === 'object' && !Array.isArray(existing.settings))
       ? existing.settings as Record<string, unknown>
       : {}
-    prismaData.settings = { ...existingSettings, ...(prismaData.settings as Record<string, unknown>) }
+    prismaData.settings = { ...existingSettings, ...(prismaData.settings as Record<string, unknown>) } as Prisma.InputJsonValue
   }
 
   return prisma.church.update({

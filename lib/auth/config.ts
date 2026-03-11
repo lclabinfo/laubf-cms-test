@@ -217,6 +217,19 @@ export const authConfig: NextAuthConfig = {
 
       if (token.userId && extSession.user) {
         extSession.user.id = token.userId
+        // Refresh name/avatar from DB so profile edits take effect without re-login
+        try {
+          const freshUser = await prisma.user.findUnique({
+            where: { id: token.userId },
+            select: { firstName: true, lastName: true, avatarUrl: true },
+          })
+          if (freshUser) {
+            extSession.user.name = [freshUser.firstName, freshUser.lastName].filter(Boolean).join(' ') || null
+            extSession.user.image = freshUser.avatarUrl
+          }
+        } catch {
+          // Best-effort — fall through to cached token values
+        }
       }
       if (token.churchId) {
         extSession.churchId = token.churchId

@@ -519,8 +519,8 @@ export function EventForm({ mode, event }: EventFormProps) {
           </div>
 
           {/* 2. Schedule card */}
-          <section data-tutorial="evt-section-schedule" className="rounded-xl border bg-card">
-            <div className="px-5 py-3 border-b flex items-center gap-2">
+          <section className="rounded-xl border bg-card">
+            <div data-tutorial="evt-section-schedule" className="px-5 py-3 border-b flex items-center gap-2">
               <CalendarIcon className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">Schedule</h2>
             </div>
@@ -674,8 +674,8 @@ export function EventForm({ mode, event }: EventFormProps) {
           </section>
 
           {/* 3. Location card */}
-          <section data-tutorial="evt-section-location" className="rounded-xl border bg-card">
-            <div className="px-5 py-3 border-b flex items-center gap-2">
+          <section className="rounded-xl border bg-card">
+            <div data-tutorial="evt-section-location" className="px-5 py-3 border-b flex items-center gap-2">
               <MapPin className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">Location</h2>
             </div>
@@ -793,8 +793,8 @@ export function EventForm({ mode, event }: EventFormProps) {
           </section>
 
           {/* 4. Details card */}
-          <section data-tutorial="evt-section-details" className="rounded-xl border bg-card">
-            <div className="px-5 py-3 border-b flex items-center gap-2">
+          <section className="rounded-xl border bg-card">
+            <div data-tutorial="evt-section-details" className="px-5 py-3 border-b flex items-center gap-2">
               <FileText className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">Details</h2>
             </div>
@@ -935,8 +935,8 @@ export function EventForm({ mode, event }: EventFormProps) {
           </section>
 
           {/* 6. Settings card */}
-          <section data-tutorial="evt-section-settings" className="rounded-xl border bg-card">
-            <div className="px-5 py-3 border-b flex items-center gap-2">
+          <section className="rounded-xl border bg-card">
+            <div data-tutorial="evt-section-settings" className="px-5 py-3 border-b flex items-center gap-2">
               <Settings className="size-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold">Settings</h2>
             </div>
