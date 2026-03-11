@@ -51,9 +51,10 @@ export const edgeAuthConfig: NextAuthConfig = {
 
       // API v1 routes require authentication (except public endpoints)
       if (pathname.startsWith('/api/v1')) {
-        // Public endpoints: bible text, auth flows, form submissions
+        // Public endpoints: bible text, auth flows, form submissions (POST only)
         if (pathname.startsWith('/api/v1/bible')) return true
         if (pathname.startsWith('/api/v1/auth/')) return true
+        if (pathname.startsWith('/api/v1/form-submissions') && request.method === 'POST') return true
         return isAuthenticated
       }
 

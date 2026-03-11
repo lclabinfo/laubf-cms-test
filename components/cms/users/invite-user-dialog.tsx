@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Loader2Icon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -31,6 +31,13 @@ interface RoleOption {
   isSystem: boolean
 }
 
+interface PersonSuggestion {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+}
+
 interface InviteUserDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -42,6 +49,11 @@ export function InviteUserDialog({ open, onOpenChange, onSuccess }: InviteUserDi
   const [role, setRole] = useState("EDITOR")
   const [isLoading, setIsLoading] = useState(false)
   const [roles, setRoles] = useState<RoleOption[]>([])
+
+  // People search state
+  const [suggestions, setSuggestions] = useState<PersonSuggestion[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const suggestionsRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (open && roles.length === 0) {
@@ -58,10 +70,60 @@ export function InviteUserDialog({ open, onOpenChange, onSuccess }: InviteUserDi
     }
   }, [open, roles.length])
 
+  // Debounced search for people as user types in the email field
+  useEffect(() => {
+    if (email.length < 2) {
+      setSuggestions([])
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/v1/people/search?q=${encodeURIComponent(email)}`)
+        const data = await res.json()
+        if (data.success && data.data.length > 0) {
+          setSuggestions(data.data)
+          setShowSuggestions(true)
+        } else {
+          setSuggestions([])
+          setShowSuggestions(false)
+        }
+      } catch {
+        setSuggestions([])
+      }
+    }, 300)
+
+    return () => clearTimeout(timer)
+  }, [email])
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
   // Filter to roles assignable for invite (exclude Owner — typically can't invite as Owner)
   const assignableRoles = roles
     .filter((r) => r.slug !== "owner")
     .sort((a, b) => a.priority - b.priority)
+
+  // Derive the selected role object for display in the trigger
+  const selectedRole = useMemo(() => {
+    const fromRoles = assignableRoles.find((r) => r.slug.toUpperCase() === role)
+    if (fromRoles) return { name: fromRoles.name, description: fromRoles.description }
+    // Fallback labels
+    const fallbacks: Record<string, { name: string; description: string }> = {
+      VIEWER: { name: "Viewer", description: "Read-only access" },
+      EDITOR: { name: "Editor", description: "Create and edit content" },
+      ADMIN: { name: "Admin", description: "Full content + site management" },
+    }
+    return fallbacks[role] || null
+  }, [role, assignableRoles])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -98,7 +160,7 @@ export function InviteUserDialog({ open, onOpenChange, onSuccess }: InviteUserDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[400px]">
+      <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
           <DialogTitle>Invite User</DialogTitle>
           <DialogDescription>
@@ -110,22 +172,57 @@ export function InviteUserDialog({ open, onOpenChange, onSuccess }: InviteUserDi
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="invite-email">Email</Label>
-            <Input
-              id="invite-email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="user@example.com"
-              autoComplete="email"
-            />
+            <div className="relative" ref={suggestionsRef}>
+              <Input
+                id="invite-email"
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value)
+                  setShowSuggestions(true)
+                }}
+                onFocus={() => {
+                  if (suggestions.length > 0) setShowSuggestions(true)
+                }}
+                required
+                placeholder="Search members or type an email"
+                autoComplete="off"
+              />
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute z-10 mt-1 w-full rounded-md border bg-popover shadow-md max-h-[160px] overflow-y-auto">
+                  {suggestions.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      className="w-full text-left px-3 py-2 hover:bg-muted text-sm flex justify-between items-center"
+                      onClick={() => {
+                        setEmail(p.email)
+                        setShowSuggestions(false)
+                      }}
+                    >
+                      <div>
+                        <p className="font-medium">{p.firstName} {p.lastName}</p>
+                        <p className="text-xs text-muted-foreground">{p.email}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="invite-role">Role</Label>
             <Select value={role} onValueChange={setRole}>
-              <SelectTrigger id="invite-role">
-                <SelectValue />
+              <SelectTrigger id="invite-role" className="w-full text-left h-auto py-2.5">
+                <SelectValue placeholder="Select a role">
+                  {selectedRole && (
+                    <div>
+                      <p className="font-medium">{selectedRole.name}</p>
+                      <p className="text-xs text-muted-foreground">{selectedRole.description}</p>
+                    </div>
+                  )}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {assignableRoles.length > 0
@@ -134,7 +231,7 @@ export function InviteUserDialog({ open, onOpenChange, onSuccess }: InviteUserDi
                         key={r.id}
                         value={r.slug.toUpperCase()}
                         textValue={r.name}
-                        className="py-1.5"
+                        className="py-2.5"
                       >
                         <div>
                           <p className="font-medium">{r.name}</p>
@@ -152,7 +249,7 @@ export function InviteUserDialog({ open, onOpenChange, onSuccess }: InviteUserDi
                       { value: "EDITOR", label: "Editor", desc: "Create and edit content" },
                       { value: "ADMIN", label: "Admin", desc: "Full content + site management" },
                     ].map((r) => (
-                      <SelectItem key={r.value} value={r.value} textValue={r.label} className="py-1.5">
+                      <SelectItem key={r.value} value={r.value} textValue={r.label} className="py-2.5">
                         <div>
                           <p className="font-medium">{r.label}</p>
                           <p className="text-xs text-muted-foreground">{r.desc}</p>

@@ -15,7 +15,6 @@ import {
   Globe,
   AlertCircle,
   ArrowRight,
-  ImageIcon,
   Activity,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardAction } from "@/components/ui/card"
@@ -302,30 +301,10 @@ function StatsOverview({
       href: "/cms/events",
       accent: "text-emerald-500",
     },
-    {
-      label: "Pages",
-      icon: FileText,
-      value: counts.pages.published,
-      subValue: `${counts.pages.draft} drafts`,
-      healthStatus: health.pages,
-      healthText: healthDetail.pages,
-      href: "/cms/website/pages",
-      accent: "text-purple-500",
-    },
-    {
-      label: "Media",
-      icon: ImageIcon,
-      value: healthCounts.media,
-      subValue: `${healthCounts.media} total`,
-      healthStatus: health.media,
-      healthText: healthDetail.media,
-      href: "/cms/media",
-      accent: "text-amber-500",
-    },
   ]
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
       {statCards.map((stat) => {
         const hc = healthConfig[stat.healthStatus]
         return (
