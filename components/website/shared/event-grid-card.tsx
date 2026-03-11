@@ -4,6 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { resolveHref } from "@/lib/website/resolve-href"
 import { IconClock, IconMapPin } from "@/components/website/shared/icons"
+import { formatTime } from "@/lib/website/format-time"
 
 interface EventGridCardEvent {
   slug: string
@@ -83,7 +84,7 @@ export default function EventGridCard({ event }: { event: EventGridCardEvent }) 
                 "en-US",
                 { weekday: "short", month: "short", day: "numeric" },
               )}{" "}
-              @ {event.timeStart.split(" - ")[0]}
+              @ {formatTime(event.timeStart)}
             </span>
           </div>
           <div className="flex items-center gap-2">

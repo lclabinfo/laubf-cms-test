@@ -16,6 +16,7 @@ import {
 import { cn } from "@/lib/utils"
 import { resolveHref } from "@/lib/website/resolve-href"
 import type { SectionTheme } from "@/components/website/shared/theme-tokens"
+import { formatTime } from "@/lib/website/format-time"
 
 interface Event {
   slug: string
@@ -118,7 +119,7 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
   }
 
   return (
-    <SectionContainer colorScheme={colorScheme} paddingY="none" containerWidth={containerWidth} className="pb-24 lg:pb-30">
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       <div className="flex flex-col gap-10">
         {/* Schedule heading */}
         <AnimateOnScroll animation="fade-up" enabled={animate}>
@@ -306,7 +307,7 @@ function EventListView({
                     title: event.title,
                     dateStart: new Date(event.dateStart + "T00:00:00"),
                     dateEnd: event.dateEnd ? new Date(event.dateEnd + "T00:00:00") : undefined,
-                    time: event.time,
+                    time: formatTime(event.time),
                     type: event.type,
                     href: resolveHref(`/events/${event.slug}`),
                     recurrenceSchedule: event.recurrenceSchedule,
@@ -354,7 +355,7 @@ function EventListView({
                     title: event.title,
                     dateStart: new Date(event.dateStart + "T00:00:00"),
                     dateEnd: event.dateEnd ? new Date(event.dateEnd + "T00:00:00") : undefined,
-                    time: event.time,
+                    time: formatTime(event.time),
                     type: event.type,
                     href: resolveHref(`/events/${event.slug}`),
                     recurrenceSchedule: event.recurrenceSchedule,

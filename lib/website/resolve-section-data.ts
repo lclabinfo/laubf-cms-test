@@ -5,6 +5,7 @@ import { getBibleStudies } from '@/lib/dal/bible-studies'
 import { getTodaysDailyBread } from '@/lib/dal/daily-bread'
 import { getCampuses } from '@/lib/dal/campuses'
 import { bibleBookLabel } from '@/lib/website/bible-book-labels'
+import { formatTime } from '@/lib/website/format-time'
 import type { SectionType } from '@/lib/db/types'
 
 type Content = Record<string, unknown>
@@ -110,13 +111,14 @@ export async function resolveSectionData(
               title: e.title,
               dateStart: toDateString(e.dateStart),
               dateEnd: e.dateEnd ? toDateString(e.dateEnd) : undefined,
-              timeStart: e.startTime || '',
+              time: formatTime(e.startTime),
               type: e.type.toLowerCase(),
               location: e.location || '',
               thumbnailUrl: e.coverImage || undefined,
               isFeatured: e.isFeatured,
               isRecurring: e.isRecurring,
               recurrenceSchedule: e.recurrenceSchedule || undefined,
+              meetingUrl: e.meetingUrl || undefined,
             })),
           },
         }

@@ -9,6 +9,7 @@ import EventCalendarGrid from "@/components/website/shared/event-calendar-grid"
 import FilterToolbar from "@/components/website/shared/filter-toolbar"
 import { IconGrid, IconListView, IconCalendar } from "@/components/website/shared/icons"
 import { resolveHref } from "@/lib/website/resolve-href"
+import { formatTimeRange } from "@/lib/website/format-time"
 
 interface SimpleEvent {
   id: string
@@ -391,9 +392,3 @@ function toDateKey(dateStr: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
 
-/** Format time range from start/end times */
-function formatTimeRange(start: string, end: string): string {
-  if (!start) return ""
-  if (!end) return start
-  return `${start} - ${end}`
-}

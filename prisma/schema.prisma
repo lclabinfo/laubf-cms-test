@@ -544,9 +544,6 @@ model Event {
   maxParticipants      Int?
   registrationDeadline DateTime?
 
-  // Links
-  links              Json?         @db.JsonB
-
   // Flags
   isFeatured         Boolean       @default(false)
   isPinned           Boolean       @default(false)
