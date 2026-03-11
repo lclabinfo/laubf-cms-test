@@ -73,6 +73,8 @@ interface FeaturedCard {
 interface DropdownMenuProps {
   item: MenuItemData
   onClose: () => void
+  /** When true, renders content only without outer container styling (used inside SharedDropdownPanel). */
+  bare?: boolean
 }
 
 /**
@@ -184,10 +186,10 @@ function SectionColumn({
                   strokeWidth={1.5}
                 />
               )}
-              <div className="flex flex-col gap-1 min-w-0 flex-1">
+              <div className="flex flex-col min-w-0 flex-1">
                 <span
                   className={cn(
-                    "font-medium leading-tight text-black-1 tracking-[-0.03em]",
+                    "font-medium leading-none text-black-1 tracking-[-0.03em]",
                     section.compact ? "text-[14px]" : "text-base",
                   )}
                 >
@@ -240,7 +242,7 @@ function SectionColumn({
 
 /* ── Dropdown menu ── */
 
-export default function DropdownMenu({ item, onClose }: DropdownMenuProps) {
+export default function DropdownMenu({ item, onClose, bare }: DropdownMenuProps) {
   const { sections, overviewLink, featuredCard } = buildDropdownData(item)
 
   if (sections.length === 0 && !overviewLink && !featuredCard) {
@@ -248,7 +250,10 @@ export default function DropdownMenu({ item, onClose }: DropdownMenuProps) {
   }
 
   return (
-    <div className="bg-white-1 border border-white-2 rounded-xl shadow-[0px_12px_20px_0px_rgba(0,0,0,0.03)] py-6 px-5 w-max animate-dropdown-in flex flex-col gap-5">
+    <div className={cn(
+      "py-6 px-5 w-max flex flex-col gap-5",
+      !bare && "bg-white-1 border border-white-2 rounded-xl shadow-[0px_12px_20px_0px_rgba(0,0,0,0.03)] animate-dropdown-in",
+    )}>
       <div className="flex gap-5 items-stretch">
         {sections.map((section, i) => (
           <Fragment key={section.title || i}>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useRef, useEffect, type RefObject } from "react"
+import { useState, useCallback, useRef, useEffect, useLayoutEffect, type RefObject } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
@@ -67,130 +67,191 @@ function useNavbarScroll() {
   return isScrolled
 }
 
-/* ── Dropdown trigger with auto-clamped positioning ── */
+/* ── Shared dropdown panel ── */
 
-function NavDropdownTrigger({
-  item,
-  isScrolled,
-  isActive,
-  onOpen,
-  onToggle,
-  onMouseLeave,
+/**
+ * Single persistent dropdown container that morphs between nav items.
+ * Instead of mounting/unmounting separate dropdowns, this keeps one container
+ * alive and transitions its position, size, and content.
+ */
+function SharedDropdownPanel({
+  items,
+  activeId,
+  triggerRefs,
+  navRef,
   onClose,
+  onHoverIn,
+  onHoverOut,
 }: {
-  item: MenuItemData
-  isScrolled: boolean
-  isActive: boolean
-  onOpen: () => void
-  onToggle: () => void
-  onMouseLeave: () => void
+  items: MenuItemData[]
+  activeId: string | null
+  triggerRefs: RefObject<Map<string, HTMLDivElement>>
+  navRef: RefObject<HTMLElement | null>
   onClose: () => void
+  onHoverIn: () => void
+  onHoverOut: () => void
 }) {
-  const triggerRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [leftPos, setLeftPos] = useState(0)
+  const [size, setSize] = useState({ width: 0, height: 0 })
+  const [isOpen, setIsOpen] = useState(false)
+  const [hasEverOpened, setHasEverOpened] = useState(false)
+  const [displayedId, setDisplayedId] = useState<string | null>(null)
+  const prevActiveId = useRef<string | null>(null)
+  const itemOrder = useRef<string[]>([])
+  // Skip position/size transition on very first open
+  const isFirstOpen = useRef(true)
 
-  const triggerClasses = cn(
-    "flex items-center gap-1.5 pl-3 pr-2 py-3 rounded-xl text-nav transition-colors duration-150",
-    isScrolled
-      ? cn(
-          "text-black-1",
-          isActive ? "bg-white-1-5" : "hover:bg-white-1-5",
-        )
-      : cn(
-          "text-white-1",
-          isActive ? "bg-white-0/10" : "hover:bg-white-0/10",
-        ),
+  useEffect(() => {
+    itemOrder.current = items.map((i) => i.id)
+  }, [items])
+
+  const getDirection = useCallback(
+    (from: string | null, to: string | null): "left" | "right" | "none" => {
+      if (!from || !to) return "none"
+      const order = itemOrder.current
+      const fromIdx = order.indexOf(from)
+      const toIdx = order.indexOf(to)
+      if (fromIdx === -1 || toIdx === -1) return "none"
+      return toIdx > fromIdx ? "right" : "left"
+    },
+    [],
   )
+
+  const [slideDir, setSlideDir] = useState<"left" | "right" | "none">("none")
+
+  useEffect(() => {
+    if (activeId) {
+      setIsOpen(true)
+      setHasEverOpened(true)
+      setSlideDir(getDirection(prevActiveId.current, activeId))
+      setDisplayedId(activeId)
+    } else {
+      setIsOpen(false)
+    }
+    prevActiveId.current = activeId
+  }, [activeId, getDirection])
+
+  useEffect(() => {
+    if (!isOpen) {
+      const timer = setTimeout(() => {
+        setDisplayedId(null)
+        setHasEverOpened(false)
+        isFirstOpen.current = true
+      }, 250)
+      return () => clearTimeout(timer)
+    }
+  }, [isOpen])
+
+  // Measure content and calculate position after each content swap
+  useLayoutEffect(() => {
+    if (!displayedId) return
+
+    const trigger = triggerRefs.current.get(displayedId)
+    const nav = navRef.current
+    const content = contentRef.current
+    if (!trigger || !nav || !content) return
+
+    // Measure content at its natural size (w-max makes it unconstrained)
+    const contentWidth = content.offsetWidth
+    const contentHeight = content.offsetHeight
+
+    const triggerRect = trigger.getBoundingClientRect()
+    const navRect = nav.getBoundingClientRect()
+    const headerRect = content.closest("header")?.getBoundingClientRect()
+    const headerLeft = headerRect?.left ?? 0
+    const triggerCenter = triggerRect.left + triggerRect.width / 2
+    const navCenter = navRect.left + navRect.width / 2
+    const viewportWidth = window.innerWidth
+    const margin = 16
+
+    // Bias towards nav center
+    const pullStrength = 0.7
+    const maxShiftPx = 200
+    const rawShift = (navCenter - triggerCenter) * pullStrength
+    const cappedShift = Math.max(-maxShiftPx, Math.min(maxShiftPx, rawShift))
+    const adjustedCenter = triggerCenter + cappedShift
+
+    let left = adjustedCenter - contentWidth / 2
+    if (left < margin) left = margin
+    if (left + contentWidth > viewportWidth - margin) {
+      left = viewportWidth - margin - contentWidth
+    }
+
+    setLeftPos(left - headerLeft)
+    setSize({ width: contentWidth, height: contentHeight })
+
+    // After first position is set, enable transitions for subsequent changes
+    if (isFirstOpen.current) {
+      // Force a reflow so the initial position is applied without transition
+      content.getBoundingClientRect()
+      requestAnimationFrame(() => {
+        isFirstOpen.current = false
+      })
+    }
+  }, [displayedId, triggerRefs, navRef])
+
+  const activeItem = items.find((i) => i.id === displayedId)
+
+  if (!hasEverOpened) return null
+
+  const easing = "cubic-bezier(0.16, 1, 0.3, 1)"
+  const shouldTransition = !isFirstOpen.current
 
   return (
     <div
-      ref={triggerRef}
-      className="relative"
-      onMouseEnter={onOpen}
-      onMouseLeave={onMouseLeave}
+      className={cn(
+        "absolute z-[100] pt-1",
+        isOpen ? "opacity-100" : "opacity-0 pointer-events-none",
+      )}
+      style={{
+        top: "100%",
+        left: leftPos,
+        opacity: isOpen ? 1 : 0,
+        transition: shouldTransition
+          ? `left 300ms ${easing}, opacity 200ms ease`
+          : "opacity 200ms ease",
+      }}
+      onMouseEnter={onHoverIn}
+      onMouseLeave={onHoverOut}
     >
-      {item.href ? (
-        <Link href={resolveHref(item.href)} className={triggerClasses}>
-          {item.label}
-          <ChevronDown
-            className={cn(
-              "size-[18px] transition-transform duration-200",
-              isActive && "rotate-180",
-            )}
-            strokeWidth={2}
-          />
-        </Link>
-      ) : (
-        <button onClick={onToggle} className={triggerClasses}>
-          {item.label}
-          <ChevronDown
-            className={cn(
-              "size-[18px] transition-transform duration-200",
-              isActive && "rotate-180",
-            )}
-            strokeWidth={2}
-          />
-        </button>
-      )}
-      {isActive && (
-        <AutoClampedDropdown triggerRef={triggerRef}>
-          <DropdownMenu item={item} onClose={onClose} />
-        </AutoClampedDropdown>
-      )}
+      {/* Shell: animates width + height, clips content during transition */}
+      <div
+        className="overflow-hidden rounded-xl bg-white-1 border border-white-2 shadow-[0px_12px_20px_0px_rgba(0,0,0,0.03)]"
+        style={{
+          width: size.width || "auto",
+          height: size.height || "auto",
+          transition: shouldTransition
+            ? `width 300ms ${easing}, height 300ms ${easing}`
+            : "none",
+        }}
+      >
+        {/* Content renders at natural size (w-max), measured by useLayoutEffect */}
+        <div ref={contentRef} className="w-max">
+          {activeItem && (
+            <div
+              key={displayedId}
+              className={cn(
+                "animate-in fade-in duration-150",
+                slideDir === "right" && "slide-in-from-right-2",
+                slideDir === "left" && "slide-in-from-left-2",
+              )}
+            >
+              <DropdownContent item={activeItem} onClose={onClose} />
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
 
-/* ── Auto-clamped dropdown wrapper ── */
-
-function AutoClampedDropdown({
-  triggerRef,
-  children,
-}: {
-  triggerRef: RefObject<HTMLDivElement | null>
-  children: React.ReactNode
-}) {
-  const dropdownRef = useRef<HTMLDivElement>(null)
-  const [offsetX, setOffsetX] = useState("-50%")
-
-  useEffect(() => {
-    const trigger = triggerRef.current
-    const dropdown = dropdownRef.current
-    if (!trigger || !dropdown) return
-
-    const triggerRect = trigger.getBoundingClientRect()
-    const dropdownWidth = dropdown.offsetWidth
-    const triggerCenter = triggerRect.left + triggerRect.width / 2
-    const viewportWidth = window.innerWidth
-
-    // Where the dropdown left edge would be if centered
-    const idealLeft = triggerCenter - dropdownWidth / 2
-    const idealRight = triggerCenter + dropdownWidth / 2
-    const margin = 16 // min distance from viewport edge
-
-    if (idealLeft < margin) {
-      // Would overflow left — shift right
-      const shift = triggerCenter - margin
-      const pct = (shift / dropdownWidth) * 100
-      setOffsetX(`-${Math.max(0, pct).toFixed(1)}%`)
-    } else if (idealRight > viewportWidth - margin) {
-      // Would overflow right — shift left
-      const shift = viewportWidth - margin - triggerCenter
-      const pct = 100 - (shift / dropdownWidth) * 100
-      setOffsetX(`-${Math.min(100, pct).toFixed(1)}%`)
-    } else {
-      setOffsetX("-50%")
-    }
-  }, [triggerRef])
-
-  return (
-    <div
-      ref={dropdownRef}
-      className="absolute top-full left-1/2 z-[100] pt-1"
-      style={{ transform: `translateX(${offsetX})` }}
-    >
-      {children}
-    </div>
-  )
+/**
+ * Dropdown content without the outer container styling (no border/shadow/rounded).
+ * The SharedDropdownPanel provides the container shell.
+ */
+function DropdownContent({ item, onClose }: { item: MenuItemData; onClose: () => void }) {
+  return <DropdownMenu item={item} onClose={onClose} bare />
 }
 
 /* ── Navbar ── */
@@ -212,14 +273,23 @@ export function WebsiteNavbar({
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const triggerRefs = useRef<Map<string, HTMLDivElement>>(new Map())
+  const navRef = useRef<HTMLElement>(null)
 
-  const openDropdown = useCallback((id: string) => {
+  const cancelClose = useCallback(() => {
     if (closeTimer.current) {
       clearTimeout(closeTimer.current)
       closeTimer.current = null
     }
-    setActiveDropdown(id)
   }, [])
+
+  const openDropdown = useCallback(
+    (id: string) => {
+      cancelClose()
+      setActiveDropdown(id)
+    },
+    [cancelClose],
+  )
 
   const scheduleClose = useCallback(() => {
     closeTimer.current = setTimeout(() => {
@@ -245,6 +315,15 @@ export function WebsiteNavbar({
   // Determine which logo to show
   const lightLogo = logoUrl // Used over hero (with brightness-0 invert)
   const darkLogo = logoDarkUrl || logoUrl // Used when scrolled
+
+  // Register trigger ref
+  const setTriggerRef = useCallback((id: string, el: HTMLDivElement | null) => {
+    if (el) {
+      triggerRefs.current.set(id, el)
+    } else {
+      triggerRefs.current.delete(id)
+    }
+  }, [])
 
   return (
     <>
@@ -303,29 +382,68 @@ export function WebsiteNavbar({
           </Link>
 
           {/* Desktop nav */}
-          <nav className="hidden lg:flex items-center gap-5">
-            {dropdownItems.map((item) => (
-              <NavDropdownTrigger
-                key={item.id}
-                item={item}
-                isScrolled={isScrolled}
-                isActive={activeDropdown === item.id}
-                onOpen={() => openDropdown(item.id)}
-                onToggle={() =>
-                  setActiveDropdown((prev) =>
-                    prev === item.id ? null : item.id,
-                  )
-                }
-                onMouseLeave={scheduleClose}
-                onClose={closeDropdown}
-              />
-            ))}
+          <nav ref={navRef} className="hidden lg:flex items-center">
+            {dropdownItems.map((item) => {
+              const isActive = activeDropdown === item.id
+              const triggerClasses = cn(
+                "flex items-center gap-1.5 px-5 py-3 rounded-xl text-nav transition-colors duration-150",
+                isScrolled
+                  ? cn(
+                      "text-black-1",
+                      isActive ? "bg-white-1-5" : "hover:bg-white-1-5",
+                    )
+                  : cn(
+                      "text-white-1",
+                      isActive ? "bg-white-0/10" : "hover:bg-white-0/10",
+                    ),
+              )
+
+              return (
+                <div
+                  key={item.id}
+                  ref={(el) => setTriggerRef(item.id, el)}
+                  onMouseEnter={() => openDropdown(item.id)}
+                  onMouseLeave={scheduleClose}
+                >
+                  {item.href ? (
+                    <Link href={resolveHref(item.href)} className={triggerClasses}>
+                      {item.label}
+                      <ChevronDown
+                        className={cn(
+                          "size-[18px] transition-transform duration-200",
+                          isActive && "rotate-180",
+                        )}
+                        strokeWidth={2}
+                      />
+                    </Link>
+                  ) : (
+                    <button
+                      onClick={() =>
+                        setActiveDropdown((prev) =>
+                          prev === item.id ? null : item.id,
+                        )
+                      }
+                      className={triggerClasses}
+                    >
+                      {item.label}
+                      <ChevronDown
+                        className={cn(
+                          "size-[18px] transition-transform duration-200",
+                          isActive && "rotate-180",
+                        )}
+                        strokeWidth={2}
+                      />
+                    </button>
+                  )}
+                </div>
+              )
+            })}
             {directItems.map((item) => (
               <Link
                 key={item.id}
                 href={resolveHref(item.href)}
                 className={cn(
-                  "pl-3 pr-2 py-4 rounded-xl text-nav transition-colors duration-150",
+                  "px-5 py-4 rounded-xl text-nav transition-colors duration-150",
                   isScrolled
                     ? "text-black-1 hover:bg-white-1-5"
                     : "text-white-1 hover:bg-white-0/10",
@@ -375,6 +493,17 @@ export function WebsiteNavbar({
             <IconHamburger width={28} height={28} />
           </button>
         </div>
+
+        {/* Shared dropdown panel — single container that morphs between items */}
+        <SharedDropdownPanel
+          items={dropdownItems}
+          activeId={activeDropdown}
+          triggerRefs={triggerRefs}
+          navRef={navRef}
+          onClose={closeDropdown}
+          onHoverIn={cancelClose}
+          onHoverOut={scheduleClose}
+        />
       </header>
 
       {/* Mobile drawer */}
