@@ -5,6 +5,7 @@ import { getEventBySlug, updateEvent, deleteEvent, syncEventLinks } from '@/lib/
 import { getMinistryBySlug } from '@/lib/dal/ministries'
 import { getCampusBySlug } from '@/lib/dal/campuses'
 import { requireApiAuth } from '@/lib/api/require-auth'
+import { validateAll, validateTitle, validateSlug, validateLongText, validateUrl, validateEnum, CONTENT_STATUS_VALUES, EVENT_TYPE_VALUES } from '@/lib/api/validation'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -68,6 +69,26 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       } else {
         body.campusId = null
       }
+    }
+
+    // Validate provided fields (only validate fields that are present)
+    const checks = [
+      body.title !== undefined && validateTitle(body.title),
+      body.slug !== undefined && validateSlug(body.slug),
+      body.description !== undefined && validateLongText(body.description, 'description'),
+      body.shortDescription !== undefined && validateLongText(body.shortDescription, 'shortDescription'),
+      body.meetingUrl !== undefined && validateUrl(body.meetingUrl, 'meetingUrl'),
+      body.registrationUrl !== undefined && validateUrl(body.registrationUrl, 'registrationUrl'),
+      body.coverImage !== undefined && validateUrl(body.coverImage, 'coverImage'),
+      body.status !== undefined && validateEnum(body.status, CONTENT_STATUS_VALUES, 'status'),
+      body.type !== undefined && validateEnum(body.type, EVENT_TYPE_VALUES, 'type'),
+    ].filter((v): v is Exclude<typeof v, false> => v !== false)
+    const validation = validateAll(...checks)
+    if (!validation.valid) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 },
+      )
     }
 
     // Build sanitized update data with only valid Event model fields

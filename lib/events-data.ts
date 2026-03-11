@@ -161,6 +161,49 @@ export const allDays: DayOfWeek[] = ["sun", "mon", "tue", "wed", "thu", "fri", "
 export { generateSlug } from "@/lib/utils"
 
 /* ── Helper: compute recurrence schedule label ── */
+/**
+ * Format an array of days compactly using ranges.
+ * e.g. [mon,tue,wed,thu,fri] → "Mon–Fri"
+ *      [tue,thu,fri] → "Tue, Thu–Fri"
+ *      [mon,wed] → "Mon, Wed"
+ */
+function formatDaysCompact(days: DayOfWeek[]): string {
+  const dayOrder: DayOfWeek[] = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"]
+  const dayShort: Record<DayOfWeek, string> = {
+    sun: "Sun", mon: "Mon", tue: "Tue", wed: "Wed",
+    thu: "Thu", fri: "Fri", sat: "Sat",
+  }
+
+  // Sort days by weekday order
+  const sorted = [...days].sort((a, b) => dayOrder.indexOf(a) - dayOrder.indexOf(b))
+  if (sorted.length <= 2) {
+    return sorted.map(d => dayShort[d]).join(", ")
+  }
+
+  // Build consecutive ranges
+  const indices = sorted.map(d => dayOrder.indexOf(d))
+  const ranges: { start: number; end: number }[] = []
+  let rangeStart = indices[0]
+  let prev = indices[0]
+
+  for (let i = 1; i < indices.length; i++) {
+    if (indices[i] === prev + 1) {
+      prev = indices[i]
+    } else {
+      ranges.push({ start: rangeStart, end: prev })
+      rangeStart = indices[i]
+      prev = indices[i]
+    }
+  }
+  ranges.push({ start: rangeStart, end: prev })
+
+  return ranges.map(r => {
+    if (r.start === r.end) return dayShort[dayOrder[r.start]]
+    if (r.end - r.start === 1) return `${dayShort[dayOrder[r.start]]}, ${dayShort[dayOrder[r.end]]}`
+    return `${dayShort[dayOrder[r.start]]}\u2013${dayShort[dayOrder[r.end]]}`
+  }).join(", ")
+}
+
 export function computeRecurrenceSchedule(event: ChurchEvent): string | undefined {
   if (event.recurrence === "none") return undefined
 
@@ -188,7 +231,7 @@ export function computeRecurrenceSchedule(event: ChurchEvent): string | undefine
   if (event.recurrence === "weekly") {
     if (days.length === 0) return `Weekly${endSuffix}`
     if (days.length === 1) return `Every ${dayFull[days[0]]}${endSuffix}`
-    return `Weekly on ${days.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(", ")}${endSuffix}`
+    return `Weekly on ${formatDaysCompact(days)}${endSuffix}`
   }
 
   if (event.recurrence === "monthly") {
@@ -201,7 +244,7 @@ export function computeRecurrenceSchedule(event: ChurchEvent): string | undefine
 
   if (event.recurrence === "custom" && event.customRecurrence) {
     const cr = event.customRecurrence
-    const dayStr = cr.days.map(d => d.charAt(0).toUpperCase() + d.slice(1)).join(", ")
+    const dayStr = formatDaysCompact(cr.days)
     return `Every ${cr.interval} week(s) on ${dayStr}${endSuffix}`
   }
 

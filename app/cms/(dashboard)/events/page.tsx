@@ -360,7 +360,7 @@ export default function EventsPage() {
           <TabsTrigger value="list">List View</TabsTrigger>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
           <TabsTrigger value="settings">
-            <Settings className="size-3.5 mr-1.5" />
+            <Settings className="size-3.5 mr-0.5" />
             Settings
           </TabsTrigger>
         </TabsList>
