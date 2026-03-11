@@ -39,7 +39,7 @@ export default function FeatureBreakdownSection({ content, enableAnimations, col
         />
       </div>
 
-      <div className="relative z-10 flex flex-col gap-4 lg:gap-0 mx-auto w-[80%] sm:w-full">
+      <div className="relative z-10 flex flex-col gap-4 lg:gap-0 mx-auto w-full">
         {/* Heading */}
         <AnimateOnScroll animation="fade-up" enabled={animate}>
           <h2 className={`text-h2 ${t.textPrimary} mb-2 lg:mb-10`}>{content.heading}</h2>

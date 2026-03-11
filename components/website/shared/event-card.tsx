@@ -31,7 +31,7 @@ export default function EventCard({ data, size, className }: { data: EventCardDa
       href={resolveHref(data.href)}
       className={cn(
         "group relative block overflow-hidden rounded-xl bg-black-1 h-full",
-        size === "large" ? "min-h-[280px]" : "min-h-[280px] lg:h-[240px]",
+        size === "large" ? "min-h-[280px]" : "min-h-[240px] sm:min-h-[280px] lg:h-[240px]",
         className
       )}
     >

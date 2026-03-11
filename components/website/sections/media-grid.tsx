@@ -58,9 +58,15 @@ export default function MediaGridSection({ content, enableAnimations, colorSchem
           />
         </AnimateOnScroll>
 
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className={`flex flex-wrap gap-5 ${(content.videos ?? []).length < 3 ? "justify-center" : ""}`}>
           {(content.videos ?? []).map((video, i) => (
-            <AnimateOnScroll key={video.id} animation="fade-up" staggerIndex={i} enabled={animate}>
+            <AnimateOnScroll
+              key={video.id}
+              animation="fade-up"
+              staggerIndex={i}
+              enabled={animate}
+              className="w-full sm:w-[calc(50%-0.625rem)] lg:w-[calc(33.333%-0.875rem)]"
+            >
               <VideoThumbnail
                 data={video}
                 size="grid"

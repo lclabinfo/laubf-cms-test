@@ -47,7 +47,7 @@ export default function TextImageHeroSection({ content, enableAnimations, colorS
         <p className={`text-body-1 ${t.textMuted} ${a.description}`}>{content.description}</p>
       </div>
 
-      <div className={cn("relative w-full aspect-[16/7] rounded-2xl overflow-hidden", animate && "animate-hero-fade-up-delayed")}>
+      <div className={cn("relative w-full aspect-[4/3] md:aspect-[16/7] rounded-2xl overflow-hidden", animate && "animate-hero-fade-up-delayed")}>
         {content.image?.src ? (
           <Image src={content.image.src} alt={content.image.alt} fill className="object-cover" priority style={{ objectPosition: content.image.objectPosition }} />
         ) : (

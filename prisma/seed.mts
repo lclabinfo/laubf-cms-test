@@ -2081,9 +2081,9 @@ async function main() {
           overline: 'YOUNG ADULT MINISTRY',
           heading: 'Meet Our Team',
           members: [
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Leader name' } },
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05299.jpg`, alt: 'Leader name' } },
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC01195.jpg`, alt: 'Leader name' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Team member' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05299.jpg`, alt: 'Team member' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC01195.jpg`, alt: 'Team member' } },
           ],
         },
       },
@@ -2165,9 +2165,9 @@ async function main() {
           overline: 'ADULT',
           heading: 'Meet Our Team',
           members: [
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Leader name' } },
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05299.jpg`, alt: 'Leader name' } },
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC01195.jpg`, alt: 'Leader name' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Team member' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05299.jpg`, alt: 'Team member' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC01195.jpg`, alt: 'Team member' } },
           ],
         },
       },
@@ -2263,9 +2263,9 @@ async function main() {
           overline: 'JBF & HBF',
           heading: 'Meet Our Team',
           members: [
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Leader name' } },
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05299.jpg`, alt: 'Leader name' } },
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC01195.jpg`, alt: 'Leader name' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Team member' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05299.jpg`, alt: 'Team member' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC01195.jpg`, alt: 'Team member' } },
           ],
         },
       },
@@ -2359,9 +2359,9 @@ async function main() {
           overline: 'CBF',
           heading: 'Meet Our Team',
           members: [
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Leader name' } },
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05299.jpg`, alt: 'Leader name' } },
-            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC01195.jpg`, alt: 'Leader name' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05222.jpg`, alt: 'Team member' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC05299.jpg`, alt: 'Team member' } },
+            { name: 'Leader name', role: '', bio: 'Bio here', image: { src: `${CDN}/DSC01195.jpg`, alt: 'Team member' } },
           ],
         },
       },
@@ -2544,7 +2544,7 @@ async function main() {
         content: {
           overline: 'INTRODUCTION',
           heading: 'About the Ministry',
-          description: 'Coming soon.',
+          description: 'Join our campus Bible study community. We gather regularly to study the Word of God together, build meaningful friendships, and grow as disciples of Jesus Christ.',
         },
       },
       {
@@ -2627,7 +2627,7 @@ async function main() {
         content: {
           overline: 'INTRODUCTION',
           heading: 'About the Ministry',
-          description: 'Coming soon.',
+          description: 'Join our campus Bible study community. We gather regularly to study the Word of God together, build meaningful friendships, and grow as disciples of Jesus Christ.',
         },
       },
       {
@@ -2707,7 +2707,7 @@ async function main() {
         content: {
           overline: 'INTRODUCTION',
           heading: 'About the Ministry',
-          description: 'Coming soon.',
+          description: 'Join our campus Bible study community. We gather regularly to study the Word of God together, build meaningful friendships, and grow as disciples of Jesus Christ.',
         },
       },
       {
@@ -2784,7 +2784,7 @@ async function main() {
         content: {
           overline: 'INTRODUCTION',
           heading: 'About the Ministry',
-          description: 'Coming soon.',
+          description: 'Join our campus Bible study community. We gather regularly to study the Word of God together, build meaningful friendships, and grow as disciples of Jesus Christ.',
         },
       },
       {
@@ -2863,7 +2863,7 @@ async function main() {
         content: {
           overline: 'INTRODUCTION',
           heading: 'About the Ministry',
-          description: 'Coming soon.',
+          description: 'Join our campus Bible study community. We gather regularly to study the Word of God together, build meaningful friendships, and grow as disciples of Jesus Christ.',
         },
       },
       {
@@ -2942,7 +2942,7 @@ async function main() {
         content: {
           overline: 'INTRODUCTION',
           heading: 'About the Ministry',
-          description: 'Coming soon.',
+          description: 'Join our campus Bible study community. We gather regularly to study the Word of God together, build meaningful friendships, and grow as disciples of Jesus Christ.',
         },
       },
       {
@@ -3019,7 +3019,7 @@ async function main() {
         content: {
           overline: 'INTRODUCTION',
           heading: 'About the Ministry',
-          description: 'Coming soon.',
+          description: 'Join our campus Bible study community. We gather regularly to study the Word of God together, build meaningful friendships, and grow as disciples of Jesus Christ.',
         },
       },
       {
@@ -3096,7 +3096,7 @@ async function main() {
         content: {
           overline: 'INTRODUCTION',
           heading: 'About the Ministry',
-          description: 'Coming soon.',
+          description: 'Join our campus Bible study community. We gather regularly to study the Word of God together, build meaningful friendships, and grow as disciples of Jesus Christ.',
         },
       },
       {
@@ -3173,7 +3173,7 @@ async function main() {
         content: {
           overline: 'INTRODUCTION',
           heading: 'About the Ministry',
-          description: 'Coming soon.',
+          description: 'Join our campus Bible study community. We gather regularly to study the Word of God together, build meaningful friendships, and grow as disciples of Jesus Christ.',
         },
       },
       {
@@ -3250,7 +3250,7 @@ async function main() {
         content: {
           overline: 'INTRODUCTION',
           heading: 'About the Ministry',
-          description: 'Coming soon.',
+          description: 'Join our campus Bible study community. We gather regularly to study the Word of God together, build meaningful friendships, and grow as disciples of Jesus Christ.',
         },
       },
       {

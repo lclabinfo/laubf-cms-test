@@ -36,6 +36,10 @@ interface Props {
 }
 
 export default function MeetTeamSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
+  // Don't render if all members are placeholders
+  const hasRealMembers = content.members?.some(m => m.name && m.name !== "Leader name")
+  if (!hasRealMembers) return null
+
   const t = themeTokens[colorScheme]
   const animate = enableAnimations !== false
 
@@ -80,7 +84,7 @@ export default function MeetTeamSection({ content, enableAnimations, colorScheme
             )}
 
             {/* Biography */}
-            {member.bio && (
+            {member.bio && member.bio !== "Bio here" && (
               <p className={`text-body-1 ${t.textMuted} mt-2`}>
                 {member.bio}
               </p>

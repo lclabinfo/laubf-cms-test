@@ -52,7 +52,7 @@ export default function PhotoGallerySection({ content, enableAnimations, colorSc
             {loopImages.map((img, i) => (
               <div
                 key={i}
-                className="relative w-[300px] lg:w-[360px] aspect-[4/3] rounded-2xl overflow-hidden shrink-0"
+                className="relative w-[280px] sm:w-[300px] lg:w-[360px] aspect-[4/3] rounded-2xl overflow-hidden shrink-0"
               >
                 {img.src ? (
                   <Image

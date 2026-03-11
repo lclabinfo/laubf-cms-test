@@ -57,7 +57,7 @@ export default function PathwayCardSection({ content, enableAnimations, colorSch
         </AnimateOnScroll>
 
         {/* Cards grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 lg:gap-14 w-full">
+        <div className={`flex flex-wrap gap-10 lg:gap-14 w-full ${content.cards.length < 3 ? "justify-center" : ""}`}>
           {content.cards.map((card, i) => {
             const Icon = iconMap[card.icon]
 
@@ -68,7 +68,7 @@ export default function PathwayCardSection({ content, enableAnimations, colorSch
                 staggerIndex={i}
                 staggerBaseMs={120}
                 enabled={animate}
-                className="flex flex-col items-center text-center gap-5"
+                className="flex flex-col items-center text-center gap-5 w-full md:w-[calc(33.333%-2.5rem*2/3)] lg:w-[calc(33.333%-3.5rem*2/3)]"
               >
                 {/* Icon */}
                 {Icon && (

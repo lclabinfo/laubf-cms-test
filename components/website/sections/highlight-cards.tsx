@@ -64,29 +64,46 @@ export default function HighlightCardsSection({ content, enableAnimations, color
           />
         </AnimateOnScroll>
 
-        {/* Events grid: 1 large + 2 small stacked */}
-        <div className="grid gap-5 lg:grid-cols-2">
-          {/* Large card */}
-          {cardEvents[0] && (
-            <AnimateOnScroll animation="fade-up" staggerIndex={0} enabled={animate} className="h-full">
-              <EventCard data={cardEvents[0]} size="large" />
-            </AnimateOnScroll>
-          )}
-
-          {/* Two small cards stacked */}
-          <div className="flex flex-col gap-5">
-            {cardEvents[1] && (
-              <AnimateOnScroll animation="fade-up" staggerIndex={1} enabled={animate}>
-                <EventCard data={cardEvents[1]} size="small" />
+        {/* Events grid: layout adapts to item count */}
+        {cardEvents.length === 1 ? (
+          /* Single item: full-width featured card */
+          <AnimateOnScroll animation="fade-up" staggerIndex={0} enabled={animate}>
+            <EventCard data={cardEvents[0]} size="large" />
+          </AnimateOnScroll>
+        ) : cardEvents.length === 2 ? (
+          /* Two items: equal 2-column grid */
+          <div className="grid gap-5 lg:grid-cols-2">
+            {cardEvents.map((event, i) => (
+              <AnimateOnScroll key={i} animation="fade-up" staggerIndex={i} enabled={animate} className="h-full">
+                <EventCard data={event} size="large" />
               </AnimateOnScroll>
-            )}
-            {cardEvents[2] && (
-              <AnimateOnScroll animation="fade-up" staggerIndex={2} enabled={animate}>
-                <EventCard data={cardEvents[2]} size="small" />
-              </AnimateOnScroll>
-            )}
+            ))}
           </div>
-        </div>
+        ) : (
+          /* 3+ items: 1 large + 2 small stacked */
+          <div className="grid gap-5 lg:grid-cols-2">
+            {/* Large card */}
+            {cardEvents[0] && (
+              <AnimateOnScroll animation="fade-up" staggerIndex={0} enabled={animate} className="h-full">
+                <EventCard data={cardEvents[0]} size="large" />
+              </AnimateOnScroll>
+            )}
+
+            {/* Two small cards stacked */}
+            <div className="flex flex-col gap-5">
+              {cardEvents[1] && (
+                <AnimateOnScroll animation="fade-up" staggerIndex={1} enabled={animate}>
+                  <EventCard data={cardEvents[1]} size="small" />
+                </AnimateOnScroll>
+              )}
+              {cardEvents[2] && (
+                <AnimateOnScroll animation="fade-up" staggerIndex={2} enabled={animate}>
+                  <EventCard data={cardEvents[2]} size="small" />
+                </AnimateOnScroll>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </SectionContainer>
   )
