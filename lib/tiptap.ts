@@ -17,6 +17,7 @@ import { TableCell } from "@tiptap/extension-table-cell"
 import OrderedList from "@tiptap/extension-ordered-list"
 import BulletList from "@tiptap/extension-bullet-list"
 import { generateHTML } from "@tiptap/html"
+import ListItem from "@tiptap/extension-list-item"
 import { Extension, wrappingInputRule } from "@tiptap/core"
 import { Plugin, PluginKey } from "@tiptap/pm/state"
 import type { Extensions } from "@tiptap/react"
@@ -533,6 +534,106 @@ const ListFontPropagation = Extension.create({
 })
 
 /**
+ * Custom ListItem that fixes Enter key behavior for empty spacer paragraphs.
+ *
+ * The DOCX import pipeline inserts empty <p> nodes inside <li> elements to
+ * preserve visual spacing between list items (matching the original Word doc).
+ * TipTap's default `splitListItem` command has a bug with these: pressing Enter
+ * on an empty paragraph that is NOT the last child of a listItem triggers
+ * Branch B (split) instead of Branch A (lift), creating a malformed "2. a."
+ * pattern instead of exiting the list.
+ *
+ * This extension intercepts Enter and:
+ *   - If cursor is in an empty paragraph inside a listItem AND it's not the
+ *     last child → delete the spacer paragraph (don't split)
+ *   - If cursor is in an empty paragraph that IS the last child → also delete
+ *     the spacer and lift out (standard exit-list behavior)
+ *   - Otherwise → fall through to default splitListItem
+ *
+ * Backspace is also handled: if cursor is at start of an empty paragraph
+ * inside a listItem (not the first child), delete that spacer paragraph.
+ */
+const SpacerAwareListItem = ListItem.extend({
+  addKeyboardShortcuts() {
+    return {
+      Enter: () => {
+        const { state, view } = this.editor
+        const { selection } = state
+        const { $from } = selection
+
+        // Check: are we inside a listItem?
+        let listItemDepth = -1
+        for (let d = $from.depth; d > 0; d--) {
+          if ($from.node(d).type.name === "listItem") {
+            listItemDepth = d
+            break
+          }
+        }
+        if (listItemDepth === -1) return false
+
+        const paragraph = $from.parent
+        const listItem = $from.node(listItemDepth)
+        const indexInListItem = $from.index(listItemDepth)
+
+        // Only handle empty paragraphs
+        if (paragraph.type.name !== "paragraph" || paragraph.content.size !== 0) {
+          return this.editor.commands.splitListItem(this.name)
+        }
+
+        const isLastChild = indexInListItem === listItem.childCount - 1
+
+        if (!isLastChild) {
+          // Empty spacer paragraph that is NOT last child → just delete it
+          const tr = state.tr
+          const paragraphStart = $from.before($from.depth)
+          const paragraphEnd = $from.after($from.depth)
+          tr.delete(paragraphStart, paragraphEnd)
+          view.dispatch(tr)
+          return true
+        }
+
+        // Empty paragraph IS the last child → default behavior (lift out of list)
+        return this.editor.commands.splitListItem(this.name)
+      },
+
+      Backspace: () => {
+        const { state, view } = this.editor
+        const { selection } = state
+        const { $from } = selection
+
+        // Only handle if cursor is at the very start of the textblock
+        if ($from.parentOffset !== 0) return false
+
+        // Check: are we inside a listItem?
+        let listItemDepth = -1
+        for (let d = $from.depth; d > 0; d--) {
+          if ($from.node(d).type.name === "listItem") {
+            listItemDepth = d
+            break
+          }
+        }
+        if (listItemDepth === -1) return false
+
+        const paragraph = $from.parent
+        const indexInListItem = $from.index(listItemDepth)
+
+        // Only handle empty paragraphs that aren't the first child
+        if (paragraph.type.name !== "paragraph" || paragraph.content.size !== 0) return false
+        if (indexInListItem === 0) return false
+
+        // Delete the empty spacer paragraph
+        const tr = state.tr
+        const paragraphStart = $from.before($from.depth)
+        const paragraphEnd = $from.after($from.depth)
+        tr.delete(paragraphStart, paragraphEnd)
+        view.dispatch(tr)
+        return true
+      },
+    }
+  },
+})
+
+/**
  * Shared TipTap extension configuration.
  * Used by both the editor component and HTML generation to ensure parity.
  */
@@ -542,11 +643,13 @@ export function getExtensions(placeholder?: string): Extensions {
       heading: { levels: [1, 2, 3, 4] },
       orderedList: false,
       bulletList: false,
+      listItem: false,
       // StarterKit v3.20+ includes Link and Underline — disable them here
       // since we configure them separately below with custom options.
       link: false,
       underline: false,
     }),
+    SpacerAwareListItem,
     StyledOrderedList,
     StyledBulletList,
     Underline,

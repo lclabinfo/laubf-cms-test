@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useCallback, useState } from "react"
+import { useEffect, useCallback, useState, useRef } from "react"
 import { useEditor, useEditorState, EditorContent } from "@tiptap/react"
 import { getExtensions, plainTextToTiptapJson } from "@/lib/tiptap"
 import { ImageUpload, registerImageUploadComponent } from "@/lib/tiptap-image-upload"
@@ -130,11 +130,18 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const [isFullscreen, setIsFullscreen] = useState(false)
 
+  // Track when content was just set by the editor's own onUpdate callback.
+  // This prevents a sync loop: onUpdate → parent state change → sync effect
+  // sees a difference (due to appendTransaction normalization) → setContent →
+  // appendTransaction → onUpdate → infinite cycle.
+  const skipSyncRef = useRef(false)
+
   const editor = useEditor({
     extensions: [...getExtensions(placeholder), ImageUpload],
     content: parseContent(content),
     immediatelyRender: false,
     onUpdate: ({ editor }) => {
+      skipSyncRef.current = true
       onContentChange(JSON.stringify(editor.getJSON()))
     },
   })
@@ -142,6 +149,12 @@ export function RichTextEditor({
   // Sync external content changes (e.g. DOCX import)
   useEffect(() => {
     if (!editor) return
+    // Skip if the content change originated from the editor itself (onUpdate).
+    // Only sync external changes (e.g. DOCX import replacing the content).
+    if (skipSyncRef.current) {
+      skipSyncRef.current = false
+      return
+    }
     const currentJson = JSON.stringify(editor.getJSON())
     if (content !== currentJson) {
       try {
