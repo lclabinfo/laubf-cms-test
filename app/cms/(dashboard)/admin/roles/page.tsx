@@ -15,13 +15,6 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -50,17 +43,15 @@ interface RoleRow {
   _count: { members: number }
 }
 
-const COLOR_MAP: Record<string, string> = {
-  gray: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-  blue: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
-  green: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
-  orange:
-    "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
-  red: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
-  purple:
-    "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
-  pink: "bg-pink-100 text-pink-700 dark:bg-pink-900 dark:text-pink-300",
-  teal: "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300",
+const COLOR_DOT: Record<string, string> = {
+  gray: "bg-gray-500",
+  blue: "bg-blue-500",
+  green: "bg-green-500",
+  orange: "bg-orange-500",
+  red: "bg-red-500",
+  purple: "bg-purple-500",
+  pink: "bg-pink-500",
+  teal: "bg-teal-500",
 }
 
 function RolesPageContent() {
@@ -75,6 +66,7 @@ function RolesPageContent() {
   const [deletingRole, setDeletingRole] = useState<RoleRow | null>(null)
 
   const canManage = session.permissions.includes("roles.manage")
+  const isOwner = session.rolePriority >= 1000
 
   const fetchRoles = useCallback(async () => {
     try {
@@ -119,7 +111,7 @@ function RolesPageContent() {
       name: `Copy of ${role.name}`,
       slug: "",
       description: role.description,
-      priority: Math.min(role.priority, session.rolePriority - 1),
+      priority: 100,
       permissions: role.permissions,
       color: role.color,
       isSystem: false,
@@ -202,7 +194,7 @@ function RolesPageContent() {
             </h1>
           </div>
           <p className="text-muted-foreground text-sm mt-1">
-            Manage the roles and permission levels for your team.
+            Control what each team member can access and modify in the CMS.
           </p>
         </div>
         {canManage && (
@@ -213,74 +205,114 @@ function RolesPageContent() {
         )}
       </div>
 
-      {/* Role Cards Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Roles List */}
+      <div className="rounded-xl border divide-y">
         {roles.map((role) => {
           const isOwnerRole = role.slug === "owner"
-          const colorClasses =
-            COLOR_MAP[role.color ?? "gray"] ?? COLOR_MAP.gray
+          const dotColor = COLOR_DOT[role.color ?? "gray"] ?? COLOR_DOT.gray
+          const canEditThis = isOwner || role.priority < session.rolePriority
+          const canDelete = !role.isSystem && canEditThis
 
           return (
-            <Card
+            <div
               key={role.id}
-              className={isOwnerRole ? "ring-2 ring-primary/30" : ""}
+              className="flex items-center gap-4 px-5 py-4 hover:bg-muted/30 transition-colors cursor-pointer"
+              onClick={() => {
+                if (canManage && (isOwner || role.priority < session.rolePriority)) {
+                  handleEdit(role)
+                }
+              }}
             >
-              <CardHeader>
+              {/* Color dot + icon */}
+              <div className="flex items-center gap-3 shrink-0">
+                <span className={`size-2.5 rounded-full ${dotColor}`} />
+                {isOwnerRole ? (
+                  <CrownIcon className="size-4 text-primary" />
+                ) : (
+                  <ShieldIcon className="size-4 text-muted-foreground" />
+                )}
+              </div>
+
+              {/* Name + description */}
+              <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  {isOwnerRole ? (
-                    <CrownIcon className="h-4 w-4 text-primary" />
-                  ) : (
-                    <ShieldIcon className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  <CardTitle className="flex-1">{role.name}</CardTitle>
-                  <div className="flex items-center gap-1.5">
-                    {role.isSystem && (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] px-1.5 h-5"
-                      >
-                        System
-                      </Badge>
-                    )}
+                  <span className="text-sm font-medium">{role.name}</span>
+                  {role.isSystem && (
                     <Badge
-                      className={`text-[10px] px-1.5 h-5 border-0 ${colorClasses}`}
+                      variant="outline"
+                      className="text-[10px] px-1.5 h-4 font-normal"
                     >
-                      {role.priority}
+                      System
                     </Badge>
-                  </div>
+                  )}
                 </div>
-                <CardDescription className="line-clamp-2">
-                  {role.description || "No description"}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <UsersIcon className="h-3.5 w-3.5" />
-                    <span>
-                      {role._count.members}{" "}
-                      {role._count.members === 1 ? "member" : "members"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    {role.permissions.length} permissions
-                  </div>
-                </div>
-              </CardContent>
-              {canManage && (
-                <div className="px-4 pb-3 flex justify-end">
-                  <RoleActions
-                    role={role}
-                    currentUserPriority={session.rolePriority}
-                    onEdit={() => handleEdit(role)}
-                    onDuplicate={() => handleDuplicate(role)}
-                    onDelete={() => handleDeleteClick(role)}
-                  />
-                </div>
+                {role.description && (
+                  <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                    {role.description}
+                  </p>
+                )}
+              </div>
+
+              {/* Members count */}
+              <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground shrink-0 w-24">
+                <UsersIcon className="size-3.5" />
+                <span>
+                  {role._count.members}{" "}
+                  {role._count.members === 1 ? "member" : "members"}
+                </span>
+              </div>
+
+              {/* Permissions count */}
+              <div className="hidden md:flex items-center text-xs text-muted-foreground shrink-0 w-28">
+                {role.permissions.length === Object.keys(PERMISSIONS).length
+                  ? "Full access"
+                  : `${role.permissions.length} permissions`}
+              </div>
+
+              {/* Actions */}
+              {canManage ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={(e) => e.stopPropagation()}>
+                      <MoreHorizontalIcon className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {canEditThis && (
+                      <DropdownMenuItem onSelect={() => handleEdit(role)}>
+                        <PencilIcon className="mr-2 h-4 w-4" />
+                        Edit
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onSelect={() => handleDuplicate(role)}>
+                      <CopyIcon className="mr-2 h-4 w-4" />
+                      Duplicate
+                    </DropdownMenuItem>
+                    {canDelete && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onSelect={() => handleDeleteClick(role)}
+                        >
+                          <TrashIcon className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <div className="w-8 shrink-0" />
               )}
-            </Card>
+            </div>
           )
         })}
+        {roles.length === 0 && (
+          <div className="px-5 py-10 text-center text-sm text-muted-foreground">
+            No roles found.
+          </div>
+        )}
       </div>
 
       {/* Editor Dialog */}
@@ -289,8 +321,8 @@ function RolesPageContent() {
         onOpenChange={setEditorOpen}
         role={editingRole}
         onSave={handleSave}
-        currentUserPriority={session.rolePriority}
         currentUserPermissions={session.permissions}
+        isOwner={isOwner}
       />
 
       {/* Delete Dialog */}
@@ -310,59 +342,8 @@ function RolesPageContent() {
   )
 }
 
-interface RoleActionsProps {
-  role: RoleRow
-  currentUserPriority: number
-  onEdit: () => void
-  onDuplicate: () => void
-  onDelete: () => void
-}
-
-function RoleActions({
-  role,
-  currentUserPriority,
-  onEdit,
-  onDuplicate,
-  onDelete,
-}: RoleActionsProps) {
-  const isOwner = currentUserPriority >= 1000
-  const canEditThis = isOwner || role.priority < currentUserPriority
-  const canDelete = !role.isSystem && canEditThis
-
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-8 w-8">
-          <MoreHorizontalIcon className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {canEditThis && (
-          <DropdownMenuItem onSelect={onEdit}>
-            <PencilIcon className="mr-2 h-4 w-4" />
-            Edit
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem onSelect={onDuplicate}>
-          <CopyIcon className="mr-2 h-4 w-4" />
-          Duplicate
-        </DropdownMenuItem>
-        {canDelete && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive"
-              onSelect={onDelete}
-            >
-              <TrashIcon className="mr-2 h-4 w-4" />
-              Delete
-            </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
+// Need to import PERMISSIONS for the "Full access" check
+import { PERMISSIONS } from "@/lib/permissions"
 
 export default function RolesPage() {
   return (

@@ -1,3 +1,7 @@
+// AI NOTE: This page is deprecated and should NOT be used, referenced, or linked to.
+// It is kept temporarily for the lclab.io admin account only.
+// Do not route users here — the website builder is the replacement.
+
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from "react"

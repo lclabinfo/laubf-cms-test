@@ -105,8 +105,14 @@ export async function seedDefaultRoles(churchId: string) {
         priority: def.priority,
         isSystem: def.isSystem,
         permissions: def.permissions as string[],
+        color: def.color,
       },
-      update: {},
+      update: {
+        description: def.description,
+        priority: def.priority,
+        permissions: def.permissions as string[],
+        color: def.color,
+      },
     })
     roles[key] = role.id
   }

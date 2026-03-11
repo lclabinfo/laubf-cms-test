@@ -59,11 +59,10 @@ export async function PATCH(
     )
   }
 
-  const { name, slug, description, priority, permissions: rolePermissions, color } = body as {
+  const { name, slug, description, permissions: rolePermissions, color } = body as {
     name?: string
     slug?: string
     description?: string
-    priority?: number
     permissions?: string[]
     color?: string
   }
@@ -71,12 +70,12 @@ export async function PATCH(
   // Cannot edit roles at or above your priority (unless you're system owner)
   if (actorPriority < 1000 && existing.priority >= actorPriority) {
     return NextResponse.json(
-      { success: false, error: { message: 'Cannot edit a role with priority equal to or above your own' } },
+      { success: false, error: { message: 'Cannot edit a role with equal or higher authority than your own' } },
       { status: 403 },
     )
   }
 
-  // System roles: cannot change permissions (Owner always has all)
+  // System roles: cannot change permissions (Owner always has all, Viewer is read-only)
   if (existing.isSystem && rolePermissions !== undefined) {
     return NextResponse.json(
       { success: false, error: { message: 'Cannot change permissions on a system role' } },
@@ -98,22 +97,6 @@ export async function PATCH(
       { success: false, error: { message: 'Slug must be 1-100 characters' } },
       { status: 400 },
     )
-  }
-
-  // Validate priority if provided
-  if (priority !== undefined) {
-    if (typeof priority !== 'number' || priority < 0 || priority > 999) {
-      return NextResponse.json(
-        { success: false, error: { message: 'Priority must be 0-999' } },
-        { status: 400 },
-      )
-    }
-    if (priority >= actorPriority) {
-      return NextResponse.json(
-        { success: false, error: { message: 'Cannot set priority equal to or above your own' } },
-        { status: 403 },
-      )
-    }
   }
 
   // Validate permissions if provided
@@ -152,7 +135,6 @@ export async function PATCH(
   if (name !== undefined) updateData.name = name
   if (slug !== undefined) updateData.slug = slug
   if (description !== undefined) updateData.description = description
-  if (priority !== undefined) updateData.priority = priority
   if (rolePermissions !== undefined) updateData.permissions = rolePermissions
   if (color !== undefined) updateData.color = color
 

@@ -5,6 +5,7 @@ import Link from "next/link"
 import {
   Download,
   ExternalLink,
+  Globe,
   ImageIcon,
   Video,
   Calendar,
@@ -641,12 +642,15 @@ function UsageItem({ usage: u }: { usage: UsageEntry }) {
       || "Section"
     return (
       <Link
-        href={`/cms/website/pages/${u.pageId}`}
+        href={`/cms/website/builder/${u.pageId}`}
         className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm hover:bg-accent transition-colors group"
       >
-        <ImageIcon className="size-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
+        <Globe className="size-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
         <div className="flex-1 min-w-0">
-          <span className="font-medium truncate block leading-tight">{u.title}</span>
+          <div className="flex items-center gap-1.5">
+            <Badge variant="outline" className="text-[9px] px-1 py-0 leading-tight font-normal shrink-0">Website</Badge>
+            <span className="font-medium truncate leading-tight">{u.title}</span>
+          </div>
           <span className="text-[10px] text-muted-foreground leading-tight">{sectionLabel}</span>
         </div>
         <ExternalLink className="size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100" />

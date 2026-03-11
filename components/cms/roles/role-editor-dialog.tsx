@@ -2,17 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react"
 import {
-  ChevronDownIcon,
-  ChevronRightIcon,
   Loader2Icon,
+  ShieldCheckIcon,
+  EyeIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
 import {
   Dialog,
   DialogContent,
@@ -31,9 +26,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import {
   PERMISSIONS,
   PERMISSION_GROUPS,
+  ALL_PERMISSIONS,
   type Permission,
 } from "@/lib/permissions"
 
@@ -52,7 +50,6 @@ export interface RoleFormData {
   name: string
   slug: string
   description: string
-  priority: number
   permissions: string[]
   color: string
 }
@@ -73,8 +70,8 @@ interface RoleEditorDialogProps {
   onOpenChange: (open: boolean) => void
   role?: RoleData
   onSave: (data: RoleFormData) => Promise<void>
-  currentUserPriority: number
   currentUserPermissions: string[]
+  isOwner: boolean
 }
 
 export function RoleEditorDialog({
@@ -82,13 +79,12 @@ export function RoleEditorDialog({
   onOpenChange,
   role,
   onSave,
-  currentUserPriority,
   currentUserPermissions,
+  isOwner,
 }: RoleEditorDialogProps) {
   const isEditing = !!role
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
-  const [priority, setPriority] = useState(0)
   const [permissions, setPermissions] = useState<Set<string>>(new Set())
   const [color, setColor] = useState("gray")
   const [isSaving, setIsSaving] = useState(false)
@@ -98,21 +94,16 @@ export function RoleEditorDialog({
     [currentUserPermissions],
   )
 
-  // The owner (priority 1000) can assign any permission
-  const isOwner = currentUserPriority >= 1000
-
   useEffect(() => {
     if (open) {
       if (role) {
         setName(role.name)
         setDescription(role.description ?? "")
-        setPriority(role.priority)
         setPermissions(new Set(role.permissions))
         setColor(role.color ?? "gray")
       } else {
         setName("")
         setDescription("")
-        setPriority(0)
         setPermissions(new Set())
         setColor("gray")
       }
@@ -128,16 +119,11 @@ export function RoleEditorDialog({
     [name],
   )
 
-  const maxPriority = currentUserPriority - 1
-
   function togglePermission(perm: string) {
     setPermissions((prev) => {
       const next = new Set(prev)
-      if (next.has(perm)) {
-        next.delete(perm)
-      } else {
-        next.add(perm)
-      }
+      if (next.has(perm)) next.delete(perm)
+      else next.add(perm)
       return next
     })
   }
@@ -157,6 +143,17 @@ export function RoleEditorDialog({
     })
   }
 
+  function selectAllPermissions() {
+    const assignable = ALL_PERMISSIONS.filter(
+      (p) => isOwner || currentUserPermSet.has(p),
+    )
+    setPermissions(new Set(assignable))
+  }
+
+  function clearAllPermissions() {
+    setPermissions(new Set())
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setIsSaving(true)
@@ -165,7 +162,6 @@ export function RoleEditorDialog({
         name,
         slug,
         description,
-        priority,
         permissions: Array.from(permissions),
         color,
       })
@@ -174,148 +170,206 @@ export function RoleEditorDialog({
     }
   }
 
+  const totalPermissions = ALL_PERMISSIONS.length
+  const selectedCount = permissions.size
+  const isSystemRole = role?.isSystem ?? false
+  const isOwnerRole = role?.slug === "owner"
+  const isViewerRole = role?.slug === "viewer"
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[560px] max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-2xl w-[90vw] max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit Role" : "Create Role"}</DialogTitle>
           <DialogDescription>
             {isEditing
-              ? `Update the settings and permissions for the ${role?.name} role.`
-              : "Define a new role with specific permissions for your team."}
+              ? `Configure access and permissions for the ${role?.name} role.`
+              : "Create a new role and configure what areas of the CMS it can access."}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Name */}
-          <div className="space-y-2">
-            <Label htmlFor="role-name">Name</Label>
-            <Input
-              id="role-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Content Manager"
-              maxLength={100}
-              required
-              disabled={role?.isSystem}
-            />
-            {name && (
-              <p className="text-xs text-muted-foreground">
-                Slug: <code className="bg-muted px-1 rounded">{slug}</code>
-              </p>
-            )}
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="role-description">Description</Label>
-            <Textarea
-              id="role-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="What does this role do?"
-              rows={2}
-            />
-          </div>
-
-          {/* Priority + Color row */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="role-priority">Priority</Label>
-              <Input
-                id="role-priority"
-                type="number"
-                value={priority}
-                onChange={(e) => setPriority(Number(e.target.value))}
-                min={0}
-                max={maxPriority}
-                required
-                className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-              />
-              <p className="text-xs text-muted-foreground">
-                0&ndash;{maxPriority}. Higher = more authority. Your priority:{" "}
-                {currentUserPriority}
-              </p>
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 gap-5">
+          {/* Role details */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-[1fr_160px] gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="role-name">Name</Label>
+                <Input
+                  id="role-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Content Manager"
+                  maxLength={100}
+                  required
+                  disabled={isSystemRole}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="role-color">Badge Color</Label>
+                <Select value={color} onValueChange={setColor}>
+                  <SelectTrigger id="role-color">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ROLE_COLORS.map((c) => (
+                      <SelectItem key={c.value} value={c.value}>
+                        <span className="flex items-center gap-2">
+                          <span
+                            className="inline-block h-3 w-3 rounded-full"
+                            style={{ backgroundColor: c.value === "gray" ? "#6b7280" : c.value }}
+                          />
+                          {c.label}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="role-color">Badge Color</Label>
-              <Select value={color} onValueChange={setColor}>
-                <SelectTrigger id="role-color">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLE_COLORS.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="inline-block h-3 w-3 rounded-full"
-                          style={{ backgroundColor: c.value === "gray" ? "#6b7280" : c.value }}
-                        />
-                        {c.label}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label htmlFor="role-description">Description</Label>
+              <Textarea
+                id="role-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Brief description of what this role can do"
+                rows={2}
+              />
             </div>
           </div>
 
           {/* Permissions */}
-          {!role?.isSystem && (
-            <div className="space-y-3">
-              <Label>Permissions</Label>
-              <div className="space-y-1 rounded-lg border p-3">
-                {Object.entries(PERMISSION_GROUPS).map(
-                  ([groupName, groupPerms]) => {
-                    const assignablePerms = groupPerms.filter(
-                      (p) => isOwner || currentUserPermSet.has(p),
-                    )
-                    const checkedCount = groupPerms.filter((p) =>
-                      permissions.has(p),
-                    ).length
-                    const allAssignableChecked =
-                      assignablePerms.length > 0 &&
-                      assignablePerms.every((p) => permissions.has(p))
-                    const someChecked = checkedCount > 0
-
-                    return (
-                      <PermissionGroup
-                        key={groupName}
-                        name={groupName}
-                        permissions={groupPerms}
-                        selectedPermissions={permissions}
-                        assignablePermissions={
-                          isOwner ? new Set(groupPerms) : currentUserPermSet
-                        }
-                        allChecked={allAssignableChecked}
-                        someChecked={someChecked}
-                        checkedCount={checkedCount}
-                        totalCount={groupPerms.length}
-                        onToggleGroup={() =>
-                          toggleGroup(groupPerms, allAssignableChecked)
-                        }
-                        onTogglePermission={togglePermission}
-                      />
-                    )
-                  },
-                )}
+          <div className="flex flex-col flex-1 min-h-0">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-semibold">Permissions</Label>
+                <Badge variant="secondary" className="text-xs">
+                  {selectedCount} / {totalPermissions}
+                </Badge>
               </div>
+              {!isSystemRole && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={selectAllPermissions}
+                  >
+                    Select all
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={clearAllPermissions}
+                  >
+                    Clear all
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
 
-          {role?.isSystem && (
-            <div className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
-              Permissions for system roles cannot be modified. The{" "}
-              <strong>{role.name}</strong> role has{" "}
-              {role.permissions.length === Object.keys(PERMISSIONS).length
-                ? "all"
-                : role.permissions.length}{" "}
-              permissions.
-            </div>
-          )}
+            {/* System role badges */}
+            {isOwnerRole && (
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-3 mb-3">
+                <ShieldCheckIcon className="size-4 text-primary shrink-0" />
+                <p className="text-sm text-muted-foreground">
+                  The <strong>Owner</strong> role has full access to everything and cannot be modified.
+                </p>
+              </div>
+            )}
+            {isViewerRole && (
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-3 mb-3">
+                <EyeIcon className="size-4 text-muted-foreground shrink-0" />
+                <p className="text-sm text-muted-foreground">
+                  The <strong>Viewer</strong> role has read-only access and cannot be modified.
+                </p>
+              </div>
+            )}
 
-          <DialogFooter>
+            {/* Permission groups */}
+            {!isSystemRole && (
+              <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                {Object.entries(PERMISSION_GROUPS).map(([groupKey, group]) => {
+                  const assignable = group.permissions.filter(
+                    (p) => isOwner || currentUserPermSet.has(p),
+                  )
+                  const checkedCount = group.permissions.filter((p) =>
+                    permissions.has(p),
+                  ).length
+                  const allAssignableChecked =
+                    assignable.length > 0 &&
+                    assignable.every((p) => permissions.has(p))
+
+                  return (
+                    <div
+                      key={groupKey}
+                      className="rounded-lg border"
+                    >
+                      {/* Group header with toggle-all */}
+                      <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20">
+                        <div className="flex items-center gap-3">
+                          <Switch
+                            checked={allAssignableChecked}
+                            onCheckedChange={() =>
+                              toggleGroup(group.permissions, allAssignableChecked)
+                            }
+                          />
+                          <div>
+                            <p className="text-sm font-medium">{group.label}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {group.description}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge variant="outline" className="text-xs shrink-0">
+                          {checkedCount} / {group.permissions.length}
+                        </Badge>
+                      </div>
+
+                      {/* Individual permissions */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 divide-y sm:divide-y-0">
+                        {group.permissions.map((perm, idx) => {
+                          const canAssign = isOwner || currentUserPermSet.has(perm)
+                          const isChecked = permissions.has(perm)
+                          return (
+                            <label
+                              key={perm}
+                              className={`flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors ${
+                                idx % 2 === 0 ? "sm:border-r" : ""
+                              } ${idx >= 2 ? "border-t sm:border-t" : ""}`}
+                            >
+                              <Checkbox
+                                checked={isChecked}
+                                onCheckedChange={() => togglePermission(perm)}
+                                disabled={!canAssign}
+                              />
+                              <span
+                                className={`text-sm ${
+                                  canAssign
+                                    ? isChecked
+                                      ? "text-foreground"
+                                      : "text-muted-foreground"
+                                    : "text-muted-foreground/50"
+                                }`}
+                              >
+                                {PERMISSIONS[perm]}
+                              </span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="shrink-0">
             <Button
               type="button"
               variant="outline"
@@ -339,89 +393,5 @@ export function RoleEditorDialog({
         </form>
       </DialogContent>
     </Dialog>
-  )
-}
-
-interface PermissionGroupProps {
-  name: string
-  permissions: Permission[]
-  selectedPermissions: Set<string>
-  assignablePermissions: Set<string>
-  allChecked: boolean
-  someChecked: boolean
-  checkedCount: number
-  totalCount: number
-  onToggleGroup: () => void
-  onTogglePermission: (perm: string) => void
-}
-
-function PermissionGroup({
-  name,
-  permissions,
-  selectedPermissions,
-  assignablePermissions,
-  allChecked,
-  someChecked,
-  checkedCount,
-  totalCount,
-  onToggleGroup,
-  onTogglePermission,
-}: PermissionGroupProps) {
-  const [isOpen, setIsOpen] = useState(false)
-
-  return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
-      <div className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-muted/50">
-        <Checkbox
-          checked={allChecked}
-          onCheckedChange={() => onToggleGroup()}
-          aria-label={`Select all ${name} permissions`}
-          {...(someChecked && !allChecked ? { "data-state": "indeterminate" } : {})}
-        />
-        <CollapsibleTrigger asChild>
-          <button
-            type="button"
-            className="flex flex-1 items-center gap-1.5 text-sm font-medium"
-          >
-            {isOpen ? (
-              <ChevronDownIcon className="h-3.5 w-3.5 text-muted-foreground" />
-            ) : (
-              <ChevronRightIcon className="h-3.5 w-3.5 text-muted-foreground" />
-            )}
-            {name}
-            <span className="ml-auto text-xs font-normal text-muted-foreground">
-              {checkedCount}/{totalCount}
-            </span>
-          </button>
-        </CollapsibleTrigger>
-      </div>
-      <CollapsibleContent>
-        <div className="ml-8 space-y-1 pb-1">
-          {permissions.map((perm) => {
-            const canAssign = assignablePermissions.has(perm)
-            const isChecked = selectedPermissions.has(perm)
-            return (
-              <label
-                key={perm}
-                className="flex items-start gap-2 rounded-md px-2 py-1 text-sm hover:bg-muted/30 cursor-pointer"
-              >
-                <Checkbox
-                  checked={isChecked}
-                  onCheckedChange={() => onTogglePermission(perm)}
-                  disabled={!canAssign}
-                  className="mt-0.5"
-                />
-                <div className="space-y-0">
-                  <span className={canAssign ? "" : "text-muted-foreground"}>
-                    {PERMISSIONS[perm]}
-                  </span>
-                  <p className="text-xs text-muted-foreground">{perm}</p>
-                </div>
-              </label>
-            )
-          })}
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
   )
 }

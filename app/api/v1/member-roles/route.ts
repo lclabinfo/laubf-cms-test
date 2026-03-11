@@ -17,6 +17,9 @@ export async function GET() {
   return NextResponse.json({ success: true, data: roles })
 }
 
+// Default priority for custom roles (between Editor=200 and Admin=500)
+const CUSTOM_ROLE_PRIORITY = 100
+
 export async function POST(req: Request) {
   const authResult = await requireApiAuth('roles.manage')
   if (!authResult.authorized) return authResult.response
@@ -32,11 +35,10 @@ export async function POST(req: Request) {
     )
   }
 
-  const { name, slug, description, priority, permissions: rolePermissions, color } = body as {
+  const { name, slug, description, permissions: rolePermissions, color } = body as {
     name?: string
     slug?: string
     description?: string
-    priority?: number
     permissions?: string[]
     color?: string
   }
@@ -56,22 +58,6 @@ export async function POST(req: Request) {
     return NextResponse.json(
       { success: false, error: { message: 'Invalid slug' } },
       { status: 400 },
-    )
-  }
-
-  // Validate priority
-  if (typeof priority !== 'number' || priority < 0 || priority > 999) {
-    return NextResponse.json(
-      { success: false, error: { message: 'Priority must be 0-999' } },
-      { status: 400 },
-    )
-  }
-
-  // Cannot create role with priority >= your own
-  if (priority >= actorPriority) {
-    return NextResponse.json(
-      { success: false, error: { message: 'Cannot create a role with priority equal to or above your own' } },
-      { status: 403 },
     )
   }
 
@@ -109,7 +95,7 @@ export async function POST(req: Request) {
       name,
       slug: roleSlug,
       description: description as string | undefined,
-      priority,
+      priority: CUSTOM_ROLE_PRIORITY,
       permissions: rolePermissions,
       color: color as string | undefined,
     })
