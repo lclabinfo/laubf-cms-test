@@ -134,28 +134,11 @@ export async function convertDocxToHtml(
     }
     findFont(paragraph.children)
 
-    // Preserve empty/whitespace-only paragraphs
-    let hasText = false
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    function checkText(children: any[]) {
-      for (const c of children) {
-        if (c.type === "text" && c.value && c.value.trim()) { hasText = true; return }
-        if (c.children) checkText(c.children)
-      }
-    }
-    checkText(paragraph.children)
-    if (!hasText) {
-      return {
-        ...paragraph,
-        children: [{
-          type: "run", children: [{ type: "text", value: "\u00A0" }],
-          styleName: null, styleId: null,
-          isBold: false, isItalic: false, isUnderline: false,
-          isStrikethrough: false, isAllCaps: false, isSmallCaps: false,
-          verticalAlignment: "baseline", font: null, fontSize: null,
-        }],
-      }
-    }
+    // NOTE: We intentionally do NOT inject \u00A0 into empty paragraphs here.
+    // Doing so breaks mammoth's list nesting: empty paragraphs between list items
+    // (which have isListItem=false) become non-empty content, causing mammoth to
+    // close the parent list and emit sub-items as separate flat lists.
+    // Empty paragraph preservation is handled in HTML post-processing instead.
 
     // Detect paragraph-level indentation
     const indentStart = parseInt(paragraph.indent?.start || "0", 10)
@@ -558,42 +541,66 @@ function addFontSpanToListItems(html: string, fontFamily: string): string {
  * resets the ordered list continuation.
  */
 function continueOrderedListNumbering(html: string): string {
-  // Split HTML into tokens: <ol...>...</ol> blocks, <ul...>...</ul> blocks, and everything else.
-  // We use a regex to match complete list blocks.
-  const listBlockRegex = /<(ol|ul)(\s[^>]*)?>[\s\S]*?<\/\1>/g
-
-  // Collect all list blocks with their positions
+  // Tokenize HTML into top-level list blocks and other content.
+  // Uses a stack to correctly handle nested lists — the lazy regex approach
+  // fails because </ol> inside a nested list is matched as the outer close tag.
   const tokens: { type: "ol" | "ul" | "other"; text: string; itemCount?: number }[] = []
+
+  const tagRegex = /<(\/?)(?:ol|ul)(\s[^>]*)?>/gi
   let lastIndex = 0
-  let match: RegExpExecArray | null
+  let depth = 0
+  let blockStart = -1
+  let blockTag = ""
 
-  while ((match = listBlockRegex.exec(html)) !== null) {
-    // Add any content before this list block
-    if (match.index > lastIndex) {
-      tokens.push({ type: "other", text: html.slice(lastIndex, match.index) })
+  let m: RegExpExecArray | null
+  while ((m = tagRegex.exec(html)) !== null) {
+    const isClose = m[1] === "/"
+    const tag = m[0].match(/<\/?(\w+)/)?.[1]?.toLowerCase() || ""
+
+    if (!isClose && (tag === "ol" || tag === "ul")) {
+      if (depth === 0) {
+        // Start of a new top-level list
+        if (m.index > lastIndex) {
+          tokens.push({ type: "other", text: html.slice(lastIndex, m.index) })
+        }
+        blockStart = m.index
+        blockTag = tag
+      }
+      depth++
+    } else if (isClose && (tag === "ol" || tag === "ul")) {
+      depth--
+      if (depth === 0) {
+        // End of the top-level list
+        const blockEnd = m.index + m[0].length
+        const blockHtml = html.slice(blockStart, blockEnd)
+
+        if (blockTag === "ol") {
+          // Count top-level <li> items only (depth 1, not nested)
+          let liCount = 0
+          let liDepth = 0
+          const liRegex = /<(\/?)(?:ol|ul|li)[\s>]/gi
+          let lm: RegExpExecArray | null
+          while ((lm = liRegex.exec(blockHtml)) !== null) {
+            const liTag = lm[0].match(/<\/?(\w+)/)?.[1]?.toLowerCase() || ""
+            const liClose = lm[1] === "/"
+            if ((liTag === "ol" || liTag === "ul") && !liClose) liDepth++
+            if ((liTag === "ol" || liTag === "ul") && liClose) liDepth--
+            if (liTag === "li" && !liClose && liDepth === 1) liCount++
+          }
+          tokens.push({ type: "ol", text: blockHtml, itemCount: liCount })
+        } else {
+          tokens.push({ type: "ul", text: blockHtml })
+        }
+        lastIndex = blockEnd
+      }
     }
-
-    const tag = match[1] as "ol" | "ul"
-    const blockHtml = match[0]
-
-    if (tag === "ol") {
-      // Count <li> items (top-level only — don't count nested list items)
-      // Simple approach: count occurrences of <li at the correct nesting depth
-      const itemCount = (blockHtml.match(/<li[\s>]/g) || []).length
-      tokens.push({ type: "ol", text: blockHtml, itemCount })
-    } else {
-      tokens.push({ type: "ul", text: blockHtml })
-    }
-
-    lastIndex = match.index + match[0].length
   }
 
-  // Add remaining content
   if (lastIndex < html.length) {
     tokens.push({ type: "other", text: html.slice(lastIndex) })
   }
 
-  // Now walk the tokens and set `start` on subsequent ordered lists
+  // Walk top-level tokens and set `start` on subsequent ordered lists
   let runningCount = 0
   let inSequence = false
 
@@ -602,12 +609,10 @@ function continueOrderedListNumbering(html: string): string {
     if (token.type === "ol") {
       if (inSequence && runningCount > 0) {
         const expectedStart = runningCount + 1
-        // Set or update the start attribute on this <ol>
         token.text = token.text.replace(
           /^<ol(\s[^>]*)?>/,
-          (fullMatch, attrs) => {
+          (_fullMatch, attrs) => {
             if (attrs && /\bstart\s*=/.test(attrs)) {
-              // Replace existing start attribute
               return `<ol${attrs.replace(/\bstart\s*=\s*["']?\d+["']?/, `start="${expectedStart}"`)}>`
             }
             return `<ol start="${expectedStart}"${attrs || ""}>`
@@ -616,17 +621,14 @@ function continueOrderedListNumbering(html: string): string {
         runningCount += token.itemCount || 0
       } else {
         inSequence = true
-        // Parse existing start attr
         const startMatch = token.text.match(/^<ol[^>]*\bstart\s*=\s*["']?(\d+)["']?/)
         const start = startMatch ? parseInt(startMatch[1], 10) : 1
         runningCount = start - 1 + (token.itemCount || 0)
       }
     } else if (token.type === "ul") {
-      // Bullet list breaks the ordered list continuation
       inSequence = false
       runningCount = 0
     }
-    // "other" tokens don't break the sequence
   }
 
   return tokens.map((t) => t.text).join("")
