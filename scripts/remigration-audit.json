@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-03-10T01:04:45.412Z",
+  "timestamp": "2026-03-11T22:20:36.442Z",
   "stats": {
     "totalProcessed": 1180,
     "questionsUpdated": 1153,
@@ -11,9 +11,9 @@
     "filesMissing": 4,
     "conversionErrors": 7,
     "htmlFallback": 0,
-    "dbUpdated": 1171,
+    "dbUpdated": 0,
     "htmlInPlaceConverted": 0,
-    "dbSkipped": 0
+    "dbSkipped": 1171
   },
   "missingFiles": [
     "8862:NewYear-2020(2)Inductive.docx",
