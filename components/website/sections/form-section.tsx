@@ -78,6 +78,7 @@ export default function FormSection({ content, enableAnimations, colorScheme = "
           otherCampus: otherCampus || null,
           comments: formData.get("comments") || null,
           bibleTeacher,
+          website: formData.get("website") || "", // honeypot
         }),
       })
 
@@ -127,6 +128,8 @@ export default function FormSection({ content, enableAnimations, colorScheme = "
       ) : (
         <div className="bg-white-0 rounded-[40px] p-8 lg:p-12 max-w-[800px] mx-auto">
           <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+            {/* Honeypot field — hidden from humans, catches bots */}
+            <input type="text" name="website" className="sr-only" tabIndex={-1} autoComplete="off" aria-hidden="true" />
             {/* Row 1: First Name + Last Name */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div className="flex flex-col">

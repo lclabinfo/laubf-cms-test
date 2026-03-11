@@ -49,6 +49,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       )
     }
 
+    // Validate status if provided
+    if (body.status !== undefined) {
+      const VALID_STATUSES = ['new', 'reviewed', 'contacted', 'archived']
+      if (!VALID_STATUSES.includes(body.status)) {
+        return NextResponse.json(
+          { success: false, error: { code: 'BAD_REQUEST', message: 'Invalid status value' } },
+          { status: 400 },
+        )
+      }
+    }
+
     // Look up user name for activity log
     const user = await prisma.user.findUnique({
       where: { id: authResult.userId },

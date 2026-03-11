@@ -277,6 +277,13 @@ export default function FormSubmissionsPage() {
     fetchUnreadCount()
   }, [fetchUnreadCount])
 
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    }
+  }, [])
+
   // -----------------------------------------------------------------------
   // Sheet actions
   // -----------------------------------------------------------------------
@@ -343,10 +350,8 @@ export default function FormSubmissionsPage() {
           },
         )
         const json = await res.json()
-        if (json.success) {
-          setSelectedSubmission((prev) =>
-            prev ? { ...prev, status: newStatus } : prev,
-          )
+        if (json.success && json.data) {
+          setSelectedSubmission(json.data)
           setSubmissions((prev) =>
             prev.map((s) =>
               s.id === selectedSubmission.id ? { ...s, status: newStatus } : s,
@@ -471,22 +476,25 @@ export default function FormSubmissionsPage() {
     try {
       if (deleteTarget.length === 1) {
         // Single delete via DELETE endpoint
-        await fetch(`/api/v1/form-submissions/${deleteTarget[0]}`, {
+        const res = await fetch(`/api/v1/form-submissions/${deleteTarget[0]}`, {
           method: "DELETE",
         })
+        if (!res.ok) throw new Error("Delete failed")
         toast.success("Submission deleted")
-        if (selectedSubmission?.id === deleteTarget[0]) {
-          setSheetOpen(false)
-          setSelectedSubmission(null)
-        }
       } else {
         // Batch delete
-        await fetch("/api/v1/form-submissions/batch", {
+        const res = await fetch("/api/v1/form-submissions/batch", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ids: deleteTarget, action: "delete" }),
         })
+        if (!res.ok) throw new Error("Batch delete failed")
         toast.success(`Deleted ${deleteTarget.length} submissions`)
+      }
+      // Close sheet if the previewed submission was among the deleted
+      if (selectedSubmission && deleteTarget.includes(selectedSubmission.id)) {
+        setSheetOpen(false)
+        setSelectedSubmission(null)
       }
       setRowSelection({})
       setDeleteTarget(null)
@@ -835,11 +843,40 @@ export default function FormSubmissionsPage() {
             </p>
           </div>
         ) : (
-          <DataTable
-            columns={columns}
-            table={table}
-            onRowClick={(row) => openSheet(row)}
-          />
+          <>
+            <DataTable
+              columns={columns}
+              table={table}
+              onRowClick={(row) => openSheet(row)}
+              hidePagination
+            />
+            {/* Server-side pagination */}
+            {pagination.totalPages > 1 && (
+              <div className="flex items-center justify-between pt-2 text-sm text-muted-foreground">
+                <span>
+                  {pagination.total} total · Page {pagination.page} of {pagination.totalPages}
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pageIndex === 0}
+                    onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pageIndex + 1 >= pagination.totalPages}
+                    onClick={() => setPageIndex((p) => p + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -1053,6 +1090,7 @@ export default function FormSubmissionsPage() {
                       className="shrink-0 self-end"
                       disabled={!noteText.trim() || addingNote}
                       onClick={handleAddNote}
+                      aria-label="Add note"
                     >
                       {addingNote ? (
                         <Loader2 className="size-4 animate-spin" />
@@ -1061,6 +1099,7 @@ export default function FormSubmissionsPage() {
                       )}
                     </Button>
                   </div>
+                  <p className="text-[10px] text-muted-foreground mt-1">Press Cmd+Enter to send</p>
                 </div>
               </div>
 

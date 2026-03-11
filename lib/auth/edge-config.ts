@@ -44,7 +44,7 @@ export const edgeAuthConfig: NextAuthConfig = {
       const isAuthenticated = !!auth
 
       // CMS routes require authentication (except public auth pages)
-      const publicCmsPages = ['/cms/login', '/cms/signup', '/cms/no-access', '/cms/verify-email', '/cms/forgot-password', '/cms/reset-password', '/cms/accept-invite']
+      const publicCmsPages = ['/cms/login', '/cms/signup', '/cms/no-access', '/cms/verify-email', '/cms/forgot-password', '/cms/reset-password', '/cms/accept-invite', '/cms/onboarding']
       if (pathname.startsWith('/cms') && !publicCmsPages.some(p => pathname.startsWith(p))) {
         return isAuthenticated
       }
@@ -54,7 +54,7 @@ export const edgeAuthConfig: NextAuthConfig = {
         // Public endpoints: bible text, auth flows, form submissions (POST only)
         if (pathname.startsWith('/api/v1/bible')) return true
         if (pathname.startsWith('/api/v1/auth/')) return true
-        if (pathname.startsWith('/api/v1/form-submissions') && request.method === 'POST') return true
+        if (pathname === '/api/v1/form-submissions' && request.method === 'POST') return true
         return isAuthenticated
       }
 

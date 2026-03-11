@@ -31,9 +31,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    if (action === 'setStatus' && !status) {
+    const VALID_STATUSES = ['new', 'reviewed', 'contacted', 'archived']
+    if (action === 'setStatus' && (!status || !VALID_STATUSES.includes(status))) {
       return NextResponse.json(
-        { success: false, error: { code: 'BAD_REQUEST', message: 'status is required for setStatus action' } },
+        { success: false, error: { code: 'BAD_REQUEST', message: 'status must be one of: new, reviewed, contacted, archived' } },
         { status: 400 },
       )
     }

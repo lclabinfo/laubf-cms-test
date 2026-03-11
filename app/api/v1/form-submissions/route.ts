@@ -4,9 +4,22 @@ import { getChurchId } from '@/lib/api/get-church-id'
 import { requireApiAuth } from '@/lib/api/require-auth'
 import { listSubmissions, getUnreadCount, type FormSubmissionFilters } from '@/lib/dal/form-submissions'
 import { sendContactNotificationEmail } from '@/lib/email/notification'
+import { rateLimit } from '@/lib/rate-limit'
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit: 5 submissions per minute per IP
+    const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
+    const { success: allowed } = rateLimit(`form-submit:${ip}`, 5, 60_000)
+    if (!allowed) {
+      return NextResponse.json(
+        { error: 'Too many submissions. Please try again later.' },
+        { status: 429 },
+      )
+    }
+
     const churchId = await getChurchId()
     const body = await request.json()
 
@@ -19,14 +32,39 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Basic validation
+    const trimmedEmail = String(email).trim().toLowerCase()
+    if (!EMAIL_RE.test(trimmedEmail)) {
+      return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
+    }
+    if (String(firstName).length > 100 || String(lastName).length > 100) {
+      return NextResponse.json({ error: 'Name is too long' }, { status: 400 })
+    }
+    if (comments && String(comments).length > 2000) {
+      return NextResponse.json({ error: 'Comments are too long' }, { status: 400 })
+    }
+
+    // Honeypot: reject if the hidden "website" field is filled
+    if (body.website) {
+      // Silently succeed to not tip off bots
+      return NextResponse.json({ success: true })
+    }
+
     const submission = await prisma.contactSubmission.create({
       data: {
         churchId,
         formType: 'visit-us',
-        name: `${firstName} ${lastName}`.trim(),
-        email,
-        phone: phone || null,
-        fields: { interests, otherInterest, campus, otherCampus, comments, bibleTeacher },
+        name: `${String(firstName).trim()} ${String(lastName).trim()}`.trim(),
+        email: trimmedEmail,
+        phone: phone ? String(phone).slice(0, 30) : null,
+        fields: {
+          interests: Array.isArray(interests) ? interests : [],
+          otherInterest: otherInterest ? String(otherInterest).slice(0, 200) : null,
+          campus: campus ? String(campus).slice(0, 100) : null,
+          otherCampus: otherCampus ? String(otherCampus).slice(0, 100) : null,
+          comments: comments ? String(comments).slice(0, 2000) : null,
+          bibleTeacher: typeof bibleTeacher === 'boolean' ? bibleTeacher : false,
+        },
       },
     })
 

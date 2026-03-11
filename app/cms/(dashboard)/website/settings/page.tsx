@@ -172,12 +172,20 @@ function SiteSettingsPageContent() {
       const payload = Object.fromEntries(
         Object.entries(settings).filter(([k]) => k !== "id" && k !== "churchId"),
       )
+      // Filter out empty notification email entries
+      if (Array.isArray(payload.notificationEmails)) {
+        payload.notificationEmails = (payload.notificationEmails as string[]).filter((e: string) => e.trim() !== "")
+      }
       const res = await fetch("/api/v1/site-settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       })
       if (!res.ok) throw new Error("Save failed")
+      const json = await res.json()
+      if (json.data) {
+        setSettings({ ...json.data, serviceTimes: json.data.serviceTimes ?? [], notificationEmails: json.data.notificationEmails ?? [] })
+      }
       setSaveStatus("success")
       setTimeout(() => setSaveStatus("idle"), 3000)
     } catch {

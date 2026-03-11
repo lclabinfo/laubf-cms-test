@@ -84,6 +84,7 @@ export default async function WebsiteLayout({
         <WebsiteNavbar
           menu={headerMenu}
           logoUrl={siteSettings?.logoUrl ?? null}
+          logoDarkUrl={siteSettings?.logoDarkUrl ?? null}
           logoAlt={siteSettings?.logoAlt ?? null}
           siteName={siteSettings?.siteName ?? 'Church'}
           ctaLabel={siteSettings?.navCtaLabel ?? null}

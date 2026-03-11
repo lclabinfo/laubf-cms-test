@@ -1019,6 +1019,7 @@ model SiteSettings {
   tagline        String?
   description    String?  @db.Text
   logoUrl        String?
+  logoDarkUrl    String?
   logoAlt        String?
   faviconUrl     String?
   ogImageUrl     String?

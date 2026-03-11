@@ -58,7 +58,7 @@ export async function sendContactNotificationEmail(churchId: string, submission:
 
   const adminUrl = process.env.CMS_URL || ''
   const detailUrl = `${adminUrl}/cms/form-submissions/${submission.id}`
-  const submittedAt = submission.createdAt.toLocaleDateString('en-US', {
+  const submittedAt = submission.createdAt.toLocaleString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',

@@ -127,6 +127,7 @@ const navGroups: NavGroup[] = [
         title: "Submissions",
         href: "/cms/form-submissions",
         icon: InboxIcon,
+        requiredPermission: "submissions.view" as const,
       },
     ],
   },
