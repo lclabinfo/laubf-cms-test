@@ -24,7 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { plainTextToTiptapJson, isTiptapContentEmpty, getExtensions } from "@/lib/tiptap"
-import { convertDocxToHtml } from "@/lib/docx-import"
+import { convertDocxToHtml, applyListItemSpacing } from "@/lib/docx-import"
 import type { StudySection, Attachment } from "@/lib/messages-data"
 
 interface StudyTabProps {
@@ -229,11 +229,12 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, attachme
       } else {
         // .docx
         const arrayBuffer = await blob.arrayBuffer()
-        const { html, isSerifDoc, serifFontFamily } = await convertDocxToHtml(arrayBuffer, filename)
+        const result = await convertDocxToHtml(arrayBuffer, filename)
         const { generateJSON } = await import("@tiptap/html")
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const json = generateJSON(html, getExtensions()) as any
-        if (isSerifDoc && serifFontFamily) addFontToTextNodes(json, serifFontFamily)
+        let json = generateJSON(result.html, getExtensions()) as any
+        json = applyListItemSpacing(json, result.listItemSpacingBefore)
+        if (result.isSerifDoc && result.serifFontFamily) addFontToTextNodes(json, result.serifFontFamily)
         return JSON.stringify(json)
       }
     } catch (err) {
@@ -345,16 +346,15 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, attachme
           const { generateJSON } = await import("@tiptap/html")
           const arrayBuffer = await file.arrayBuffer()
 
-          const { html, isSerifDoc, serifFontFamily } = await convertDocxToHtml(arrayBuffer, file.name)
+          const result = await convertDocxToHtml(arrayBuffer, file.name)
 
-          // Convert HTML to TipTap JSON and inject font marks
-          // Using generateJSON ensures reliable parsing of alignment/spacing.
-          // Font is applied programmatically to the JSON tree to avoid CSS parsing issues.
+          // Convert HTML to TipTap JSON, restore list spacing, and inject font marks
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const json = generateJSON(html, getExtensions()) as any
+          let json = generateJSON(result.html, getExtensions()) as any
+          json = applyListItemSpacing(json, result.listItemSpacingBefore)
 
-          if (isSerifDoc && serifFontFamily) {
-            addFontToTextNodes(json, serifFontFamily)
+          if (result.isSerifDoc && result.serifFontFamily) {
+            addFontToTextNodes(json, result.serifFontFamily)
           }
 
           handleContentChange(sectionId, JSON.stringify(json))

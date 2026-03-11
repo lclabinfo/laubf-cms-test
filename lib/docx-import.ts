@@ -34,6 +34,13 @@ export interface DocxConversionResult {
   dominantFont: string | null
   /** CSS font-family value for serif documents (e.g. '"Times New Roman", Georgia, serif') */
   serifFontFamily: string | null
+  /**
+   * Sequential indices (in document order) of list items that had an empty
+   * paragraph before them in the original DOCX. Pass to `applyListItemSpacing()`
+   * after `generateJSON()` to restore the spacing as empty paragraphs in the
+   * TipTap JSON tree.
+   */
+  listItemSpacingBefore: Set<number>
 }
 
 const SERIF_FONTS = [
@@ -109,6 +116,9 @@ export async function convertDocxToHtml(
   // ── 2. Collect alignment + font from mammoth transform ──
   const allFonts: string[] = []
   const paragraphAlignments: (string | null)[] = []
+  // Track which sequential list items had an empty paragraph removed before them.
+  // Used to add margin-top to those <li> elements in the HTML post-processing.
+  const listItemsWithSpacingBefore = new Set<number>()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function hasText(children: any[]): boolean {
@@ -174,11 +184,15 @@ export async function convertDocxToHtml(
     // First apply the per-paragraph transform
     const doc = transformParagraph(document)
 
-    // Walk the flat children array with context awareness
+    // Walk the flat children array with context awareness.
+    // Track sequential list item index to record spacing info.
+    let listItemIndex = 0
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     function processChildren(children: any[]): any[] {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const result: any[] = []
+      // Track whether we just removed an empty paragraph before a list item
+      let pendingSpacing = false
       for (let i = 0; i < children.length; i++) {
         const child = children[i]
         // Only process paragraph-type children
@@ -189,6 +203,7 @@ export async function convertDocxToHtml(
           } else {
             result.push(child)
           }
+          pendingSpacing = false
           continue
         }
 
@@ -203,14 +218,24 @@ export async function convertDocxToHtml(
           const nextIsList = next?.numbering != null
 
           if (prevIsList && nextIsList) {
-            // Between list items — REMOVE entirely so mammoth groups them
+            // Between list items — REMOVE entirely so mammoth groups them,
+            // but mark the next list item for spacing
+            pendingSpacing = true
             continue
           }
 
           // Not between list items — inject \u00A0 to preserve spacing
           result.push({ ...child, children: [nbspRun] })
+          pendingSpacing = false
         } else {
+          if (isListItem) {
+            if (pendingSpacing) {
+              listItemsWithSpacingBefore.add(listItemIndex)
+            }
+            listItemIndex++
+          }
           result.push(child)
+          pendingSpacing = false
         }
       }
       return result
@@ -371,6 +396,7 @@ export async function convertDocxToHtml(
     isSerifDoc,
     dominantFont,
     serifFontFamily,
+    listItemSpacingBefore: listItemsWithSpacingBefore,
   }
 }
 
@@ -720,4 +746,109 @@ function detectDominantFont(allFonts: string[]): {
   }
   const isSerifDoc = dominantFont !== null && SERIF_FONTS.includes(dominantFont)
   return { dominantFont, isSerifDoc }
+}
+
+// ── Public: Apply list item spacing to TipTap JSON ──
+
+interface TipTapNode {
+  type: string
+  attrs?: Record<string, unknown>
+  content?: TipTapNode[]
+  marks?: unknown[]
+  text?: string
+}
+
+/**
+ * Restore spacing between list items by inserting empty paragraphs into the
+ * TipTap JSON tree. Call this after `generateJSON()` with the
+ * `listItemSpacingBefore` set from `convertDocxToHtml()`.
+ *
+ * Handles two types of gaps:
+ * - **Sibling gap**: blank line between consecutive items in the same list
+ *   → adds trailing empty paragraph to the preceding sibling
+ * - **Parent-child gap**: blank line between a parent item's text and its
+ *   nested sub-list → adds empty paragraph before the nested list node
+ */
+export function applyListItemSpacing(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  doc: any,
+  spacingBefore: Set<number>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): any {
+  if (spacingBefore.size === 0) return doc
+
+  // Pass 1: assign sequential indices to all listItem nodes (document order)
+  let counter = 0
+  const indexMap = new Map<TipTapNode, number>()
+
+  function assignIndices(node: TipTapNode) {
+    if (node.type === "listItem") {
+      indexMap.set(node, counter++)
+    }
+    for (const child of node.content || []) {
+      assignIndices(child)
+    }
+  }
+  assignIndices(doc)
+
+  // Pass 2: walk the tree and insert empty paragraphs
+  const emptyParagraph = { type: "paragraph" }
+
+  function walkNode(node: TipTapNode): TipTapNode {
+    if (node.type === "orderedList" || node.type === "bulletList") {
+      return walkList(node)
+    }
+    if (node.content) {
+      return { ...node, content: node.content.map(walkNode) }
+    }
+    return node
+  }
+
+  function walkList(node: TipTapNode): TipTapNode {
+    const items = (node.content || []).map((item) => walkListItem(item))
+
+    // Handle sibling gaps: if the NEXT sibling has spacingBefore,
+    // add a trailing empty paragraph to the current sibling.
+    const newItems: TipTapNode[] = []
+    for (let i = 0; i < items.length; i++) {
+      let item = items[i]
+      if (i + 1 < items.length) {
+        const nextItem = node.content![i + 1]
+        const nextIndex = indexMap.get(nextItem)
+        if (nextIndex !== undefined && spacingBefore.has(nextIndex)) {
+          item = {
+            ...item,
+            content: [...(item.content || []), { ...emptyParagraph }],
+          }
+        }
+      }
+      newItems.push(item)
+    }
+    return { ...node, content: newItems }
+  }
+
+  function walkListItem(node: TipTapNode): TipTapNode {
+    const newContent: TipTapNode[] = []
+
+    for (const child of node.content || []) {
+      if (child.type === "orderedList" || child.type === "bulletList") {
+        // Parent-child gap: if the first item of this nested list has
+        // spacingBefore, insert an empty paragraph before the nested list.
+        const firstChild = child.content?.[0]
+        if (firstChild) {
+          const firstChildIndex = indexMap.get(firstChild)
+          if (firstChildIndex !== undefined && spacingBefore.has(firstChildIndex)) {
+            newContent.push({ ...emptyParagraph })
+          }
+        }
+        newContent.push(walkList(child))
+      } else {
+        newContent.push(child)
+      }
+    }
+
+    return { ...node, content: newContent }
+  }
+
+  return walkNode(doc)
 }

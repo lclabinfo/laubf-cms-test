@@ -406,5 +406,6 @@ export async function convertDocToHtml(
     isSerifDoc,
     dominantFont,
     serifFontFamily,
+    listItemSpacingBefore: new Set<number>(),
   }
 }

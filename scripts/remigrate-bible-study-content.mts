@@ -32,7 +32,7 @@ const dom = new JSDOM('<!DOCTYPE html><html><head></head><body></body></html>')
 ;(globalThis as any).HTMLElement = dom.window.HTMLElement
 
 // ── Dynamic imports after DOM setup ──
-const { convertDocxToHtml } = await import('../lib/docx-import.ts')
+const { convertDocxToHtml, applyListItemSpacing } = await import('../lib/docx-import.ts')
 const { convertDocToHtml } = await import('../lib/doc-convert.ts')
 const { generateJSON } = await import('@tiptap/html')
 const { fixOrderedListContinuation, getParseExtensions } = await import('../lib/tiptap.ts')
@@ -125,12 +125,14 @@ async function convertFile(filepath: string, filename: string): Promise<Conversi
   let dominantFont: string | null = null
   let method: string
 
+  let listSpacing: Set<number> | undefined
   try {
     if (ext === '.docx') {
       const buffer = readFileSync(filepath)
       const result = await convertDocxToHtml(buffer, filename)
       html = result.html; isSerifDoc = result.isSerifDoc
       serifFontFamily = result.serifFontFamily; dominantFont = result.dominantFont
+      listSpacing = result.listItemSpacingBefore
       method = 'docx-mammoth'
     } else if (ext === '.doc' || ext === '.rtf') {
       const buffer = readFileSync(filepath)
@@ -152,6 +154,11 @@ async function convertFile(filepath: string, filename: string): Promise<Conversi
 
     // HTML → TipTap JSON
     let json = generateJSON(html, tiptapExtensions) as any
+
+    // Restore empty paragraphs between list items (removed for nesting)
+    if (listSpacing && listSpacing.size > 0) {
+      json = applyListItemSpacing(json, listSpacing)
+    }
 
     // Fix ordered list continuation (e.g., V1-4 questions → V5-14 questions)
     json = fixOrderedListContinuation(json)
