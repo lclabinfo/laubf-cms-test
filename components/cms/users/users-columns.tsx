@@ -26,7 +26,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select"
 import {
   AlertDialog,
@@ -199,7 +198,9 @@ export function createUsersColumns(options: ColumnOptions): ColumnDef<UserRow>[]
             disabled={disabled}
           >
             <SelectTrigger className="w-[140px] h-8 text-xs">
-              <SelectValue />
+              <span className="truncate">
+                {roleItems.find(r => r.value === u.role)?.label ?? u.role}
+              </span>
             </SelectTrigger>
             <SelectContent>
               {roleItems.map((item) => (
@@ -208,12 +209,12 @@ export function createUsersColumns(options: ColumnOptions): ColumnDef<UserRow>[]
                   value={item.value}
                   disabled={!item.canAssign}
                   textValue={item.label}
-                  className="py-1.5"
+                  className="py-2"
                 >
                   <div>
-                    <p className="font-medium">{item.label}</p>
+                    <span className="font-medium">{item.label}</span>
                     {item.description && (
-                      <p className="text-xs text-muted-foreground">{item.description}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>
                     )}
                   </div>
                 </SelectItem>

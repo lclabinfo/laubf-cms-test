@@ -176,6 +176,7 @@ export const authConfig: NextAuthConfig = {
           token.churchSlug = membership.church.slug
           token.churchName = membership.church.name
           token.role = membership.role
+          token.memberStatus = membership.status
 
           if (membership.customRole) {
             token.roleId = membership.customRole.id
@@ -183,6 +184,18 @@ export const authConfig: NextAuthConfig = {
             token.rolePriority = membership.customRole.priority
             token.permissions = membership.customRole.permissions
           }
+        }
+      }
+
+      // Re-check status for PENDING members so onboarding completion takes effect
+      // without requiring re-sign-in. Only PENDING users incur this lightweight query.
+      if (token.memberStatus === 'PENDING' && token.userId && token.churchId) {
+        const current = await prisma.churchMember.findFirst({
+          where: { userId: token.userId, churchId: token.churchId },
+          select: { status: true },
+        })
+        if (current) {
+          token.memberStatus = current.status
         }
       }
 
@@ -198,6 +211,7 @@ export const authConfig: NextAuthConfig = {
         roleId: string
         roleName: string
         rolePriority: number
+        memberStatus: string
         permissions: string[]
       }
 
@@ -221,6 +235,7 @@ export const authConfig: NextAuthConfig = {
       extSession.roleName = (token.roleName as string) ?? ''
       extSession.rolePriority = (token.rolePriority as number) ?? 0
       extSession.permissions = (token.permissions as string[]) ?? []
+      extSession.memberStatus = (token.memberStatus as string) ?? 'ACTIVE'
 
       return extSession
     },

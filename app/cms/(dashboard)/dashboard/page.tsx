@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db"
 import { getLatestPublishedDates } from "@/lib/dal/messages"
 import { getUpcomingEvents } from "@/lib/dal/events"
 import { DashboardContent } from "@/components/cms/dashboard/dashboard-content"
+import { WelcomeBanner } from "@/components/cms/welcome-banner"
 
 export default async function DashboardPage() {
   const session = await requireAuth()
@@ -269,6 +270,13 @@ export default async function DashboardPage() {
     : `${videoCountAll} video${videoCountAll === 1 ? "" : "s"}`
 
   return (
+    <>
+    <WelcomeBanner
+      userName={session.user?.name ?? ""}
+      userId={session.user?.id ?? ""}
+      churchName={session.churchName ?? ""}
+      roleName={session.roleName ?? ""}
+    />
     <DashboardContent
       counts={{
         messages: {
@@ -315,5 +323,6 @@ export default async function DashboardPage() {
       upcomingEvents={upcomingEventsData}
       recentActivity={recentActivity}
     />
+    </>
   )
 }

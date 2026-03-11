@@ -23,6 +23,7 @@ export type CmsSessionData = {
   roleId: string
   roleName: string
   rolePriority: number
+  memberStatus: string
   permissions: string[]
 }
 

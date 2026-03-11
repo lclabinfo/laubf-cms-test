@@ -14,6 +14,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
     redirect("/cms/no-access")
   }
 
+  // Redirect PENDING members to onboarding
+  if (session.memberStatus === 'PENDING') {
+    redirect("/cms/onboarding")
+  }
+
+  // Block inactive members
+  if (session.memberStatus === 'INACTIVE') {
+    redirect("/cms/no-access")
+  }
+
   return (
     <CmsShell
       session={{
@@ -30,6 +40,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         roleName: session.roleName ?? '',
         rolePriority: session.rolePriority ?? 0,
         permissions: session.permissions ?? [],
+        memberStatus: session.memberStatus ?? 'ACTIVE',
       }}
     >
       {children}

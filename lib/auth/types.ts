@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import type { MemberRole } from '@/lib/generated/prisma/client'
 import type { DefaultSession } from 'next-auth'
 
@@ -17,6 +16,7 @@ declare module 'next-auth' {
     roleId: string
     roleName: string
     rolePriority: number
+    memberStatus: string
     permissions: string[]
   }
 }
@@ -31,6 +31,7 @@ declare module '@auth/core/jwt' {
     roleId?: string
     roleName?: string
     rolePriority?: number
+    memberStatus?: string
     permissions?: string[]
   }
 }
