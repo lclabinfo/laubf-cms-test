@@ -44,15 +44,15 @@ export default function EventCard({ data, size, className }: { data: EventCardDa
           style={{ objectPosition: data.imageObjectPosition }}
         />
       ) : (
-        <div className="absolute inset-0 bg-[#1a1a2e]">
+        <div className="absolute inset-0 bg-[#1c1c1e]">
           {/* Mesh gradient backdrop */}
           <div
             className="absolute inset-0 opacity-80"
             style={{
               backgroundImage:
-                'radial-gradient(ellipse 60% 50% at 15% 80%, rgba(99,102,241,0.25) 0%, transparent 70%),' +
-                'radial-gradient(ellipse 50% 60% at 85% 20%, rgba(168,85,247,0.2) 0%, transparent 70%),' +
-                'radial-gradient(ellipse 40% 40% at 50% 50%, rgba(59,130,246,0.12) 0%, transparent 60%)',
+                'radial-gradient(ellipse 60% 50% at 15% 80%, rgba(120,120,130,0.2) 0%, transparent 70%),' +
+                'radial-gradient(ellipse 50% 60% at 85% 20%, rgba(160,160,170,0.15) 0%, transparent 70%),' +
+                'radial-gradient(ellipse 40% 40% at 50% 50%, rgba(100,100,110,0.1) 0%, transparent 60%)',
             }}
           />
           {/* Subtle noise texture */}
