@@ -111,6 +111,23 @@ export async function convertDocxToHtml(
   const paragraphAlignments: (string | null)[] = []
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function hasText(children: any[]): boolean {
+    for (const c of children) {
+      if (c.type === "text" && c.value && c.value.trim()) return true
+      if (c.children && hasText(c.children)) return true
+    }
+    return false
+  }
+
+  const nbspRun = {
+    type: "run", children: [{ type: "text", value: "\u00A0" }],
+    styleName: null, styleId: null,
+    isBold: false, isItalic: false, isUnderline: false,
+    isStrikethrough: false, isAllCaps: false, isSmallCaps: false,
+    verticalAlignment: "baseline", font: null, fontSize: null,
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const transformParagraph = mammoth.transforms.paragraph(function (paragraph: any) {
     const isListItem = !!paragraph.numbering
 
@@ -134,12 +151,6 @@ export async function convertDocxToHtml(
     }
     findFont(paragraph.children)
 
-    // NOTE: We intentionally do NOT inject \u00A0 into empty paragraphs here.
-    // Doing so breaks mammoth's list nesting: empty paragraphs between list items
-    // (which have isListItem=false) become non-empty content, causing mammoth to
-    // close the parent list and emit sub-items as separate flat lists.
-    // Empty paragraph preservation is handled in HTML post-processing instead.
-
     // Detect paragraph-level indentation
     const indentStart = parseInt(paragraph.indent?.start || "0", 10)
     if (indentStart > 0 && !paragraph.numbering && !paragraph.styleName?.startsWith("Heading")) {
@@ -154,6 +165,60 @@ export async function convertDocxToHtml(
     return paragraph
   })
 
+  // Document-level transform: preserve empty paragraphs by injecting \u00A0,
+  // but REMOVE empty paragraphs that sit between list items. Injecting \u00A0
+  // into inter-list empty paragraphs breaks mammoth's list nesting because
+  // mammoth sees them as content paragraphs and closes the parent list.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function transformDocument(document: any): any {
+    // First apply the per-paragraph transform
+    const doc = transformParagraph(document)
+
+    // Walk the flat children array with context awareness
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function processChildren(children: any[]): any[] {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result: any[] = []
+      for (let i = 0; i < children.length; i++) {
+        const child = children[i]
+        // Only process paragraph-type children
+        if (child.type !== "paragraph") {
+          // Recursively process non-paragraph elements (e.g., tables)
+          if (child.children) {
+            result.push({ ...child, children: processChildren(child.children) })
+          } else {
+            result.push(child)
+          }
+          continue
+        }
+
+        const isEmpty = !hasText(child.children || [])
+        const isListItem = !!child.numbering
+
+        if (isEmpty && !isListItem) {
+          // Check if this empty paragraph is between list items
+          const prev = children[i - 1]
+          const next = children[i + 1]
+          const prevIsList = prev?.numbering != null
+          const nextIsList = next?.numbering != null
+
+          if (prevIsList && nextIsList) {
+            // Between list items — REMOVE entirely so mammoth groups them
+            continue
+          }
+
+          // Not between list items — inject \u00A0 to preserve spacing
+          result.push({ ...child, children: [nbspRun] })
+        } else {
+          result.push(child)
+        }
+      }
+      return result
+    }
+
+    return { ...doc, children: processChildren(doc.children || []) }
+  }
+
   // mammoth expects { arrayBuffer } in browser, { buffer } in Node.js
   const isNode = typeof process !== "undefined" && process.versions?.node
   const mammothInput = isNode
@@ -163,7 +228,7 @@ export async function convertDocxToHtml(
   const result = await mammoth.convertToHtml(
     mammothInput,
     {
-      transformDocument: transformParagraph,
+      transformDocument: transformDocument,
       styleMap: [
         "p[style-name='Heading 1'] => h1:fresh",
         "p[style-name='Heading 2'] => h2:fresh",
