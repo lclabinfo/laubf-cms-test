@@ -71,6 +71,69 @@ The primary user table. 38 total records, 28 legitimate, 10 spam/bot.
 
 ---
 
+## 1b. Legacy Permission System
+
+The old site used **TechNote TN3**, a Korean BBS framework. Permissions were a simple numeric threshold (`m_level` 0-10) checked per-board, with each board defining minimum levels for list/read/write/reply/comment actions via `_ad` config tables.
+
+### Per-Board Permission Matrix
+
+The `_ad` tables use columns `se3_1` through `se3_6` for: List, Read, Write, Reply, Comment, Upload/Secret. The number is the **minimum `m_level` required**.
+
+| Board | Purpose | List | Read | Write | Reply | Comment | Upload |
+|-------|---------|------|------|-------|-------|---------|--------|
+| **BibleStudy** | Bible study content | 0 | 0 | 0 | 0 | 0 | 0 |
+| **BibleForest** | Bible book overviews | 0 | 0 | 0 | 0 | 0 | 0 |
+| **Bible66** | 66 books reference | 0 | 0 | 0 | 0 | 0 | 0 |
+| **IBSIntro** | IBS intro materials | 0 | 0 | 0 | 0 | 0 | 0 |
+| **IBSMessage** | IBS messages | 0 | 0 | 0 | 0 | 0 | 0 |
+| **eqna** | English Q&A | 0 | 0 | 0 | 0 | 0 | 0 |
+| **edbshare** | Daily Bread sharing | 0 | 0 | 0 | 0 | 0 | 0 |
+| **subpray** | Chapter prayer (Korean) | 0 | 0 | 0 | 0 | 0 | 0 |
+| **esubpray** | Chapter prayer (English) | 0 | 0 | 0 | 0 | 0 | 0 |
+| **fellowshippray** | Fellowship prayer | 0 | 0 | 0 | 0 | 0 | 0 |
+| **mobtalk** | Mobile discussion | 0 | 0 | **1** | **1** | **1** | **1** |
+| **pray** | Korean prayer board | 0 | 0 | **2** | 0 | 0 | 0 |
+| **epray** | English prayer (World Mission) | 0 | 0 | **2** | 0 | 0 | 0 |
+| **mobpray** | Mobile prayer | 0 | 0 | **2** | 0 | 0 | 0 |
+| **tip** | Korean announcements | 0 | 0 | **5** | **5** | 0 | **1** |
+| **enotice** | English notices | 0 | 0 | **5** | **5** | 0 | **1** |
+| **etip** | English tips | 0 | 0 | **5** | **5** | 0 | **1** |
+| **mobnotice** | Mobile notices | 0 | 0 | **5** | **5** | 0 | **1** |
+
+### Three Permission Gates
+
+The entire system only had **3 actual gates** across all ~32 boards:
+
+1. **Level 1** -- Discussion board (mobtalk): basic participation requires login
+2. **Level 2** -- Prayer boards (pray, epray, mobpray): writing prayer requests requires established membership
+3. **Level 5** -- Notice/announcement boards (tip, enotice, etip, mobnotice): publishing requires editor status
+
+Everything else (Bible studies, Q&A, Daily Bread, Bible Forest, chapter prayer, IBS) was **wide open** -- even level 0 could write.
+
+### What Each Level Could Do
+
+| Level | Role | Capabilities |
+|---|---|---|
+| **0** | Unverified/Default | Read all boards. Write to all open boards (Bible study, Q&A, Daily Bread, etc.). Default on registration. |
+| **1** | Registered User | + Write/reply on discussion board (mobtalk). Upload files on gated boards. |
+| **2** | *(threshold only -- no members had this level)* | + Write prayer requests on prayer boards (pray, epray, mobpray). |
+| **3** | Regular Member / Shepherd | Satisfies level 2 gate. Can post prayer requests. Cannot publish announcements. |
+| **5** | Editor / Admin | + **Publish announcements** on all notice/TIP boards. Content editor tier. |
+| **10** | Super Admin / Site Owner | Full access. Root admin panel. Member management. |
+
+### Comparison to New CMS
+
+| Aspect | Old System | New CMS |
+|---|---|---|
+| Permission model | 6 numeric levels (0,1,2,3,5,10) | Custom roles with 49 granular permissions |
+| Permission gates | 3 board-level thresholds | 17 permission groups |
+| Role definition | Implicit (just a number) | Named roles (Owner, Admin, Editor, Viewer + custom) |
+| Granularity | Board-level (read/write/reply) | Feature-level (messages.create, media.upload, etc.) |
+| Escalation prevention | None (higher number = more access) | Priority-based hierarchy with privilege escalation checks |
+| Content protection | Most boards fully open to level 0 | All write endpoints require specific permissions |
+
+---
+
 ## 2. Additional People from Content
 
 ### From Community Posts & Notices

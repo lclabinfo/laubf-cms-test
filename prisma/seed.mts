@@ -4014,12 +4014,12 @@ async function main() {
     })
 
     const DEFAULT_EVENT_IMAGES = [
-      { filename: 'gradient-warm-sunrise.svg', fileSize: 1054, alt: 'Template: Warm Sunrise Gradient', title: 'Event Template — Warm Sunrise' },
-      { filename: 'gradient-ocean-calm.svg', fileSize: 1090, alt: 'Template: Ocean Calm Gradient', title: 'Event Template — Ocean Calm' },
-      { filename: 'gradient-twilight-purple.svg', fileSize: 1120, alt: 'Template: Twilight Purple Gradient', title: 'Event Template — Twilight Purple' },
-      { filename: 'gradient-forest-green.svg', fileSize: 1202, alt: 'Template: Forest Green Gradient', title: 'Event Template — Forest Green' },
-      { filename: 'gradient-soft-blush.svg', fileSize: 1153, alt: 'Template: Soft Blush Gradient', title: 'Event Template — Soft Blush' },
-      { filename: 'gradient-midnight-blue.svg', fileSize: 1084, alt: 'Template: Midnight Blue Gradient', title: 'Event Template — Midnight Blue' },
+      { filename: 'gradient-warm-sunrise.svg', fileSize: 1054, alt: 'Event Template — Warm Sunrise Gradient' },
+      { filename: 'gradient-ocean-calm.svg', fileSize: 1090, alt: 'Event Template — Ocean Calm Gradient' },
+      { filename: 'gradient-twilight-purple.svg', fileSize: 1120, alt: 'Event Template — Twilight Purple Gradient' },
+      { filename: 'gradient-forest-green.svg', fileSize: 1202, alt: 'Event Template — Forest Green Gradient' },
+      { filename: 'gradient-soft-blush.svg', fileSize: 1153, alt: 'Event Template — Soft Blush Gradient' },
+      { filename: 'gradient-midnight-blue.svg', fileSize: 1084, alt: 'Event Template — Midnight Blue Gradient' },
     ]
 
     const existingTemplateUrls = new Set(
@@ -4044,7 +4044,6 @@ async function main() {
           mimeType: 'image/svg+xml',
           fileSize: img.fileSize,
           alt: img.alt,
-          title: img.title,
           folder: EVENT_TEMPLATES_FOLDER,
           width: 1200,
           height: 630,
