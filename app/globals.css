@@ -440,11 +440,22 @@
   list-style-type: disc;
   padding-left: 1.5em;
 }
+.tiptap-wrapper .tiptap ul ul { list-style-type: circle; }
+.tiptap-wrapper .tiptap ul ul ul { list-style-type: square; }
 
 .tiptap-wrapper .tiptap ol {
   list-style-type: decimal;
   padding-left: 1.5em;
 }
+.tiptap-wrapper .tiptap ol ol { list-style-type: lower-alpha; }
+.tiptap-wrapper .tiptap ol ol ol { list-style-type: lower-roman; }
+.tiptap-wrapper .tiptap ol ol ol ol { list-style-type: upper-alpha; }
+
+/* Support for explicit type attribute on ordered lists */
+.tiptap-wrapper .tiptap ol[type="a"] { list-style-type: lower-alpha; }
+.tiptap-wrapper .tiptap ol[type="A"] { list-style-type: upper-alpha; }
+.tiptap-wrapper .tiptap ol[type="i"] { list-style-type: lower-roman; }
+.tiptap-wrapper .tiptap ol[type="I"] { list-style-type: upper-roman; }
 
 .tiptap-wrapper .tiptap li {
   margin: 0.25em 0;
@@ -958,7 +969,16 @@
     margin-bottom: 1rem;
   }
   .study-content ul { list-style-type: disc; }
+  .study-content ul ul { list-style-type: circle; }
+  .study-content ul ul ul { list-style-type: square; }
   .study-content ol { list-style-type: decimal; }
+  .study-content ol ol { list-style-type: lower-alpha; }
+  .study-content ol ol ol { list-style-type: lower-roman; }
+  .study-content ol ol ol ol { list-style-type: upper-alpha; }
+  .study-content ol[type="a"] { list-style-type: lower-alpha; }
+  .study-content ol[type="A"] { list-style-type: upper-alpha; }
+  .study-content ol[type="i"] { list-style-type: lower-roman; }
+  .study-content ol[type="I"] { list-style-type: upper-roman; }
   .study-content li {
     margin-bottom: 0.5rem;
   }

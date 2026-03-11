@@ -81,6 +81,8 @@ import {
   Heading4,
   Maximize2,
   Minimize2,
+  Indent,
+  Outdent,
 } from "lucide-react"
 
 /** Custom icon: horizontal lines with vertical double-arrow (line/paragraph spacing) */
@@ -701,6 +703,30 @@ function EditorToolbar({ editor, isFullscreen, onToggleFullscreen }: { editor: R
             }
           >
             <ListOrdered className="size-4" />
+          </Toggle>
+        </ToolbarTooltip>
+        <ToolbarTooltip label="Indent (Nest)" shortcut="Tab">
+          <Toggle
+            size="sm"
+            pressed={false}
+            disabled={!editor.isActive("listItem")}
+            onPressedChange={() =>
+              editor.chain().focus().sinkListItem("listItem").run()
+            }
+          >
+            <Indent className="size-4" />
+          </Toggle>
+        </ToolbarTooltip>
+        <ToolbarTooltip label="Outdent (Lift)" shortcut="⇧Tab">
+          <Toggle
+            size="sm"
+            pressed={false}
+            disabled={!editor.isActive("listItem")}
+            onPressedChange={() =>
+              editor.chain().focus().liftListItem("listItem").run()
+            }
+          >
+            <Outdent className="size-4" />
           </Toggle>
         </ToolbarTooltip>
         <ToolbarTooltip label="Blockquote" shortcut="⌘⇧B">

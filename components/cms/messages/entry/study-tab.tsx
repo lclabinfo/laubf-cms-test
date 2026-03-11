@@ -117,6 +117,10 @@ function addFontToTextNodes(node: any, fontFamily: string): void {
     }
     node.marks = marks
   }
+  // Set fontFamily on list nodes so markers render in the correct font
+  if (node.type === "orderedList" || node.type === "bulletList") {
+    node.attrs = { ...(node.attrs || {}), fontFamily }
+  }
   if (node.content) {
     for (const child of node.content) {
       addFontToTextNodes(child, fontFamily)
