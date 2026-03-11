@@ -41,6 +41,8 @@ type SectionKey = "identity" | "location" | "contact" | "worship" | "social"
 
 function formatTime(time: string) {
   if (!time || !time.includes(":")) return ""
+  // Already in 12hr format — return as-is
+  if (/[ap]m/i.test(time)) return time.trim()
   const [h, m] = time.split(":")
   const hour = parseInt(h, 10)
   if (isNaN(hour)) return ""

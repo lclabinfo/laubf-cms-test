@@ -101,6 +101,7 @@ const healthConfig: Record<
 
 function formatTime(time: string | null): string {
   if (!time) return ""
+  if (/[ap]m/i.test(time)) return time.trim()
   const [h, m] = time.split(":").map(Number)
   const suffix = h >= 12 ? "PM" : "AM"
   const hour = h % 12 || 12

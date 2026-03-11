@@ -170,7 +170,7 @@ await prisma.siteSettings.create({
     description:
       'LA UBF (Los Angeles University Bible Fellowship) is a Bible-centered community raising lifelong disciples on college campuses and beyond.',
     logoUrl: `${CDN}/laubf-logo.svg`,
-    logoDarkUrl: '/logo/laubf-logo-blue.svg',
+    logoDarkUrl: `${CDN}/laubf-logo-blue.svg`,
     logoAlt: 'LA UBF',
     faviconUrl: '/favicon.ico',
     contactEmail: 'laubf.downey@gmail.com',

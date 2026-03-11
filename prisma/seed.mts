@@ -368,11 +368,25 @@ const DAILY_BREADS = [
 ]
 
 // --- Events (recurring meetings only — matches Quick Links on live site) ---
-const EVENTS = [
+const EVENTS: Array<{
+  slug: string; title: string; type: string; dateStart: string; dateEnd?: string;
+  startTime?: string; endTime?: string; location?: string; description?: string;
+  ministry?: string; campus?: string; isRecurring: boolean; isFeatured?: boolean;
+  meetingUrl?: string; recurrenceType?: string; recurrenceDays?: string[];
+  recurrenceSchedule?: string; registrationUrl?: string;
+}> = [
+  // ── Recurring meetings ──
   { slug: "daily-bread-meeting", title: "Daily Bread & Prayer Meeting", type: "meeting", dateStart: "2026-02-01", startTime: "6:00 AM", endTime: "7:00 AM", location: "LA UBF Main Center", description: "Start your morning in the Word.", ministry: "church-wide", isRecurring: true, meetingUrl: "https://us02web.zoom.us/j/86540458764?pwd=ZDVUUjZDOVZ4WlJFc1VvNVlzd2tkQT09", recurrenceType: "weekly", recurrenceDays: ["MON", "TUE", "WED", "THU", "FRI"], recurrenceSchedule: "Mon-Fri @ 6 AM" },
   { slug: "evening-prayer-meeting", title: "Evening Prayer Meeting", type: "meeting", dateStart: "2026-02-01", startTime: "7:30 PM", endTime: "8:00 PM", location: "LA UBF Main Center", description: "A daily evening prayer meeting.", ministry: "church-wide", isRecurring: true, meetingUrl: "https://meet.google.com/pgm-trah-moc", recurrenceType: "daily", recurrenceDays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"], recurrenceSchedule: "Every Day @ 7:30 PM" },
   { slug: "mens-bible-study", title: "Men's Bible Study", type: "meeting", dateStart: "2026-02-01", startTime: "8:00 AM", endTime: "10:00 AM", location: "LA UBF Main Center", description: "A weekly gathering for men to study Scripture.", ministry: "church-wide", isRecurring: true, recurrenceType: "weekly", recurrenceDays: ["SAT"], recurrenceSchedule: "Sat @ 8 AM" },
   { slug: "sunday-livestream", title: "Sunday Livestream", type: "meeting", dateStart: "2026-02-01", startTime: "11:00 AM", endTime: "12:30 PM", location: "LA UBF Main Center / YouTube Live", description: "Join our Sunday worship service in person or watch the livestream.", ministry: "church-wide", campus: "all", isRecurring: true, meetingUrl: "https://www.youtube.com/@LAUBF/streams", recurrenceType: "weekly", recurrenceDays: ["SUN"], recurrenceSchedule: "Sun @ 11 AM" },
+  // ── 2026 events (from LA UBF schedule) ──
+  { slug: "spring-bible-academy-2026", title: "Spring Bible Academy", type: "event", dateStart: "2026-03-05", dateEnd: "2026-03-06", location: "LA UBF Main Center", description: "A 2-day intensive Bible academy for deeper study and training.", ministry: "church-wide", isRecurring: false, isFeatured: true },
+  { slug: "spring-bible-conference-2026", title: "Spring Bible Conference", type: "event", dateStart: "2026-04-03", dateEnd: "2026-04-05", location: "LA UBF Main Center", description: "Our annual Spring Bible Conference — 3 days of worship, study, and fellowship.", ministry: "church-wide", isRecurring: false, isFeatured: true },
+  { slug: "world-mission-conference-2026", title: "World Mission Conference", type: "event", dateStart: "2026-05-17", dateEnd: "2026-05-22", location: "TBD", description: "A 6-day conference focused on world mission and the Great Commission.", ministry: "church-wide", isRecurring: false, isFeatured: true },
+  { slug: "na-young-adult-conference-2026", title: "NA Young Adult Conference", type: "event", dateStart: "2026-05-29", dateEnd: "2026-06-01", location: "TBD", description: "North America Young Adult Conference — 4 days of fellowship, worship, and Bible study for young adults.", ministry: "young-adult", isRecurring: false, isFeatured: true },
+  { slug: "jbf-hbf-conference-2026", title: "JBF/HBF Conference", type: "event", dateStart: "2026-07-17", dateEnd: "2026-07-19", location: "TBD", description: "A 3-day conference for middle and high school students.", ministry: "high-school", isRecurring: false },
+  { slug: "summer-bible-conference-2026", title: "Summer Bible Conference", type: "event", dateStart: "2026-07-24", dateEnd: "2026-07-26", location: "TBD", description: "Our annual Summer Bible Conference — 3 days of worship, study, and fellowship.", ministry: "church-wide", isRecurring: false, isFeatured: true },
 ]
 
 // --- Ministry labels ---
@@ -456,7 +470,7 @@ async function main() {
         emails: [{ label: 'General', value: 'laubf.downey@gmail.com' }],
         phones: [{ label: 'Main', value: '(562) 396-6350' }],
         worshipServices: [
-          { day: 'Sunday', startTime: '11:00 AM', endTime: '12:30 PM', description: 'Sunday Worship Service' },
+          { day: 'Sunday', startTime: '11:00', endTime: '12:30', description: 'Sunday Worship Service' },
         ],
         extraSocialLinks: [
           { platform: 'tiktok', url: 'https://www.tiktok.com/@la.ubf' },
@@ -1018,7 +1032,7 @@ async function main() {
       description:
         'LA UBF (Los Angeles University Bible Fellowship) is a Bible-centered community raising lifelong disciples on college campuses and beyond.',
       logoUrl: `${CDN}/laubf-logo.svg`,
-      logoDarkUrl: '/logo/laubf-logo-blue.svg',
+      logoDarkUrl: `${CDN}/laubf-logo-blue.svg`,
       logoAlt: 'LA UBF',
       faviconUrl: '/favicon.ico',
       contactEmail: 'laubf.downey@gmail.com',
@@ -3750,7 +3764,7 @@ async function main() {
   // Test User (for development login)
   // ============================================================
   const bcrypt = await import('bcryptjs')
-  const testEmail = process.env.AUTH_TEST_EMAIL || 'admin@laubf.org'
+  const testEmail = process.env.AUTH_TEST_EMAIL || 'info@lclab.io'
   const testPassword = process.env.AUTH_TEST_PASSWORD || 'laubf-admin-2024'
   const passwordHash = await bcrypt.hash(testPassword, 12)
 
@@ -4006,7 +4020,7 @@ async function main() {
     console.log(`  Created ${created} media assets in "${FOLDER_NAME}" folder (${MEDIA_ASSETS.length - created} already existed)`)
 
     // ── Default Event Template Images (shared R2 prefix: defaults/event-templates/) ──
-    const EVENT_TEMPLATES_FOLDER = 'event-templates'
+    const EVENT_TEMPLATES_FOLDER = 'events'
     await prisma.mediaFolder.upsert({
       where: { churchId_name: { churchId, name: EVENT_TEMPLATES_FOLDER } },
       update: {},

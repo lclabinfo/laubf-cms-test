@@ -43,6 +43,7 @@ function formatDateFull(dateStr: string) {
 
 function formatTime(time: string) {
   if (!time) return ""
+  if (/[ap]m/i.test(time)) return time.trim()
   const parts = time.split(":")
   const h = parseInt(parts[0], 10)
   const m = parseInt(parts[1], 10)
