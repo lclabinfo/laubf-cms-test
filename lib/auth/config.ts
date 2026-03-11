@@ -193,19 +193,51 @@ export const authConfig: NextAuthConfig = {
               token.permissions = defaultRole.permissions
             }
           }
+          token.permissionsRefreshedAt = Date.now()
         }
       }
 
-      // Re-check status for PENDING members so onboarding completion takes effect
-      // without requiring re-sign-in. Only PENDING users incur this lightweight query.
-      if (token.memberStatus === 'PENDING' && token.userId && token.churchId) {
-        const current = await prisma.churchMember.findFirst({
-          where: { userId: token.userId, churchId: token.churchId },
-          select: { status: true },
+      // Periodically refresh permissions from DB so role/permission changes
+      // take effect without requiring re-sign-in. Refresh every 5 minutes.
+      const PERMISSIONS_REFRESH_MS = 5 * 60 * 1000
+      const now = Date.now()
+      const lastRefresh = (token.permissionsRefreshedAt as number) || 0
+      if (token.userId && token.churchId && (now - lastRefresh > PERMISSIONS_REFRESH_MS)) {
+        const membership = await prisma.churchMember.findFirst({
+          where: { userId: token.userId as string, churchId: token.churchId as string },
+          select: {
+            role: true,
+            status: true,
+            customRole: {
+              select: {
+                id: true,
+                name: true,
+                slug: true,
+                priority: true,
+                permissions: true,
+              },
+            },
+          },
         })
-        if (current) {
-          token.memberStatus = current.status
+        if (membership) {
+          token.role = membership.role
+          token.memberStatus = membership.status
+          if (membership.customRole) {
+            token.roleId = membership.customRole.id
+            token.roleName = membership.customRole.name
+            token.rolePriority = membership.customRole.priority
+            token.permissions = membership.customRole.permissions
+          } else if (membership.role) {
+            const { DEFAULT_ROLES } = await import('@/lib/permissions')
+            const defaultRole = DEFAULT_ROLES[membership.role]
+            if (defaultRole) {
+              token.roleName = defaultRole.name
+              token.rolePriority = defaultRole.priority
+              token.permissions = defaultRole.permissions
+            }
+          }
         }
+        token.permissionsRefreshedAt = now
       }
 
       return token

@@ -33,5 +33,6 @@ declare module '@auth/core/jwt' {
     rolePriority?: number
     memberStatus?: string
     permissions?: string[]
+    permissionsRefreshedAt?: number
   }
 }

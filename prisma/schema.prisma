@@ -171,7 +171,7 @@ model ChurchMember {
 
   church     Church     @relation(fields: [churchId], references: [id], onDelete: Cascade)
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  customRole Role?      @relation(fields: [roleId], references: [id])
+  customRole Role?      @relation(fields: [roleId], references: [id], onDelete: SetNull)
 
   @@unique([churchId, userId])
   @@index([churchId])
