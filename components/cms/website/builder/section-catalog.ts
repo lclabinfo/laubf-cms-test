@@ -298,6 +298,11 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
       ctaHref: "/events",
       dataSource: "featured-events",
       featuredEvents: [],
+      count: 3,
+      includeRecurring: false,
+      showPastEvents: true,
+      pastEventsWindow: 14,
+      sortOrder: "asc",
     },
   },
   {

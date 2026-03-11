@@ -85,22 +85,50 @@ export async function getEventBySlug(
 export async function getUpcomingEvents(
   churchId: string,
   limit = 10,
+  options?: {
+    includeRecurring?: boolean
+    /** Include past events that ended within this many days ago. 0 = no past events, -1 = infinite (all past). */
+    pastEventsDays?: number
+    /** Sort order: 'asc' = upcoming first (default), 'desc' = most recent first */
+    sortOrder?: 'asc' | 'desc'
+  },
 ): Promise<EventWithRelations[]> {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
+
+  const includeRecurring = options?.includeRecurring ?? true
+  const pastEventsDays = options?.pastEventsDays ?? 0
+  const sortOrder = options?.sortOrder ?? 'asc'
+
+  // Build date conditions
+  const dateConditions: object[] = [{ dateStart: { gte: today } }]
+
+  if (includeRecurring) {
+    dateConditions.push({ isRecurring: true })
+  }
+
+  if (pastEventsDays !== 0) {
+    if (pastEventsDays === -1) {
+      // Infinite lookback — include all past events
+      dateConditions.push({ dateStart: { lt: today } })
+    } else {
+      const cutoff = new Date(today)
+      cutoff.setDate(cutoff.getDate() - pastEventsDays)
+      dateConditions.push({
+        dateStart: { lt: today, gte: cutoff },
+      })
+    }
+  }
 
   return prisma.event.findMany({
     where: {
       churchId,
       deletedAt: null,
       status: ContentStatus.PUBLISHED,
-      OR: [
-        { dateStart: { gte: today } },
-        { isRecurring: true },
-      ],
+      OR: dateConditions,
     },
     include: eventListInclude,
-    orderBy: { dateStart: 'asc' },
+    orderBy: { dateStart: sortOrder },
     take: limit,
   })
 }

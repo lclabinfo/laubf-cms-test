@@ -2,6 +2,14 @@
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
 import { Database } from "lucide-react"
 import type { SectionType } from "@/lib/db/types"
@@ -334,6 +342,174 @@ function DailyBreadEditor({
   )
 }
 
+// --- Highlight Cards (Featured Events) ---
+
+function HighlightCardsEditor({
+  content,
+  onChange,
+}: {
+  content: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
+  const heading = (content.heading as string) ?? ""
+  const subheading = (content.subheading as string) ?? ""
+  const ctaLabel = (content.ctaLabel as string) ?? ""
+  const ctaHref = (content.ctaHref as string) ?? ""
+  const count = (content.count as number) ?? 3
+  const includeRecurring = (content.includeRecurring as boolean) ?? false
+  const showPastEvents = (content.showPastEvents as boolean) ?? true
+  const pastEventsWindow = (content.pastEventsWindow as number) ?? 14
+  const sortOrder = (content.sortOrder as string) ?? "asc"
+
+  return (
+    <>
+      <div className="space-y-1.5">
+        <Label className="text-sm font-medium">Section Heading</Label>
+        <Input
+          value={heading}
+          onChange={(e) => onChange({ ...content, heading: e.target.value })}
+          placeholder="Featured Events"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-sm font-medium">Subheading</Label>
+        <Input
+          value={subheading}
+          onChange={(e) =>
+            onChange({ ...content, subheading: e.target.value })
+          }
+          placeholder="Highlights of what's happening in our community."
+        />
+      </div>
+
+      <Separator />
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            CTA Label (optional)
+          </Label>
+          <Input
+            value={ctaLabel}
+            onChange={(e) =>
+              onChange({ ...content, ctaLabel: e.target.value })
+            }
+            placeholder="View All Events"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            CTA Link (optional)
+          </Label>
+          <Input
+            value={ctaHref}
+            onChange={(e) =>
+              onChange({ ...content, ctaHref: e.target.value })
+            }
+            placeholder="/events"
+          />
+        </div>
+      </div>
+
+      <Separator />
+
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">
+          Number of Events
+        </Label>
+        <Input
+          type="number"
+          min={1}
+          max={6}
+          value={count}
+          onChange={(e) =>
+            onChange({ ...content, count: parseInt(e.target.value) || 3 })
+          }
+          placeholder="3"
+          className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">
+          Sort Order
+        </Label>
+        <Select
+          value={sortOrder}
+          onValueChange={(val) => onChange({ ...content, sortOrder: val })}
+        >
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="asc">Upcoming first</SelectItem>
+            <SelectItem value="desc">Most recent first</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Separator />
+
+      <div className="flex items-center justify-between rounded-lg border p-3">
+        <div className="space-y-0.5">
+          <Label className="text-sm font-medium">Include Recurring Meetings</Label>
+          <p className="text-xs text-muted-foreground">
+            Show recurring meetings (e.g. Bible study, prayer) alongside one-off events.
+          </p>
+        </div>
+        <Switch
+          checked={includeRecurring}
+          onCheckedChange={(checked) =>
+            onChange({ ...content, includeRecurring: checked })
+          }
+        />
+      </div>
+
+      <div className="flex items-center justify-between rounded-lg border p-3">
+        <div className="space-y-0.5">
+          <Label className="text-sm font-medium">Show Past Events</Label>
+          <p className="text-xs text-muted-foreground">
+            Include recently ended events in the section.
+          </p>
+        </div>
+        <Switch
+          checked={showPastEvents}
+          onCheckedChange={(checked) =>
+            onChange({ ...content, showPastEvents: checked })
+          }
+        />
+      </div>
+
+      {showPastEvents && (
+        <div className="space-y-1.5 pl-1">
+          <Label className="text-xs text-muted-foreground">
+            Past Events Window
+          </Label>
+          <Select
+            value={String(pastEventsWindow)}
+            onValueChange={(val) =>
+              onChange({ ...content, pastEventsWindow: parseInt(val) })
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="14">Last 2 weeks</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="60">Last 60 days</SelectItem>
+              <SelectItem value="90">Last 90 days</SelectItem>
+              <SelectItem value="-1">All past events</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+    </>
+  )
+}
+
 // --- Main export ---
 
 export function DataSectionEditor({
@@ -344,6 +520,10 @@ export function DataSectionEditor({
   return (
     <div className="space-y-6">
       <DataSourceBanner sectionType={sectionType} />
+
+      {sectionType === "HIGHLIGHT_CARDS" && (
+        <HighlightCardsEditor content={content} onChange={onChange} />
+      )}
 
       {sectionType === "UPCOMING_EVENTS" && (
         <UpcomingEventsEditor content={content} onChange={onChange} />

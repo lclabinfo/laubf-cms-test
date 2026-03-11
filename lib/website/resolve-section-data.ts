@@ -81,11 +81,17 @@ export async function resolveSectionData(
         }
       }
 
-      // TODO: Re-enable featured events filtering once the CMS featured toggle is implemented.
-      // For now, fetch the 3 most upcoming events instead.
       case 'featured-events': {
         const count = (content.count as number) || 3
-        const events = await getUpcomingEvents(churchId, count)
+        const includeRecurring = content.includeRecurring === true
+        const showPastEvents = content.showPastEvents !== false // default true
+        const pastEventsWindow = (content.pastEventsWindow as number) ?? 14 // default 2 weeks
+        const sortOrder = (content.sortOrder as 'asc' | 'desc') ?? 'asc'
+        const events = await getUpcomingEvents(churchId, count, {
+          includeRecurring,
+          pastEventsDays: showPastEvents ? pastEventsWindow : 0,
+          sortOrder,
+        })
         return {
           content: {
             ...content,
