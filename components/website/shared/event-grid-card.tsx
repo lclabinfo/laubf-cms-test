@@ -45,7 +45,32 @@ export default function EventGridCard({ event }: { event: EventGridCardEvent }) 
             style={{ objectPosition: event.image?.objectPosition }}
           />
         ) : (
-          <div className="w-full h-full bg-white-2" />
+          <div className="w-full h-full bg-[#1a1a2e]">
+            <div
+              className="absolute inset-0 opacity-80"
+              style={{
+                backgroundImage:
+                  'radial-gradient(ellipse 60% 50% at 15% 80%, rgba(99,102,241,0.25) 0%, transparent 70%),' +
+                  'radial-gradient(ellipse 50% 60% at 85% 20%, rgba(168,85,247,0.2) 0%, transparent 70%),' +
+                  'radial-gradient(ellipse 40% 40% at 50% 50%, rgba(59,130,246,0.12) 0%, transparent 60%)',
+              }}
+            />
+            {/* Calendar icon watermark */}
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30%] text-white/[0.06]"
+            >
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </div>
         )}
         {badge && (
           <span className="absolute top-4 right-4 bg-black-1 border-[0.5px] border-white-2 text-white-1 text-[12px] tracking-[0.24px] font-medium leading-none px-5 py-3 rounded-full uppercase">

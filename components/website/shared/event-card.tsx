@@ -44,7 +44,36 @@ export default function EventCard({ data, size, className }: { data: EventCardDa
           style={{ objectPosition: data.imageObjectPosition }}
         />
       ) : (
-        <div className="absolute inset-0 bg-white-2" />
+        <div className="absolute inset-0 bg-[#1a1a2e]">
+          {/* Mesh gradient backdrop */}
+          <div
+            className="absolute inset-0 opacity-80"
+            style={{
+              backgroundImage:
+                'radial-gradient(ellipse 60% 50% at 15% 80%, rgba(99,102,241,0.25) 0%, transparent 70%),' +
+                'radial-gradient(ellipse 50% 60% at 85% 20%, rgba(168,85,247,0.2) 0%, transparent 70%),' +
+                'radial-gradient(ellipse 40% 40% at 50% 50%, rgba(59,130,246,0.12) 0%, transparent 60%)',
+            }}
+          />
+          {/* Subtle noise texture */}
+          <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")' }} />
+          {/* Calendar icon watermark */}
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[55%] text-white/[0.06] transition-all duration-500 group-hover:text-white/[0.09] group-hover:scale-110"
+            style={{ width: size === "large" ? "40%" : "35%", height: "auto" }}
+          >
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+        </div>
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
       <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between p-6 lg:p-8">

@@ -144,9 +144,9 @@ export default async function EventDetailPage({ params }: PageProps) {
       <div className="container-standard mt-6 grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10">
         {/* Left column — article */}
         <article>
-          {/* Cover image or placeholder */}
-          <div className="relative w-full aspect-[16/10] rounded-[20px] overflow-hidden bg-gradient-to-br from-white-2 to-white-1-5 mb-8">
-            {event.coverImage ? (
+          {/* Cover image — only shown when an image exists */}
+          {event.coverImage && (
+            <div className="relative w-full aspect-[16/10] rounded-[20px] overflow-hidden bg-gradient-to-br from-white-2 to-white-1-5 mb-8">
               <Image
                 src={event.coverImage}
                 alt={event.imageAlt || event.title}
@@ -154,32 +154,31 @@ export default async function EventDetailPage({ params }: PageProps) {
                 className="object-cover"
                 style={{ objectPosition: event.imagePosition || "center" }}
               />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="size-16 rounded-full bg-white-2-5/60 flex items-center justify-center">
-                  <IconCalendar className="size-7 text-black-3/40" />
-                </div>
-              </div>
-            )}
-            {/* Type badge + custom badge */}
-            <div className="absolute top-4 left-4 flex items-center gap-2">
-              <span className="bg-black-1/80 text-white-0 text-[12px] tracking-wider font-medium px-4 py-1.5 rounded-full uppercase">
-                {typeBadge}
-              </span>
-              {event.badge && (
-                <span className="bg-brand-1/90 text-white-0 text-[12px] tracking-wider font-medium px-4 py-1.5 rounded-full uppercase">
-                  {event.badge}
-                </span>
-              )}
-              {event.allDay && (
-                <span className="bg-accent-green/90 text-white-0 text-[12px] tracking-wider font-medium px-4 py-1.5 rounded-full uppercase">
-                  All Day
+              {event.isFeatured && (
+                <span className="absolute top-4 right-4 bg-accent-blue/90 text-white-0 text-[12px] tracking-wider font-medium px-4 py-1.5 rounded-full uppercase">
+                  Featured
                 </span>
               )}
             </div>
-            {/* Featured badge */}
-            {event.isFeatured && (
-              <span className="absolute top-4 right-4 bg-accent-blue/90 text-white-0 text-[12px] tracking-wider font-medium px-4 py-1.5 rounded-full uppercase">
+          )}
+
+          {/* Type / badge pills — always visible above title */}
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <span className="bg-black-1 text-white-0 text-[12px] tracking-wider font-medium px-4 py-1.5 rounded-full uppercase">
+              {typeBadge}
+            </span>
+            {event.badge && (
+              <span className="bg-brand-1 text-white-0 text-[12px] tracking-wider font-medium px-4 py-1.5 rounded-full uppercase">
+                {event.badge}
+              </span>
+            )}
+            {event.allDay && (
+              <span className="bg-accent-green text-white-0 text-[12px] tracking-wider font-medium px-4 py-1.5 rounded-full uppercase">
+                All Day
+              </span>
+            )}
+            {event.isFeatured && !event.coverImage && (
+              <span className="bg-accent-blue text-white-0 text-[12px] tracking-wider font-medium px-4 py-1.5 rounded-full uppercase">
                 Featured
               </span>
             )}

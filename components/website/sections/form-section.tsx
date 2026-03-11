@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import SectionContainer from "@/components/website/shared/section-container"
 import OverlineLabel from "@/components/website/shared/overline-label"
 import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
@@ -40,6 +40,45 @@ export default function FormSection({ content, enableAnimations, colorScheme = "
   const [bibleTeacher, setBibleTeacher] = useState(false)
   const [selectedCampus, setSelectedCampus] = useState("")
   const [otherCampus, setOtherCampus] = useState("")
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const turnstileRef = useRef<HTMLDivElement>(null)
+
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+
+  // Load Turnstile script and render widget
+  const renderTurnstile = useCallback(() => {
+    if (!turnstileSiteKey || !turnstileRef.current) return
+    if (typeof window === "undefined") return
+
+    const w = window as unknown as { turnstile?: { render: (el: HTMLElement, opts: Record<string, unknown>) => string } }
+    if (w.turnstile && turnstileRef.current) {
+      // Clear any existing widget
+      turnstileRef.current.innerHTML = ""
+      w.turnstile.render(turnstileRef.current, {
+        sitekey: turnstileSiteKey,
+        theme: "auto",
+        callback: (token: string) => setTurnstileToken(token),
+        "expired-callback": () => setTurnstileToken(null),
+        "error-callback": () => setTurnstileToken(null),
+      })
+    }
+  }, [turnstileSiteKey])
+
+  useEffect(() => {
+    if (!turnstileSiteKey) return
+
+    // Check if script already loaded
+    if (document.querySelector('script[src*="turnstile"]')) {
+      renderTurnstile()
+      return
+    }
+
+    const script = document.createElement("script")
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
+    script.async = true
+    script.onload = () => renderTurnstile()
+    document.head.appendChild(script)
+  }, [turnstileSiteKey, renderTurnstile])
 
   const showOtherField = checkedInterests.has("other")
 
@@ -78,6 +117,7 @@ export default function FormSection({ content, enableAnimations, colorScheme = "
           otherCampus: otherCampus || null,
           comments: formData.get("comments") || null,
           bibleTeacher,
+          turnstileToken: turnstileToken || undefined,
           website: formData.get("website") || "", // honeypot
         }),
       })
@@ -262,6 +302,11 @@ export default function FormSection({ content, enableAnimations, colorScheme = "
                 {content.bibleTeacherLabel}
               </span>
             </label>
+
+            {/* Turnstile widget */}
+            {turnstileSiteKey && (
+              <div ref={turnstileRef} className="flex justify-center" />
+            )}
 
             {/* Error message */}
             {error && (

@@ -183,6 +183,15 @@ export const authConfig: NextAuthConfig = {
             token.roleName = membership.customRole.name
             token.rolePriority = membership.customRole.priority
             token.permissions = membership.customRole.permissions
+          } else if (membership.role) {
+            // Fallback: derive permissions from legacy role enum
+            const { DEFAULT_ROLES } = await import('@/lib/permissions')
+            const defaultRole = DEFAULT_ROLES[membership.role]
+            if (defaultRole) {
+              token.roleName = defaultRole.name
+              token.rolePriority = defaultRole.priority
+              token.permissions = defaultRole.permissions
+            }
           }
         }
       }

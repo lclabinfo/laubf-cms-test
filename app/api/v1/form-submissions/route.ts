@@ -5,6 +5,7 @@ import { requireApiAuth } from '@/lib/api/require-auth'
 import { listSubmissions, getUnreadCount, type FormSubmissionFilters } from '@/lib/dal/form-submissions'
 import { sendContactNotificationEmail } from '@/lib/email/notification'
 import { rateLimit } from '@/lib/rate-limit'
+import { verifyTurnstile } from '@/lib/turnstile'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -22,6 +23,12 @@ export async function POST(request: NextRequest) {
 
     const churchId = await getChurchId()
     const body = await request.json()
+
+    // Verify Turnstile token (skips if not configured)
+    const turnstile = await verifyTurnstile(body.turnstileToken, ip)
+    if (!turnstile.success) {
+      return NextResponse.json({ error: turnstile.error }, { status: 403 })
+    }
 
     const { firstName, lastName, email, phone, interests, otherInterest, campus, otherCampus, comments, bibleTeacher } = body
 

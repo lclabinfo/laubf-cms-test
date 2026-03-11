@@ -35,6 +35,7 @@ const R2_ATT_BUCKET = process.env.R2_ATTACHMENTS_BUCKET_NAME!
 const R2_ATT_PUBLIC = (process.env.R2_ATTACHMENTS_PUBLIC_URL || process.env.R2_PUBLIC_URL || '').replace(/\/+$/, '')
 const R2_MEDIA_BUCKET = process.env.R2_MEDIA_BUCKET_NAME || ''
 const R2_MEDIA_PREFIX = 'la-ubf/initial-setup/'
+const R2_MEDIA_PUBLIC = (process.env.R2_MEDIA_PUBLIC_URL || '').replace(/\/+$/, '')
 
 /** Batch-list all objects in R2 attachments bucket under la-ubf/ prefix.
  *  Returns a map of key → size. Uses ListObjectsV2 (~3-4 requests for ~3000 files)
@@ -1508,6 +1509,7 @@ async function main() {
           ctaLabel: 'View All Events',
           ctaHref: '/events',
           dataSource: 'featured-events',
+          includeRecurring: false,
         },
       },
       {
@@ -4002,6 +4004,55 @@ async function main() {
       created++
     }
     console.log(`  Created ${created} media assets in "${FOLDER_NAME}" folder (${MEDIA_ASSETS.length - created} already existed)`)
+
+    // ── Default Event Template Images (shared R2 prefix: defaults/event-templates/) ──
+    const EVENT_TEMPLATES_FOLDER = 'event-templates'
+    await prisma.mediaFolder.upsert({
+      where: { churchId_name: { churchId, name: EVENT_TEMPLATES_FOLDER } },
+      update: {},
+      create: { churchId, name: EVENT_TEMPLATES_FOLDER },
+    })
+
+    const DEFAULT_EVENT_IMAGES = [
+      { filename: 'gradient-warm-sunrise.svg', fileSize: 1054, alt: 'Template: Warm Sunrise Gradient', title: 'Event Template — Warm Sunrise' },
+      { filename: 'gradient-ocean-calm.svg', fileSize: 1090, alt: 'Template: Ocean Calm Gradient', title: 'Event Template — Ocean Calm' },
+      { filename: 'gradient-twilight-purple.svg', fileSize: 1120, alt: 'Template: Twilight Purple Gradient', title: 'Event Template — Twilight Purple' },
+      { filename: 'gradient-forest-green.svg', fileSize: 1202, alt: 'Template: Forest Green Gradient', title: 'Event Template — Forest Green' },
+      { filename: 'gradient-soft-blush.svg', fileSize: 1153, alt: 'Template: Soft Blush Gradient', title: 'Event Template — Soft Blush' },
+      { filename: 'gradient-midnight-blue.svg', fileSize: 1084, alt: 'Template: Midnight Blue Gradient', title: 'Event Template — Midnight Blue' },
+    ]
+
+    const existingTemplateUrls = new Set(
+      (await prisma.mediaAsset.findMany({
+        where: { churchId, folder: EVENT_TEMPLATES_FOLDER },
+        select: { url: true },
+      })).map((m) => m.url)
+    )
+
+    let templateCreated = 0
+    for (const img of DEFAULT_EVENT_IMAGES) {
+      const url = R2_MEDIA_PUBLIC
+        ? `${R2_MEDIA_PUBLIC}/defaults/event-templates/${img.filename}`
+        : `/defaults/events/${img.filename}` // fallback for local dev without R2
+      if (existingTemplateUrls.has(url)) continue
+
+      await prisma.mediaAsset.create({
+        data: {
+          churchId,
+          filename: img.filename,
+          url,
+          mimeType: 'image/svg+xml',
+          fileSize: img.fileSize,
+          alt: img.alt,
+          title: img.title,
+          folder: EVENT_TEMPLATES_FOLDER,
+          width: 1200,
+          height: 630,
+        },
+      })
+      templateCreated++
+    }
+    console.log(`  Created ${templateCreated} event template images in "${EVENT_TEMPLATES_FOLDER}" folder`)
   }
 
   // ── Bible Verses (global, not church-scoped) ─────────────────

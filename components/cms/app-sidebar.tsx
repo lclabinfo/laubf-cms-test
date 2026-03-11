@@ -197,8 +197,6 @@ const navGroups: NavGroup[] = [
         href: "/cms/website/settings",
         icon: SettingsIcon,
         requiredPermission: "website.settings.edit",
-        devOnly: true,
-        devHint: "Moving into Builder",
       },
     ],
   },

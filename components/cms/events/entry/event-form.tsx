@@ -174,8 +174,8 @@ export function EventForm({ mode, event }: EventFormProps) {
   // Date & time
   const [startDate, setStartDate] = useState(event?.date ?? today)
   const [endDate, setEndDate] = useState(event?.endDate ?? today)
-  const [startTime, setStartTime] = useState(event?.startTime ?? "10:00")
-  const [endTime, setEndTime] = useState(event?.endTime ?? "11:00")
+  const [startTime, setStartTime] = useState(event?.startTime ?? "")
+  const [endTime, setEndTime] = useState(event?.endTime ?? "")
   const [recurrence, setRecurrence] = useState<Recurrence>(event?.recurrence ?? "none")
   const [recurrenceDays, setRecurrenceDays] = useState<DayOfWeek[]>(event?.recurrenceDays ?? [])
   const [recurrenceEndType, setRecurrenceEndType] = useState<RecurrenceEndType>(event?.recurrenceEndType ?? "never")
@@ -224,7 +224,41 @@ export function EventForm({ mode, event }: EventFormProps) {
   const [coverDragging, setCoverDragging] = useState(false)
   const [coverUploading, setCoverUploading] = useState(false)
 
-  const isValid = title.trim().length >= 2 && startDate && startTime && endTime && location.trim()
+  // Minimal validation: title + start date required
+  const canSave = title.trim().length >= 2 && !!startDate
+
+  // Dirty tracking — snapshot compares current state to initial state
+  const snapshotFields = useCallback(() => ({
+    title, shortDescription, startDate, endDate, startTime, endTime,
+    recurrence, recurrenceDays: JSON.stringify(recurrenceDays),
+    recurrenceEndType, recurrenceEndDate, customRecurrence: JSON.stringify(customRecurrence),
+    monthlyType, locationType, location, address, locationInstructions, meetingUrl,
+    description, welcomeMessage, links: JSON.stringify(links),
+    status, eventType, ministry, campus: campus ?? "", isFeatured,
+    contacts: JSON.stringify(contacts), coverImage, imageAlt,
+    costType, costAmount, registrationRequired, registrationUrl,
+    maxParticipants: maxParticipants ?? "", registrationDeadline,
+  }), [
+    title, shortDescription, startDate, endDate, startTime, endTime,
+    recurrence, recurrenceDays, recurrenceEndType, recurrenceEndDate, customRecurrence,
+    monthlyType, locationType, location, address, locationInstructions, meetingUrl,
+    description, welcomeMessage, links, status, eventType, ministry, campus, isFeatured,
+    contacts, coverImage, imageAlt, costType, costAmount, registrationRequired,
+    registrationUrl, maxParticipants, registrationDeadline,
+  ])
+
+  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(snapshotFields()))
+  const isDirty = JSON.stringify(snapshotFields()) !== savedSnapshot
+
+  // Warn on unsaved navigation
+  useEffect(() => {
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (isDirty) e.preventDefault()
+    }
+    window.addEventListener("beforeunload", handleBeforeUnload)
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
+  }, [isDirty])
+
   const statusConfig = statusDisplay[status]
   const isRecurring = recurrence !== "none"
   const showDayPicker = dayPickerRecurrences.includes(recurrence)
@@ -372,7 +406,7 @@ export function EventForm({ mode, event }: EventFormProps) {
   }
 
   function handleSave() {
-    if (!isValid) return
+    if (!canSave) return
 
     const eventData: Omit<ChurchEvent, "id"> = {
       slug: "",  // Auto-generated from title in context layer
@@ -421,6 +455,7 @@ export function EventForm({ mode, event }: EventFormProps) {
       toast.success("Event saved")
     }
 
+    setSavedSnapshot(JSON.stringify(snapshotFields()))
     router.push("/cms/events")
   }
 
@@ -478,7 +513,7 @@ export function EventForm({ mode, event }: EventFormProps) {
             <Button variant="outline" onClick={handleCancel}>
               Cancel
             </Button>
-            <Button onClick={handleSave} disabled={!isValid}>
+            <Button onClick={handleSave} disabled={!canSave || !isDirty}>
               Save Event
             </Button>
           </div>

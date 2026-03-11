@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Inter, DM_Serif_Display } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { Agentation } from "agentation";
 
@@ -11,6 +12,12 @@ const dmSerifDisplay = DM_Serif_Display({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-dm-serif-display',
+});
+
+const strude = localFont({
+  src: '../public/fonts/strude/strude.ttf',
+  variable: '--font-strude',
+  display: 'swap',
 });
 
 const geistSans = Geist({
@@ -34,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${dmSerifDisplay.variable} overflow-x-clip`}>
+    <html lang="en" className={`${inter.variable} ${dmSerifDisplay.variable} ${strude.variable} overflow-x-clip`}>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
