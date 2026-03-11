@@ -19,7 +19,7 @@ import BulletList from "@tiptap/extension-bullet-list"
 import { generateHTML } from "@tiptap/html"
 import ListItem from "@tiptap/extension-list-item"
 import { Extension, wrappingInputRule } from "@tiptap/core"
-import { Plugin, PluginKey } from "@tiptap/pm/state"
+import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state"
 import type { Extensions } from "@tiptap/react"
 import type { JSONContent } from "@tiptap/core"
 
@@ -545,9 +545,10 @@ const ListFontPropagation = Extension.create({
  *
  * This extension intercepts Enter and:
  *   - If cursor is in an empty paragraph inside a listItem AND it's not the
- *     last child → delete the spacer paragraph (don't split)
- *   - If cursor is in an empty paragraph that IS the last child → also delete
- *     the spacer and lift out (standard exit-list behavior)
+ *     last child → insert a new paragraph below (within the same listItem)
+ *     instead of splitting the listItem. This preserves the spacer.
+ *   - If cursor is in an empty paragraph that IS the last child → standard
+ *     splitListItem (exit list) behavior.
  *   - Otherwise → fall through to default splitListItem
  *
  * Backspace is also handled: if cursor is at start of an empty paragraph
@@ -583,11 +584,15 @@ const SpacerAwareListItem = ListItem.extend({
         const isLastChild = indexInListItem === listItem.childCount - 1
 
         if (!isLastChild) {
-          // Empty spacer paragraph that is NOT last child → just delete it
+          // Empty spacer paragraph that is NOT last child → insert a new
+          // paragraph below it (within the same listItem) so the spacer is
+          // preserved and the user gets a new line to type on.
           const tr = state.tr
-          const paragraphStart = $from.before($from.depth)
-          const paragraphEnd = $from.after($from.depth)
-          tr.delete(paragraphStart, paragraphEnd)
+          const afterPos = $from.after($from.depth) // position after current empty paragraph
+          const newParagraph = state.schema.nodes.paragraph.create()
+          tr.insert(afterPos, newParagraph)
+          // Place cursor inside the new paragraph
+          tr.setSelection(TextSelection.near(tr.doc.resolve(afterPos + 1)))
           view.dispatch(tr)
           return true
         }
