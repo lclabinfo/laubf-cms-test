@@ -14,6 +14,7 @@ import {
   IconUser,
   IconVideo,
 } from "@/components/website/shared/icons"
+import { resolveHref } from "@/lib/website/resolve-href"
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -69,7 +70,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!event) return { title: "Event Not Found" }
 
   return {
-    title: `${event.title} | Events`,
+    title: event.title,
     description: event.shortDescription || event.description || `Details for ${event.title}`,
   }
 }
@@ -120,14 +121,14 @@ export default async function EventDetailPage({ params }: PageProps) {
       <div className="container-standard">
         <nav className="flex items-center gap-1.5 text-[14px]">
           <Link
-            href="/website"
+            href={resolveHref("/")}
             className="text-black-3 transition-colors hover:text-black-1"
           >
             Home
           </Link>
           <IconChevronRight className="size-3.5 text-black-3" />
           <Link
-            href="/website/events"
+            href={resolveHref("/events")}
             className="text-black-3 transition-colors hover:text-black-1"
           >
             Events

@@ -113,7 +113,7 @@ export default function MobileMenu({
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white-2">
-          <Link href="/website" onClick={onClose}>
+          <Link href={resolveHref("/")} onClick={onClose}>
             {logoUrl ? (
               <Image
                 src={logoUrl}

@@ -14,23 +14,28 @@ async function resolvePage(params: Promise<{ slug?: string[] }>) {
   const churchId = await getChurchId()
   const slugParts = (await params).slug ?? []
   const slug = slugParts.join('/') || null
+  const isHomepage = slugParts.length === 0
 
   const page = slug
     ? await getPageBySlug(churchId, slug)
     : await getHomepage(churchId)
 
-  return { churchId, page }
+  return { churchId, page, isHomepage }
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { page } = await resolvePage(params)
+  const { page, isHomepage } = await resolvePage(params)
   if (!page) return {}
 
+  // Homepage uses the layout's default title (site name only)
+  const title = isHomepage ? undefined : (page.metaTitle || page.title)
+
   return {
-    title: page.metaTitle || page.title,
+    // When title is undefined (homepage), the layout default is used
+    ...(title ? { title } : {}),
     description: page.metaDescription || undefined,
     openGraph: {
-      title: page.metaTitle || page.title,
+      title: title || page.metaTitle || page.title,
       description: page.metaDescription || undefined,
       images: page.ogImageUrl ? [page.ogImageUrl] : undefined,
     },

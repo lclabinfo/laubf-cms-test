@@ -48,7 +48,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!message) return { title: "Message Not Found" }
 
   return {
-    title: `${message.videoTitle || message.title} | Messages`,
+    title: message.videoTitle || message.title,
     description: message.videoDescription || `Listen to ${message.title}`,
   }
 }

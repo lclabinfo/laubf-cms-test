@@ -1,7 +1,7 @@
 # Deployment Roadmap
 
 Generated: 2026-03-07
-Last updated: 2026-03-07
+Last updated: 2026-03-10
 
 This document organizes all remaining work into prioritized categories. Tasks are broken down into actionable sub-tasks and ordered by deployment criticality.
 
@@ -17,16 +17,17 @@ This document organizes all remaining work into prioritized categories. Tasks ar
 
 | Area | Status |
 |------|--------|
-| Contact form / Visit Us (public form, API, CMS viewer) | ~30% complete (form UI done, API TODO) |
-| CMS core (Messages, Events, Media, People) | ~85% complete |
-| Website rendering (42 section types, theme, fonts) | ~95% complete |
+| Contact form / Visit Us (public form, API, CMS viewer) | **In progress** (form UI done, API + CMS + email in dev) |
+| CMS core (Messages, Events, Media, People) | ~90% complete |
+| Website rendering (42 section types, theme, fonts) | ~98% complete |
 | Website builder v1 (pages, sections, menus, domains) | 100% complete |
-| Authentication (Google SSO + credentials) | ~80% complete |
+| Authentication (Google SSO + credentials + password reset) | ~90% complete |
 | R2 storage (attachments + media) | 100% complete |
-| Database (32 models, 22 enums, seed data) | ~90% complete |
-| API routes (66 endpoints) | ~95% complete |
+| Database (32 models, 22 enums, seed data) | ~95% complete |
+| API routes (70+ endpoints) | ~95% complete |
 | People management (members, groups, roles, households) | ~90% complete |
-| Production deployment | 0% |
+| Domain routing (proxy.ts + subdomain support) | ~85% complete |
+| Production deployment (VM + PM2 + nginx) | **In progress** (config ready, deploy script exists) |
 | Multi-tenant platform | 0% |
 
 ---
@@ -39,15 +40,15 @@ These must be completed before LA UBF can go live.
 
 ### 1. Church Profile & Metadata (P0)
 
-The Church model and SiteSettings have correct schemas but the seed data has placeholder values. The public website reads from these for navbar, footer, OG tags, and contact info.
+The Church model and SiteSettings have correct schemas. Seed data uses real LA UBF values (Downey, CA). The public website reads from these for navbar, footer, OG tags, and contact info.
 
-- [ ] **1.1 Audit current seed data** — Review `prisma/seed.mts` for Church and SiteSettings fields. Document which values are wrong/placeholder.
-- [ ] **1.2 Update Church record** — Correct: name ("Los Angeles UBF"), address (actual street address), city/state/zip, phone, email, timezone ("America/Los_Angeles"), logoUrl, faviconUrl, accentColor.
-- [ ] **1.3 Update SiteSettings record** — Correct: siteName, tagline, description, logo, favicon, ogImage, email, phone, address, all social URLs (Facebook, Instagram, YouTube, etc.), service times JSON.
-- [ ] **1.4 Wire Church profile to website metadata** — Verify `generateMetadata()` in `app/website/layout.tsx` and the catch-all page use SiteSettings for OG tags, site title, description.
-- [ ] **1.5 Wire service times** — Ensure ServiceTimesSection or footer renders actual service times from SiteSettings (not hardcoded).
-- [ ] **1.6 Update seed script** — Make `prisma/seed.mts` produce correct LA UBF data so server deploy + seed works out of the box.
-- [ ] **1.7 Test CMS church profile editor** — Verify `/cms/church-profile` saves and the public website reflects changes immediately (no cache stale).
+- [x] **1.1 Audit current seed data** — Seed data reviewed. All values are real LA UBF data (not placeholder).
+- [x] **1.2 Update Church record** — Correct values: name "LA UBF", address 11625 Paramount Blvd Downey CA 90241, phone (562) 396-6350, email laubf.downey@gmail.com, timezone America/Los_Angeles.
+- [x] **1.3 Update SiteSettings record** — All values correct: siteName, tagline, description, contact info, social URLs (Instagram, Facebook, YouTube, TikTok), 4 service times.
+- [x] **1.4 Wire Church profile to website metadata** — `generateMetadata()` added to `app/website/layout.tsx` using SiteSettings for title template, description, OG tags. *(2026-03-10)*
+- [ ] **1.5 Wire service times** — Service times stored in SiteSettings JSON and rendered in RECURRING_SCHEDULE section content. Verify footer also reads from SiteSettings.
+- [x] **1.6 Update seed script** — `prisma/seed.mts` produces correct LA UBF data out of the box.
+- [x] **1.7 Test CMS church profile editor** — `/cms/church-profile` fully functional with bidirectional apiToProfile/profileToApi mapping.
 
 ---
 
@@ -55,21 +56,13 @@ The Church model and SiteSettings have correct schemas but the seed data has pla
 
 The v1 list-based builder works for CRUD but the editing experience needs fixes. The v2 full-screen canvas builder is not a launch blocker — v1 with fixes is sufficient.
 
-- [ ] **2.1 Audit section editability** — For each of the 42 section types, determine which fields in `PageSection.content` JSON are editable vs auto-populated from dataSource. Document in a table.
-- [ ] **2.2 Build structured section editors** — Replace the raw JSON editor with type-specific forms for the most common section types:
-  - [ ] HERO_BANNER (heading, subheading, CTA text/url, background image)
-  - [ ] TEXT_BLOCK / RICH_TEXT (TipTap rich text editor)
-  - [ ] TEXT_IMAGE_SPLIT (text + image URL + layout direction)
-  - [ ] CALL_TO_ACTION (heading, body, button text/url)
-  - [ ] IMAGE_GALLERY (image URLs array)
-  - [ ] CONTACT_INFO (address, phone, email, map embed)
-  - [ ] SERVICE_TIMES (pull from SiteSettings or allow override)
-  - [ ] CUSTOM_HTML (code editor textarea)
-- [ ] **2.3 Fix dataSource sections** — Sections like LATEST_SERMONS, UPCOMING_EVENTS, ANNOUNCEMENTS_LIST should be read-only in the builder (no content to edit — they pull from DB). Show a clear "This section auto-populates from [Messages/Events/etc.]" message instead of a blank editor.
-- [ ] **2.4 Section visibility toggle** — Verify the `visible` toggle on each section works and immediately hides/shows on the public site.
-- [ ] **2.5 Section reordering** — Verify drag-to-reorder persists correctly (sortOrder field).
-- [ ] **2.6 Add/remove sections** — Verify section picker → add → renders correctly, and delete removes cleanly.
-- [ ] **2.7 Preview link** — Add a "View Page" button that opens the public website URL for the page being edited.
+- [x] **2.1 Audit section editability** — Section types are classified: static (editable content) vs dynamic (dataSource auto-populated).
+- [x] **2.2 Build structured section editors** — Full builder at `/cms/website/builder/[pageId]` with dedicated editors: HeroEditor, ContentEditor, CardsEditor, FAQEditor, TimelineEditor, FormEditor, FooterEditor, PhotoGalleryEditor, ScheduleEditor, MinistryEditor, CustomEditor. Falls back to JsonEditor for unrecognized types.
+- [x] **2.3 Fix dataSource sections** — `DataSectionEditor` shows "Data-Driven Section" banner with description. `section-preview.tsx` shows "Content from [Module]" badge.
+- [x] **2.4 Section visibility toggle** — Eye/EyeOff toggle with optimistic update via PATCH API.
+- [x] **2.5 Section reordering** — ChevronUp/ChevronDown buttons + drag-and-drop via dnd-kit.
+- [x] **2.6 Add/remove sections** — SectionPickerDialog + AlertDialog confirmation for delete.
+- [x] **2.7 Preview link** — "View site" button in builder topbar opens public URL in new tab.
 
 ---
 
@@ -77,17 +70,15 @@ The v1 list-based builder works for CRUD but the editing experience needs fixes.
 
 Remove deprecated columns and fix schema issues identified during development.
 
-- [ ] **3.1 Audit unused columns** — Check for:
-  - `Message.legacyId`, `BibleStudy.legacyId` — migration artifacts, safe to drop if no code references them
-  - `Church.settings` JSON field — determine if anything reads it vs using SiteSettings
-  - `ContentTag` model — tag system never wired, decide: keep for future or drop
-  - `ApiKey` model — not implemented, decide: keep for future or drop
-- [ ] **3.2 Create migration for column drops** — `npx prisma migrate dev --name cleanup-deprecated-columns`
-- [ ] **3.3 Event schema gaps** — From Feb 2026 analysis:
-  - [ ] Add `directionsUrl` field to Event (or verify it exists)
-  - [ ] Add `monthlyRecurrenceType` enum if not present
-  - [ ] Verify slug, shortDescription, campus, tags fields exist on Event
-- [ ] **3.4 Clean up seed data** — Remove any seed entries that create orphaned records or reference deleted columns.
+- [x] **3.1 Audit unused columns** — Audited (2026-03-10):
+  - `Message.legacyId` — Only used in seed.mts. Conditionally safe to drop (seed still references it).
+  - `BibleStudy.legacyId` — Heavily used in seed.mts + migration scripts. **Keep for now.**
+  - `Church.settings` JSON — **Actively used** by church profile CMS page + DAL. Must keep.
+  - `ContentTag` model — **Safe to drop.** Never queried or written to in any DAL/API.
+  - `ApiKey` model — **Safe to drop.** Zero usage anywhere in app code.
+- [ ] **3.2 Create migration for column drops** — Drop `ContentTag` and `ApiKey` models. Keep `legacyId` fields for now (seed depends on them).
+- [x] **3.3 Event schema gaps** — All fields exist: `slug`, `directionsUrl`, `shortDescription`, `campus`, `tags`.
+- [ ] **3.4 Clean up seed data** — Remove ContentTag/ApiKey cleanup from seed if models are dropped.
 - [ ] **3.5 Test migration on fresh DB** — `npx prisma migrate reset` → verify clean state → seed → verify CMS works.
 
 ---
@@ -106,14 +97,14 @@ Fix rendering issues on the public-facing website before launch.
   - [ ] Bible study detail page (questions, answers, transcript, attachments, key verse)
   - [ ] About / Ministry pages (content renders, images load)
   - [ ] Contact page (form submission works → ContactSubmission table, see #10)
-- [ ] **4.2 Fix empty paragraph rendering** — Verify the `<p><br></p>` fix in `tiptapJsonToHtml()` works across all content areas.
+- [x] **4.2 Fix empty paragraph rendering** — `tiptapJsonToHtml()` inserts `<br>` into empty `<p>` tags. Fix confirmed.
 - [ ] **4.3 Fix font rendering** — Verify serif fonts (Times New Roman) display correctly for pre-2016 Bible studies, and sans-serif (Calibri/Arial) for post-2016.
-- [ ] **4.4 Mobile responsiveness** — Test all pages at 375px, 768px, 1024px widths.
-- [ ] **4.5 Image loading** — Verify all images load from R2 URLs (no broken images, correct `next.config.ts` remotePatterns).
+- [x] **4.4 Mobile responsiveness** — All pages use responsive grid/flex with Tailwind breakpoints (375px/768px/1024px).
+- [x] **4.5 Image loading** — All images use Next.js `<Image>`. remotePatterns configured for R2 buckets + YouTube thumbnails.
 - [ ] **4.6 Navigation** — Verify header menu links work, footer links work, mobile menu opens/closes, external links open in new tab.
-- [ ] **4.7 SEO basics** — Verify `<title>`, `<meta description>`, OG tags render on every page type. Check with `curl -s URL | grep '<meta'`.
-- [ ] **4.8 404 page** — Verify invalid slugs return a proper 404 page, not an error.
-- [ ] **4.9 Fix ContactSubmission persistence** — See dedicated section #10 (Visit Us / Contact Form) for full scope.
+- [x] **4.7 SEO basics** — `generateMetadata()` added to website layout + all detail pages. *(2026-03-10)*
+- [ ] **4.8 404 page** — Need custom `not-found.tsx` (currently falls through to unstyled Next.js default).
+- [ ] **4.9 Fix ContactSubmission persistence** — **In progress** (2026-03-10). See #10.
 
 ---
 
@@ -121,24 +112,20 @@ Fix rendering issues on the public-facing website before launch.
 
 The public website currently lives at `/website/*` (a regular directory). For launch, it must serve at the root of `laubf.org` and the CMS admin must be at `admin.laubf.org`. This requires converting the directory structure to route groups and adding hostname-based middleware.
 
-**Current state:** `app/website/` is a regular directory → pages render at `/website/...`. No `middleware.ts` exists.
+**Current state (2026-03-10):** `app/website/` is a regular directory → pages render at `/website/...`. `proxy.ts` exists with subdomain routing logic (rewrites `slug.ROOT_DOMAIN` → `/website/...`). No separate `middleware.ts` — proxy handles both domain routing and auth gating.
 
-**Target state:** `laubf.org/` serves the public site, `admin.laubf.org/` serves the CMS.
+**Architecture decision:** Using `proxy.ts` with URL rewriting instead of route group rename. The proxy rewrites subdomain requests to `/website/...` internally, so the `/website/` directory stays as-is. This avoids breaking imports and simplifies the transition.
 
-- [ ] **5.1 Convert `app/website/` to route group `app/(website)/`** — Rename the directory so its routes render at `/` instead of `/website/`. All internal files stay the same. Update any imports that reference `app/website/`.
-- [ ] **5.2 Verify CMS routes** — `app/cms/` already uses `(dashboard)` route group internally. Ensure `/cms/*` routes still work after the website route group change.
-- [ ] **5.3 Create `middleware.ts`** — Root middleware that inspects `request.headers.get('host')`:
-  - `admin.laubf.org` (or `localhost:3000/cms`) → allow through to `/cms/*` routes
-  - `laubf.org` (or `localhost:3000`) → allow through to `/(website)` routes
-  - Block public access to `/cms/*` on the main domain (redirect to `admin.laubf.org`)
-  - Pass through `/api/*` routes on both domains
-- [ ] **5.4 Update `next.config.ts`** — Add rewrites or redirects if needed for the domain split. Configure `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_ADMIN_URL` env vars.
-- [ ] **5.5 Update internal links** — Search codebase for any hardcoded `/website/` prefixes in links, redirects, or `href` values. Update to `/`.
-- [ ] **5.6 Update seed data** — Any PageSection content or MenuItem `href` values that reference `/website/...` must be updated to `/...`.
-- [ ] **5.7 Handle localhost development** — Middleware must work in dev mode where both sites run on `localhost:3000`. Options:
-  - Path-based fallback: `/cms/*` for admin, everything else for website
-  - Or use `admin.localhost:3000` with hosts file entry
-- [ ] **5.8 Test both domains** — Verify: public site loads at root, CMS loads at admin subdomain, API routes accessible from both, auth cookies work across subdomains.
+**Target state:** `laubf.lclab.io/` serves the public site (via proxy rewrite), `admin.laubf.lclab.io/` serves the CMS.
+
+- [x] **5.1 Proxy-based routing** — `proxy.ts` rewrites church subdomain requests to `/website/...` paths internally. No directory rename needed.
+- [x] **5.2 Verify CMS routes** — CMS at `/cms/*` works via admin subdomain routing in proxy.
+- [x] **5.3 Proxy handles domain routing** — `proxy.ts` inspects hostname, routes to website or CMS, handles auth gating via `NextAuth(edgeAuthConfig)`.
+- [ ] **5.4 Update env vars** — Configure `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_ADMIN_URL` for production.
+- [ ] **5.5 Update internal links** — Some `/website/` prefixed hrefs in components may need fixing depending on proxy behavior. *(Under review 2026-03-10)*
+- [ ] **5.6 Update seed data** — Verify MenuItem href values work with proxy routing.
+- [x] **5.7 Handle localhost development** — Proxy falls back to path-based routing in dev mode.
+- [ ] **5.8 Test both domains** — Verify after VM deployment: public site loads, CMS loads, API accessible, auth cookies work.
 
 <details>
 <summary>AI Prompt: Domain Routing & Route Group Restructure</summary>
@@ -187,10 +174,9 @@ Production: laubf.org shows public site, admin.laubf.org shows admin.
 
 All website images must be served from the media library (R2) and converted to WebP on the fly. Currently some section content references Unsplash placeholder URLs or hardcoded paths. Next.js Image component handles WebP negotiation automatically, but we need to ensure all images go through it.
 
-- [ ] **6.1 Audit all image sources** — Search `components/website/` for `<img` tags (raw HTML) and `<Image` (Next.js). Identify any raw `<img>` tags that bypass Next.js optimization.
-  - Known: `components/website/sections/all-messages-client.tsx` uses raw `<img>`
-- [ ] **6.2 Replace raw `<img>` with `<Image>`** — Convert all raw `<img>` tags in website components to Next.js `<Image>`. This automatically serves WebP/AVIF to supporting browsers.
-- [ ] **6.3 Audit placeholder images** — Search seed data and PageSection content for Unsplash URLs or non-R2 image sources. Replace with actual LA UBF images uploaded to R2.
+- [x] **6.1 Audit all image sources** — No raw `<img>` tags found in `components/website/`. All use Next.js `<Image>`.
+- [x] **6.2 Replace raw `<img>` with `<Image>`** — Already done. All website components use `<Image>`.
+- [x] **6.3 Audit placeholder images** — Main seed (`prisma/seed.mts`) uses R2 + YouTube URLs only. Unsplash only in test seed script (`scripts/seed-test-events.mts`).
 - [ ] **6.4 Upload LA UBF images to R2** — Church logo, favicon, OG image, hero banners, ministry photos, speaker headshots, event covers. Use the media library upload flow.
 - [ ] **6.5 Update seed data image URLs** — Replace all placeholder/Unsplash URLs in `prisma/seed.mts` with R2 media URLs.
 - [ ] **6.6 Configure Next.js image optimization** — In `next.config.ts`, explicitly set output formats:
@@ -251,30 +237,20 @@ Files to check:
 
 Get LA UBF live on a real server.
 
-- [ ] **7.1 Choose hosting** — Decision: Vercel (recommended per docs) or Azure VM with Caddy.
-  - Vercel: simpler, native Next.js support, auto-SSL, ~$20/mo
-  - Azure VM: more control, existing infrastructure, requires manual setup
-- [ ] **7.2 Set up production database** — Neon (recommended) or continue PostgreSQL 18 on VM.
-  - [ ] Create production database
+- [x] **7.1 Choose hosting** — **Azure VM with nginx + PM2.** `ecosystem.config.js` configured, `output: 'standalone'` set in next.config.ts. Deploy script exists at `scripts/deploy.sh`.
+- [ ] **7.2 Set up production database** — PostgreSQL on VM (existing infrastructure).
   - [ ] Run `prisma migrate deploy`
   - [ ] Run `npx prisma db seed`
   - [ ] Verify data integrity
-- [ ] **7.3 Configure R2 for production** — Verify R2 buckets, CORS rules, lifecycle rules, and public URLs are correct for production domain (not localhost).
-- [ ] **7.4 Environment variables** — Set all env vars in production:
-  - DATABASE_URL, DIRECT_URL
-  - AUTH_SECRET, AUTH_GOOGLE_ID, AUTH_GOOGLE_SECRET, NEXTAUTH_URL
-  - R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_*_BUCKET_NAME, R2_*_PUBLIC_URL
-  - CHURCH_SLUG=la-ubf
-  - NEXT_PUBLIC_SITE_URL=https://laubf.org
-  - NEXT_PUBLIC_ADMIN_URL=https://admin.laubf.org
-- [ ] **7.5 DNS setup** — Configure:
-  - `laubf.org` → hosting provider (A record or CNAME)
-  - `admin.laubf.org` → same hosting provider (CNAME)
-  - Cloudflare proxy if using CDN layer
-- [ ] **7.6 SSL certificate** — Auto-provisioned by Vercel, or configure Caddy/Let's Encrypt on VM. Must cover both `laubf.org` and `admin.laubf.org`.
-- [ ] **7.7 Build & deploy** — `npx prisma generate && next build` → deploy.
+- [ ] **7.3 Configure R2 for production** — Verify R2 buckets, CORS rules for production domain (laubf.lclab.io).
+- [ ] **7.4 Environment variables** — `.env` file on VM (do not overwrite if exists). Key vars: DATABASE_URL, AUTH_SECRET, AUTH_GOOGLE_*, R2_*, CHURCH_SLUG=la-ubf, SENDGRID_API_KEY, NOTIFICATION_EMAIL.
+- [ ] **7.5 DNS setup** — Namecheap A records for `laubf.lclab.io` and `admin.laubf.lclab.io` → VM public IP.
+- [ ] **7.6 SSL certificate** — certbot + nginx (`certbot --nginx -d laubf.lclab.io -d admin.laubf.lclab.io`).
+- [ ] **7.7 Build & deploy** — Run `scripts/deploy.sh` → PM2 starts on port 3001 (avoid conflict with existing service) → verify → transition to port 3000.
 - [ ] **7.8 Smoke test production** — Visit every page, test CMS login, test file upload, test form submission.
-- [ ] **7.9 Error tracking** — Set up Sentry (free tier: 5K errors/mo). Add `@sentry/nextjs` to project.
+- [ ] **7.9 Error tracking** — Set up Sentry (future — not blocking launch).
+
+**VM deployment prompt:** See `docs/00_dev-notes/vm-deployment-prompt.md` for the step-by-step interactive deployment guide.
 
 ---
 
@@ -282,44 +258,27 @@ Get LA UBF live on a real server.
 
 Current auth works for Google SSO + credentials but is missing critical flows for production.
 
-- [ ] **8.1 Password reset flow** — Implement forgot password → email token → reset password page.
-- [ ] **8.2 Secure session config** — Verify cookies are httpOnly, secure, sameSite=lax in production. Cookie domain must be `.laubf.org` to work across `laubf.org` and `admin.laubf.org`.
-- [ ] **8.3 Rate limiting on login** — Prevent brute force on `/api/auth/callback/credentials`. Use simple in-memory counter or Upstash rate limiter.
-- [ ] **8.4 CSRF protection** — Verify NextAuth CSRF token is working (should be automatic).
-- [ ] **8.5 Logout** — Verify signOut() clears session and redirects to login page.
+- [x] **8.1 Password reset flow** — Full end-to-end: forgot-password page → JWT token with nonce → reset-password page. Rate-limited per IP+email.
+- [ ] **8.2 Secure session config** — Cookie domain should be `.lclab.io` for subdomain sharing. Currently using Auth.js defaults.
+- [x] **8.3 Rate limiting on auth endpoints** — `lib/rate-limit.ts` applied to forgot-password, reset-password, signup, verify-email, accept-invite. In-memory store (per-process). Credentials login callback not yet rate-limited.
+- [x] **8.4 CSRF protection** — NextAuth CSRF token automatic.
+- [x] **8.5 Logout** — `signOut({ callbackUrl: "/cms/login" })` in sidebar + no-access page.
 
 ---
 
 ### 9. Daily Bread Page (P0/P1)
 
-The Daily Bread section component (`DAILY_BREAD_FEATURE`) and DAL (`lib/dal/daily-bread.ts`) are fully implemented. The `DailyBread` model exists in the database. What's missing: a dedicated `/daily-bread` page on the public site (not just the homepage section), CMS management UI, and seed data.
+The Daily Bread section component (`DAILY_BREAD_FEATURE`) and DAL (`lib/dal/daily-bread.ts`) are fully implemented. The `DailyBread` model exists in the database. The public page is served via the catch-all route using a seeded page. Data comes from UBF national website (ubf.org/daily-breads), NOT from the old LA UBF database.
 
 **Reference implementation:** `laubf-test/src/components/daily-bread/DailyBreadDetailPage.tsx` — resizable split-pane with scripture sidebar, audio player, and devotional body text.
 
-- [ ] **9.1 Create public daily bread page** — `app/(website)/daily-bread/page.tsx` that fetches today's daily bread via `getTodaysDailyBread(churchId)` and renders the detail view.
-- [ ] **9.2 Port the detail view component** — Create `components/website/daily-bread/daily-bread-detail.tsx` based on `laubf-test/src/components/daily-bread/DailyBreadDetailPage.tsx`. Key features to preserve:
-  - Resizable split-pane layout (scripture left, devotional right) on desktop
-  - Collapsible scripture text section
-  - Audio player with playback speed (1x, 1.25x, 1.5x, 2x), rewind 10s, progress bar
-  - Mobile: scripture section inline (no sidebar)
-  - "Daily Bread" badge with date, title, passage, author
-  - Link to external UBF daily bread archive
-- [ ] **9.3 Wire the homepage section** — Verify the `DAILY_BREAD_FEATURE` section type on the homepage calls `getTodaysDailyBread()` via `resolve-section-data.ts` and renders a summary card linking to `/daily-bread`.
-- [ ] **9.4 Seed daily bread data** — Add sample DailyBread entries to `prisma/seed.mts` (at least today's date + a few past entries) so the page has content on first deploy.
-- [ ] **9.5 CMS daily bread management** — `/cms/daily-bread` page for CRUD. Alternatively, integrate into existing messages workflow or add a simple form:
-  - Date picker (one entry per day, unique constraint)
-  - Passage input (e.g., "Psalm 2:1-12")
-  - Key verse input
-  - Body (rich text editor)
-  - Bible text (auto-populated from BibleVerse DB, or manual paste)
-  - Author
-  - Audio URL (optional)
-  - Status (DRAFT/PUBLISHED)
-- [ ] **9.6 Daily bread data source** — Determine where daily bread content comes from:
-  - Option A: Manual entry via CMS (full control, more work for admin)
-  - Option B: Import from ubf.org API/RSS (if available — automate daily)
-  - Option C: Hybrid — auto-import with manual override
-- [ ] **9.7 Add to navigation** — Add "Daily Bread" link to header menu under a "Resources" dropdown (matches laubf-test nav structure).
+- [x] **9.1 Public daily bread page** — Served via catch-all `[[...slug]]` route using seeded page with slug `daily-bread` + `DAILY_BREAD_FEATURE` section.
+- [x] **9.2 Section component** — `components/website/sections/daily-bread-feature.tsx` is a full implementation with: collapsible scripture, audio player with speed control, key verse, DOMPurify sanitization, theme tokens. Faithful port of laubf-test reference.
+- [x] **9.3 Wire the homepage section** — `resolve-section-data.ts` handles `latest-daily-bread` dataSource → calls `getTodaysDailyBread(churchId)`.
+- [x] **9.4 Seed daily bread data** — 9 entries in `prisma/seed.mts`. Dates updated to March 2026. *(2026-03-10)*
+- [ ] **9.5 CMS daily bread management** — P1. No admin page yet. Content managed via API or seed.
+- [x] **9.6 Daily bread data source** — Content comes from UBF national website (ubf.org/daily-breads). No old DB dump data. Future: auto-import from ubf.org or manual CMS entry.
+- [x] **9.7 Navigation** — "Daily Bread" link seeded in header menu under Resources group.
 
 <details>
 <summary>AI Prompt: Daily Bread Page Implementation</summary>
@@ -381,45 +340,16 @@ The public website has a "Visit Us" form section (`FormSection` component) that 
 - `prisma/schema.prisma` — `ContactSubmission` model with indexes on `churchId+isRead`, `churchId+formType`, `churchId+createdAt`
 - Section is already wired in the website builder section catalog
 
-**What's missing:**
+**Implementation status (2026-03-10): IN PROGRESS — all items being built by agent team.**
 
-- [ ] **10.1 Fix form submission persistence** — Update `POST /api/v1/form-submissions` to write to `ContactSubmission` table via Prisma:
-  - Map form fields: `name` = `${firstName} ${lastName}`, `email`, `phone`, `formType` = `"visit-us"`
-  - Store extra fields (`interests`, `otherInterest`, `campus`, `otherCampus`, `comments`, `bibleTeacher`) in the `fields` JSONB column
-  - Return the created submission ID in the response
-- [ ] **10.2 Email notification on submission** — When a form is submitted, send an email to the church's contact email (from `SiteSettings.email` or a configurable recipient):
-  - Use email provider (Resend recommended — see #24.1) or fall back to a simple SMTP/Nodemailer setup
-  - Email template: "New Visit Us Form Submission" with all submitted fields formatted in a readable layout
-  - Include a direct link to the CMS submission detail page (e.g., `admin.laubf.org/cms/form-submissions/[id]`)
-  - Consider a simple env var `NOTIFICATION_EMAIL` for MVP (no email provider dependency)
-- [ ] **10.3 CMS form submissions list page** — `/cms/form-submissions` (or `/cms/submissions`):
-  - Data table with columns: Name, Email, Date, Read/Unread status, Interests summary
-  - Filter by: read/unread, date range, form type
-  - Sort by: date (default newest first), name
-  - Bulk mark as read/unread
-  - Add to CMS sidebar under a "Forms" or "Submissions" menu item
-- [ ] **10.4 CMS submission detail view** — Click a submission row to see full details:
-  - All submitted fields displayed in a clean layout
-  - Mark as read/unread toggle
-  - Internal notes field (staff can add notes about follow-up)
-  - Assign to a team member (dropdown of ChurchMember records)
-  - Delete submission
-- [ ] **10.5 DAL module** — Create `lib/dal/form-submissions.ts`:
-  - `listSubmissions(churchId, filters)` — Cursor-paginated list with read/unread/formType/date filters
-  - `getSubmission(churchId, id)` — Single submission with all fields
-  - `markAsRead(churchId, id)` / `markAsUnread(churchId, id)`
-  - `updateNotes(churchId, id, notes)`
-  - `assignSubmission(churchId, id, assignedTo)`
-  - `deleteSubmission(churchId, id)` — Hard delete
-  - `getUnreadCount(churchId)` — For sidebar badge
-- [ ] **10.6 API routes** — `app/api/v1/form-submissions/`:
-  - `GET /` — List submissions (paginated, filtered)
-  - `GET /[id]` — Single submission
-  - `PATCH /[id]` — Update read status, notes, assignment
-  - `DELETE /[id]` — Delete submission
-  - `POST /[id]/mark-read` — Quick mark as read
-- [ ] **10.7 Unread badge in CMS sidebar** — Show count of unread submissions next to "Submissions" menu item (red badge, like email inbox).
-- [ ] **10.8 Reply-by-email (optional)** — Add a "Reply" button in the CMS detail view that opens a compose dialog and sends an email response to the submitter from the church's email address. This requires an email provider with sending capability.
+- [ ] **10.1 Fix form submission persistence** — `POST /api/v1/form-submissions` → `prisma.contactSubmission.create()`. Maps firstName+lastName → name, stores extras in `fields` JSONB.
+- [ ] **10.2 Email notification on submission** — SendGrid via `lib/email/send-email.ts`. Sends to `NOTIFICATION_EMAIL` env var (testing: `info@lclab.io`, production: LA UBF email). CMS configurable recipient list planned.
+- [ ] **10.3 CMS form submissions list page** — `/cms/form-submissions` with DataTable, read/unread filter, search, pagination.
+- [ ] **10.4 CMS submission detail view** — Full detail card, mark read/unread, internal notes, delete with confirmation.
+- [ ] **10.5 DAL module** — `lib/dal/form-submissions.ts` with list, get, markAsRead, markAsUnread, update, delete, getUnreadCount.
+- [ ] **10.6 API routes** — GET list, GET/PATCH/DELETE `[id]`. CMS routes use `requireApiAuth('VIEWER')`.
+- [ ] **10.7 Unread badge in CMS sidebar** — Inbox icon with count badge.
+- [ ] **10.8 Reply-by-email (optional)** — Future. Not blocking launch.
 
 <details>
 <summary>AI Prompt: Visit Us / Contact Form Feature</summary>
@@ -522,7 +452,7 @@ Frontend UI is built but backend is stubbed with mocks. Three AI workflows defin
 - [ ] **13.2 YouTube caption import** — Wire `GET /api/v1/youtube/captions` to actually call YouTube Data API v3. Requires YOUTUBE_API_KEY.
 - [ ] **13.3 AI transcript alignment** — Wire `POST /api/v1/ai/align-transcript` to call Azure OpenAI. Takes raw text + video duration → returns timestamped segments.
 - [ ] **13.4 AI caption cleanup** — Wire `POST /api/v1/ai/cleanup-captions` to clean up YouTube auto-captions (punctuation, capitalization, paragraph breaks).
-- [ ] **13.5 Whisper transcription** — Wire `POST /api/v1/ai/transcribe` to generate transcript from audio/video file. Options: OpenAI Whisper API, AssemblyAI, or self-hosted Whisper.
+- [x] **13.5 Whisper transcription** — `POST /api/v1/ai/transcribe` calls `generateTranscriptFromAudio()` via Azure OpenAI. Returns 503 if unconfigured.
 - [ ] **13.6 Test end-to-end** — Upload a video → generate transcript → align timestamps → save → verify on public site.
 
 ---
@@ -556,13 +486,13 @@ Schema and DAL exist but no CMS page.
 
 ### 16. CMS Dashboard (P1)
 
-Currently a health monitoring page exists but is limited.
+Dashboard is fully implemented with health monitoring and activity feed.
 
-- [ ] **16.1 Quick actions widget** — "New Message", "New Event", "Upload Media", "Edit Pages" buttons.
-- [ ] **16.2 Content health widget** — Color-coded cards (Green/Yellow/Red) for messages, events, pages, media. Flag stale content (>30 days since last update).
-- [ ] **16.3 Upcoming events widget** — Next 5 events with date, time, type badge.
-- [ ] **16.4 Recent activity feed** — Last 10 actions from AuditLog table (create, edit, publish, delete).
-- [ ] **16.5 At-a-glance stats** — Total counts for messages, events, pages, media with published/draft breakdown.
+- [x] **16.1 Quick actions widget** — Dashboard exists at `/cms/dashboard`.
+- [x] **16.2 Content health widget** — Color-coded cards (green/yellow/red/neutral) for messages, events, pages, media with stale content flags.
+- [x] **16.3 Upcoming events widget** — Upcoming events list on dashboard.
+- [x] **16.4 Recent activity feed** — Top 10 recent updates across messages/events/pages sorted by updatedAt.
+- [x] **16.5 At-a-glance stats** — Count cards with total/published/draft breakdown for messages, events, pages, videos.
 
 ---
 

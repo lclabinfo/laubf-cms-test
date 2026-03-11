@@ -279,7 +279,7 @@ const DAILY_BREADS = [
   {
     slug: "the-lord-is-my-shepherd",
     title: "The Lord Is My Shepherd",
-    date: "2026-02-02",
+    date: "2026-03-04",
     passage: "Psalm 23:1-6",
     keyVerse: "The Lord is my shepherd; I shall not want. — Psalm 23:1",
     author: "P. Abraham Kim",
@@ -289,7 +289,7 @@ const DAILY_BREADS = [
   {
     slug: "blessed-are-the-poor-in-spirit",
     title: "Blessed Are the Poor in Spirit",
-    date: "2026-02-03",
+    date: "2026-03-05",
     passage: "Matthew 5:1-12",
     keyVerse: "Blessed are the poor in spirit, for theirs is the kingdom of heaven. — Matthew 5:3",
     author: "P. John Lee",
@@ -299,7 +299,7 @@ const DAILY_BREADS = [
   {
     slug: "you-are-the-light-of-the-world",
     title: "You Are the Light of the World",
-    date: "2026-02-04",
+    date: "2026-03-06",
     passage: "Matthew 5:13-16",
     keyVerse: "You are the light of the world. A city set on a hill cannot be hidden. — Matthew 5:14",
     author: "P. David Yoon",
@@ -309,7 +309,7 @@ const DAILY_BREADS = [
   {
     slug: "come-to-me-all-who-are-weary",
     title: "Come to Me, All Who Are Weary",
-    date: "2026-02-05",
+    date: "2026-03-07",
     passage: "Matthew 11:28-30",
     keyVerse: "Come to me, all who labor and are heavy laden, and I will give you rest. — Matthew 11:28",
     author: "P. Abraham Kim",
@@ -319,7 +319,7 @@ const DAILY_BREADS = [
   {
     slug: "for-god-so-loved-the-world",
     title: "For God So Loved the World",
-    date: "2026-02-06",
+    date: "2026-03-08",
     passage: "John 3:14-21",
     keyVerse: "For God so loved the world, that he gave his only Son, that whoever believes in him should not perish but have eternal life. — John 3:16",
     author: "P. John Lee",
@@ -329,7 +329,7 @@ const DAILY_BREADS = [
   {
     slug: "i-am-the-vine",
     title: "I Am the Vine",
-    date: "2026-02-07",
+    date: "2026-03-09",
     passage: "John 15:1-11",
     keyVerse: "I am the vine; you are the branches. Whoever abides in me and I in him, he it is that bears much fruit, for apart from me you can do nothing. — John 15:5",
     author: "P. David Yoon",
@@ -339,14 +339,14 @@ const DAILY_BREADS = [
   {
     slug: "love-is-patient-love-is-kind",
     title: "Love Is Patient, Love Is Kind",
-    date: "2026-02-08",
+    date: "2026-03-10",
     passage: "1 Corinthians 13:1-13",
     keyVerse: "Love is patient and kind; love does not envy or boast; it is not arrogant or rude. — 1 Corinthians 13:4",
     author: "P. Abraham Kim",
     body: "<p>Writing to a church torn by factions, pride, and spiritual competition, Paul inserts his great hymn to love at the center of his argument. Without love, the most spectacular gifts — tongues of angels, prophetic powers, faith to move mountains — count for nothing.</p><p>Paul describes love not as a feeling but as a pattern of behavior: patient, kind, not envious, not boastful, not irritable. These are not ideals for perfect people; they are descriptions of what love does in difficult community — among competitive, proud, difficult people like the Corinthians, and like us.</p><p>The chapter ends with a triad: faith, hope, love — but the greatest is love. Love is greatest because it is the nature of God himself (1 John 4:8), and it is the one thing that abides even into eternity when faith becomes sight and hope becomes possession.</p><p><strong>Prayer:</strong> Father, grow in me the patience and kindness that are the marks of your love. Make me an agent of genuine love in my community.</p><p><strong>One Word:</strong> Love never fails</p>",
     bibleText: "<p><sup>1</sup>If I speak in the tongues of men and of angels, but have not love, I am a noisy gong or a clanging cymbal.</p><p><sup>2</sup>And if I have prophetic powers, and understand all mysteries and all knowledge, and if I have all faith, so as to remove mountains, but have not love, I am nothing.</p><p><sup>3</sup>If I give away all I have, and if I deliver up my body to be burned, but have not love, I gain nothing.</p><p><sup>4</sup>Love is patient and kind; love does not envy or boast; it is not arrogant</p><p><sup>5</sup>or rude. It does not insist on its own way; it is not irritable or resentful;</p><p><sup>6</sup>it does not rejoice at wrongdoing, but rejoices with the truth.</p><p><sup>7</sup>Love bears all things, believes all things, hopes all things, endures all things.</p><p><sup>8</sup>Love never ends. As for prophecies, they will pass away; as for tongues, they will cease; as for knowledge, it will pass away.</p><p><sup>9</sup>For we know in part and we prophesy in part,</p><p><sup>10</sup>but when the perfect comes, the partial will pass away.</p><p><sup>11</sup>When I was a child, I spoke like a child, I thought like a child, I reasoned like a child. When I became a man, I gave up childlike ways.</p><p><sup>12</sup>For now we see in a mirror dimly, but then face to face. Now I know in part; then I shall know fully, even as I have been fully known.</p><p><sup>13</sup>So now faith, hope, and love abide, these three; but the greatest of these is love.</p>",
   },
-  { slug: "kiss-the-son", title: "Kiss The Son", date: "2026-02-09", passage: "Psalm 2:1-12", keyVerse: "12", author: "P. Abraham Kim", body: "<p>The kings of this world rule as if they could control the world. But in reality, the One enthroned in heaven has power over all things.</p><p>The author advises us to \"kiss the Son\" (12). Let us fear his greatness and rejoice in his victory over death.</p><p><strong>Prayer:</strong> Father, thank you for giving us your Son Jesus.</p><p><strong>One Word:</strong> Kiss the Son, Jesus</p>" },
+  { slug: "kiss-the-son", title: "Kiss The Son", date: "2026-03-11", passage: "Psalm 2:1-12", keyVerse: "12", author: "P. Abraham Kim", body: "<p>The kings of this world rule as if they could control the world. But in reality, the One enthroned in heaven has power over all things.</p><p>The author advises us to \"kiss the Son\" (12). Let us fear his greatness and rejoice in his victory over death.</p><p><strong>Prayer:</strong> Father, thank you for giving us your Son Jesus.</p><p><strong>One Word:</strong> Kiss the Son, Jesus</p>" },
 ]
 
 // --- Events (recurring meetings only — matches Quick Links on live site) ---
@@ -401,7 +401,6 @@ async function main() {
   await prisma.messageSeries.deleteMany()
   await prisma.bibleStudyAttachment.deleteMany()
   await prisma.eventLink.deleteMany()
-  await prisma.contentTag.deleteMany()
   await prisma.tag.deleteMany()
   await prisma.message.deleteMany()
   await prisma.bibleStudy.deleteMany()
@@ -412,6 +411,7 @@ async function main() {
   await prisma.series.deleteMany()
   await prisma.ministry.deleteMany()
   await prisma.campus.deleteMany()
+  await prisma.role.deleteMany()
   await prisma.church.deleteMany()
 
   // ── 1. Create Church ──────────────────────────────────────
@@ -3904,13 +3904,36 @@ async function main() {
     },
   })
 
+  // Create default roles for this church
+  const { DEFAULT_ROLES } = await import('../lib/permissions.ts')
+  const roleMap: Record<string, string> = {}
+  for (const [key, def] of Object.entries(DEFAULT_ROLES)) {
+    const d = def as typeof DEFAULT_ROLES[keyof typeof DEFAULT_ROLES]
+    const role = await prisma.role.upsert({
+      where: { churchId_slug: { churchId, slug: d.slug } },
+      create: {
+        churchId,
+        name: d.name,
+        slug: d.slug,
+        description: d.description,
+        priority: d.priority,
+        isSystem: d.isSystem,
+        permissions: d.permissions,
+      },
+      update: {},
+    })
+    roleMap[key] = role.id
+  }
+  console.log(`  Created ${Object.keys(roleMap).length} default roles`)
+
   await prisma.churchMember.upsert({
     where: { churchId_userId: { churchId, userId: testUser.id } },
-    update: { role: 'OWNER' },
+    update: { role: 'OWNER', roleId: roleMap['OWNER'] },
     create: {
       churchId,
       userId: testUser.id,
       role: 'OWNER',
+      roleId: roleMap['OWNER'],
     },
   })
   console.log(`  Created test user: ${testEmail}`)

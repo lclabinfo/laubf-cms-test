@@ -14,6 +14,7 @@ import {
   IconCalendar,
 } from "@/components/website/shared/icons"
 import { cn } from "@/lib/utils"
+import { resolveHref } from "@/lib/website/resolve-href"
 import type { SectionTheme } from "@/components/website/shared/theme-tokens"
 
 interface Event {
@@ -307,7 +308,7 @@ function EventListView({
                     dateEnd: event.dateEnd ? new Date(event.dateEnd + "T00:00:00") : undefined,
                     time: event.time,
                     type: event.type,
-                    href: `/website/events/${event.slug}`,
+                    href: resolveHref(`/events/${event.slug}`),
                     recurrenceSchedule: event.recurrenceSchedule,
                   }}
                 />
@@ -321,7 +322,7 @@ function EventListView({
                     {moreUpcoming} more upcoming event{moreUpcoming !== 1 ? "s" : ""}
                   </span>
                   <Link
-                    href="/website/events"
+                    href={resolveHref("/events")}
                     className="text-[14px] font-medium text-black-1 hover:underline"
                   >
                     View all
@@ -355,7 +356,7 @@ function EventListView({
                     dateEnd: event.dateEnd ? new Date(event.dateEnd + "T00:00:00") : undefined,
                     time: event.time,
                     type: event.type,
-                    href: `/website/events/${event.slug}`,
+                    href: resolveHref(`/events/${event.slug}`),
                     recurrenceSchedule: event.recurrenceSchedule,
                   }}
                 />
@@ -369,7 +370,7 @@ function EventListView({
                     {moreRecurring} more recurring event{moreRecurring !== 1 ? "s" : ""}
                   </span>
                   <Link
-                    href="/website/events"
+                    href={resolveHref("/events")}
                     className="text-[14px] font-medium text-black-1 hover:underline"
                   >
                     View all

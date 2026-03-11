@@ -78,7 +78,6 @@ model Church {
   menus              Menu[]
   siteSettings       SiteSettings?
   themeCustomization ThemeCustomization?
-  apiKeys            ApiKey[]
   auditLogs          AuditLog[]
 
   // People & Member Management
@@ -88,6 +87,9 @@ model Church {
   customFieldDefinitions CustomFieldDefinition[]
   personNotes            PersonNote[]
   personRoleDefinitions  PersonRoleDefinition[]
+
+  // Roles & Permissions
+  roles                  Role[]
 
   @@index([slug])
   @@index([status])
@@ -159,6 +161,7 @@ model ChurchMember {
   churchId  String     @db.Uuid
   userId    String     @db.Uuid
   role      MemberRole @default(EDITOR)
+  roleId    String?    @db.Uuid
   status    String     @default("ACTIVE")  // ACTIVE, INACTIVE, PENDING
   invitedAt DateTime?
   joinedAt  DateTime   @default(now())
@@ -166,12 +169,14 @@ model ChurchMember {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  church    Church     @relation(fields: [churchId], references: [id], onDelete: Cascade)
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  church     Church     @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customRole Role?      @relation(fields: [roleId], references: [id])
 
   @@unique([churchId, userId])
   @@index([churchId])
   @@index([userId])
+  @@index([roleId])
 }
 
 enum MemberRole {
@@ -179,6 +184,27 @@ enum MemberRole {
   ADMIN
   EDITOR
   VIEWER
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  churchId    String   @db.Uuid
+  name        String
+  slug        String
+  description String?
+  priority    Int      @default(0)
+  isSystem    Boolean  @default(false)
+  permissions String[]
+  color       String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  church      Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  members     ChurchMember[]
+
+  @@unique([churchId, slug])
+  @@index([churchId])
 }
 
 model Session {
@@ -254,24 +280,6 @@ enum SslStatus {
   PENDING
   ACTIVE
   ERROR
-}
-
-model ApiKey {
-  id          String    @id @default(uuid()) @db.Uuid
-  churchId    String    @db.Uuid
-  name        String
-  keyHash     String    @unique
-  keyPrefix   String
-  permissions String[]
-  expiresAt   DateTime?
-  lastUsedAt  DateTime?
-
-  createdAt   DateTime  @default(now())
-
-  church      Church    @relation(fields: [churchId], references: [id], onDelete: Cascade)
-
-  @@index([churchId])
-  @@index([keyHash])
 }
 
 // ============================================================
@@ -388,23 +396,9 @@ model Tag {
   createdAt DateTime @default(now())
 
   church      Church       @relation(fields: [churchId], references: [id], onDelete: Cascade)
-  contentTags ContentTag[]
 
   @@unique([churchId, slug])
   @@index([churchId])
-}
-
-model ContentTag {
-  id         String @id @default(uuid()) @db.Uuid
-  tagId      String @db.Uuid
-  entityType String
-  entityId   String @db.Uuid
-
-  tag        Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@unique([tagId, entityType, entityId])
-  @@index([entityType, entityId])
-  @@index([tagId])
 }
 
 // ============================================================

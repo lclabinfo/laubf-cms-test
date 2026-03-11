@@ -9,8 +9,13 @@ export async function getTodaysDailyBread(
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  return prisma.dailyBread.findUnique({
-    where: { churchId_date: { churchId, date: today } },
+  return prisma.dailyBread.findFirst({
+    where: {
+      churchId,
+      date: today,
+      status: ContentStatus.PUBLISHED,
+      deletedAt: null,
+    },
   })
 }
 

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { ThemeProvider } from '@/components/website/theme/theme-provider'
 import { FontLoader } from '@/components/website/font-loader'
 import { WebsiteNavbar } from '@/components/website/layout/website-navbar'
@@ -6,6 +7,36 @@ import QuickLinksFAB from '@/components/website/layout/quick-links-fab'
 import { getChurchId } from '@/lib/tenant/context'
 import { getSiteSettings } from '@/lib/dal/site-settings'
 import { getMenuByLocation } from '@/lib/dal/menus'
+
+/* ── SEO Metadata ── */
+
+export async function generateMetadata(): Promise<Metadata> {
+  const churchId = await getChurchId()
+  const siteSettings = await getSiteSettings(churchId)
+
+  const siteName = siteSettings?.siteName ?? 'Church'
+  const description = siteSettings?.description ?? undefined
+  const ogImageUrl = siteSettings?.ogImageUrl ?? undefined
+  const rawUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_WEBSITE_URL
+  const metadataBase = rawUrl ? new URL(rawUrl).origin : undefined
+
+  return {
+    metadataBase: metadataBase ? new URL(metadataBase) : undefined,
+    title: {
+      default: siteName,
+      template: `%s | ${siteName}`,
+    },
+    description,
+    openGraph: {
+      siteName,
+      description: description ?? undefined,
+      images: ogImageUrl ? [ogImageUrl] : undefined,
+    },
+    icons: siteSettings?.faviconUrl
+      ? { icon: siteSettings.faviconUrl }
+      : undefined,
+  }
+}
 
 /**
  * Build QuickLinks data from the "Quick Links" group within the header menu.

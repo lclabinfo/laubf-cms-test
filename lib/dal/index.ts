@@ -24,6 +24,9 @@ export * from './pages'
 export * from './menus'
 export * from './theme'
 
+// Form submissions
+export * from './form-submissions'
+
 // People & Member Management DAL modules
 export * from './people'
 export * from './households'

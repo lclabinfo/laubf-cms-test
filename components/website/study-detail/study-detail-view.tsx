@@ -22,6 +22,7 @@ import {
   Columns,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { resolveHref } from "@/lib/website/resolve-href"
 import { API_AVAILABLE_VERSIONS } from "@/lib/bible-versions"
 import BibleCopyright from "@/components/website/shared/bible-copyright"
 import type { BibleStudyDetail } from "@/lib/types/bible-study"
@@ -672,7 +673,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
         {/* Left: Back + Title */}
         <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
           <Link
-            href="/website/bible-study"
+            href={resolveHref("/bible-study")}
             className="flex-shrink-0 flex items-center gap-1.5 sm:gap-2 text-black-3 font-medium hover:text-black-1 transition-colors text-xs uppercase tracking-wide bg-white-1 hover:bg-white-1-5 px-2 sm:px-3 py-1.5 rounded-lg"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -689,7 +690,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
           {/* Watch Message - link to related message page (only if video exists) */}
           {study.messageSlug && (
             <Link
-              href={`/website/messages/${study.messageSlug}`}
+              href={resolveHref(`/messages/${study.messageSlug}`)}
               className="h-8 flex items-center justify-center rounded-md px-2 sm:px-3 text-xs font-medium uppercase tracking-wide gap-2 transition-all shadow-sm whitespace-nowrap bg-brand-1 text-white-0 hover:bg-brand-2"
             >
               <Video className="w-3.5 h-3.5" />

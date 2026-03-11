@@ -8,6 +8,7 @@ import EventListItem from "@/components/website/shared/event-list-item"
 import EventCalendarGrid from "@/components/website/shared/event-calendar-grid"
 import FilterToolbar from "@/components/website/shared/filter-toolbar"
 import { IconGrid, IconListView, IconCalendar } from "@/components/website/shared/icons"
+import { resolveHref } from "@/lib/website/resolve-href"
 
 interface SimpleEvent {
   id: string
@@ -356,7 +357,7 @@ function ListView({ events }: { events: SimpleEvent[] }) {
             dateEnd: event.dateEnd ? new Date(event.dateEnd) : undefined,
             time: formatTimeRange(event.timeStart, event.timeEnd),
             type: event.type,
-            href: `/website/events/${event.slug}`,
+            href: resolveHref(`/events/${event.slug}`),
           }}
         />
       ))}

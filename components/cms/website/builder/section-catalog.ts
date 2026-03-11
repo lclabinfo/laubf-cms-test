@@ -732,7 +732,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
     type: "DAILY_BREAD_FEATURE",
     label: "Daily Bread",
     description:
-      "Daily devotional feature section (coming soon).",
+      "Daily devotional reading with scripture passage, reflection, key verse highlight, and audio player.",
     icon: "Wheat",
     category: "layout",
     isDataDriven: true,
