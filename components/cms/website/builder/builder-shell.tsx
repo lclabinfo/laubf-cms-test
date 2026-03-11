@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes"
 import { toast } from "sonner"
 import { BuilderTopbar } from "./builder-topbar"
 import { BuilderSidebar } from "./builder-sidebar"
@@ -212,18 +213,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   // Beforeunload — warn when closing tab with unsaved changes
   // -------------------------------------------------------------------------
 
-  const isDirtyRef = useRef(isDirty)
-  isDirtyRef.current = isDirty
-
-  useEffect(() => {
-    function handleBeforeUnload(e: BeforeUnloadEvent) {
-      if (isDirtyRef.current) {
-        e.preventDefault()
-      }
-    }
-    window.addEventListener("beforeunload", handleBeforeUnload)
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
-  }, [])
+  // Warn on unsaved changes (reload, sidebar nav, back/forward)
+  const { navigateAway } = useUnsavedChanges(isDirty)
 
   // -------------------------------------------------------------------------
   // Save
@@ -645,10 +636,10 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         setPendingNavigationId(pageId)
         setDiscardDialogOpen(true)
       } else {
-        router.push(`/cms/website/builder/${pageId}`)
+        navigateAway(`/cms/website/builder/${pageId}`)
       }
     },
-    [router, pageData.id, isDirty],
+    [navigateAway, pageData.id, isDirty],
   )
 
   /**
@@ -694,10 +685,10 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     setDiscardDialogOpen(false)
     if (pendingNavigationId) {
       setIsDirty(false)
-      router.push(`/cms/website/builder/${pendingNavigationId}`)
+      navigateAway(`/cms/website/builder/${pendingNavigationId}`)
       setPendingNavigationId(null)
     }
-  }, [pendingNavigationId, router])
+  }, [pendingNavigationId, navigateAway])
 
   const handleCancelNavigation = useCallback(() => {
     setDiscardDialogOpen(false)
@@ -813,9 +804,9 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           const remaining = pages.filter((p) => p.id !== pageId)
           const next = remaining.find((p) => p.isHomepage) ?? remaining[0]
           if (next) {
-            router.push(`/cms/website/builder/${next.id}`)
+            navigateAway(`/cms/website/builder/${next.id}`)
           } else {
-            router.push("/cms/website/pages")
+            navigateAway("/cms/website/pages")
           }
         }
 
@@ -825,7 +816,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         toast.error("Failed to delete page")
       }
     },
-    [pendingDeletePageId, pages, pageData.id, router],
+    [pendingDeletePageId, pages, pageData.id, navigateAway],
   )
 
   const cancelDeletePage = useCallback(() => {
@@ -901,23 +892,23 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           parentId: newPage.parentId,
         }
         setPages((prev) => [...prev, newPageSummary])
-        router.push(`/cms/website/builder/${newPage.id}`)
+        navigateAway(`/cms/website/builder/${newPage.id}`)
         toast.success("Page duplicated")
       } catch (err) {
         console.error("Duplicate page error:", err)
         toast.error("Failed to duplicate page")
       }
     },
-    [pages, router],
+    [pages, navigateAway],
   )
 
   const handlePageCreated = useCallback(
     (newPage: PageSummary) => {
       setPages((prev) => [...prev, newPage])
-      router.push(`/cms/website/builder/${newPage.id}`)
+      navigateAway(`/cms/website/builder/${newPage.id}`)
       toast.success("Page created")
     },
-    [router],
+    [navigateAway],
   )
 
   // -------------------------------------------------------------------------

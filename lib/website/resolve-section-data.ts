@@ -1,5 +1,5 @@
 import { getLatestMessage, getMessages } from '@/lib/dal/messages'
-import { getUpcomingEvents, getEvents } from '@/lib/dal/events'
+import { getUpcomingEvents, getEvents, getHybridFeaturedEvents } from '@/lib/dal/events'
 import { getVideos } from '@/lib/dal/videos'
 import { getBibleStudies } from '@/lib/dal/bible-studies'
 import { getTodaysDailyBread } from '@/lib/dal/daily-bread'
@@ -87,11 +87,16 @@ export async function resolveSectionData(
         const showPastEvents = content.showPastEvents !== false // default true
         const pastEventsWindow = (content.pastEventsWindow as number) ?? 14 // default 2 weeks
         const sortOrder = (content.sortOrder as 'asc' | 'desc') ?? 'asc'
-        const events = await getUpcomingEvents(churchId, count, {
+        const autoHidePastFeatured = content.autoHidePastFeatured === true
+
+        const events = await getHybridFeaturedEvents(churchId, {
+          maxCount: count,
+          autoHidePastFeatured,
           includeRecurring,
           pastEventsDays: showPastEvents ? pastEventsWindow : 0,
           sortOrder,
         })
+
         return {
           content: {
             ...content,
@@ -102,6 +107,7 @@ export async function resolveSectionData(
               location: e.location || '',
               imageUrl: e.coverImage || null,
               slug: e.slug,
+              featuredMode: e.featuredMode,
             })),
           },
         }

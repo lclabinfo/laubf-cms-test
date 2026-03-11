@@ -33,6 +33,7 @@ import {
   socialPlatformOptions,
 } from "@/lib/church-profile-data"
 import { BibleVersionSettings } from "./bible-version-settings"
+import { SavedAddressSettings } from "./saved-address-settings"
 
 // ─── Section names ───────────────────────────────────────────────
 type SectionKey = "identity" | "location" | "contact" | "worship" | "social"
@@ -147,10 +148,11 @@ function ReadOnlyField({
 interface ProfileFormProps {
   initialData: ChurchProfile
   userId?: string
+  showHeader?: boolean
   onSave?: (data: ChurchProfile) => Promise<void>
 }
 
-export function ProfileForm({ initialData, userId, onSave }: ProfileFormProps) {
+export function ProfileForm({ initialData, userId, showHeader = true, onSave }: ProfileFormProps) {
   // Saved state = last "committed" state; profile = working copy
   const [saved, setSaved] = useState<ChurchProfile>(initialData)
   const [profile, setProfile] = useState<ChurchProfile>(initialData)
@@ -389,14 +391,16 @@ export function ProfileForm({ initialData, userId, onSave }: ProfileFormProps) {
   }
 
   return (
-    <div className="pt-5 flex flex-col gap-6 flex-1 min-h-0">
+    <div className={`flex flex-col gap-6 flex-1 min-h-0 ${showHeader ? "pt-5" : ""}`}>
       {/* Header */}
-      <PageHeader
-        title="Church Profile"
-        description="Manage your church identity, location, contacts, and social links."
-        tutorialId="church-profile"
-        userId={userId}
-      />
+      {showHeader && (
+        <PageHeader
+          title="Church Profile"
+          description="Manage your church identity, location, contacts, and social links."
+          tutorialId="church-profile"
+          userId={userId}
+        />
+      )}
 
       {/* Scrollable content */}
       <div className="flex-1 min-h-0 overflow-y-auto p-0.5 -m-0.5">
@@ -550,6 +554,9 @@ export function ProfileForm({ initialData, userId, onSave }: ProfileFormProps) {
               )}
             </div>
           </section>
+
+          {/* ── 2b. Saved Addresses ── */}
+          <SavedAddressSettings />
 
           {/* ── 3. Contact Information ── */}
           <section className="rounded-xl border bg-card">

@@ -2,12 +2,12 @@
 
 import { useState, useCallback, useMemo } from "react"
 import { useSessionState } from "@/lib/hooks/use-session-state"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useCmsSession } from "@/components/cms/cms-shell"
 import { PageHeader } from "@/components/cms/page-header"
 import Link from "next/link"
 import { toast } from "sonner"
-import { Loader2, Star, MapPin, Globe, CalendarDays, ImageIcon } from "lucide-react"
+import { Loader2, Star, MapPin, Globe, CalendarDays, ImageIcon, Settings } from "lucide-react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -28,7 +28,9 @@ import { Toolbar } from "@/components/cms/events/toolbar"
 import { useEvents } from "@/lib/events-context"
 import { eventTypeDisplay, computeRecurrenceSchedule, ministryDisplay } from "@/lib/events-data"
 import type { ChurchEvent } from "@/lib/events-data"
+import { FeaturedToggleDialog, determineFeaturedScenario, type FeaturedToggleScenario } from "@/components/cms/events/featured-toggle-dialog"
 import { statusDisplay } from "@/lib/status"
+import { EventsSettings } from "@/components/cms/events/events-settings"
 import { cn } from "@/lib/utils"
 
 function globalFilterFn(
@@ -180,8 +182,10 @@ function dateKey(d: Date): string {
 
 export default function EventsPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const defaultTab = searchParams.get("tab") === "settings" ? "settings" : "list"
   const { user } = useCmsSession()
-  const { events, loading, deleteEvent } = useEvents()
+  const { events, loading, deleteEvent, updateEvent } = useEvents()
 
   const handleDelete = useCallback((id: string) => {
     const event = events.find((e) => e.id === id)
@@ -191,7 +195,36 @@ export default function EventsPage() {
     })
   }, [events, deleteEvent])
 
-  const columns = useMemo(() => createColumns({ onDelete: handleDelete }), [handleDelete])
+  // Featured toggle
+  const [featuredScenario, setFeaturedScenario] = useState<FeaturedToggleScenario | null>(null)
+
+  const handleToggleFeatured = useCallback((event: ChurchEvent) => {
+    const scenario = determineFeaturedScenario(event, events)
+    if (scenario) setFeaturedScenario(scenario)
+  }, [events])
+
+  const handleFeaturedConfirm = useCallback((eventToFeature: ChurchEvent, eventToUnfeature?: ChurchEvent) => {
+    // Scenario C: Replace — unfeature the old one first
+    if (eventToUnfeature) {
+      updateEvent(eventToUnfeature.id, { isFeatured: false })
+    }
+    // Toggle the target event
+    const newValue = !eventToFeature.isFeatured
+    updateEvent(eventToFeature.id, { isFeatured: newValue })
+    toast.success(newValue ? "Event featured" : "Event unfeatured", {
+      description: `"${eventToFeature.title}" has been ${newValue ? "added to" : "removed from"} featured events.`,
+    })
+    setFeaturedScenario(null)
+  }, [updateEvent])
+
+  const handleFeaturedCancel = useCallback(() => {
+    setFeaturedScenario(null)
+  }, [])
+
+  const columns = useMemo(() => createColumns({
+    onDelete: handleDelete,
+    onToggleFeatured: handleToggleFeatured,
+  }), [handleDelete, handleToggleFeatured])
 
   const [sorting, setSorting] = useSessionState<SortingState>("cms:events:sorting", [
     { id: "date", desc: true },
@@ -322,10 +355,14 @@ export default function EventsPage() {
         userId={user.id}
       />
 
-      <Tabs defaultValue="list">
+      <Tabs defaultValue={defaultTab}>
         <TabsList variant="line" data-tutorial="evt-tabs">
           <TabsTrigger value="list">List View</TabsTrigger>
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
+          <TabsTrigger value="settings">
+            <Settings className="size-3.5 mr-1.5" />
+            Settings
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="list" className="space-y-4">
@@ -348,6 +385,7 @@ export default function EventsPage() {
             <DataTable
               columns={columns}
               table={table}
+              fixedLayout
               onRowClick={(row) => router.push(`/cms/events/${row.id}`)}
             />
           ) : (
@@ -456,7 +494,17 @@ export default function EventsPage() {
             </div>
           )}
         </TabsContent>
+
+        <TabsContent value="settings" className="space-y-4">
+          <EventsSettings />
+        </TabsContent>
       </Tabs>
+
+      <FeaturedToggleDialog
+        scenario={featuredScenario}
+        onConfirm={handleFeaturedConfirm}
+        onCancel={handleFeaturedCancel}
+      />
     </div>
   )
 }

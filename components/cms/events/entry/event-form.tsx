@@ -2,10 +2,13 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes"
 import { toast } from "sonner"
 import Link from "next/link"
 import {
+  AlertCircle,
   ArrowLeft,
+  ArrowRight,
   CalendarIcon,
   ExternalLink,
   FileText,
@@ -41,9 +44,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
 import { CustomRecurrenceDialog } from "./custom-recurrence-dialog"
 import { AddressAutocomplete } from "./address-autocomplete"
+import { useSavedAddresses } from "@/components/cms/church-profile/saved-address-settings"
 import { MediaPickerDialog } from "@/components/cms/media/media-picker-dialog"
 import { useCmsSession } from "@/components/cms/cms-shell"
 import {
@@ -58,6 +73,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useEvents } from "@/lib/events-context"
+import { FeaturedToggleDialog, determineFeaturedScenario, type FeaturedToggleScenario } from "@/components/cms/events/featured-toggle-dialog"
 import { statusDisplay } from "@/lib/status"
 import type { ContentStatus } from "@/lib/status"
 import {
@@ -102,6 +118,13 @@ const dayPickerRecurrences: Recurrence[] = ["weekly"]
 
 const URL_REGEX = /^https?:\/\/.+/
 
+interface ValidationIssue {
+  field: string
+  message: string
+  elementId: string
+}
+
+
 const statusOptions: ContentStatus[] = ["draft", "published", "archived"]
 const eventTypes: EventType[] = ["event", "meeting", "program"]
 
@@ -130,7 +153,7 @@ function getNthWeekdayLabel(dateStr: string): string {
 export function EventForm({ mode, event }: EventFormProps) {
   const router = useRouter()
   const { user } = useCmsSession()
-  const { addEvent, updateEvent } = useEvents()
+  const { events: allEvents, addEvent, updateEvent } = useEvents()
 
   // Tutorial tour
   const editorTour = SPOTLIGHT_TOURS["event-editor"]
@@ -166,6 +189,9 @@ export function EventForm({ mode, event }: EventFormProps) {
       })
       .catch(() => {})
   }, [])
+
+  // Saved addresses from church profile
+  const { addresses: savedAddresses } = useSavedAddresses()
 
   // Basic info
   const [title, setTitle] = useState(event?.title ?? "")
@@ -209,6 +235,7 @@ export function EventForm({ mode, event }: EventFormProps) {
   const [ministry, setMinistry] = useState<MinistryTag>(event?.ministry ?? "church-wide")
   const [campus, setCampus] = useState<CampusTag | undefined>(event?.campus)
   const [isFeatured, setIsFeatured] = useState(event?.isFeatured ?? false)
+  const [featuredScenario, setFeaturedScenario] = useState<FeaturedToggleScenario | null>(null)
   const [contacts, setContacts] = useState<EventContact[]>(event?.contacts ?? [])
   const [coverImage, setCoverImage] = useState(event?.coverImage ?? "")
   const [imageAlt, setImageAlt] = useState(event?.imageAlt ?? "")
@@ -224,8 +251,47 @@ export function EventForm({ mode, event }: EventFormProps) {
   const [coverDragging, setCoverDragging] = useState(false)
   const [coverUploading, setCoverUploading] = useState(false)
 
-  // Minimal validation: title + start date required
+  // Minimal validation: title + start date required to save as draft
   const canSave = title.trim().length >= 2 && !!startDate
+
+  // Publish validation state
+  const [validationOpen, setValidationOpen] = useState(false)
+  const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([])
+
+  function getPublishValidationIssues(): ValidationIssue[] {
+    const issues: ValidationIssue[] = []
+    if (title.trim().length < 2) {
+      issues.push({ field: "Title", message: "Title is required (at least 2 characters)", elementId: "event-title" })
+    }
+    if (!startDate) {
+      issues.push({ field: "Start Date", message: "A start date is required", elementId: "field-start-date" })
+    }
+    if (!description || description === "<p></p>" || description.replace(/<[^>]*>/g, "").trim().length === 0) {
+      issues.push({ field: "Description", message: "A description is required to publish", elementId: "field-description" })
+    }
+    return issues
+  }
+
+  function handleGoToField(issue: ValidationIssue) {
+    setValidationOpen(false)
+    setTimeout(() => {
+      const el = document.getElementById(issue.elementId)
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" })
+        el.setAttribute("data-field-highlight", "")
+        setTimeout(() => el.removeAttribute("data-field-highlight"), 2000)
+      }
+    }, 150)
+  }
+
+  function handleSaveAsDraft() {
+    setValidationOpen(false)
+    setStatus("draft" as ContentStatus)
+    // Use a ref-like approach: save on next tick after status updates
+    requestAnimationFrame(() => {
+      doSave("draft" as ContentStatus)
+    })
+  }
 
   // Dirty tracking — snapshot compares current state to initial state
   const snapshotFields = useCallback(() => ({
@@ -250,14 +316,8 @@ export function EventForm({ mode, event }: EventFormProps) {
   const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(snapshotFields()))
   const isDirty = JSON.stringify(snapshotFields()) !== savedSnapshot
 
-  // Warn on unsaved navigation
-  useEffect(() => {
-    function handleBeforeUnload(e: BeforeUnloadEvent) {
-      if (isDirty) e.preventDefault()
-    }
-    window.addEventListener("beforeunload", handleBeforeUnload)
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
-  }, [isDirty])
+  // Warn on unsaved changes (reload, sidebar nav, back/forward)
+  const { navigateAway } = useUnsavedChanges(isDirty)
 
   const statusConfig = statusDisplay[status]
   const isRecurring = recurrence !== "none"
@@ -408,12 +468,26 @@ export function EventForm({ mode, event }: EventFormProps) {
   function handleSave() {
     if (!canSave) return
 
+    // If publishing, validate required publish fields
+    if (status === "published") {
+      const issues = getPublishValidationIssues()
+      if (issues.length > 0) {
+        setValidationIssues(issues)
+        setValidationOpen(true)
+        return
+      }
+    }
+
+    doSave(status)
+  }
+
+  function doSave(saveStatus: ContentStatus) {
     const eventData: Omit<ChurchEvent, "id"> = {
       slug: "",  // Auto-generated from title in context layer
       title: title.trim(),
       type: eventType,
       date: startDate,
-      endDate,
+      endDate: endDate || "",
       startTime,
       endTime,
       recurrence,
@@ -423,28 +497,28 @@ export function EventForm({ mode, event }: EventFormProps) {
       customRecurrence: recurrence === "custom" ? customRecurrence : undefined,
       locationType,
       location: location.trim(),
-      address: address.trim() || undefined,
-      locationInstructions: locationInstructions.trim() || undefined,
-      meetingUrl: meetingUrl.trim() || undefined,
+      address: address.trim(),
+      locationInstructions: locationInstructions.trim(),
+      meetingUrl: meetingUrl.trim(),
       monthlyType: recurrence === "monthly" ? monthlyType : undefined,
       ministry,
       campus: campus || undefined,
-      status,
+      status: saveStatus,
       isFeatured,
-      shortDescription: shortDescription.trim() || undefined,
-      description: description || undefined,
-      welcomeMessage: welcomeMessage || undefined,
-      contacts: contacts.length > 0 ? contacts : undefined,
-      coverImage: coverImage || undefined,
-      imageAlt: imageAlt.trim() || undefined,
+      shortDescription: shortDescription.trim(),
+      description: description || "",
+      welcomeMessage: welcomeMessage || "",
+      contacts: contacts.length > 0 ? contacts : [],
+      coverImage: coverImage || "",
+      imageAlt: imageAlt.trim(),
       links: links.filter(l => l.label.trim() && l.href.trim()),
       // Cost & Registration
       costType,
-      costAmount: costType === "paid" ? costAmount.trim() || undefined : undefined,
+      costAmount: costType === "paid" ? costAmount.trim() : "",
       registrationRequired,
-      registrationUrl: registrationRequired ? registrationUrl.trim() || undefined : undefined,
+      registrationUrl: registrationRequired ? registrationUrl.trim() : "",
       maxParticipants: registrationRequired ? maxParticipants : undefined,
-      registrationDeadline: registrationRequired ? registrationDeadline || undefined : undefined,
+      registrationDeadline: registrationRequired ? registrationDeadline : "",
     }
 
     if (mode === "create") {
@@ -456,7 +530,7 @@ export function EventForm({ mode, event }: EventFormProps) {
     }
 
     setSavedSnapshot(JSON.stringify(snapshotFields()))
-    router.push("/cms/events")
+    navigateAway("/cms/events")
   }
 
   // Auto-start tour on first visit (or when ?dev-tutorial=true)
@@ -472,7 +546,7 @@ export function EventForm({ mode, event }: EventFormProps) {
   }, [editorTour, user.id])
 
   function handleCancel() {
-    router.push("/cms/events")
+    navigateAway("/cms/events")
   }
 
   return (
@@ -561,8 +635,8 @@ export function EventForm({ mode, event }: EventFormProps) {
             </div>
             <div className="p-5 space-y-4">
               {/* Start row */}
-              <div className="grid grid-cols-[4rem_1fr_1fr] items-center gap-3">
-                <Label className="text-sm text-muted-foreground">Start</Label>
+              <div id="field-start-date" className="grid grid-cols-[4rem_1fr_1fr] items-center gap-3">
+                <Label className="text-sm text-muted-foreground">Start <span className="text-destructive">*</span></Label>
                 <DatePicker
                   value={startDate}
                   onChange={handleStartDateChange}
@@ -771,6 +845,15 @@ export function EventForm({ mode, event }: EventFormProps) {
                     id="address-input"
                     value={address}
                     onChange={setAddress}
+                    savedAddresses={savedAddresses}
+                    onSelectSaved={(sa) => {
+                      const parts = [sa.address]
+                      if (sa.city) parts.push(sa.city)
+                      if (sa.state && sa.zip) parts.push(`${sa.state} ${sa.zip}`)
+                      else if (sa.state) parts.push(sa.state)
+                      setAddress(parts.join(", "))
+                      if (!location) setLocation(sa.label)
+                    }}
                   />
                   {address.trim() ? (
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -779,7 +862,7 @@ export function EventForm({ mode, event }: EventFormProps) {
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground">
-                      Enter an address to auto-generate a Google Maps link.
+                      Enter an address or select a saved location above.
                     </p>
                   )}
                 </div>
@@ -851,8 +934,8 @@ export function EventForm({ mode, event }: EventFormProps) {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label>Description</Label>
+              <div id="field-description" className="space-y-2">
+                <Label>Description <span className="text-destructive">*</span></Label>
                 <RichTextEditor
                   content={description}
                   onContentChange={setDescription}
@@ -979,7 +1062,7 @@ export function EventForm({ mode, event }: EventFormProps) {
               {/* Status + Event Type */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="event-status">Status</Label>
+                  <Label htmlFor="event-status">Status <span className="text-destructive">*</span></Label>
                   <Select value={status} onValueChange={(v) => setStatus(v as ContentStatus)}>
                     <SelectTrigger id="event-status">
                       <SelectValue />
@@ -1057,15 +1140,62 @@ export function EventForm({ mode, event }: EventFormProps) {
                 </div>
               </div>
 
-              {/* TODO: Re-enable Featured Event toggle once the featured curation flow is implemented.
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Featured Event</Label>
-                  <p className="text-xs text-muted-foreground">Pin to top of events lists</p>
+                  <p className="text-xs text-muted-foreground">Display this event in the featured section on your website</p>
                 </div>
-                <Switch checked={isFeatured} onCheckedChange={setIsFeatured} />
+                <Switch
+                  checked={isFeatured}
+                  onCheckedChange={(checked) => {
+                    // Build a temporary ChurchEvent for scenario determination
+                    const tempEvent: ChurchEvent = {
+                      id: event?.id ?? "",
+                      slug: event?.slug ?? "",
+                      title: title || "This event",
+                      type: eventType,
+                      date: startDate || today,
+                      endDate: endDate || startDate || today,
+                      startTime: startTime,
+                      endTime: endTime,
+                      recurrence: recurrence,
+                      recurrenceDays: recurrenceDays,
+                      recurrenceEndType: recurrenceEndType,
+                      locationType: locationType,
+                      location: location,
+                      ministry: ministry,
+                      campus: campus,
+                      status: status,
+                      isFeatured: isFeatured,
+                      links: links,
+                    }
+                    if (checked) {
+                      // Trying to feature
+                      const otherFeatured = allEvents.filter((e) => e.isFeatured && e.id !== event?.id)
+                      if (otherFeatured.length >= 3) {
+                        setFeaturedScenario({ type: "replace", event: tempEvent, currentFeatured: otherFeatured })
+                      } else {
+                        setIsFeatured(true)
+                      }
+                    } else {
+                      setIsFeatured(false)
+                    }
+                  }}
+                />
               </div>
-              */}
+
+              <FeaturedToggleDialog
+                scenario={featuredScenario}
+                onConfirm={(eventToFeature, eventToUnfeature) => {
+                  if (eventToUnfeature) {
+                    // Unfeature the replaced event via context
+                    updateEvent(eventToUnfeature.id, { isFeatured: false })
+                  }
+                  setIsFeatured(true)
+                  setFeaturedScenario(null)
+                }}
+                onCancel={() => setFeaturedScenario(null)}
+              />
 
               {/* Links (up to 3) */}
               <div className="space-y-2">
@@ -1227,6 +1357,53 @@ export function EventForm({ mode, event }: EventFormProps) {
 
         </div>
       </div>
+
+      {/* Publish Validation Dialog */}
+      <AlertDialog open={validationOpen} onOpenChange={setValidationOpen}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10">
+              <AlertCircle className="text-destructive" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              Required fields missing
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              The following fields are required to publish this event:
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <ul className="space-y-1.5 text-sm">
+            {validationIssues.map((issue) => (
+              <li key={issue.field} className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-destructive shrink-0" />
+                <span className="flex-1 min-w-0">
+                  <span className="font-medium">{issue.field}</span>
+                  <span className="text-muted-foreground"> — {issue.message}</span>
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="shrink-0 h-7 px-2 text-xs gap-1"
+                  onClick={() => handleGoToField(issue)}
+                >
+                  Go to field
+                  <ArrowRight className="size-3" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={handleSaveAsDraft} variant="outline">
+              Save as Draft
+            </AlertDialogAction>
+            <AlertDialogCancel variant="default">
+              Keep Editing
+            </AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Media Picker Dialog */}
       <MediaPickerDialog

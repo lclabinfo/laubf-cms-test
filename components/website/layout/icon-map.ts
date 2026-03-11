@@ -22,10 +22,40 @@ import {
   Church,
   Music,
   Link as LinkIcon,
+  // Additional icons for icon picker support
+  Cross,
+  Phone,
+  Mail,
+  MessageCircle,
+  Podcast,
+  Headphones,
+  Camera,
+  User,
+  HandHelping,
+  Clock,
+  AlarmClock,
+  Timer,
+  Navigation,
+  Globe,
+  Building2,
+  Home,
+  ExternalLink,
+  Star,
+  Bell,
+  Settings,
+  Folder,
+  FileText,
+  Search,
+  Plus,
+  Sparkles,
+  Zap,
+  Shield,
+  Flag,
   type LucideIcon,
 } from "lucide-react"
 
 const ICON_MAP: Record<string, LucideIcon> = {
+  // Original icons
   info: Info,
   "map-pin": MapPin,
   youtube: Youtube,
@@ -45,6 +75,41 @@ const ICON_MAP: Record<string, LucideIcon> = {
   church: Church,
   music: Music,
   link: LinkIcon,
+  // Faith / Church
+  cross: Cross,
+  // Communication
+  phone: Phone,
+  mail: Mail,
+  "message-circle": MessageCircle,
+  podcast: Podcast,
+  // Media
+  headphones: Headphones,
+  camera: Camera,
+  // People
+  user: User,
+  "hand-helping": HandHelping,
+  // Calendar / Time
+  clock: Clock,
+  "alarm-clock": AlarmClock,
+  timer: Timer,
+  // Location
+  navigation: Navigation,
+  globe: Globe,
+  "building-2": Building2,
+  home: Home,
+  // General
+  "external-link": ExternalLink,
+  star: Star,
+  bell: Bell,
+  settings: Settings,
+  folder: Folder,
+  "file-text": FileText,
+  search: Search,
+  plus: Plus,
+  sparkles: Sparkles,
+  zap: Zap,
+  shield: Shield,
+  flag: Flag,
 }
 
 /**

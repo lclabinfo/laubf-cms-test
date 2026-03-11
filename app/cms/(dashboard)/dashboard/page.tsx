@@ -2,7 +2,9 @@ import { requireAuth } from "@/lib/auth/require-auth"
 import { prisma } from "@/lib/db"
 import { getLatestPublishedDates } from "@/lib/dal/messages"
 import { getUpcomingEvents } from "@/lib/dal/events"
+import { getHomepageForAdmin } from "@/lib/dal/pages"
 import { DashboardContent } from "@/components/cms/dashboard/dashboard-content"
+import { FeaturedEventsWarning } from "@/components/cms/dashboard/featured-events-warning"
 import { WelcomeBanner } from "@/components/cms/welcome-banner"
 
 export default async function DashboardPage() {
@@ -31,6 +33,8 @@ export default async function DashboardPage() {
     recentEvents,
     recentPages,
     pagesForHealth,
+    staleFeaturedCount,
+    homepage,
   ] = await Promise.all([
     // Latest published dates for health check (video + study separately)
     getLatestPublishedDates(churchId),
@@ -121,6 +125,14 @@ export default async function DashboardPage() {
       where: { churchId, deletedAt: null },
       select: { updatedAt: true },
     }),
+
+    // Stale featured events (featured + past dateStart)
+    prisma.event.count({
+      where: { churchId, deletedAt: null, isFeatured: true, dateStart: { lt: today } },
+    }),
+
+    // Homepage HIGHLIGHT_CARDS section settings
+    getHomepageForAdmin(churchId),
   ])
 
   // Build health statuses
@@ -269,6 +281,13 @@ export default async function DashboardPage() {
     ? "None yet"
     : `${videoCountAll} video${videoCountAll === 1 ? "" : "s"}`
 
+  // Extract autoHidePastFeatured from the homepage HIGHLIGHT_CARDS section
+  const highlightSection = homepage?.sections.find(
+    (s) => s.sectionType === "HIGHLIGHT_CARDS",
+  )
+  const highlightContent = (highlightSection?.content ?? {}) as Record<string, unknown>
+  const autoHidePastFeatured = (highlightContent.autoHidePastFeatured as boolean) ?? false
+
   return (
     <>
     <WelcomeBanner
@@ -276,6 +295,10 @@ export default async function DashboardPage() {
       userId={session.user?.id ?? ""}
       churchName={session.churchName ?? ""}
       roleName={session.roleName ?? ""}
+    />
+    <FeaturedEventsWarning
+      staleFeaturedCount={staleFeaturedCount}
+      autoHidePastFeatured={autoHidePastFeatured}
     />
     <DashboardContent
       userId={session.user?.id ?? ""}

@@ -303,6 +303,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
       showPastEvents: true,
       pastEventsWindow: 14,
       sortOrder: "asc",
+      autoHidePastFeatured: false,
     },
   },
   {

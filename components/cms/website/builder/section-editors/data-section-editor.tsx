@@ -357,6 +357,7 @@ function HighlightCardsEditor({
   const ctaHref = (content.ctaHref as string) ?? ""
   const count = (content.count as number) ?? 3
   const includeRecurring = (content.includeRecurring as boolean) ?? false
+  const autoHidePastFeatured = (content.autoHidePastFeatured as boolean) ?? false
   const showPastEvents = (content.showPastEvents as boolean) ?? true
   const pastEventsWindow = (content.pastEventsWindow as number) ?? 14
   const sortOrder = (content.sortOrder as string) ?? "asc"
@@ -450,6 +451,21 @@ function HighlightCardsEditor({
       </div>
 
       <Separator />
+
+      <div className="flex items-center justify-between rounded-lg border p-3">
+        <div className="space-y-0.5">
+          <Label className="text-sm font-medium">Auto-Hide Past Featured</Label>
+          <p className="text-xs text-muted-foreground">
+            Automatically hide manually featured events after they&apos;ve passed.
+          </p>
+        </div>
+        <Switch
+          checked={autoHidePastFeatured}
+          onCheckedChange={(checked) =>
+            onChange({ ...content, autoHidePastFeatured: checked })
+          }
+        />
+      </div>
 
       <div className="flex items-center justify-between rounded-lg border p-3">
         <div className="space-y-0.5">

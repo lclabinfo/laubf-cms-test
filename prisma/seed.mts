@@ -384,9 +384,9 @@ const EVENTS: Array<{
   { slug: "spring-bible-academy-2026", title: "Spring Bible Academy", type: "event", dateStart: "2026-03-05", dateEnd: "2026-03-06", location: "LA UBF Main Center", description: "A 2-day intensive Bible academy for deeper study and training.", ministry: "church-wide", isRecurring: false, isFeatured: true },
   { slug: "spring-bible-conference-2026", title: "Spring Bible Conference", type: "event", dateStart: "2026-04-03", dateEnd: "2026-04-05", location: "LA UBF Main Center", description: "Our annual Spring Bible Conference — 3 days of worship, study, and fellowship.", ministry: "church-wide", isRecurring: false, isFeatured: true },
   { slug: "world-mission-conference-2026", title: "World Mission Conference", type: "event", dateStart: "2026-05-17", dateEnd: "2026-05-22", location: "TBD", description: "A 6-day conference focused on world mission and the Great Commission.", ministry: "church-wide", isRecurring: false, isFeatured: true },
-  { slug: "na-young-adult-conference-2026", title: "NA Young Adult Conference", type: "event", dateStart: "2026-05-29", dateEnd: "2026-06-01", location: "TBD", description: "North America Young Adult Conference — 4 days of fellowship, worship, and Bible study for young adults.", ministry: "young-adult", isRecurring: false, isFeatured: true },
+  { slug: "na-young-adult-conference-2026", title: "NA Young Adult Conference", type: "event", dateStart: "2026-05-29", dateEnd: "2026-06-01", location: "TBD", description: "North America Young Adult Conference — 4 days of fellowship, worship, and Bible study for young adults.", ministry: "young-adult", isRecurring: false },
   { slug: "jbf-hbf-conference-2026", title: "JBF/HBF Conference", type: "event", dateStart: "2026-07-17", dateEnd: "2026-07-19", location: "TBD", description: "A 3-day conference for middle and high school students.", ministry: "high-school", isRecurring: false },
-  { slug: "summer-bible-conference-2026", title: "Summer Bible Conference", type: "event", dateStart: "2026-07-24", dateEnd: "2026-07-26", location: "TBD", description: "Our annual Summer Bible Conference — 3 days of worship, study, and fellowship.", ministry: "church-wide", isRecurring: false, isFeatured: true },
+  { slug: "summer-bible-conference-2026", title: "Summer Bible Conference", type: "event", dateStart: "2026-07-24", dateEnd: "2026-07-26", location: "TBD", description: "Our annual Summer Bible Conference — 3 days of worship, study, and fellowship.", ministry: "church-wide", isRecurring: false },
 ]
 
 // --- Ministry labels ---
@@ -474,6 +474,17 @@ async function main() {
         ],
         extraSocialLinks: [
           { platform: 'tiktok', url: 'https://www.tiktok.com/@la.ubf' },
+        ],
+        savedAddresses: [
+          {
+            id: '00000000-0000-0000-0000-000000000001',
+            label: 'LA UBF Main Center',
+            address: '11625 Paramount Blvd',
+            city: 'Downey',
+            state: 'CA',
+            zip: '90241',
+            isPrimary: true,
+          },
         ],
       },
     },
@@ -1524,6 +1535,7 @@ async function main() {
           ctaHref: '/events',
           dataSource: 'featured-events',
           includeRecurring: false,
+          autoHidePastFeatured: false,
         },
       },
       {

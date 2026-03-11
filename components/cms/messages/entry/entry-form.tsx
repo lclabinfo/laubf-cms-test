@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
+import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes"
 import {
   ArrowLeft,
   AlertCircle,
@@ -386,7 +387,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     if (mode === "create") {
       addMessage(data)
       toast.success("Message created")
-      router.push("/cms/messages")
+      navigateAway("/cms/messages")
     } else if (message) {
       updateMessage(message.id, data)
       toast.success("Changes saved")
@@ -402,7 +403,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
         ...(sPub !== undefined && { studyPublished: sPub }),
       }))
 
-      if (navigate) router.push("/cms/messages")
+      if (navigate) navigateAway("/cms/messages")
     }
   }
 
@@ -463,7 +464,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     if (isDirty) {
       setCancelConfirmOpen(true)
     } else {
-      router.push("/cms/messages")
+      navigateAway("/cms/messages")
     }
   }
 
@@ -626,15 +627,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
   const isDirty = JSON.stringify(snapshotFields()) !== savedSnapshot
 
-  useEffect(() => {
-    function handleBeforeUnload(e: BeforeUnloadEvent) {
-      if (isDirty) {
-        e.preventDefault()
-      }
-    }
-    window.addEventListener("beforeunload", handleBeforeUnload)
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload)
-  }, [isDirty])
+  // Warn on unsaved changes (reload, sidebar nav, back/forward)
+  const { navigateAway } = useUnsavedChanges(isDirty)
 
   // Auto-start editor tour on first visit (or when ?dev-tutorial=true)
   useEffect(() => {
@@ -1113,7 +1107,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
             <AlertDialogCancel>Keep Editing</AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
-              onClick={() => router.push("/cms/messages")}
+              onClick={() => navigateAway("/cms/messages")}
             >
               Discard Changes
             </AlertDialogAction>

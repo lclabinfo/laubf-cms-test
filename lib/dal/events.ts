@@ -165,6 +165,125 @@ export async function getFeaturedEvents(
   })
 }
 
+export async function getHybridFeaturedEvents(
+  churchId: string,
+  options: {
+    maxCount?: number
+    autoHidePastFeatured?: boolean
+    includeRecurring?: boolean
+    pastEventsDays?: number
+    sortOrder?: 'asc' | 'desc'
+  } = {},
+): Promise<(EventWithRelations & { featuredMode: 'manual' | 'auto' })[]> {
+  const maxCount = options.maxCount ?? 3
+  const autoHidePastFeatured = options.autoHidePastFeatured ?? false
+  const includeRecurring = options.includeRecurring ?? false
+  const pastEventsDays = options.pastEventsDays ?? 14
+  const sortOrder = options.sortOrder ?? 'asc'
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  // Step 1: Fetch all manually featured events (published, not deleted)
+  let manualEvents = await prisma.event.findMany({
+    where: {
+      churchId,
+      deletedAt: null,
+      status: ContentStatus.PUBLISHED,
+      isFeatured: true,
+    },
+    include: eventListInclude,
+    orderBy: { dateStart: sortOrder },
+  })
+
+  // Step 2: If autoHidePastFeatured, filter out past events (keep if dateEnd >= today)
+  if (autoHidePastFeatured) {
+    manualEvents = manualEvents.filter((e) => {
+      if (e.dateEnd) {
+        return e.dateEnd >= today
+      }
+      return e.dateStart >= today
+    })
+  }
+
+  // Step 3: Take up to maxCount manual events
+  const selectedManual = manualEvents.slice(0, maxCount)
+  const remainingSlots = maxCount - selectedManual.length
+
+  // Step 4: If we need more, auto-fill from upcoming events
+  let autoEvents: EventWithRelations[] = []
+  if (remainingSlots > 0) {
+    const manualIds = new Set(selectedManual.map((e) => e.id))
+
+    // Build date conditions (same logic as getUpcomingEvents)
+    const dateConditions: object[] = [{ dateStart: { gte: today } }]
+
+    if (includeRecurring) {
+      dateConditions.push({ isRecurring: true })
+    }
+
+    if (pastEventsDays > 0) {
+      const cutoff = new Date(today)
+      cutoff.setDate(cutoff.getDate() - pastEventsDays)
+      dateConditions.push({
+        dateStart: { lt: today, gte: cutoff },
+      })
+    }
+
+    const candidates = await prisma.event.findMany({
+      where: {
+        churchId,
+        deletedAt: null,
+        status: ContentStatus.PUBLISHED,
+        OR: dateConditions,
+        ...(!includeRecurring && { isRecurring: false }),
+      },
+      include: eventListInclude,
+      orderBy: { dateStart: sortOrder },
+      // Fetch extra to account for filtering out manual IDs
+      take: remainingSlots + manualIds.size,
+    })
+
+    autoEvents = candidates
+      .filter((e) => !manualIds.has(e.id))
+      .slice(0, remainingSlots)
+  }
+
+  // Step 5: Tag and combine
+  const taggedManual = selectedManual.map((e) => ({
+    ...e,
+    featuredMode: 'manual' as const,
+  }))
+  const taggedAuto = autoEvents.map((e) => ({
+    ...e,
+    featuredMode: 'auto' as const,
+  }))
+
+  return [...taggedManual, ...taggedAuto]
+}
+
+export async function getCurrentFeaturedEventIds(churchId: string): Promise<string[]> {
+  const events = await prisma.event.findMany({
+    where: {
+      churchId,
+      deletedAt: null,
+      isFeatured: true,
+    },
+    select: { id: true },
+  })
+  return events.map((e) => e.id)
+}
+
+export async function getManualFeaturedCount(churchId: string): Promise<number> {
+  return prisma.event.count({
+    where: {
+      churchId,
+      deletedAt: null,
+      isFeatured: true,
+    },
+  })
+}
+
 export async function createEvent(
   churchId: string,
   data: Omit<Prisma.EventUncheckedCreateInput, 'churchId'>,

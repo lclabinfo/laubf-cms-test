@@ -16,6 +16,7 @@ interface EventCardData {
   badge?: string
   slug: string
   objectPosition?: string
+  featuredMode?: 'manual' | 'auto'
 }
 
 interface HighlightCardsContent {
@@ -47,7 +48,7 @@ export default function HighlightCardsSection({ content, enableAnimations, color
     date: e.date,
     location: e.location,
     imageUrl: e.imageUrl,
-    // NOTE: badge (e.g. "Featured") omitted for now — will be re-enabled with featured curation flow
+    badge: e.featuredMode === 'manual' ? 'Featured' : undefined,
     imageObjectPosition: e.objectPosition,
     href: resolveHref(`/events/${e.slug}`),
   }))
