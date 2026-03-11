@@ -64,9 +64,9 @@ const [themeCustom, siteSettings, menuCount, menuItemCount, pageCount, sectionCo
 check('Theme customization', themeCustom, 1, '===')
 check('Site settings', siteSettings, 1, '===')
 check('Menus', menuCount, 2)
-check('Menu items', menuItemCount, 30)
-check('Pages', pageCount, 14)
-check('Page sections', sectionCount, 50)
+check('Menu items', menuItemCount, 45)
+check('Pages', pageCount, 16)
+check('Page sections', sectionCount, 69)
 
 // Check homepage exists
 const homepage = await prisma.page.findFirst({ where: { churchId, isHomepage: true, deletedAt: null } })
@@ -86,7 +86,7 @@ check('Messages', messageCount, 200)
 check('Bible studies', studyCount, 1000)
 check('Videos', videoCount, 5)
 check('Daily breads', dailyBreadCount, 5)
-check('Speakers', speakerCount, 10)
+check('Speakers', speakerCount, 19)
 check('Series', seriesCount, 5)
 
 // ── Events ─────────────────────────────────────────────────
@@ -105,7 +105,7 @@ const [personCount, groupCount, customFieldCount] = await Promise.all([
   prisma.personGroup.count({ where: { churchId } }),
   prisma.customFieldDefinition.count({ where: { churchId } }),
 ])
-check('People', personCount, 15)
+check('People', personCount, 19)
 check('Person groups', groupCount, 2)
 check('Custom field definitions', customFieldCount, 5)
 

@@ -455,7 +455,7 @@ async function main() {
         emails: [{ label: 'General', value: 'laubf.downey@gmail.com' }],
         phones: [{ label: 'Main', value: '(562) 396-6350' }],
         worshipServices: [
-          { day: 'Sunday', startTime: '11:00', endTime: '12:30', description: 'Sunday Worship Service' },
+          { day: 'Sunday', startTime: '11:00 AM', endTime: '12:30 PM', description: 'Sunday Worship Service' },
         ],
         extraSocialLinks: [
           { platform: 'tiktok', url: 'https://www.tiktok.com/@la.ubf' },
