@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
+import { getChurchId } from '@/lib/api/get-church-id'
 import { updateMenuItem, deleteMenuItem } from '@/lib/dal/menus'
 
 type Params = { params: Promise<{ id: string; itemId: string }> }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
+    const churchId = await getChurchId()
     const { itemId } = await params
     const body = await request.json()
 
-    const updated = await updateMenuItem(itemId, body)
+    const updated = await updateMenuItem(churchId, itemId, body)
 
     // Revalidate website layout (menus affect navbar/footer)
     revalidatePath('/website', 'layout')
@@ -26,9 +28,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
+    const churchId = await getChurchId()
     const { itemId } = await params
 
-    await deleteMenuItem(itemId)
+    await deleteMenuItem(churchId, itemId)
 
     // Revalidate website layout (menus affect navbar/footer)
     revalidatePath('/website', 'layout')

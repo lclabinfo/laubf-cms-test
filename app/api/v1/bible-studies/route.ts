@@ -4,6 +4,7 @@ import { getChurchId } from '@/lib/api/get-church-id'
 import { getBibleStudies, createBibleStudy, type BibleStudyFilters } from '@/lib/dal/bible-studies'
 import { ContentStatus, type BibleBook } from '@/lib/generated/prisma/client'
 import { validateAll, validateTitle, validateSlug, validateEnum, CONTENT_STATUS_VALUES } from '@/lib/api/validation'
+import { requireApiAuth } from '@/lib/api/require-auth'
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,6 +45,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireApiAuth('EDITOR')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const body = await request.json()
 

@@ -25,6 +25,7 @@ import {
   Building2Icon,
   MapPinIcon,
   HardDriveIcon,
+  InboxIcon,
   type LucideIcon,
 } from "lucide-react"
 
@@ -57,6 +58,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { signOut } from "next-auth/react"
 import type { CmsSessionData } from "@/components/cms/cms-shell"
@@ -73,6 +75,8 @@ type NavItem = {
 type NavGroup = {
   label: string
   items: NavItem[]
+  /** Minimum role required to see this entire group. Defaults to VIEWER (visible to all). */
+  minRole?: "VIEWER" | "EDITOR" | "ADMIN" | "OWNER"
 }
 
 // Items that are stubs / not yet implemented get reduced opacity
@@ -108,6 +112,11 @@ const navGroups: NavGroup[] = [
         href: "/cms/storage",
         icon: HardDriveIcon,
       },
+      {
+        title: "Submissions",
+        href: "/cms/form-submissions",
+        icon: InboxIcon,
+      },
     ],
   },
   {
@@ -127,12 +136,6 @@ const navGroups: NavGroup[] = [
         title: "Roles",
         href: "/cms/people/roles",
         icon: ShieldIcon,
-      },
-      {
-        title: "Users",
-        href: "/cms/people/users",
-        icon: KeyRoundIcon,
-        minRole: "ADMIN",
       },
       {
         title: "Ministries",
@@ -184,6 +187,24 @@ const navGroups: NavGroup[] = [
       },
     ],
   },
+  {
+    label: "Admin",
+    minRole: "ADMIN",
+    items: [
+      {
+        title: "Users",
+        href: "/cms/people/users",
+        icon: KeyRoundIcon,
+        minRole: "ADMIN",
+      },
+      {
+        title: "Roles",
+        href: "/cms/admin/roles",
+        icon: ShieldIcon,
+        minRole: "ADMIN",
+      },
+    ],
+  },
 ]
 
 const ROLE_LEVEL: Record<string, number> = {
@@ -196,6 +217,16 @@ const ROLE_LEVEL: Record<string, number> = {
 export function AppSidebar({ session, ...props }: { session: CmsSessionData } & React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const userLevel = ROLE_LEVEL[session.role] ?? 0
+  const [unreadSubmissions, setUnreadSubmissions] = React.useState(0)
+
+  React.useEffect(() => {
+    fetch("/api/v1/form-submissions?countOnly=true")
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.success) setUnreadSubmissions(json.data.unreadCount)
+      })
+      .catch(() => {})
+  }, [])
 
   const initials = session.user.name
     .split(" ")
@@ -260,6 +291,7 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
         </SidebarGroup>
 
         {navGroups.map((group) => {
+          if (group.minRole && userLevel < (ROLE_LEVEL[group.minRole] ?? 0)) return null
           const visibleItems = group.items.filter(
             (item) => !item.minRole || userLevel >= (ROLE_LEVEL[item.minRole] ?? 0),
           )
@@ -305,6 +337,11 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
                             <Link href={item.href}>
                               <item.icon />
                               <span>{item.title}</span>
+                              {item.href === "/cms/form-submissions" && unreadSubmissions > 0 && (
+                                <Badge variant="default" className="ml-auto h-5 min-w-5 px-1.5 text-[10px] font-semibold justify-center">
+                                  {unreadSubmissions}
+                                </Badge>
+                              )}
                             </Link>
                           </SidebarMenuButton>
                         </SidebarMenuItem>

@@ -40,20 +40,21 @@ function GoogleIcon() {
   )
 }
 
-function getErrorMessage(error: string | null): string | null {
+function getErrorMessage(error: string | null, code: string | null): string | null {
   if (!error) return null
+  if (code === "RateLimited") return "Too many attempts. Please try again later."
   if (error === "CredentialsSignin") return "Invalid email or password."
   if (error === "InvalidToken") return "Verification link is invalid or expired."
-  if (error === "RateLimited") return "Too many attempts. Please try again later."
   return "Something went wrong. Please try again."
 }
 
 function LoginForm() {
   const searchParams = useSearchParams()
   const error = searchParams.get("error")
+  const code = searchParams.get("code")
   const verified = searchParams.get("verified")
   const callbackUrl = searchParams.get("callbackUrl") || "/cms/dashboard"
-  const errorMessage = getErrorMessage(error)
+  const errorMessage = getErrorMessage(error, code)
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")

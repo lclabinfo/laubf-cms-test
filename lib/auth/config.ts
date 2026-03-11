@@ -1,10 +1,16 @@
 import type { NextAuthConfig } from 'next-auth'
+import { CredentialsSignin } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@/lib/db'
+import { rateLimit } from '@/lib/rate-limit'
 import type { MemberRole } from '@/lib/generated/prisma/client'
 import { edgeAuthConfig } from './edge-config'
+
+class RateLimitError extends CredentialsSignin {
+  code = 'RateLimited'
+}
 
 /**
  * Full auth config — extends edge-safe config with providers and DB callbacks.
@@ -30,6 +36,11 @@ export const authConfig: NextAuthConfig = {
         const password = credentials?.password as string | undefined
 
         if (!email || !password) return null
+
+        // Rate limit by email: 5 attempts per 15 minutes
+        const normalizedEmail = email.trim().toLowerCase()
+        const { success } = rateLimit(`login:${normalizedEmail}`, 5, 15 * 60 * 1000)
+        if (!success) throw new RateLimitError()
         // Prevent bcrypt DoS with oversized passwords
         if (password.length > 128) return null
 

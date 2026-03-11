@@ -3,11 +3,15 @@ import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getPageBySlugOrId, createPageSection, reorderPageSections } from '@/lib/dal/pages'
 import { validateSectionContent, validateSectionCreateFields } from '@/lib/api/validation'
+import { requireApiAuth } from '@/lib/api/require-auth'
 
 type Params = { params: Promise<{ slug: string }> }
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
+    const authResult = await requireApiAuth('ADMIN')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const { slug } = await params
     const body = await request.json()
@@ -65,6 +69,9 @@ export async function POST(request: NextRequest, { params }: Params) {
 
 export async function PUT(request: NextRequest, { params }: Params) {
   try {
+    const authResult = await requireApiAuth('ADMIN')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const { slug } = await params
     const body = await request.json()

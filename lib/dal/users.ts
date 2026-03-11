@@ -13,6 +13,7 @@ export interface ChurchUser {
   lastName: string
   avatarUrl: string | null
   role: MemberRole
+  status: string
   emailVerified: boolean
   joinedAt: Date
   invitedAt: Date | null
@@ -62,6 +63,7 @@ export async function listChurchUsers(churchId: string): Promise<ChurchUser[]> {
       lastName: m.user.lastName,
       avatarUrl: m.user.avatarUrl,
       role: m.role,
+      status: m.status,
       emailVerified: m.user.emailVerified,
       joinedAt: m.joinedAt,
       invitedAt: m.invitedAt,
@@ -158,9 +160,30 @@ export async function inviteUser(
       churchId,
       userId: user.id,
       role,
+      status: 'PENDING',
       invitedAt: new Date(),
     },
   })
+
+  // Auto-link to Person by email (best-effort)
+  try {
+    const person = await prisma.person.findFirst({
+      where: {
+        churchId,
+        email: trimmedEmail,
+        userId: null,
+        deletedAt: null,
+      },
+    })
+    if (person) {
+      await prisma.person.update({
+        where: { id: person.id },
+        data: { userId: user.id },
+      })
+    }
+  } catch {
+    // Best-effort — skip silently if auto-link fails
+  }
 
   return { user, isNewUser, membershipId: membership.id }
 }
@@ -192,5 +215,19 @@ export async function unlinkUserFromPerson(churchId: string, personId: string) {
   return prisma.person.update({
     where: { id: personId, churchId },
     data: { userId: null },
+  })
+}
+
+export async function deactivateUser(churchId: string, memberId: string) {
+  return prisma.churchMember.update({
+    where: { id: memberId, churchId },
+    data: { status: 'INACTIVE' },
+  })
+}
+
+export async function reactivateUser(churchId: string, memberId: string) {
+  return prisma.churchMember.update({
+    where: { id: memberId, churchId },
+    data: { status: 'ACTIVE' },
   })
 }

@@ -159,6 +159,7 @@ model ChurchMember {
   churchId  String     @db.Uuid
   userId    String     @db.Uuid
   role      MemberRole @default(EDITOR)
+  status    String     @default("ACTIVE")  // ACTIVE, INACTIVE, PENDING
   invitedAt DateTime?
   joinedAt  DateTime   @default(now())
 

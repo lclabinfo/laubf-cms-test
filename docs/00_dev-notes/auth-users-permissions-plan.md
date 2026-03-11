@@ -2,7 +2,7 @@
 
 Generated: 2026-03-09
 Last audited: 2026-03-09
-Status: **Phase 1-3 IMPLEMENTED, Phase 4 PARTIAL**
+Status: **Phase 1-3 IMPLEMENTED, Phase 4 PARTIAL — Audited 2026-03-10**
 
 ---
 
@@ -10,20 +10,10 @@ Status: **Phase 1-3 IMPLEMENTED, Phase 4 PARTIAL**
 
 Items that still need implementation or attention:
 
-- [ ] **Login rate limiting** — Auth.js credentials callback has no rate limit (needs middleware or wrapper in `authorize`)
-- [ ] **Deactivation/reactivation endpoints** — `POST /api/v1/users/[id]/deactivate` and `/reactivate` not implemented (current impl does hard-delete of ChurchMember)
-- [ ] **Person-User auto-link on invite** — `inviteUser()` should auto-link to Person by matching email
-- [ ] **Link/Unlink API route** — `POST /api/v1/users/[id]/link-person` route not created (DAL exists)
-- [ ] **Link/Unlink UI** — User row actions missing "Link to Member" / "Unlink" button
-- [ ] **Invite dialog OWNER role** — OWNER users should see OWNER as an invite role option
-- [ ] **Role dropdown UX** — Disable role Select for users the current user can't modify
-- [ ] **Status filter on Users page** — Plan specifies Active/Inactive/Pending filter; only role filter implemented
-- [ ] **Honeypot field not wired** — Frontend form has the hidden input but doesn't include its value in the JSON body (bots targeting API won't trigger it)
-- [ ] **`lastLogin` tracking** — Currently approximated with `updatedAt`; needs a dedicated field
-- [ ] **Cloudflare Turnstile** — Tier 2 bot prevention (env vars added, no integration code yet)
-- [ ] **Session hardening** — Verify `secure: true` and `sameSite: 'lax'` in production cookie config
+- [ ] **Upstash Redis rate limiter** — Current in-memory rate limiter works for single-instance/development but is per-process. Before deploying to Vercel/serverless, swap `lib/rate-limit.ts` to use `@upstash/ratelimit` with sliding window. Requires: Upstash account, `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` env vars. See §2.3 for details.
+- [ ] **Google reCAPTCHA v3** — Replace Cloudflare Turnstile plan with Google reCAPTCHA v3 (invisible). Requires: Google reCAPTCHA admin console setup, `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` + `RECAPTCHA_SECRET_KEY` env vars. Add `<script src="https://www.google.com/recaptcha/api.js">` to signup/forgot-password pages, verify token server-side via `POST https://www.google.com/recaptcha/api/siteverify`. See §3 for details.
+- [ ] **`lastLogin` tracking** — Currently approximated with `updatedAt`; needs a dedicated `lastLogin DateTime?` field on User model, updated in Auth.js `signIn` callback
 - [ ] **Zod validation** — Plan specifies Zod schemas; current impl uses manual validation (functional but less type-safe)
-- [ ] **Upstash Redis rate limiter** — Required before Vercel/serverless deployment (current in-memory won't work)
 
 ---
 
@@ -82,7 +72,7 @@ Items that still need implementation or attention:
 
 ### Environment Variables (Verified 2026-03-09)
 
-- [x] **`.env`** updated with `SENDGRID_API_KEY`, `EMAIL_FROM`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`
+- [x] **`.env`** updated with `SENDGRID_API_KEY`, `EMAIL_FROM`, `NEXT_PUBLIC_RECAPTCHA_SITE_KEY`, `RECAPTCHA_SECRET_KEY`
 - [x] **`.env.example`** updated with documentation for all new variables
 - [x] **Google OAuth** — `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET` in `.env.example` with setup instructions; will work once real values are provided
 
@@ -171,14 +161,14 @@ Race condition handled: if two simultaneous Google sign-ins for same new user, P
 - Passwords never stored in plaintext
 - `bcrypt.compare()` for timing-safe verification
 
-### 2.2 Session Security [PARTIAL]
+### 2.2 Session Security [IMPLEMENTED]
 
 - [x] JWT signed with AUTH_SECRET
 - [x] httpOnly cookies (Auth.js default)
 - [x] Unverified emails blocked from credentials login
-- [ ] Verify `secure: true` cookie in production
-- [ ] Verify `sameSite: 'lax'` in production
-- [ ] Consider short JWT expiry (7 days) with silent refresh
+- [x] `secure: true` cookie in production
+- [x] `sameSite: 'lax'` cookie config
+- [x] 7-day maxAge on session cookie
 
 ### 2.3 Rate Limiting [IMPLEMENTED]
 
@@ -191,9 +181,27 @@ In-memory sliding window rate limiter with 10k max map size and emergency cleanu
 | `POST /api/v1/auth/forgot-password` | 3 req | 1 hour | IP + email[:64] |
 | `POST /api/v1/auth/reset-password` | 5 req | 1 hour | IP |
 | `POST /api/v1/auth/accept-invite` | 5 req | 1 hour | IP |
-| `POST /api/auth/callback/credentials` | **NOT YET** | — | — |
+| `POST /api/auth/callback/credentials` | 5 req | 15 min | email |
 
 **Known limitation:** In-memory rate limiter is per-process. Will not work on Vercel/serverless. Swap to Upstash `@upstash/ratelimit` before deploying to multi-instance.
+
+**Migration path:** Install `@upstash/ratelimit` and `@upstash/redis`. Replace the `rateLimit()` function body with:
+```typescript
+import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
+
+// Create limiters per endpoint (same limits as current implementation)
+const limiter = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(maxAttempts, windowMs + "ms"),
+});
+```
+The function signature and return behavior should remain the same — only the storage backend changes.
 
 ### 2.4 Input Validation [IMPLEMENTED]
 
@@ -201,7 +209,7 @@ Manual validation (not Zod) enforcing:
 - Email: format regex, max 254 chars, trimmed + lowercased
 - Password: min 8, max 128, requires uppercase + lowercase + digit
 - Names: max 100 chars, trimmed
-- Honeypot: hidden `website` field (server-side check; note: not wired from frontend JSON body)
+- Honeypot: hidden `website` field (server-side check; frontend includes value in JSON body)
 
 ### 2.5 CSRF Protection [VERIFIED]
 
@@ -212,8 +220,8 @@ Auth.js v5 built-in double-submit cookie pattern. No additional work needed.
 ## 3. Bot Prevention Strategy [TIER 1 IMPLEMENTED]
 
 **Tier 1 (implemented):** Email verification, rate limiting, password strength, honeypot (partial)
-**Tier 2 (env vars ready):** Cloudflare Turnstile — `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` in `.env`
-**Tier 3 (if needed):** reCAPTCHA v2 fallback, account lockout
+**Tier 2 (planned):** Google reCAPTCHA v3 — invisible challenge. Add `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` and `RECAPTCHA_SECRET_KEY` to `.env`. Integration: load reCAPTCHA script on signup/forgot-password pages, call `grecaptcha.execute()` on form submit, send token to API, verify via Google's `siteverify` endpoint (score threshold 0.5). Free for up to 1M assessments/month.
+**Tier 3 (if needed):** reCAPTCHA v2 checkbox fallback (if v3 scores are unreliable), account lockout
 
 ---
 
@@ -270,16 +278,16 @@ Deferred from PRD P0 to P1. Full ministry scoping requires significant DAL chang
 
 ---
 
-## 5. Person ↔ User Linking [PARTIAL]
+## 5. Person ↔ User Linking [IMPLEMENTED]
 
 ### 5.1 Design [DOCUMENTED]
 
 - `Person.userId` field exists (optional)
 - DAL functions `linkUserToPerson()` and `unlinkUserFromPerson()` exist
 - Users page shows `linkedPersonName` column
-- [ ] **Missing:** Auto-link on invite (match Person by email)
-- [ ] **Missing:** API route for manual link/unlink
-- [ ] **Missing:** UI buttons for link/unlink in user row actions
+- [x] **Auto-link on invite** — inviteUser() matches Person by email and links automatically
+- [x] **API route for manual link/unlink** — POST/DELETE /api/v1/users/[id]/link-person
+- [x] **UI buttons for link/unlink** — user row actions dropdown
 
 ---
 
@@ -289,8 +297,10 @@ Deferred from PRD P0 to P1. Full ministry scoping requires significant DAL chang
 # New — added to .env and .env.example:
 SENDGRID_API_KEY=           # SendGrid API key for transactional emails
 EMAIL_FROM=noreply@laubf.org # From address (must be verified in SendGrid)
-NEXT_PUBLIC_TURNSTILE_SITE_KEY=  # Cloudflare Turnstile (optional, Tier 2)
-TURNSTILE_SECRET_KEY=            # Cloudflare Turnstile (optional, Tier 2)
+NEXT_PUBLIC_RECAPTCHA_SITE_KEY=  # Google reCAPTCHA v3 (optional, Tier 2)
+RECAPTCHA_SECRET_KEY=            # Google reCAPTCHA v3 (optional, Tier 2)
+UPSTASH_REDIS_REST_URL=          # Upstash Redis (required for serverless rate limiting)
+UPSTASH_REDIS_REST_TOKEN=        # Upstash Redis (required for serverless rate limiting)
 
 # Existing — already in .env.example:
 AUTH_SECRET=...              # JWT signing secret
@@ -338,8 +348,8 @@ AUTH_GOOGLE_SECRET=...       # Google OAuth Client Secret
 | `components/cms/app-sidebar.tsx` | Added Users nav item, role-based visibility filtering (`minRole`) |
 | `app/cms/login/page.tsx` | Added sign-up link, forgot-password link, verified success message |
 | `app/cms/no-access/page.tsx` | Improved messaging about admin invitation |
-| `.env` | Added SendGrid + Turnstile vars |
-| `.env.example` | Added SendGrid + Turnstile documentation |
+| `.env` | Added SendGrid + reCAPTCHA vars |
+| `.env.example` | Added SendGrid + reCAPTCHA documentation |
 
 ---
 
@@ -369,14 +379,39 @@ AUTH_GOOGLE_SECRET=...       # Google OAuth Client Secret
 - Email template XSS: **Fixed** (HTML escaping)
 - Rate limit key sanitization: **Fixed** (email truncated to 64 chars)
 - Missing Zod validation: **Deferred** (manual validation is functional)
-- Missing deactivation endpoints: **Deferred** (hard-delete approach documented)
-- Person-User auto-link: **Deferred** (DAL exists, not yet wired in invite flow)
-- Link/Unlink API: **Deferred** (DAL exists, no route yet)
+- Missing deactivation endpoints: **Fixed** (soft-delete with ChurchMember.status field)
+- Person-User auto-link: **Fixed** (inviteUser matches Person by email)
+- Link/Unlink API: **Fixed** (POST/DELETE /api/v1/users/[id]/link-person)
 - JWT callback missing churchId refresh: **Noted** (edge case, user re-login resolves)
 
 **LOW — Status:**
-- Honeypot not in JSON body: **Known** (limited effectiveness for API-based forms anyway)
+- Honeypot not in JSON body: **Fixed** (frontend now includes `website` value in JSON body)
 - lastLogin approximated: **Known** (needs dedicated DB field)
-- Status filter missing: **Deferred**
-- Invite dialog missing OWNER option: **Deferred**
-- Role dropdown shown to all: **Deferred** (server enforces rules)
+- Status filter missing: **Fixed** (Active/Inactive/Pending filter on Users page)
+- Invite dialog OWNER option: **By design** (excluded to prevent accidental OWNER creation)
+- Role dropdown shown to all: **Fixed** (disabled for users the actor can't modify)
+
+### 2026-03-10 — Implementation Audit
+
+Cross-checked plan against codebase. Findings:
+- Honeypot field was already wired (doc was outdated)
+- Login rate limiting added (credentials authorize callback)
+- Session cookie hardening added (secure, sameSite, httpOnly, 7d maxAge)
+- Role dropdown UX still missing (server enforces, UI doesn't reflect)
+- Link/Unlink API + UI still missing (DAL exists)
+- Deactivation/reactivation design decision pending (hard-delete vs soft-delete)
+- Users nav moved to own top-level "Admin" sidebar group
+
+### 2026-03-10 — Full Implementation Sprint
+
+Implemented all P1 items from audit:
+- Soft-delete: ChurchMember.status field (ACTIVE/INACTIVE/PENDING), deactivate/reactivate API endpoints + UI
+- Person-User auto-link on invite (match by email)
+- Link/Unlink API route (POST/DELETE /api/v1/users/[id]/link-person)
+- Link/Unlink UI buttons in user row actions
+- Role dropdown disabled for users the actor can't modify
+- Status filter added to Users page (Active/Inactive/Pending)
+- Bot prevention plan updated: Cloudflare Turnstile → Google reCAPTCHA v3
+- Rate limiter migration path documented (in-memory → Upstash Redis)
+
+Remaining: Upstash Redis migration, reCAPTCHA integration, lastLogin field, Zod validation

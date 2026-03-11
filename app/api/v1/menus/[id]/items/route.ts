@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getMenuWithItems, createMenuItem, reorderMenuItems } from '@/lib/dal/menus'
+import { requireApiAuth } from '@/lib/api/require-auth'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -30,6 +31,9 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function POST(request: NextRequest, { params }: Params) {
   try {
+    const authResult = await requireApiAuth('ADMIN')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const { id: menuId } = await params
     const body = await request.json()
@@ -67,6 +71,9 @@ export async function POST(request: NextRequest, { params }: Params) {
 
 export async function PUT(request: NextRequest, { params }: Params) {
   try {
+    const authResult = await requireApiAuth('ADMIN')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const { id: menuId } = await params
     const body = await request.json()
@@ -87,7 +94,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
       )
     }
 
-    await reorderMenuItems(menuId, body.itemIds)
+    await reorderMenuItems(churchId, menuId, body.itemIds)
 
     // Revalidate website layout (menus affect navbar/footer)
     revalidatePath('/website', 'layout')

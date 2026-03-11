@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { getChurchId } from '@/lib/api/get-church-id'
+import { requireApiAuth } from '@/lib/api/require-auth'
 import { listMedia, createMediaAsset } from '@/lib/dal/media'
 import { moveObject, deleteObject, isStagingKey, keyFromMediaUrl, getMediaPublicUrl, MEDIA_BUCKET } from '@/lib/storage/r2'
 
@@ -52,13 +53,8 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user) {
-      return NextResponse.json(
-        { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
-        { status: 401 },
-      )
-    }
+    const authResult = await requireApiAuth('EDITOR')
+    if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
     const body = await request.json()
@@ -132,7 +128,7 @@ export async function POST(request: NextRequest) {
         height: height ?? null,
         alt: alt ?? null,
         folder: folder || '/',
-        createdBy: session.user.id,
+        createdBy: authResult.userId,
       })
     } catch (dbError) {
       // Clean up promoted R2 object to prevent orphans

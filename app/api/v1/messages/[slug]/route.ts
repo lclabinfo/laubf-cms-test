@@ -72,7 +72,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         ? body.studySections
         : (existing.studySections as { id: string; title: string; content: string }[] | null)
 
-      if (effectiveHasStudy && effectiveStudySections) {
+      if (effectiveHasStudy && effectiveStudySections && effectiveStudySections.length > 0) {
         // Resolve the series ID for the linked BibleStudy
         const effectiveSeriesId = hasSeriesId
           ? (seriesId ?? null)
@@ -100,6 +100,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           bibleVersion: updated.bibleVersion,
           existingStudyId: updated.relatedStudyId,
         })
+      } else if (effectiveHasStudy && (!effectiveStudySections || effectiveStudySections.length === 0)) {
+        // hasStudy=true but no study sections — auto-correct to hasStudy=false
+        await updateMessage(churchId, updated.id, { hasStudy: false })
+        if (updated.relatedStudyId) {
+          await unlinkMessageStudy(updated.id, updated.relatedStudyId)
+        }
       } else if (!effectiveHasStudy && updated.relatedStudyId) {
         // Study was removed — unlink and soft-delete the BibleStudy
         await unlinkMessageStudy(updated.id, updated.relatedStudyId)

@@ -4,6 +4,7 @@ import { getChurchId } from '@/lib/api/get-church-id'
 import { getVideos, createVideo, type VideoFilters } from '@/lib/dal/videos'
 import { ContentStatus, type VideoCategory } from '@/lib/generated/prisma/client'
 import { validateAll, validateTitle, validateSlug, validateLongText, validateEnum, CONTENT_STATUS_VALUES, VIDEO_CATEGORY_VALUES } from '@/lib/api/validation'
+import { requireApiAuth } from '@/lib/api/require-auth'
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,6 +44,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireApiAuth('EDITOR')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const body = await request.json()
 

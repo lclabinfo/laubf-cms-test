@@ -1,5 +1,6 @@
 "use client"
 
+import { createContext, useContext } from "react"
 import {
   SidebarInset,
   SidebarProvider,
@@ -21,6 +22,14 @@ export type CmsSessionData = {
   role: string
 }
 
+const CmsSessionContext = createContext<CmsSessionData | null>(null)
+
+export function useCmsSession(): CmsSessionData {
+  const ctx = useContext(CmsSessionContext)
+  if (!ctx) throw new Error("useCmsSession must be used within CmsShell")
+  return ctx
+}
+
 function CmsHeader() {
   const { state } = useSidebar()
   const label = state === "expanded" ? "Close sidebar" : "Open sidebar"
@@ -39,14 +48,16 @@ function CmsHeader() {
 
 export function CmsShell({ session, children }: { session: CmsSessionData; children: React.ReactNode }) {
   return (
-    <TooltipProvider>
-      <SidebarProvider className="h-svh">
-        <AppSidebar session={session} />
-        <SidebarInset className="overflow-hidden">
-          <CmsHeader />
-          <main className="min-w-0 min-h-0 flex-1 flex flex-col overflow-y-auto overflow-x-hidden pb-5 px-6">{children}</main>
-        </SidebarInset>
-      </SidebarProvider>
-    </TooltipProvider>
+    <CmsSessionContext.Provider value={session}>
+      <TooltipProvider>
+        <SidebarProvider className="h-svh">
+          <AppSidebar session={session} />
+          <SidebarInset className="overflow-hidden">
+            <CmsHeader />
+            <main className="min-w-0 min-h-0 flex-1 flex flex-col overflow-y-auto overflow-x-hidden pb-5 px-6">{children}</main>
+          </SidebarInset>
+        </SidebarProvider>
+      </TooltipProvider>
+    </CmsSessionContext.Provider>
   )
 }

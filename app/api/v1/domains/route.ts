@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getDomains, createDomain } from '@/lib/dal/domains'
+import { requireApiAuth } from '@/lib/api/require-auth'
 
 export async function GET() {
   try {
@@ -19,6 +20,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireApiAuth('OWNER')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const body = await request.json()
 

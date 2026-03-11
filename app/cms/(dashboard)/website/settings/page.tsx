@@ -32,6 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
+import { RoleGuard } from "@/components/cms/role-guard"
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -95,7 +96,7 @@ const DAYS_OF_WEEK = [
 /*  Page Component                                                            */
 /* -------------------------------------------------------------------------- */
 
-export default function SiteSettingsPage() {
+function SiteSettingsPageContent() {
   const [settings, setSettings] = useState<SiteSettingsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -782,5 +783,13 @@ export default function SiteSettingsPage() {
         </Collapsible>
       </div>
     </div>
+  )
+}
+
+export default function SiteSettingsPage() {
+  return (
+    <RoleGuard minRole="ADMIN">
+      <SiteSettingsPageContent />
+    </RoleGuard>
   )
 }

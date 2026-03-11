@@ -104,6 +104,12 @@ export async function POST(request: Request) {
       },
     })
 
+    // Activate the church membership now that the invite is accepted
+    await prisma.churchMember.update({
+      where: { id: membership.id },
+      data: { status: 'ACTIVE' },
+    })
+
     return NextResponse.json({ success: true, message: 'Account set up successfully. You can now sign in.' })
   } catch (error) {
     console.error('[AcceptInvite] Error:', error)

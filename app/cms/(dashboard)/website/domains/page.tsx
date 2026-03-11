@@ -18,10 +18,11 @@ import {
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { RoleGuard } from "@/components/cms/role-guard"
 
 // ── Main Page ──
 
-export default function WebsiteDomainsPage() {
+function WebsiteDomainsPageContent() {
   const [copiedText, setCopiedText] = useState<string | null>(null)
 
   // Dynamic subdomain from env — falls back for dev
@@ -122,5 +123,13 @@ export default function WebsiteDomainsPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function WebsiteDomainsPage() {
+  return (
+    <RoleGuard minRole="OWNER">
+      <WebsiteDomainsPageContent />
+    </RoleGuard>
   )
 }

@@ -3,6 +3,8 @@ import type { NextAuthConfig } from 'next-auth'
 // Import type augmentations
 import './types'
 
+const isProduction = process.env.NODE_ENV === 'production'
+
 /**
  * Edge-safe auth config — NO Prisma or Node.js imports.
  * Used by middleware (runs in Edge Runtime).
@@ -13,6 +15,21 @@ export const edgeAuthConfig: NextAuthConfig = {
 
   session: {
     strategy: 'jwt',
+    maxAge: 604800, // 7 days
+  },
+
+  cookies: {
+    sessionToken: {
+      name: isProduction
+        ? '__Secure-authjs.session-token'
+        : 'authjs.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: isProduction,
+      },
+    },
   },
 
   pages: {

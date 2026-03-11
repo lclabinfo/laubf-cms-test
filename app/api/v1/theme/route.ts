@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getThemeWithCustomization, updateThemeCustomization } from '@/lib/dal/theme'
+import { requireApiAuth } from '@/lib/api/require-auth'
 
 export async function GET() {
   try {
@@ -20,6 +21,9 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
+    const authResult = await requireApiAuth('ADMIN')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const body = await request.json()
 

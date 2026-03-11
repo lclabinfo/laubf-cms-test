@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getVideoBySlug, updateVideo, deleteVideo } from '@/lib/dal/videos'
+import { requireApiAuth } from '@/lib/api/require-auth'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -32,6 +33,9 @@ export async function GET(_request: NextRequest, { params }: Params) {
 
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
+    const authResult = await requireApiAuth('EDITOR')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const { slug } = await params
     const body = await request.json()
@@ -62,6 +66,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
 export async function DELETE(_request: NextRequest, { params }: Params) {
   try {
+    const authResult = await requireApiAuth('ADMIN')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const { slug } = await params
 

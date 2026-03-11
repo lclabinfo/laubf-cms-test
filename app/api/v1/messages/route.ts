@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
-import { getMessages, createMessage, type MessageFilters } from '@/lib/dal/messages'
+import { getMessages, createMessage, updateMessage as updateMessageRecord, type MessageFilters } from '@/lib/dal/messages'
 import { syncMessageStudy } from '@/lib/dal/sync-message-study'
 import { validateAll, validateTitle, validateSlug, validateLongText, validateUrl } from '@/lib/api/validation'
 import { requireApiAuth } from '@/lib/api/require-auth'
@@ -78,7 +78,8 @@ export async function POST(request: NextRequest) {
     const message = await createMessage(churchId, messageData, seriesId ?? null)
 
     // Sync study content to BibleStudy table if this message has study material
-    if (message.hasStudy && message.studySections) {
+    const studySections = message.studySections as { id: string; title: string; content: string }[] | null
+    if (message.hasStudy && studySections && studySections.length > 0) {
       try {
         await syncMessageStudy({
           messageId: message.id,
@@ -91,7 +92,7 @@ export async function POST(request: NextRequest) {
           dateFor: message.dateFor,
           hasStudy: message.hasStudy,
           publishedAt: message.publishedAt,
-          studySections: message.studySections as { id: string; title: string; content: string }[],
+          studySections,
           attachments: message.attachments as { id: string; name: string; url?: string; type?: string }[] | null,
           bibleVersion: message.bibleVersion,
           existingStudyId: null,
@@ -99,6 +100,13 @@ export async function POST(request: NextRequest) {
       } catch (syncErr) {
         console.error('POST /api/v1/messages: bible study sync warning:', syncErr)
         // Don't fail the message creation if sync fails
+      }
+    } else if (message.hasStudy && (!studySections || studySections.length === 0)) {
+      // hasStudy=true but no study sections — auto-correct to hasStudy=false
+      try {
+        await updateMessageRecord(churchId, message.id, { hasStudy: false })
+      } catch (correctErr) {
+        console.error('POST /api/v1/messages: hasStudy auto-correct warning:', correctErr)
       }
     }
 
