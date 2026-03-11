@@ -145,6 +145,7 @@ export const authConfig: NextAuthConfig = {
     },
 
     async jwt({ token, user }) {
+      // Initial sign-in: load church + membership + permissions
       if (user?.id) {
         token.userId = user.id
 
@@ -156,6 +157,7 @@ export const authConfig: NextAuthConfig = {
                 id: true,
                 slug: true,
                 name: true,
+                sessionVersion: true,
               },
             },
             customRole: {
@@ -175,6 +177,7 @@ export const authConfig: NextAuthConfig = {
           token.churchId = membership.church.id
           token.churchSlug = membership.church.slug
           token.churchName = membership.church.name
+          token.sessionVersion = membership.church.sessionVersion
           token.role = membership.role
           token.memberStatus = membership.status
 
@@ -184,7 +187,6 @@ export const authConfig: NextAuthConfig = {
             token.rolePriority = membership.customRole.priority
             token.permissions = membership.customRole.permissions
           } else if (membership.role) {
-            // Fallback: derive permissions from legacy role enum
             const { DEFAULT_ROLES } = await import('@/lib/permissions')
             const defaultRole = DEFAULT_ROLES[membership.role]
             if (defaultRole) {
@@ -197,47 +199,62 @@ export const authConfig: NextAuthConfig = {
         }
       }
 
-      // Periodically refresh permissions from DB so role/permission changes
-      // take effect without requiring re-sign-in. Refresh every 5 minutes.
-      const PERMISSIONS_REFRESH_MS = 5 * 60 * 1000
-      const now = Date.now()
-      const lastRefresh = (token.permissionsRefreshedAt as number) || 0
-      if (token.userId && token.churchId && (now - lastRefresh > PERMISSIONS_REFRESH_MS)) {
-        const membership = await prisma.churchMember.findFirst({
-          where: { userId: token.userId as string, churchId: token.churchId as string },
-          select: {
-            role: true,
-            status: true,
-            customRole: {
-              select: {
-                id: true,
-                name: true,
-                slug: true,
-                priority: true,
-                permissions: true,
+      // Refresh permissions when:
+      // 1. sessionVersion changed (admin bumped it — immediate effect)
+      // 2. Periodic fallback every 5 minutes
+      if (token.userId && token.churchId) {
+        const PERMISSIONS_REFRESH_MS = 5 * 60 * 1000
+        const now = Date.now()
+        const lastRefresh = (token.permissionsRefreshedAt as number) || 0
+        const timeExpired = now - lastRefresh > PERMISSIONS_REFRESH_MS
+
+        // Lightweight version check — single int field, no joins
+        let versionChanged = false
+        if (!timeExpired) {
+          const church = await prisma.church.findUnique({
+            where: { id: token.churchId as string },
+            select: { sessionVersion: true },
+          })
+          versionChanged = church != null && church.sessionVersion !== (token.sessionVersion ?? 0)
+        }
+
+        if (timeExpired || versionChanged) {
+          const membership = await prisma.churchMember.findFirst({
+            where: { userId: token.userId as string, churchId: token.churchId as string },
+            include: {
+              church: { select: { sessionVersion: true } },
+              customRole: {
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                  priority: true,
+                  permissions: true,
+                },
               },
             },
-          },
-        })
-        if (membership) {
-          token.role = membership.role
-          token.memberStatus = membership.status
-          if (membership.customRole) {
-            token.roleId = membership.customRole.id
-            token.roleName = membership.customRole.name
-            token.rolePriority = membership.customRole.priority
-            token.permissions = membership.customRole.permissions
-          } else if (membership.role) {
-            const { DEFAULT_ROLES } = await import('@/lib/permissions')
-            const defaultRole = DEFAULT_ROLES[membership.role]
-            if (defaultRole) {
-              token.roleName = defaultRole.name
-              token.rolePriority = defaultRole.priority
-              token.permissions = defaultRole.permissions
+          })
+          if (membership) {
+            token.role = membership.role
+            token.memberStatus = membership.status
+            token.sessionVersion = membership.church.sessionVersion
+            if (membership.customRole) {
+              token.roleId = membership.customRole.id
+              token.roleName = membership.customRole.name
+              token.rolePriority = membership.customRole.priority
+              token.permissions = membership.customRole.permissions
+            } else if (membership.role) {
+              const { DEFAULT_ROLES } = await import('@/lib/permissions')
+              const defaultRole = DEFAULT_ROLES[membership.role]
+              if (defaultRole) {
+                token.roleName = defaultRole.name
+                token.rolePriority = defaultRole.priority
+                token.permissions = defaultRole.permissions
+              }
             }
           }
+          token.permissionsRefreshedAt = now
         }
-        token.permissionsRefreshedAt = now
       }
 
       return token

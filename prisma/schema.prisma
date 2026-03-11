@@ -50,10 +50,11 @@ model Church {
   plan          PlanTier  @default(STARTER)
 
   // Metadata
-  settings      Json?    @db.JsonB
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  deletedAt     DateTime?
+  settings       Json?    @db.JsonB
+  sessionVersion Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
 
   // Relations
   members            ChurchMember[]
