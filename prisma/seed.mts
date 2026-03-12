@@ -3819,7 +3819,7 @@ async function main() {
         isSystem: d.isSystem,
         permissions: d.permissions,
       },
-      update: {},
+      update: { permissions: d.permissions },
     })
     roleMap[key] = role.id
   }

@@ -181,7 +181,15 @@ export const authConfig: NextAuthConfig = {
           token.role = membership.role
           token.memberStatus = membership.status
 
-          if (membership.customRole) {
+          // OWNER always gets ALL permissions — never limited by DB-stored role
+          if (membership.role === 'OWNER') {
+            const { ALL_PERMISSIONS, DEFAULT_ROLES } = await import('@/lib/permissions')
+            const ownerDef = DEFAULT_ROLES.OWNER
+            token.roleId = membership.customRole?.id
+            token.roleName = ownerDef.name
+            token.rolePriority = ownerDef.priority
+            token.permissions = ALL_PERMISSIONS
+          } else if (membership.customRole) {
             token.roleId = membership.customRole.id
             token.roleName = membership.customRole.name
             token.rolePriority = membership.customRole.priority
@@ -225,7 +233,14 @@ export const authConfig: NextAuthConfig = {
             token.sessionVersion = membership.church.sessionVersion
             token.role = membership.role
             token.memberStatus = membership.status
-            if (membership.customRole) {
+            if (membership.role === 'OWNER') {
+              const { ALL_PERMISSIONS, DEFAULT_ROLES } = await import('@/lib/permissions')
+              const ownerDef = DEFAULT_ROLES.OWNER
+              token.roleId = membership.customRole?.id
+              token.roleName = ownerDef.name
+              token.rolePriority = ownerDef.priority
+              token.permissions = ALL_PERMISSIONS
+            } else if (membership.customRole) {
               token.roleId = membership.customRole.id
               token.roleName = membership.customRole.name
               token.rolePriority = membership.customRole.priority
@@ -285,7 +300,15 @@ export const authConfig: NextAuthConfig = {
             token.role = membership.role
             token.memberStatus = membership.status
             token.sessionVersion = membership.church.sessionVersion
-            if (membership.customRole) {
+            // OWNER always gets ALL permissions — never limited by DB-stored role
+            if (membership.role === 'OWNER') {
+              const { ALL_PERMISSIONS, DEFAULT_ROLES } = await import('@/lib/permissions')
+              const ownerDef = DEFAULT_ROLES.OWNER
+              token.roleId = membership.customRole?.id
+              token.roleName = ownerDef.name
+              token.rolePriority = ownerDef.priority
+              token.permissions = ALL_PERMISSIONS
+            } else if (membership.customRole) {
               token.roleId = membership.customRole.id
               token.roleName = membership.customRole.name
               token.rolePriority = membership.customRole.priority
