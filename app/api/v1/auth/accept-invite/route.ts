@@ -15,6 +15,15 @@ const MAX_NAME_LENGTH = 100
  * so the frontend can render the appropriate UI.
  */
 export async function GET(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for') || 'unknown'
+  const rl = rateLimit(`accept-invite-get:${ip}`, 10, 60 * 60 * 1000)
+  if (!rl.success) {
+    return NextResponse.json(
+      { success: false, error: { code: 'RATE_LIMITED', message: 'Too many attempts. Please try again later.' } },
+      { status: 429 },
+    )
+  }
+
   const token = request.nextUrl.searchParams.get('token')
   if (!token) {
     return NextResponse.json(

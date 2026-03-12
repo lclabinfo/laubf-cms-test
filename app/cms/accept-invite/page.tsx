@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState, useEffect, useCallback } from "react"
+import { Suspense, useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { signIn } from "next-auth/react"
@@ -86,9 +86,11 @@ function AcceptInviteForm() {
       .finally(() => setLoadingState(false))
   }, [token])
 
-  // After Google redirect: auto-activate
+  // After Google redirect: auto-activate (guard against double-fire in StrictMode)
+  const activatingRef = useRef(false)
   const activateWithGoogle = useCallback(async () => {
-    if (!token) return
+    if (!token || activatingRef.current) return
+    activatingRef.current = true
     setIsLoading(true)
     setError(null)
     try {

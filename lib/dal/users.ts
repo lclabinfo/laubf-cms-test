@@ -265,6 +265,7 @@ export async function getUserAuthMethods(userId: string): Promise<{
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
+      email: true,
       passwordHash: true,
       accounts: {
         where: { provider: 'google' },
@@ -278,21 +279,12 @@ export async function getUserAuthMethods(userId: string): Promise<{
     return { hasPassword: false, hasGoogle: false, googleEmail: null }
   }
 
-  // For Google email, look up the user's email (it matches Google account)
-  const googleAccount = user.accounts[0]
-  let googleEmail: string | null = null
-  if (googleAccount) {
-    const fullUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { email: true },
-    })
-    googleEmail = fullUser?.email ?? null
-  }
+  const hasGoogle = user.accounts.length > 0
 
   return {
     hasPassword: !!user.passwordHash,
-    hasGoogle: user.accounts.length > 0,
-    googleEmail,
+    hasGoogle,
+    googleEmail: hasGoogle ? user.email : null,
   }
 }
 
