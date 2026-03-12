@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ChevronsUpDown, Loader2, X } from "lucide-react"
+import { Loader2, X } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
 import {
@@ -27,11 +27,6 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
 import {
   Command,
   CommandInput,
@@ -93,7 +88,6 @@ export function InviteUserDialog({ open, onOpenChange, onSuccess }: InviteUserDi
   const [people, setPeople] = useState<PersonRecord[]>([])
   const [memberEmails, setMemberEmails] = useState<Set<string>>(new Set())
   const [peopleLoaded, setPeopleLoaded] = useState(false)
-  const [popoverOpen, setPopoverOpen] = useState(false)
   const [search, setSearch] = useState("")
   const [selectedPerson, setSelectedPerson] = useState<PersonRecord | null>(null)
 
@@ -153,7 +147,6 @@ export function InviteUserDialog({ open, onOpenChange, onSuccess }: InviteUserDi
       setRole("EDITOR")
       setSelectedPerson(null)
       setSearch("")
-      setPopoverOpen(false)
       setFirstName("")
       setLastName("")
       setNewEmail("")
@@ -168,7 +161,6 @@ export function InviteUserDialog({ open, onOpenChange, onSuccess }: InviteUserDi
     // Clear existing member selection
     setSelectedPerson(null)
     setSearch("")
-    setPopoverOpen(false)
     // Clear new person fields
     setFirstName("")
     setLastName("")
@@ -287,72 +279,52 @@ export function InviteUserDialog({ open, onOpenChange, onSuccess }: InviteUserDi
             <TabsContent value="existing" className="space-y-3">
               <div className="space-y-2">
                 <Label>Select a person</Label>
-                <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full justify-between font-normal"
-                    >
-                      {selectedPerson
-                        ? displayName(selectedPerson)
-                        : "Search people..."}
-                      <ChevronsUpDown className="size-4 text-muted-foreground" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent
-                    className="w-[--radix-popover-trigger-width] p-0"
-                    align="start"
-                  >
-                    <Command shouldFilter={false}>
-                      <CommandInput
-                        placeholder="Search by name or email..."
-                        value={search}
-                        onValueChange={setSearch}
-                      />
-                      <CommandList>
-                        {!peopleLoaded ? (
-                          <div className="flex items-center justify-center py-6">
-                            <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                          </div>
-                        ) : (
-                          <>
-                            <CommandEmpty>No people found.</CommandEmpty>
-                            {filteredPeople.length > 0 && (
-                              <CommandGroup>
-                                {filteredPeople.map((p) => (
-                                  <CommandItem
-                                    key={p.id}
-                                    value={displayName(p)}
-                                    onSelect={() => {
-                                      setSelectedPerson(p)
-                                      setPopoverOpen(false)
-                                      setSearch("")
-                                    }}
-                                  >
-                                    <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
-                                      {initials(p)}
-                                    </div>
-                                    <div className="flex flex-col flex-1 min-w-0">
-                                      <span className="truncate text-sm">
-                                        {displayName(p)}
-                                      </span>
-                                      {p.email && (
-                                        <span className="text-xs text-muted-foreground truncate">
-                                          {p.email}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </CommandItem>
-                                ))}
-                              </CommandGroup>
-                            )}
-                          </>
+                <Command shouldFilter={false} className="h-auto rounded-lg border">
+                  <CommandInput
+                    placeholder="Search by name or email..."
+                    value={search}
+                    onValueChange={setSearch}
+                  />
+                  <CommandList className="h-[200px]">
+                    {!peopleLoaded ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : (
+                      <>
+                        <CommandEmpty>No people found.</CommandEmpty>
+                        {filteredPeople.length > 0 && (
+                          <CommandGroup>
+                            {filteredPeople.map((p) => (
+                              <CommandItem
+                                key={p.id}
+                                value={displayName(p)}
+                                onSelect={() => {
+                                  setSelectedPerson(p)
+                                  setSearch("")
+                                }}
+                              >
+                                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                                  {initials(p)}
+                                </div>
+                                <div className="flex flex-col flex-1 min-w-0">
+                                  <span className="truncate text-sm">
+                                    {displayName(p)}
+                                  </span>
+                                  {p.email && (
+                                    <span className="text-xs text-muted-foreground truncate">
+                                      {p.email}
+                                    </span>
+                                  )}
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
                         )}
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                      </>
+                    )}
+                  </CommandList>
+                </Command>
               </div>
 
               {/* Selected person card */}
