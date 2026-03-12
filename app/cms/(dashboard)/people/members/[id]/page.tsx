@@ -19,11 +19,6 @@ async function getPersonProfile(churchId: string, id: string) {
           },
         },
       },
-      groupMemberships: {
-        where: { leftAt: null },
-        include: { group: true },
-      },
-      personTags: { orderBy: { tagName: 'asc' } },
       roleAssignments: { include: { role: true } },
       communicationPreferences: {
         orderBy: [{ channel: 'asc' }, { category: 'asc' }],

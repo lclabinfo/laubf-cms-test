@@ -13,8 +13,6 @@ export async function GET(request: NextRequest) {
       pageSize: searchParams.get('pageSize') ? Number(searchParams.get('pageSize')) : undefined,
       search: searchParams.get('search') ?? undefined,
       membershipStatus: (searchParams.get('membershipStatus') as MembershipStatus) ?? undefined,
-      tagName: searchParams.get('tagName') ?? undefined,
-      groupId: searchParams.get('groupId') ?? undefined,
       householdId: searchParams.get('householdId') ?? undefined,
     }
 

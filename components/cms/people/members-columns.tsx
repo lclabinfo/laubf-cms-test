@@ -240,37 +240,22 @@ export function createColumns(options?: CreateColumnsOptions): ColumnDef<MemberP
         const groups = row.original.groups
         if (groups.length === 0) return <span className="text-muted-foreground text-sm">--</span>
         return (
-          <Badge variant="secondary" className="text-xs">
-            {groups.length} {groups.length === 1 ? "group" : "groups"}
-          </Badge>
-        )
-      },
-      filterFn: (row, _id, value: string[]) => {
-        return row.original.groups.some((g) => value.includes(g.id))
-      },
-      enableSorting: false,
-      size: 100,
-    },
-    {
-      id: "roles",
-      header: "Roles",
-      cell: ({ row }) => {
-        const roles = row.original.roles
-        if (roles.length === 0) return <span className="text-muted-foreground text-sm">--</span>
-        return (
           <div className="flex flex-wrap gap-1">
-            {roles.slice(0, 2).map((r) => (
-              <Badge key={r.id} variant="outline" className="text-[10px] h-4">
-                {r.name}
+            {groups.slice(0, 2).map((g) => (
+              <Badge key={g.id} variant="outline" className="text-[10px] h-4">
+                {g.name}
               </Badge>
             ))}
-            {roles.length > 2 && (
+            {groups.length > 2 && (
               <Badge variant="outline" className="text-[10px] h-4">
-                +{roles.length - 2}
+                +{groups.length - 2}
               </Badge>
             )}
           </div>
         )
+      },
+      filterFn: (row, _id, value: string[]) => {
+        return row.original.groups.some((g) => value.includes(g.id))
       },
       enableSorting: false,
       size: 140,

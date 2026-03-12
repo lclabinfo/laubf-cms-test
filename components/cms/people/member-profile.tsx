@@ -9,10 +9,8 @@ import { ProfilePersonalInfo } from "./profile-personal-info"
 import { ProfileContactInfo } from "./profile-contact-info"
 import { ProfileChurchInfo } from "./profile-church-info"
 import { ProfileHousehold } from "./profile-household"
-import { ProfileGroups } from "./profile-groups"
 import { ProfileNotes } from "./profile-notes"
 import { ProfileCommunicationPrefs } from "./profile-communication-prefs"
-import { ProfileTags } from "./profile-tags"
 import { ProfileCustomFields } from "./profile-custom-fields"
 import { ProfileActivity } from "./profile-activity"
 import type { PersonDetail } from "./types"
@@ -61,9 +59,7 @@ export function MemberProfile({ person: initialPerson, churchId }: Props) {
         </div>
         <div className="space-y-6">
           <ProfileHousehold person={initialPerson} onUpdate={refreshData} />
-          <ProfileGroups person={initialPerson} onUpdate={refreshData} />
           <ProfileCommunicationPrefs person={initialPerson} onUpdate={refreshData} />
-          <ProfileTags person={initialPerson} onUpdate={refreshData} />
           <ProfileActivity person={initialPerson} />
         </div>
       </div>

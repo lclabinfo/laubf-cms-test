@@ -5,8 +5,6 @@ import { paginationArgs, paginatedResult, type PaginationParams, type PaginatedR
 type PersonWithRelations = Prisma.PersonGetPayload<{
   include: {
     householdMemberships: { include: { household: true } }
-    groupMemberships: { include: { group: true } }
-    personTags: true
     roleAssignments: { include: { role: true } }
   }
 }>
@@ -14,8 +12,6 @@ type PersonWithRelations = Prisma.PersonGetPayload<{
 type PersonDetail = Prisma.PersonGetPayload<{
   include: {
     householdMemberships: { include: { household: true } }
-    groupMemberships: { include: { group: true } }
-    personTags: true
     roleAssignments: { include: { role: true } }
     communicationPreferences: true
     customFieldValues: { include: { fieldDefinition: true } }
@@ -26,10 +22,6 @@ const personListInclude = {
   householdMemberships: {
     include: { household: true },
   },
-  groupMemberships: {
-    include: { group: true },
-  },
-  personTags: true,
   roleAssignments: {
     include: { role: true },
   },
@@ -46,8 +38,6 @@ const personDetailInclude = {
 export type PersonFilters = {
   search?: string
   membershipStatus?: MembershipStatus | null
-  tagName?: string
-  groupId?: string
   householdId?: string
 }
 
@@ -61,12 +51,6 @@ export async function getPeople(
     churchId,
     deletedAt: null,
     ...(filters?.membershipStatus && { membershipStatus: filters.membershipStatus }),
-    ...(filters?.tagName && {
-      personTags: { some: { tagName: filters.tagName } },
-    }),
-    ...(filters?.groupId && {
-      groupMemberships: { some: { groupId: filters.groupId } },
-    }),
     ...(filters?.householdId && {
       householdMemberships: { some: { householdId: filters.householdId } },
     }),

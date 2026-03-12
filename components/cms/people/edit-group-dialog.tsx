@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -15,116 +15,116 @@ import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 
-function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "")
-}
-
 const PRESET_COLORS = [
   "#6366f1", "#8b5cf6", "#a855f7", "#ec4899",
   "#f59e0b", "#10b981", "#3b82f6", "#ef4444",
   "#14b8a6", "#f97316", "#64748b", "#84cc16",
 ]
 
-interface CreateRoleDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onCreated: () => void
+export interface EditGroupData {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  color: string | null
+  icon: string | null
+  isSystem: boolean
 }
 
-export function CreateRoleDialog({ open, onOpenChange, onCreated }: CreateRoleDialogProps) {
+interface EditGroupDialogProps {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  group: EditGroupData | null
+  onUpdated: () => void
+}
+
+export function EditGroupDialog({ open, onOpenChange, group, onUpdated }: EditGroupDialogProps) {
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
   const [color, setColor] = useState("#6366f1")
   const [icon, setIcon] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
-  const resetForm = () => {
-    setName("")
-    setDescription("")
-    setColor("#6366f1")
-    setIcon("")
-  }
+  useEffect(() => {
+    if (group) {
+      setName(group.name)
+      setDescription(group.description ?? "")
+      setColor(group.color ?? "#6366f1")
+      setIcon(group.icon ?? "")
+    }
+  }, [group])
 
   const handleSubmit = async () => {
+    if (!group) return
     const trimmedName = name.trim()
     if (!trimmedName) {
-      toast.error("Role name is required")
+      toast.error("Group name is required")
       return
     }
 
     setSubmitting(true)
     try {
-      const slug = slugify(trimmedName)
-      const res = await fetch("/api/v1/roles", {
-        method: "POST",
+      const body: Record<string, unknown> = {
+        description: description.trim() || null,
+        color: color || null,
+        icon: icon.trim() || null,
+      }
+
+      if (!group.isSystem) {
+        body.name = trimmedName
+      }
+
+      const res = await fetch(`/api/v1/roles/${group.id}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: trimmedName,
-          slug,
-          description: description.trim() || undefined,
-          color: color || undefined,
-          icon: icon.trim() || undefined,
-        }),
+        body: JSON.stringify(body),
       })
 
       const json = await res.json()
       if (json.success) {
-        toast.success("Role created", {
-          description: `"${trimmedName}" has been created.`,
+        toast.success("Group updated", {
+          description: `"${group.isSystem ? group.name : trimmedName}" has been updated.`,
         })
         onOpenChange(false)
-        resetForm()
-        onCreated()
+        onUpdated()
       } else {
-        toast.error(json.error?.message || "Failed to create role")
+        toast.error(json.error?.message || "Failed to update group")
       }
     } catch {
-      toast.error("Failed to create role")
+      toast.error("Failed to update group")
     } finally {
       setSubmitting(false)
     }
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        onOpenChange(o)
-        if (!o) resetForm()
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Role</DialogTitle>
+          <DialogTitle>Edit Group</DialogTitle>
           <DialogDescription>
-            Define a new role for your church members.
+            {group?.isSystem
+              ? "System groups have limited editing. Name and slug cannot be changed."
+              : "Update this group's details."}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="role-name">Name *</Label>
+            <Label htmlFor="edit-group-name">Name {group?.isSystem ? "(locked)" : "*"}</Label>
             <Input
-              id="role-name"
-              placeholder="e.g., Sunday School Teacher"
+              id="edit-group-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              disabled={group?.isSystem}
             />
-            {name.trim() && (
-              <p className="text-xs text-muted-foreground">
-                Slug: {slugify(name.trim())}
-              </p>
-            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="role-description">Description</Label>
+            <Label htmlFor="edit-group-description">Description</Label>
             <Textarea
-              id="role-description"
-              placeholder="What does this role do?"
+              id="edit-group-description"
+              placeholder="What is this group for?"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
@@ -151,9 +151,9 @@ export function CreateRoleDialog({ open, onOpenChange, onCreated }: CreateRoleDi
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="role-icon">Icon name</Label>
+            <Label htmlFor="edit-group-icon">Icon name</Label>
             <Input
-              id="role-icon"
+              id="edit-group-icon"
               placeholder="e.g., mic, shield, book-open"
               value={icon}
               onChange={(e) => setIcon(e.target.value)}
@@ -169,7 +169,7 @@ export function CreateRoleDialog({ open, onOpenChange, onCreated }: CreateRoleDi
             Cancel
           </Button>
           <Button onClick={handleSubmit} disabled={submitting || !name.trim()}>
-            {submitting ? "Creating..." : "Create Role"}
+            {submitting ? "Saving..." : "Save Changes"}
           </Button>
         </DialogFooter>
       </DialogContent>

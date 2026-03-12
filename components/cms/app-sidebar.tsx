@@ -27,7 +27,6 @@ import {
   HardDriveIcon,
   InboxIcon,
   EyeOffIcon,
-  TagIcon,
   type LucideIcon,
 } from "lucide-react"
 
@@ -139,11 +138,6 @@ const navGroups: NavGroup[] = [
         title: "Members",
         href: "/cms/people/members",
         icon: UsersIcon,
-      },
-      {
-        title: "Roles",
-        href: "/cms/people/roles",
-        icon: TagIcon,
       },
       {
         title: "Groups",

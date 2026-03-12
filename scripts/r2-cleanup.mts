@@ -186,11 +186,7 @@ async function collectReferencedUrls(): Promise<Set<string>> {
   })
   for (const d of dailyBreads) { add(d.audioUrl) }
 
-  console.log('  Scanning PersonGroup.photoUrl...')
-  const groups = await prisma.personGroup.findMany({
-    select: { photoUrl: true },
-  })
-  for (const g of groups) { add(g.photoUrl) }
+  // PersonGroup removed from schema
 
   console.log('  Scanning Church (logoUrl, faviconUrl)...')
   const churches = await prisma.church.findMany({

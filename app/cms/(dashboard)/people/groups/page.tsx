@@ -2,16 +2,7 @@
 
 import { Suspense } from "react"
 import { Loader2 } from "lucide-react"
-import { GroupsProvider } from "@/lib/groups-context"
 import { GroupsView } from "@/components/cms/people/groups-view"
-
-function GroupsContent() {
-  return (
-    <GroupsProvider>
-      <GroupsView />
-    </GroupsProvider>
-  )
-}
 
 export default function PeopleGroupsPage() {
   return (
@@ -22,7 +13,7 @@ export default function PeopleGroupsPage() {
         </div>
       }
     >
-      <GroupsContent />
+      <GroupsView />
     </Suspense>
   )
 }

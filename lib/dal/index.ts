@@ -30,7 +30,6 @@ export * from './form-submissions'
 // People & Member Management DAL modules
 export * from './people'
 export * from './households'
-export * from './person-groups'
 export * from './custom-fields'
 export * from './person-notes'
 export * from './communication-preferences'

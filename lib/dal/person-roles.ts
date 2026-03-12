@@ -148,7 +148,6 @@ export async function getPeopleByRole(
     include: {
       person: {
         include: {
-          personTags: true,
           roleAssignments: { include: { role: true } },
         },
       },

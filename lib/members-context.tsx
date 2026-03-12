@@ -21,9 +21,7 @@ export type MemberPerson = {
   membershipDate: string | null
   createdAt: string
   households: { id: string; name: string; role: string }[]
-  groups: { id: string; name: string; role: string }[]
-  tags: string[]
-  roles: { id: string; name: string }[]
+  groups: { id: string; name: string }[]
 }
 
 interface MembersContextValue {
@@ -77,13 +75,7 @@ function apiPersonToMember(p: any): MemberPerson {
       name: hm.household.name,
       role: hm.role,
     })),
-    groups: (p.groupMemberships ?? []).map((gm: { group: { id: string; name: string }; role: string }) => ({
-      id: gm.group.id,
-      name: gm.group.name,
-      role: gm.role,
-    })),
-    tags: (p.personTags ?? []).map((t: { tagName: string }) => t.tagName),
-    roles: (p.roleAssignments ?? []).map((ra: { role: { id: string; name: string } }) => ({
+    groups: (p.roleAssignments ?? []).map((ra: { role: { id: string; name: string } }) => ({
       id: ra.role.id,
       name: ra.role.name,
     })),

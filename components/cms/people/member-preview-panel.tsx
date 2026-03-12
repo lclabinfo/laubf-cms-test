@@ -117,11 +117,11 @@ export function MemberPreviewPanel({ member, onClose, onArchive }: MemberPreview
                 <Badge variant={statusConfig.variant} className="text-[10px]">
                   {statusConfig.label}
                 </Badge>
-                {member.roles.length > 0 && (
+                {member.groups.length > 0 && (
                   <div className="flex gap-1">
-                    {member.roles.slice(0, 2).map((r) => (
-                      <Badge key={r.id} variant="outline" className="text-[10px] h-4">
-                        {r.name}
+                    {member.groups.slice(0, 2).map((g) => (
+                      <Badge key={g.id} variant="outline" className="text-[10px] h-4">
+                        {g.name}
                       </Badge>
                     ))}
                   </div>
@@ -212,26 +212,6 @@ export function MemberPreviewPanel({ member, onClose, onArchive }: MemberPreview
                 </CardContent>
               </Card>
 
-              {/* Tags */}
-              {member.tags.length > 0 && (
-                <Card>
-                  <CardHeader className="pb-2 pt-3 px-3">
-                    <CardTitle className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Tags
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="px-3 pb-3">
-                    <div className="flex flex-wrap gap-1">
-                      {member.tags.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
               {/* Metadata */}
               <div className="text-xs text-muted-foreground space-y-0.5 pt-1">
                 <p>Added {formatDate(member.createdAt)}</p>
@@ -277,11 +257,8 @@ export function MemberPreviewPanel({ member, onClose, onArchive }: MemberPreview
                 <div className="space-y-2">
                   {member.groups.map((g) => (
                     <Card key={g.id}>
-                      <CardContent className="p-3 flex items-center justify-between">
+                      <CardContent className="p-3">
                         <p className="text-sm font-medium">{g.name}</p>
-                        <Badge variant="outline" className="text-[10px] h-4 capitalize">
-                          {g.role.toLowerCase().replace("_", " ")}
-                        </Badge>
                       </CardContent>
                     </Card>
                   ))}

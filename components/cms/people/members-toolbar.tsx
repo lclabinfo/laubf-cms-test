@@ -34,7 +34,6 @@ const columnLabels: Record<string, string> = {
   membershipStatus: "Status",
   households: "Household",
   groups: "Groups",
-  roles: "Roles",
   createdAt: "Date Added",
 }
 

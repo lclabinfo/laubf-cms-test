@@ -3560,38 +3560,6 @@ async function main() {
   }
   console.log(`  Created ${Object.keys(personRecords).length} people (speakers only)`)
 
-  // --- Person Tags ---
-  const tagAssignments: [string, string[]][] = [
-    ['william-larsen', ['shepherd', 'bible-teacher', 'leader']],
-    ['john-kwon', ['shepherd', 'bible-teacher', 'leader']],
-    ['david-park', ['shepherd', 'bible-teacher', 'leader']],
-    ['robert-fishman', ['campus-minister', 'bible-teacher']],
-    ['ron-ward', ['bible-teacher']],
-    ['troy-segale', ['campus-minister', 'bible-teacher']],
-    ['frank-holman', ['bible-teacher']],
-    ['david-min', ['bible-teacher']],
-    ['paul-im', ['bible-teacher']],
-    ['paul-lim', ['bible-teacher']],
-    ['john-baik', ['bible-teacher']],
-    ['moses-yoon', ['bible-teacher']],
-    ['timothy-cho', ['bible-teacher']],
-    ['james-park', ['bible-teacher']],
-    ['andrew-cuevas', ['bible-teacher']],
-    ['joshua-lopez', ['bible-teacher']],
-    ['juan-perez', ['bible-teacher']],
-    ['jason-koch', ['bible-teacher']],
-    ['isiah-pulido', ['bible-teacher']],
-  ]
-
-  for (const [slug, tags] of tagAssignments) {
-    for (const tagName of tags) {
-      await prisma.personTag.create({
-        data: { personId: personRecords[slug], tagName },
-      })
-    }
-  }
-  console.log('  Created person tags')
-
   // --- Communication Preferences ---
   const commPrefs: [string, 'EMAIL' | 'SMS' | 'PHONE' | 'MAIL', string, boolean][] = [
     ['william-larsen', 'EMAIL', 'general', true],
@@ -3608,25 +3576,14 @@ async function main() {
   }
   console.log('  Created communication preferences')
 
-  // --- Person Role Definitions (system + custom) ---
-  const speakerRole = await prisma.personRoleDefinition.create({
-    data: { churchId, name: 'Speaker', slug: 'speaker', description: 'Sermon and Bible study speakers', isSystem: true, color: '#6366f1', icon: 'mic', sortOrder: 1 },
-  })
+  // --- Person Role Definitions (Groups in UI) ---
   const pastorRole = await prisma.personRoleDefinition.create({
-    data: { churchId, name: 'Pastor', slug: 'pastor', description: 'Church pastors and shepherds', isSystem: true, color: '#8b5cf6', icon: 'shield', sortOrder: 2 },
+    data: { churchId, name: 'Pastor', slug: 'pastor', description: 'Church pastors and shepherds', isSystem: true, color: '#8b5cf6', icon: 'shield', sortOrder: 1 },
   })
   const bibleStudyLeaderRole = await prisma.personRoleDefinition.create({
-    data: { churchId, name: 'Bible Study Leader', slug: 'bible-study-leader', description: 'Leaders who facilitate Bible study groups', isSystem: false, color: '#10b981', icon: 'book-open', sortOrder: 3 },
+    data: { churchId, name: 'Bible Study Leader', slug: 'bible-study-leader', description: 'Leaders who facilitate Bible study groups', isSystem: false, color: '#10b981', icon: 'book-open', sortOrder: 2 },
   })
-  console.log('  Created 3 role definitions (2 system + 1 custom)')
-
-  // --- Assign Speaker role to all speakers ---
-  for (const sp of speakerPersonData) {
-    await prisma.personRoleAssignment.create({
-      data: { personId: personRecords[sp.slug], roleId: speakerRole.id, title: sp.title },
-    })
-  }
-  console.log(`  Assigned Speaker role to ${speakerPersonData.length} people`)
+  console.log('  Created 2 group definitions (1 system + 1 custom)')
 
   // --- Assign Pastor role ---
   const pWilliam = personRecords['william-larsen']

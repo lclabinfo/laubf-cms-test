@@ -84,7 +84,7 @@ model Church {
   // People & Member Management
   people                 Person[]
   households             Household[]
-  personGroups           PersonGroup[]
+  // personGroups removed (system uses PersonRoleDefinition as "Groups" in UI)
   customFieldDefinitions CustomFieldDefinition[]
   personNotes            PersonNote[]
   personRoleDefinitions  PersonRoleDefinition[]
@@ -1443,11 +1443,9 @@ model Person {
   church                  Church                  @relation(fields: [churchId], references: [id], onDelete: Cascade)
   householdMemberships    HouseholdMember[]
   primaryHouseholds       Household[]             @relation("HouseholdPrimaryContact")
-  groupMemberships        PersonGroupMember[]
   customFieldValues       CustomFieldValue[]
   personNotes             PersonNote[]
   communicationPreferences CommunicationPreference[]
-  personTags              PersonTag[]
   roleAssignments         PersonRoleAssignment[]
 
   @@unique([churchId, slug])
@@ -1524,83 +1522,9 @@ enum HouseholdRole {
   DEPENDENT
 }
 
-model PersonGroup {
-  id              String      @id @default(uuid()) @db.Uuid
-  churchId        String      @db.Uuid
-  name            String
-  slug            String
-  description     String?     @db.Text
-  groupType       GroupType   @default(SMALL_GROUP)
-
-  // Hierarchy
-  parentGroupId   String?     @db.Uuid
-  parent          PersonGroup?  @relation("PersonGroupTree", fields: [parentGroupId], references: [id])
-  children        PersonGroup[] @relation("PersonGroupTree")
-
-  // Meeting info
-  meetingSchedule String?
-  meetingLocation String?
-
-  // Settings
-  isOpen          Boolean     @default(true)
-  capacity        Int?
-  photoUrl        String?
-  status          GroupStatus @default(ACTIVE)
-
-  // Metadata
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  deletedAt       DateTime?
-
-  // Relations
-  church          Church              @relation(fields: [churchId], references: [id], onDelete: Cascade)
-  members         PersonGroupMember[]
-
-  @@unique([churchId, slug])
-  @@index([churchId])
-  @@index([churchId, groupType])
-  @@index([churchId, status])
-  @@index([churchId, parentGroupId])
-}
-
-enum GroupType {
-  SMALL_GROUP
-  SERVING_TEAM
-  MINISTRY
-  CLASS
-  ADMINISTRATIVE
-  CUSTOM
-}
-
-enum GroupStatus {
-  ACTIVE
-  INACTIVE
-  ARCHIVED
-}
-
-model PersonGroupMember {
-  id        String          @id @default(uuid()) @db.Uuid
-  groupId   String          @db.Uuid
-  personId  String          @db.Uuid
-  role      GroupMemberRole  @default(MEMBER)
-  joinedAt  DateTime        @default(now())
-  leftAt    DateTime?
-
-  createdAt DateTime        @default(now())
-
-  group     PersonGroup     @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  person    Person          @relation(fields: [personId], references: [id], onDelete: Cascade)
-
-  @@unique([groupId, personId])
-  @@index([groupId])
-  @@index([personId])
-}
-
-enum GroupMemberRole {
-  LEADER
-  CO_LEADER
-  MEMBER
-}
+// PersonGroup, PersonGroupMember, GroupType, GroupStatus, GroupMemberRole
+// REMOVED — the "Groups" concept in the UI is now powered by PersonRoleDefinition + PersonRoleAssignment.
+// See docs/07_product-thinking/01-people-system-tags-roles-groups.md for rationale.
 
 model CustomFieldDefinition {
   id          String          @id @default(uuid()) @db.Uuid
@@ -1708,19 +1632,8 @@ enum CommunicationChannel {
   MAIL
 }
 
-model PersonTag {
-  id        String   @id @default(uuid()) @db.Uuid
-  personId  String   @db.Uuid
-  tagName   String
-
-  createdAt DateTime @default(now())
-
-  person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
-
-  @@unique([personId, tagName])
-  @@index([personId])
-  @@index([tagName])
-}
+// PersonTag model REMOVED — tags feature eliminated per product decision.
+// See docs/07_product-thinking/01-people-system-tags-roles-groups.md for rationale.
 
 model PersonRoleDefinition {
   id          String   @id @default(uuid()) @db.Uuid
