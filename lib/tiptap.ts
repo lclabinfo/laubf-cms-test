@@ -634,6 +634,19 @@ const SpacerAwareListItem = ListItem.extend({
         view.dispatch(tr)
         return true
       },
+
+      // Restore default ListItem Tab shortcuts (overriding addKeyboardShortcuts
+      // replaces the entire map, so these must be re-declared explicitly).
+      // Always return true when inside a list to prevent Tab from moving focus
+      // out of the editor, even when sink/lift can't be performed.
+      Tab: () => {
+        if (this.editor.commands.sinkListItem(this.name)) return true
+        return this.editor.isActive("listItem")
+      },
+      "Shift-Tab": () => {
+        if (this.editor.commands.liftListItem(this.name)) return true
+        return this.editor.isActive("listItem")
+      },
     }
   },
 })
