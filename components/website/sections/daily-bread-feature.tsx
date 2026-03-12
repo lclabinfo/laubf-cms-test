@@ -292,6 +292,27 @@ export default function DailyBreadFeatureSection({
 
   const entry = content.dailyBread
 
+  /* ── Lock body scroll & hide footer (reader-mode layout) ── */
+  useEffect(() => {
+    if (!entry) return
+    document.body.style.overflow = "hidden"
+    document.body.classList.add("daily-bread-active")
+    return () => {
+      document.body.style.overflow = "unset"
+      document.body.classList.remove("daily-bread-active")
+    }
+  }, [entry])
+
+  /* ── Measure navbar so the container fills remaining viewport ── */
+  const [navHeight, setNavHeight] = useState(0)
+  useEffect(() => {
+    const nav = document.querySelector("nav")?.closest("[class*='sticky'], [class*='fixed']") as HTMLElement
+      || document.querySelector("nav")?.parentElement?.parentElement as HTMLElement
+    if (nav) {
+      setNavHeight(nav.getBoundingClientRect().height)
+    }
+  }, [])
+
   /* Sanitize HTML content from the database */
   const sanitizedBibleText = useMemo(
     () => DOMPurify.sanitize(entry?.bibleText || "<p>Scripture text not available.</p>"),
@@ -318,12 +339,16 @@ export default function DailyBreadFeatureSection({
         <EmptyState t={t} />
       ) : (
         <>
-          <div ref={containerRef} className="flex">
+          <div
+            ref={containerRef}
+            className="flex overflow-hidden"
+            style={{ height: navHeight ? `calc(100dvh - ${navHeight}px)` : '100dvh' }}
+          >
             {/* ── Left Sidebar — Scripture (desktop, resizable, animated) ── */}
             <div
               style={{ width: showSidebar ? `${splitRatio}%` : '0%' }}
               className={cn(
-                "hidden lg:flex flex-col border-r h-screen sticky top-0 overflow-hidden transition-[width] duration-300 ease-in-out",
+                "hidden lg:flex flex-col border-r h-full overflow-hidden transition-[width] duration-300 ease-in-out",
                 t.surfaceBg,
                 t.borderColor,
                 !showSidebar && "border-r-0"
@@ -334,7 +359,7 @@ export default function DailyBreadFeatureSection({
                 showSidebar ? "opacity-100" : "opacity-0"
               )}>
                 {/* Sidebar Header */}
-                <div className={cn("border-b px-6 pt-6 pb-4 flex items-center justify-between", t.borderColor, t.surfaceBg)}>
+                <div className={cn("border-b px-6 pt-6 pb-4 flex items-center justify-between flex-none", t.borderColor, t.surfaceBg)}>
                   <div className={cn("flex items-center gap-2 px-4 py-2 rounded-full w-fit", t.btnPrimaryBg, t.btnPrimaryText)}>
                     <BookOpen className="w-3.5 h-3.5" />
                     <span className="text-xs font-medium uppercase tracking-wider">
@@ -349,8 +374,8 @@ export default function DailyBreadFeatureSection({
                   </button>
                 </div>
 
-                {/* Sidebar Content */}
-                <div className="flex-1 overflow-y-auto">
+                {/* Sidebar Content — independently scrollable */}
+                <div className="flex-1 overflow-y-auto scrollbar-hide">
                   <div className="max-w-[570px] mx-auto px-8 pt-8 pb-40">
                     <div className={cn("flex items-center border-b pb-4 mb-6", t.borderColor)}>
                       <h2 className={cn("text-[20px] font-bold uppercase tracking-tight", t.textPrimary)}>
@@ -393,8 +418,8 @@ export default function DailyBreadFeatureSection({
               </div>
             </div>
 
-            {/* ── Main Content ── */}
-            <div className="flex-1 min-w-0">
+            {/* ── Main Content — independently scrollable ── */}
+            <div className="flex-1 min-w-0 h-full overflow-y-auto scrollbar-hide">
               <div
                 className={cn(
                   "mx-auto px-6 sm:px-12 pt-10 sm:pt-14",
