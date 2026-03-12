@@ -282,6 +282,9 @@ import { readFileSync } from 'fs'
 const bibleStudyContent: Record<string, { questions?: string; answers?: string; transcript?: string }> =
   JSON.parse(readFileSync('scripts/bible-study-content.json', 'utf-8'))
 
+// --- Event descriptions (large TipTap JSON stored externally) ---
+const WMC_2026_DESCRIPTION = readFileSync('prisma/seed-data/wmc-2026-description.json', 'utf-8').trim()
+
 // --- Videos ---
 const VIDEOS = [
   { slug: "nayac-2026-promo", title: "2026 North American Young Adult Conference (NAYAC) Promo", youtubeId: "IIEB_svkXRc", category: "Promo", datePublished: "2026-01-15", duration: "2:15", description: "Get ready for NAYAC 2026!", isShort: false },
@@ -367,26 +370,27 @@ const DAILY_BREADS = [
   { slug: "kiss-the-son", title: "Kiss The Son", date: "2026-03-11", passage: "Psalm 2:1-12", keyVerse: "12", author: "P. Abraham Kim", body: "<p>The kings of this world rule as if they could control the world. But in reality, the One enthroned in heaven has power over all things.</p><p>The author advises us to \"kiss the Son\" (12). Let us fear his greatness and rejoice in his victory over death.</p><p><strong>Prayer:</strong> Father, thank you for giving us your Son Jesus.</p><p><strong>One Word:</strong> Kiss the Son, Jesus</p>" },
 ]
 
-// --- Events (recurring meetings only — matches Quick Links on live site) ---
+// --- Events (recurring meetings + 2026 schedule) ---
 const EVENTS: Array<{
   slug: string; title: string; type: string; dateStart: string; dateEnd?: string;
-  startTime?: string; endTime?: string; location?: string; description?: string;
+  startTime?: string; endTime?: string; location?: string;
+  shortDescription?: string; description?: string; coverImage?: string;
   ministry?: string; campus?: string; isRecurring: boolean; isFeatured?: boolean;
   meetingUrl?: string; recurrenceType?: string; recurrenceDays?: string[];
   recurrenceSchedule?: string; registrationUrl?: string;
 }> = [
   // ── Recurring meetings ──
-  { slug: "daily-bread-meeting", title: "Daily Bread & Prayer Meeting", type: "meeting", dateStart: "2026-02-01", startTime: "6:00 AM", endTime: "7:00 AM", location: "LA UBF Main Center", description: "Start your morning in the Word.", ministry: "church-wide", isRecurring: true, meetingUrl: "https://us02web.zoom.us/j/86540458764?pwd=ZDVUUjZDOVZ4WlJFc1VvNVlzd2tkQT09", recurrenceType: "weekly", recurrenceDays: ["MON", "TUE", "WED", "THU", "FRI"], recurrenceSchedule: "Mon-Fri @ 6 AM" },
-  { slug: "evening-prayer-meeting", title: "Evening Prayer Meeting", type: "meeting", dateStart: "2026-02-01", startTime: "7:30 PM", endTime: "8:00 PM", location: "LA UBF Main Center", description: "A daily evening prayer meeting.", ministry: "church-wide", isRecurring: true, meetingUrl: "https://meet.google.com/pgm-trah-moc", recurrenceType: "daily", recurrenceDays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"], recurrenceSchedule: "Every Day @ 7:30 PM" },
-  { slug: "mens-bible-study", title: "Men's Bible Study", type: "meeting", dateStart: "2026-02-01", startTime: "8:00 AM", endTime: "10:00 AM", location: "LA UBF Main Center", description: "A weekly gathering for men to study Scripture.", ministry: "church-wide", isRecurring: true, recurrenceType: "weekly", recurrenceDays: ["SAT"], recurrenceSchedule: "Sat @ 8 AM" },
-  { slug: "sunday-livestream", title: "Sunday Livestream", type: "meeting", dateStart: "2026-02-01", startTime: "11:00 AM", endTime: "12:30 PM", location: "LA UBF Main Center / YouTube Live", description: "Join our Sunday worship service in person or watch the livestream.", ministry: "church-wide", campus: "all", isRecurring: true, meetingUrl: "https://www.youtube.com/@LAUBF/streams", recurrenceType: "weekly", recurrenceDays: ["SUN"], recurrenceSchedule: "Sun @ 11 AM" },
+  { slug: "daily-bread-meeting", title: "Daily Bread & Prayer Meeting", type: "meeting", dateStart: "2026-02-01", startTime: "6:00 AM", endTime: "7:00 AM", location: "LA UBF Main Center", shortDescription: "Start your morning in the Word.", ministry: "church-wide", isRecurring: true, meetingUrl: "https://us02web.zoom.us/j/86540458764?pwd=ZDVUUjZDOVZ4WlJFc1VvNVlzd2tkQT09", recurrenceType: "weekly", recurrenceDays: ["MON", "TUE", "WED", "THU", "FRI"], recurrenceSchedule: "Mon-Fri @ 6 AM" },
+  { slug: "evening-prayer-meeting", title: "Evening Prayer Meeting", type: "meeting", dateStart: "2026-02-01", startTime: "7:30 PM", endTime: "8:00 PM", location: "LA UBF Main Center", shortDescription: "A daily evening prayer meeting.", ministry: "church-wide", isRecurring: true, meetingUrl: "https://meet.google.com/pgm-trah-moc", recurrenceType: "daily", recurrenceDays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"], recurrenceSchedule: "Every Day @ 7:30 PM" },
+  { slug: "mens-bible-study", title: "Men's Bible Study", type: "meeting", dateStart: "2026-02-01", startTime: "8:00 AM", endTime: "10:00 AM", location: "LA UBF Main Center", shortDescription: "A weekly gathering for men to study Scripture.", ministry: "church-wide", isRecurring: true, recurrenceType: "weekly", recurrenceDays: ["SAT"], recurrenceSchedule: "Sat @ 8 AM" },
+  { slug: "sunday-livestream", title: "Sunday Livestream", type: "meeting", dateStart: "2026-02-01", startTime: "11:00 AM", endTime: "12:30 PM", location: "LA UBF Main Center / YouTube Live", shortDescription: "Join our Sunday worship service in person or watch the livestream.", ministry: "church-wide", campus: "all", isRecurring: true, meetingUrl: "https://www.youtube.com/@LAUBF/streams", recurrenceType: "weekly", recurrenceDays: ["SUN"], recurrenceSchedule: "Sun @ 11 AM" },
   // ── 2026 events (from LA UBF schedule) ──
-  { slug: "spring-bible-academy-2026", title: "Spring Bible Academy", type: "event", dateStart: "2026-03-05", dateEnd: "2026-03-06", location: "LA UBF Main Center", description: "A 2-day intensive Bible academy for deeper study and training.", ministry: "church-wide", isRecurring: false, isFeatured: true },
-  { slug: "spring-bible-conference-2026", title: "Spring Bible Conference", type: "event", dateStart: "2026-04-03", dateEnd: "2026-04-05", location: "LA UBF Main Center", description: "Our annual Spring Bible Conference — 3 days of worship, study, and fellowship.", ministry: "church-wide", isRecurring: false, isFeatured: true },
-  { slug: "world-mission-conference-2026", title: "World Mission Conference", type: "event", dateStart: "2026-05-17", dateEnd: "2026-05-22", location: "TBD", description: "A 6-day conference focused on world mission and the Great Commission.", ministry: "church-wide", isRecurring: false, isFeatured: true },
-  { slug: "na-young-adult-conference-2026", title: "NA Young Adult Conference", type: "event", dateStart: "2026-05-29", dateEnd: "2026-06-01", location: "TBD", description: "North America Young Adult Conference — 4 days of fellowship, worship, and Bible study for young adults.", ministry: "young-adult", isRecurring: false },
-  { slug: "jbf-hbf-conference-2026", title: "JBF/HBF Conference", type: "event", dateStart: "2026-07-17", dateEnd: "2026-07-19", location: "TBD", description: "A 3-day conference for middle and high school students.", ministry: "high-school", isRecurring: false },
-  { slug: "summer-bible-conference-2026", title: "Summer Bible Conference", type: "event", dateStart: "2026-07-24", dateEnd: "2026-07-26", location: "TBD", description: "Our annual Summer Bible Conference — 3 days of worship, study, and fellowship.", ministry: "church-wide", isRecurring: false },
+  { slug: "spring-bible-academy", title: "Spring Bible Academy", type: "event", dateStart: "2026-03-05", dateEnd: "2026-03-06", startTime: "19:00", location: "LA UBF Main Center", shortDescription: "A 2-day intensive Bible academy for deeper study and training.", description: '{"type":"doc","content":[{"type":"paragraph","attrs":{"indent":0,"hangingIndent":false,"textAlign":null,"lineHeight":null,"spacingBefore":null,"spacingAfter":null},"content":[{"type":"text","marks":[{"type":"bold"}],"text":"Born Again Bible Academy"},{"type":"text","text":" is a two-day gathering where we\'ll explore what Jesus meant when He said, "},{"type":"text","marks":[{"type":"italic"}],"text":"\u201cYou must be born again.\u201d"},{"type":"text","text":" Through messages, testimonies, praise and worship, fellowship, and Bible study, we\'ll take time to reflect on what it means to experience new life through the Spirit."}]},{"type":"paragraph","attrs":{"indent":0,"hangingIndent":false,"textAlign":null,"lineHeight":null,"spacingBefore":null,"spacingAfter":null}},{"type":"paragraph","attrs":{"indent":0,"hangingIndent":false,"textAlign":null,"lineHeight":null,"spacingBefore":null,"spacingAfter":null},"content":[{"type":"text","text":"Join us on "},{"type":"text","marks":[{"type":"bold"}],"text":"March 5\u20136 at 7 PM"},{"type":"text","text":" as we learn, worship, and spend time together in God\u2019s word."}]},{"type":"paragraph","attrs":{"indent":0,"hangingIndent":false,"textAlign":null,"lineHeight":null,"spacingBefore":null,"spacingAfter":null},"content":[{"type":"text","text":"\ud83d\udccd "},{"type":"text","marks":[{"type":"bold"}],"text":"11625 Paramount Blvd, Downey, CA"}]}]}', coverImage: "https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/images/2026/697d5cf7-4b34-47aa-a718-6d271ca0a1b6-born-again.webp", isRecurring: false },
+  { slug: "spring-bible-conference-2026", title: "Spring Bible Conference", type: "event", dateStart: "2026-04-03", dateEnd: "2026-04-05", location: "LA UBF Main Center", shortDescription: "Our annual Spring Bible Conference — 3 days of worship, study, and fellowship.", ministry: "church-wide", isRecurring: false, isFeatured: true },
+  { slug: "world-mission-congress-2026", title: "World Mission Congress 2026", type: "event", dateStart: "2026-05-17", dateEnd: "2026-05-22", location: "Korea", description: WMC_2026_DESCRIPTION, coverImage: "https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/images/2026/02b9afdf-143c-465a-bcd1-b8debf3acf37-wmc.jpg", isRecurring: false, isFeatured: true, registrationUrl: "https://2026wmcubf.org/" },
+  { slug: "na-young-adult-conference", title: "NA Young Adult Conference", type: "event", dateStart: "2026-05-29", dateEnd: "2026-06-01", location: "TBD", shortDescription: "North America Young Adult Conference — 4 days of fellowship, worship, and Bible study for young adults.", description: '{"type":"doc","content":[{"type":"paragraph","attrs":{"indent":0,"hangingIndent":false,"textAlign":null,"lineHeight":null,"spacingBefore":null,"spacingAfter":null},"content":[{"type":"text","text":"A conference for young people who want to have fellowship and encounter who is Jesus"}]},{"type":"paragraph","attrs":{"indent":0,"hangingIndent":false,"textAlign":null,"lineHeight":null,"spacingBefore":"0","spacingAfter":"0"},"content":[{"type":"text","text":"If you are a"},{"type":"text","marks":[{"type":"bold"}],"text":" young adult (19-35 years old)"},{"type":"text","text":", you are invited to join! More info at "},{"type":"text","marks":[{"type":"link","attrs":{"href":"https://ubf-nayac.org/","target":"_blank","rel":"noopener noreferrer","class":null,"title":null}}],"text":"https://ubf-nayac.org/"},{"type":"text","text":" Registration closes May 3, 2026."}]}]}', coverImage: "https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/images/2026/63291050-fe7d-40ce-9a9f-637f75bd85e9-nayac.webp", ministry: "young-adult", isRecurring: false, isFeatured: true, registrationUrl: "https://ubf-nayac.org" },
+  { slug: "jbf-hbf-conference-2026", title: "JBF/HBF Conference", type: "event", dateStart: "2026-07-17", dateEnd: "2026-07-19", location: "TBD", shortDescription: "A 3-day conference for middle and high school students.", ministry: "high-school", isRecurring: false },
+  { slug: "summer-bible-conference-2026", title: "Summer Bible Conference", type: "event", dateStart: "2026-07-24", dateEnd: "2026-07-26", location: "TBD", shortDescription: "Our annual Summer Bible Conference — 3 days of worship, study, and fellowship.", ministry: "church-wide", isRecurring: false },
 ]
 
 // --- Ministry labels ---
@@ -890,7 +894,9 @@ async function main() {
         startTime: evt.startTime || null,
         endTime: evt.endTime || null,
         location: evt.location,
-        shortDescription: evt.description,
+        shortDescription: evt.shortDescription || null,
+        description: evt.description || null,
+        coverImage: evt.coverImage || null,
         ministryId: evt.ministry ? ministryMap.get(evt.ministry) || null : null,
         campusId: evt.campus ? campusMap.get(evt.campus) || null : null,
         isFeatured: evt.isFeatured || false,
@@ -1546,6 +1552,7 @@ async function main() {
         sectionType: 'EVENT_CALENDAR',
         label: 'Schedule',
         colorScheme: 'LIGHT',
+        paddingY: 'COMPACT',
         content: {
           heading: 'Schedule',
           filters: ['ALL', 'Events', 'Meetings', 'Programs'],

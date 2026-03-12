@@ -29,6 +29,7 @@ interface Event {
   description?: string
   isRecurring?: boolean
   recurrenceSchedule?: string
+  recurrenceDays?: string[]
   meetingUrl?: string
 }
 
@@ -120,7 +121,7 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
 
   return (
     <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
-      <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-6">
         {/* Schedule heading */}
         <AnimateOnScroll animation="fade-up" enabled={animate}>
           <h2 className="text-h2 text-black-1">{content.heading}</h2>
@@ -128,29 +129,8 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
 
         {/* Calendar/List container */}
         <div className="flex flex-col gap-5">
-          {/* Header row: month toggle + view toggle */}
+          {/* Header row: view toggle (left) + month nav (right, calendar only) */}
           <div className="flex flex-wrap items-center justify-between gap-3">
-            {/* Month navigation */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={goToPrevMonth}
-                className="flex size-8 items-center justify-center rounded-full border border-white-2 text-black-2 transition-colors hover:bg-white-1-5"
-                aria-label="Previous month"
-              >
-                <IconChevronLeft className="size-4" />
-              </button>
-              <h3 className="min-w-[180px] text-center text-[16px] font-medium uppercase tracking-wide text-black-1">
-                {monthLabel}
-              </h3>
-              <button
-                onClick={goToNextMonth}
-                className="flex size-8 items-center justify-center rounded-full border border-white-2 text-black-2 transition-colors hover:bg-white-1-5"
-                aria-label="Next month"
-              >
-                <IconChevronRight className="size-4" />
-              </button>
-            </div>
-
             {/* List / Month toggle */}
             <div className="flex rounded-[14px] bg-white-2 p-1">
               <button
@@ -178,6 +158,29 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
                 <span>Month</span>
               </button>
             </div>
+
+            {/* Month navigation — only visible in calendar view */}
+            {viewMode === "calendar" && (
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={goToPrevMonth}
+                  className="flex size-8 items-center justify-center rounded-full border border-white-2 text-black-2 transition-colors hover:bg-white-1-5"
+                  aria-label="Previous month"
+                >
+                  <IconChevronLeft className="size-4" />
+                </button>
+                <h3 className="min-w-[180px] text-center text-[16px] font-medium uppercase tracking-wide text-black-1">
+                  {monthLabel}
+                </h3>
+                <button
+                  onClick={goToNextMonth}
+                  className="flex size-8 items-center justify-center rounded-full border border-white-2 text-black-2 transition-colors hover:bg-white-1-5"
+                  aria-label="Next month"
+                >
+                  <IconChevronRight className="size-4" />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Filter pills + upcoming count */}
@@ -198,10 +201,10 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
                 </button>
               ))}
             </div>
-            {viewMode === "list" && (
+            {viewMode === "calendar" && (
               <div className="hidden sm:flex items-center gap-2">
                 <span className="text-[14px] text-black-3">
-                  Upcoming in {upcomingMonthName}
+                  Events in {upcomingMonthName}
                 </span>
                 <span className="flex size-[26px] items-center justify-center rounded-full bg-black-1 text-[12px] font-medium text-white-0">
                   {monthEvents.length}
@@ -212,7 +215,7 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
 
           {/* Content: List or Calendar */}
           {viewMode === "list" ? (
-            <EventListView events={monthEvents} filteredAll={filteredEvents} />
+            <EventListView events={filteredEvents} filteredAll={filteredEvents} />
           ) : (
             <EventCalendarGrid events={filteredEvents} month={currentMonth} year={currentYear} />
           )}
@@ -246,7 +249,7 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
 /* ── List view with UPCOMING / RECURRING groups ── */
 
 const UPCOMING_LIMIT = 5
-const RECURRING_LIMIT = 3
+const RECURRING_LIMIT = 4
 
 function EventListView({
   events,
@@ -280,7 +283,7 @@ function EventListView({
   if (!hasUpcoming && !hasRecurring) {
     return (
       <div className="flex items-center justify-center py-16">
-        <p className="text-body-2 text-black-3">No events this month.</p>
+        <p className="text-body-2 text-black-3">No upcoming events.</p>
       </div>
     )
   }

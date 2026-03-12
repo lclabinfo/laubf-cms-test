@@ -40,10 +40,23 @@ const TYPE_BLOCK_COLORS: Record<string, string> = {
   program: "bg-black-3 text-white-0",
 }
 
+/* Subtle/faint colors for recurring events */
+const TYPE_BLOCK_COLORS_RECURRING: Record<string, string> = {
+  meeting: "bg-accent-green/20 text-accent-green",
+  event: "bg-accent-blue/20 text-accent-blue",
+  program: "bg-black-3/15 text-black-3",
+}
+
 const TYPE_PILL_COLORS: Record<string, string> = {
   meeting: "bg-accent-green",
   event: "bg-accent-blue",
   program: "bg-black-3",
+}
+
+const TYPE_PILL_COLORS_RECURRING: Record<string, string> = {
+  meeting: "bg-accent-green/40",
+  event: "bg-accent-blue/40",
+  program: "bg-black-3/30",
 }
 
 /* ---- Types ---- */
@@ -59,6 +72,7 @@ interface CalendarEvent {
   description?: string
   isRecurring?: boolean
   recurrenceSchedule?: string
+  recurrenceDays?: string[]
   meetingUrl?: string
 }
 
@@ -207,13 +221,40 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
     return result
   }, [calendarDays])
 
+  /* ---- Expand recurring events into per-day synthetic entries ---- */
+  const expandedEvents = useMemo(() => {
+    const DAY_MAP: Record<string, number> = { SUN: 0, MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6 }
+    const nonRecurring = events.filter((e) => !e.isRecurring)
+    const recurring = events.filter((e) => e.isRecurring && e.recurrenceDays && e.recurrenceDays.length > 0)
+
+    const synthetics: CalendarEvent[] = []
+    if (calendarDays.length === 0) return nonRecurring
+
+    for (const evt of recurring) {
+      const targetDays = new Set(evt.recurrenceDays!.map((d) => DAY_MAP[d]).filter((n) => n !== undefined))
+      for (const day of calendarDays) {
+        const dayDate = new Date(day.key + "T00:00:00")
+        if (targetDays.has(dayDate.getDay())) {
+          synthetics.push({
+            ...evt,
+            slug: `${evt.slug}--${day.key}`,
+            dateStart: day.key,
+            dateEnd: undefined,
+          })
+        }
+      }
+    }
+
+    return [...nonRecurring, ...synthetics]
+  }, [events, calendarDays])
+
   /* ---- Build event spans per week (desktop only) ---- */
   const weekEventSpans = useMemo(() => {
     return weeks.map((week) => {
       const weekStartKey = week[0].key
       const weekEndKey = week[6].key
 
-      const overlapping = events.filter((evt) => {
+      const overlapping = expandedEvents.filter((evt) => {
         const evtStart = evt.dateStart
         const evtEnd = evt.dateEnd || evt.dateStart
         return evtStart <= weekEndKey && evtEnd >= weekStartKey
@@ -282,13 +323,13 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
 
       return { spans: placed, dayOverflows }
     })
-  }, [weeks, events])
+  }, [weeks, expandedEvents])
 
   /* ---- Per-day event map (for mobile dots) ---- */
   const dayEventsMap = useMemo(() => {
     const map: Record<string, CalendarEvent[]> = {}
     for (const day of calendarDays) {
-      const dayEvents = events.filter((e) => {
+      const dayEvents = expandedEvents.filter((e) => {
         const end = e.dateEnd || e.dateStart
         return e.dateStart <= day.key && end >= day.key
       })
@@ -297,18 +338,18 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
       }
     }
     return map
-  }, [calendarDays, events])
+  }, [calendarDays, expandedEvents])
 
   /* ---- Events for expanded day ---- */
   const expandedDayEvents = useMemo(() => {
     if (!expandedDayKey) return []
-    return events
+    return expandedEvents
       .filter((e) => {
         const end = e.dateEnd || e.dateStart
         return e.dateStart <= expandedDayKey && end >= expandedDayKey
       })
       .sort((a, b) => a.time.localeCompare(b.time))
-  }, [events, expandedDayKey])
+  }, [expandedEvents, expandedDayKey])
 
   const expandedDayLabel = expandedDayKey
     ? new Date(expandedDayKey + "T00:00:00").toLocaleDateString("en-US", {
@@ -466,7 +507,11 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
                           {dotEvents.map((evt, i) => (
                             <span
                               key={`${evt.slug}-${i}`}
-                              className={`size-[6px] rounded-full ${TYPE_PILL_COLORS[evt.type] ?? "bg-black-3"}`}
+                              className={`size-[6px] rounded-full ${
+                                evt.isRecurring
+                                  ? (TYPE_PILL_COLORS_RECURRING[evt.type] ?? "bg-black-3/30")
+                                  : (TYPE_PILL_COLORS[evt.type] ?? "bg-black-3")
+                              }`}
                             />
                           ))}
                           {overflowCount > 0 && (
@@ -497,13 +542,16 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
                   </div>
 
                   {/* Positioned event spans */}
-                  {visibleSpans.map((s, i) => (
+                  {visibleSpans.map((s, i) => {
+                    const isRecurring = s.event.isRecurring
+                    const blockColors = isRecurring
+                      ? (TYPE_BLOCK_COLORS_RECURRING[s.event.type] ?? "bg-black-3/15 text-black-3")
+                      : (TYPE_BLOCK_COLORS[s.event.type] ?? "bg-black-3 text-white-0")
+                    return (
                     <button
                       key={`${s.event.slug}-${weekIndex}-${i}`}
                       onClick={() => setSelectedEvent(s.event)}
-                      className={`absolute h-[22px] rounded px-2 text-[11px] font-medium leading-[22px] truncate cursor-pointer transition-all hover:brightness-90 z-10 ${
-                        TYPE_BLOCK_COLORS[s.event.type] ?? "bg-black-3 text-white-0"
-                      } ${s.isContinuation ? "rounded-l-none" : ""} ${s.isContinued ? "rounded-r-none" : ""}`}
+                      className={`absolute h-[22px] rounded px-2 text-[11px] font-medium leading-[22px] truncate cursor-pointer transition-all hover:brightness-90 z-10 ${blockColors} ${s.isContinuation ? "rounded-l-none" : ""} ${s.isContinued ? "rounded-r-none" : ""}`}
                       style={{
                         top: `${s.row * EVENT_ROW_H + 2}px`,
                         left: `calc(${(s.startCol / 7) * 100}% + 2px)`,
@@ -518,7 +566,8 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
                       )}
                       {s.isContinuation && s.event.title}
                     </button>
-                  ))}
+                    )
+                  })}
 
                   {/* Per-day overflow indicators */}
                   {dayOverflows.map((count, colIndex) =>
@@ -656,7 +705,11 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
                   className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-white-1-5"
                 >
                   <span
-                    className={`size-2.5 rounded-full shrink-0 ${TYPE_PILL_COLORS[evt.type] ?? "bg-black-3"}`}
+                    className={`size-2.5 rounded-full shrink-0 ${
+                      evt.isRecurring
+                        ? (TYPE_PILL_COLORS_RECURRING[evt.type] ?? "bg-black-3/30")
+                        : (TYPE_PILL_COLORS[evt.type] ?? "bg-black-3")
+                    }`}
                   />
                   <div className="flex flex-col gap-0.5 min-w-0">
                     <span className="text-[13px] font-medium text-black-1 truncate">

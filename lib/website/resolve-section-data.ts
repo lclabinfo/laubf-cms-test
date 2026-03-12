@@ -114,7 +114,7 @@ export async function resolveSectionData(
       }
 
       case 'upcoming-events': {
-        const events = await getUpcomingEvents(churchId, 10)
+        const events = await getUpcomingEvents(churchId, 100)
         return {
           content,
           resolvedData: {
@@ -130,6 +130,7 @@ export async function resolveSectionData(
               isFeatured: e.isFeatured,
               isRecurring: e.isRecurring,
               recurrenceSchedule: e.recurrenceSchedule || undefined,
+              recurrenceDays: e.recurrenceDays.length > 0 ? e.recurrenceDays : undefined,
               meetingUrl: e.meetingUrl || undefined,
             })),
           },

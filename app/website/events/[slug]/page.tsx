@@ -15,6 +15,7 @@ import {
   IconVideo,
 } from "@/components/website/shared/icons"
 import { resolveHref } from "@/lib/website/resolve-href"
+import { contentToHtml } from "@/lib/tiptap"
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -198,7 +199,7 @@ export default async function EventDetailPage({ params }: PageProps) {
           {event.description && (
             <div
               className="prose prose-lg max-w-none text-black-2 [&_h3]:text-h4 [&_h3]:text-black-1 [&_h3]:mt-8 [&_h3]:mb-3 [&_p]:text-body-1 [&_p]:text-black-2 [&_p]:mb-4 [&_ul]:mb-4 [&_ul]:pl-6 [&_li]:text-body-2 [&_li]:text-black-2 [&_li]:mb-1 [&_strong]:text-black-1"
-              dangerouslySetInnerHTML={{ __html: event.description }}
+              dangerouslySetInnerHTML={{ __html: contentToHtml(event.description) }}
             />
           )}
 
@@ -208,7 +209,7 @@ export default async function EventDetailPage({ params }: PageProps) {
               <h3 className="text-overline text-black-3 uppercase mb-3">Welcome Message</h3>
               <div
                 className="text-body-1 text-black-2"
-                dangerouslySetInnerHTML={{ __html: event.welcomeMessage }}
+                dangerouslySetInnerHTML={{ __html: contentToHtml(event.welcomeMessage) }}
               />
             </div>
           )}
