@@ -316,11 +316,16 @@ export function createColumns(options?: {
   {
     accessorKey: "recurrence",
     header: "Recurrence",
-    cell: ({ row }) => (
-      <span className="text-sm">
-        {recurrenceDisplay[row.original.recurrence]}
-      </span>
-    ),
+    cell: ({ row }) => {
+      if (row.original.recurrence === "none") {
+        return <span className="text-muted-foreground/60 text-sm">&mdash;</span>
+      }
+      return (
+        <span className="text-sm">
+          {recurrenceDisplay[row.original.recurrence]}
+        </span>
+      )
+    },
     filterFn: (row, id, value: string[]) => {
       return value.includes(row.getValue(id))
     },

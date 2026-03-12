@@ -34,6 +34,7 @@ import {
 } from "@/lib/church-profile-data"
 import { BibleVersionSettings } from "./bible-version-settings"
 import { SavedAddressSettings } from "./saved-address-settings"
+import { QuickLinksEditor } from "./quick-links-editor"
 
 // ─── Section names ───────────────────────────────────────────────
 type SectionKey = "identity" | "location" | "contact" | "worship" | "social"
@@ -145,14 +146,33 @@ function ReadOnlyField({
 
 // ─── ProfileForm ─────────────────────────────────────────────────
 
+interface MenuData {
+  menuId: string
+  parentId: string
+  quickLinks: {
+    id: string
+    label: string
+    description: string | null
+    href: string | null
+    iconName: string | null
+    isVisible: boolean
+    isExternal: boolean
+    openInNewTab: boolean
+    sortOrder: number
+    groupLabel: string | null
+    parentId: string | null
+  }[]
+}
+
 interface ProfileFormProps {
   initialData: ChurchProfile
   userId?: string
+  menuData?: MenuData | null
   showHeader?: boolean
   onSave?: (data: ChurchProfile) => Promise<void>
 }
 
-export function ProfileForm({ initialData, userId, showHeader = true, onSave }: ProfileFormProps) {
+export function ProfileForm({ initialData, userId, menuData, showHeader = true, onSave }: ProfileFormProps) {
   // Saved state = last "committed" state; profile = working copy
   const [saved, setSaved] = useState<ChurchProfile>(initialData)
   const [profile, setProfile] = useState<ChurchProfile>(initialData)
@@ -855,6 +875,15 @@ export function ProfileForm({ initialData, userId, showHeader = true, onSave }: 
               )}
             </div>
           </section>
+
+          {/* ── 4b. Quick Links ── */}
+          {menuData && (
+            <QuickLinksEditor
+              menuId={menuData.menuId}
+              parentId={menuData.parentId}
+              initialItems={menuData.quickLinks}
+            />
+          )}
 
           {/* ── 5. Social Media ── */}
           <section className="rounded-xl border bg-card">

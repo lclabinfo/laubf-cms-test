@@ -2,16 +2,34 @@
 
 import { useState, useCallback } from "react"
 import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import {
   Plus,
   Pencil,
   Trash2,
-  ChevronUp,
-  ChevronDown,
+  GripVertical,
   ExternalLink,
-  Eye,
   EyeOff,
+  Eye,
   Loader2,
   Link as LinkIcon,
+  X,
+  Check,
 } from "lucide-react"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
@@ -81,6 +99,133 @@ const emptyForm: FormData = {
   isVisible: true,
 }
 
+/* ── Sortable Item (edit mode) ── */
+
+function SortableQuickLink({
+  item,
+  onEdit,
+  onDelete,
+}: {
+  item: QuickLinkItem
+  onEdit: (item: QuickLinkItem) => void
+  onDelete: (item: QuickLinkItem) => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id })
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+  }
+
+  const Icon = ICON_BY_NAME.get(item.iconName ?? "") ?? LinkIcon
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "rounded-lg border px-3 py-2.5 flex items-center gap-3 bg-card",
+        isDragging && "opacity-50 shadow-lg z-50 relative",
+        !item.isVisible && "opacity-60"
+      )}
+    >
+      {/* Drag handle */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground touch-none"
+      >
+        <GripVertical className="size-4" />
+      </button>
+
+      {/* Icon */}
+      <div className="flex items-center justify-center size-8 rounded-md bg-muted shrink-0">
+        <Icon className="size-4 text-muted-foreground" />
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-medium truncate">{item.label}</p>
+          {!item.isVisible && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">
+              Hidden
+            </Badge>
+          )}
+        </div>
+        {item.href && (
+          <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+            <ExternalLink className="size-3 shrink-0" />
+            {item.href}
+          </p>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-0.5 shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7"
+          onClick={() => onEdit(item)}
+        >
+          <Pencil className="size-3" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7 text-muted-foreground hover:text-destructive"
+          onClick={() => onDelete(item)}
+        >
+          <Trash2 className="size-3" />
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/* ── Read-only item ── */
+
+function ReadOnlyQuickLink({ item }: { item: QuickLinkItem }) {
+  const Icon = ICON_BY_NAME.get(item.iconName ?? "") ?? LinkIcon
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-3",
+        !item.isVisible && "opacity-60"
+      )}
+    >
+      <div className="flex items-center justify-center size-8 rounded-md bg-muted shrink-0">
+        <Icon className="size-4 text-muted-foreground" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-medium truncate">{item.label}</p>
+          {!item.isVisible && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">
+              Hidden
+            </Badge>
+          )}
+        </div>
+        {item.href && (
+          <p className="text-xs text-muted-foreground truncate flex items-center gap-1 mt-0.5">
+            <ExternalLink className="size-3 shrink-0" />
+            {item.href}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /* ── Component ── */
 
 export function QuickLinksEditor({
@@ -89,13 +234,18 @@ export function QuickLinksEditor({
   initialItems,
 }: QuickLinksEditorProps) {
   const [items, setItems] = useState<QuickLinkItem[]>(initialItems)
+  const [editing, setEditing] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormData>(emptyForm)
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<QuickLinkItem | null>(null)
   const [deleting, setDeleting] = useState(false)
-  const [reordering, setReordering] = useState(false)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
 
   // ── Open dialog for add/edit ──
 
@@ -209,19 +359,20 @@ export function QuickLinksEditor({
     }
   }, [deleteTarget, menuId])
 
-  // ── Reorder ──
+  // ── Drag end — reorder and persist ──
 
-  const moveItem = useCallback(
-    async (index: number, direction: "up" | "down") => {
-      const newIndex = direction === "up" ? index - 1 : index + 1
-      if (newIndex < 0 || newIndex >= items.length) return
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event
+      if (!over || active.id === over.id) return
 
-      const reordered = [...items]
-      const [moved] = reordered.splice(index, 1)
-      reordered.splice(newIndex, 0, moved)
+      const oldIndex = items.findIndex((i) => i.id === active.id)
+      const newIndex = items.findIndex((i) => i.id === over.id)
+      if (oldIndex === -1 || newIndex === -1) return
+
+      const reordered = arrayMove(items, oldIndex, newIndex)
       setItems(reordered)
 
-      setReordering(true)
       try {
         const res = await fetch(`/api/v1/menus/${menuId}/items`, {
           method: "PUT",
@@ -232,10 +383,7 @@ export function QuickLinksEditor({
       } catch (err) {
         console.error("Reorder error:", err)
         toast.error("Failed to reorder quick links")
-        // Revert on failure
         setItems(items)
-      } finally {
-        setReordering(false)
       }
     },
     [items, menuId]
@@ -243,118 +391,102 @@ export function QuickLinksEditor({
 
   return (
     <>
-      <div className="max-w-3xl mx-auto space-y-6 pb-20">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-semibold">Quick Links</h2>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              These appear as a floating action button on your public website.
-            </p>
-          </div>
-          <Button size="sm" onClick={openAdd} className="gap-1.5">
-            <Plus className="size-3.5" />
-            Add Quick Link
-          </Button>
+      <section className="rounded-xl border bg-card">
+        {/* Section header — matches SectionHeader pattern */}
+        <div className="px-5 py-3 border-b flex items-center gap-2">
+          <LinkIcon className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold flex-1">Quick Links</h2>
+          {editing ? (
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setEditing(false)}
+                className="h-7 gap-1 text-muted-foreground"
+              >
+                <X className="size-3.5" />
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setEditing(false)}
+                className="h-7 gap-1"
+              >
+                <Check className="size-3.5" />
+                Done
+              </Button>
+            </div>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setEditing(true)}
+              className="h-7 gap-1 text-muted-foreground"
+            >
+              <Pencil className="size-3.5" />
+              Edit
+            </Button>
+          )}
         </div>
 
-        {/* List */}
-        {items.length === 0 ? (
-          <div className="rounded-xl border bg-card p-8 text-center">
-            <LinkIcon className="size-8 text-muted-foreground mx-auto mb-3" />
-            <p className="text-sm font-medium">No quick links yet</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Add links to meetings, livestreams, or other resources your members access often.
-            </p>
-            <Button size="sm" variant="outline" onClick={openAdd} className="mt-4 gap-1.5">
-              <Plus className="size-3.5" />
-              Add Quick Link
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {items.map((item, index) => {
-              const Icon = ICON_BY_NAME.get(item.iconName ?? "") ?? LinkIcon
-              return (
-                <div
-                  key={item.id}
-                  className={cn(
-                    "rounded-xl border bg-card p-4 flex items-center gap-4 transition-opacity",
-                    !item.isVisible && "opacity-60"
-                  )}
+        <div className="p-5">
+          {items.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-6 text-center">
+              <LinkIcon className="size-6 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">No quick links yet</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Add links to meetings, livestreams, or other resources.
+              </p>
+              <Button size="sm" variant="outline" onClick={() => { setEditing(true); openAdd() }} className="mt-3 gap-1.5">
+                <Plus className="size-3.5" />
+                Add Quick Link
+              </Button>
+            </div>
+          ) : editing ? (
+            <>
+              <p className="text-xs text-muted-foreground mb-4">
+                Drag to reorder. These appear as a floating action button on your public website.
+              </p>
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={items.map((i) => i.id)}
+                  strategy={verticalListSortingStrategy}
                 >
-                  {/* Icon */}
-                  <div className="flex items-center justify-center size-10 rounded-lg bg-muted shrink-0">
-                    <Icon className="size-5 text-muted-foreground" />
+                  <div className="space-y-1.5">
+                    {items.map((item) => (
+                      <SortableQuickLink
+                        key={item.id}
+                        item={item}
+                        onEdit={openEdit}
+                        onDelete={setDeleteTarget}
+                      />
+                    ))}
                   </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium truncate">{item.label}</p>
-                      {!item.isVisible && (
-                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0">
-                          Hidden
-                        </Badge>
-                      )}
-                    </div>
-                    {item.description && (
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate">
-                        {item.description}
-                      </p>
-                    )}
-                    {item.href && (
-                      <p className="text-xs text-muted-foreground mt-0.5 truncate flex items-center gap-1">
-                        <ExternalLink className="size-3 shrink-0" />
-                        {item.href}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8"
-                      disabled={index === 0 || reordering}
-                      onClick={() => moveItem(index, "up")}
-                    >
-                      <ChevronUp className="size-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8"
-                      disabled={index === items.length - 1 || reordering}
-                      onClick={() => moveItem(index, "down")}
-                    >
-                      <ChevronDown className="size-4" />
-                    </Button>
-                    <Separator orientation="vertical" className="h-5 mx-1" />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8"
-                      onClick={() => openEdit(item)}
-                    >
-                      <Pencil className="size-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => setDeleteTarget(item)}
-                    >
-                      <Trash2 className="size-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+                </SortableContext>
+              </DndContext>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={openAdd}
+                className="mt-4 gap-1.5"
+              >
+                <Plus className="size-3.5" />
+                Add Quick Link
+              </Button>
+            </>
+          ) : (
+            <div className="space-y-3">
+              {items.map((item) => (
+                <ReadOnlyQuickLink key={item.id} item={item} />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* ── Add/Edit Dialog ── */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

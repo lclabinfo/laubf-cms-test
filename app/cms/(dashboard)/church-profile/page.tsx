@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { ProfileForm } from "@/components/cms/church-profile/profile-form"
-import { QuickLinksEditor } from "@/components/cms/church-profile/quick-links-editor"
 import { useCmsSession } from "@/components/cms/cms-shell"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PageHeader } from "@/components/cms/page-header"
 import type { ChurchProfile } from "@/lib/church-profile-data"
 
@@ -254,46 +252,22 @@ export default function ChurchProfilePage() {
         userId={user.id}
       />
 
-      <Tabs defaultValue="profile" className="flex-1 min-h-0 flex flex-col">
-        <TabsList>
-          <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="quick-links">Quick Links</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="profile" className="flex-1 min-h-0">
-          <ProfileForm
-            initialData={profile!}
-            userId={user.id}
-            showHeader={false}
-            onSave={async (data) => {
-              const res = await fetch("/api/v1/church", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(profileToApi(data)),
-              })
-              if (!res.ok) throw new Error("Failed to save church profile")
-              const json = await res.json()
-              if (!json.success) throw new Error(json.error?.message ?? "Save failed")
-            }}
-          />
-        </TabsContent>
-
-        <TabsContent value="quick-links" className="flex-1 min-h-0 overflow-y-auto p-0.5 -m-0.5">
-          {menuData ? (
-            <QuickLinksEditor
-              menuId={menuData.menuId}
-              parentId={menuData.parentId}
-              initialItems={menuData.quickLinks}
-            />
-          ) : (
-            <div className="max-w-3xl mx-auto py-8 text-center">
-              <p className="text-sm text-muted-foreground">
-                No header menu found. Create a header menu in the Navigation Editor first.
-              </p>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+      <ProfileForm
+        initialData={profile!}
+        userId={user.id}
+        menuData={menuData}
+        showHeader={false}
+        onSave={async (data) => {
+          const res = await fetch("/api/v1/church", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(profileToApi(data)),
+          })
+          if (!res.ok) throw new Error("Failed to save church profile")
+          const json = await res.json()
+          if (!json.success) throw new Error(json.error?.message ?? "Save failed")
+        }}
+      />
     </div>
   )
 }
