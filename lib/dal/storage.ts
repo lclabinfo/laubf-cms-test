@@ -1,7 +1,27 @@
 import { prisma } from '@/lib/db'
+import {
+  S3Client,
+  ListObjectsV2Command,
+} from '@aws-sdk/client-s3'
 
 /** 10 GB default quota per church (in bytes) */
 export const DEFAULT_STORAGE_QUOTA = 10 * 1024 * 1024 * 1024 // 10 GB
+
+/** Lazy-init S3 client for R2 scanning */
+let _s3: S3Client | null = null
+function getS3() {
+  if (!_s3) {
+    _s3 = new S3Client({
+      region: 'auto',
+      endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+      },
+    })
+  }
+  return _s3
+}
 
 /**
  * Get the total storage usage for a church in bytes.
@@ -152,6 +172,55 @@ export async function getStorageBreakdown(churchId: string) {
       .sort((a, b) => b.fileSize - a.fileSize)
       .slice(0, 15),
   }
+}
+
+/**
+ * Scan R2 for system/default files not tracked in the database.
+ * These include custom fonts and default event templates.
+ */
+export async function getDefaultFilesUsage(churchSlug: string): Promise<{
+  totalBytes: number
+  fileCount: number
+  categories: { label: string; bytes: number; fileCount: number }[]
+}> {
+  const s3 = getS3()
+  const mediaBucket = process.env.R2_MEDIA_BUCKET_NAME!
+
+  // Prefixes to scan for non-DB-tracked system files
+  const prefixes = [
+    { prefix: `${churchSlug}/fonts/`, label: 'Custom Fonts' },
+    { prefix: 'defaults/event-templates/', label: 'Event Templates' },
+  ]
+
+  const categories: { label: string; bytes: number; fileCount: number }[] = []
+  let totalBytes = 0
+  let totalCount = 0
+
+  for (const { prefix, label } of prefixes) {
+    let bytes = 0
+    let count = 0
+    let token: string | undefined
+    do {
+      const res = await s3.send(
+        new ListObjectsV2Command({ Bucket: mediaBucket, Prefix: prefix, ContinuationToken: token })
+      )
+      for (const obj of res.Contents ?? []) {
+        if (obj.Size !== undefined) {
+          bytes += obj.Size
+          count++
+        }
+      }
+      token = res.IsTruncated ? res.NextContinuationToken : undefined
+    } while (token)
+
+    if (count > 0) {
+      categories.push({ label, bytes, fileCount: count })
+      totalBytes += bytes
+      totalCount += count
+    }
+  }
+
+  return { totalBytes, fileCount: totalCount, categories }
 }
 
 /**

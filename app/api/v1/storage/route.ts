@@ -4,6 +4,7 @@ import { requireApiAuth } from '@/lib/api/require-auth'
 import {
   getChurchStorageUsage,
   getStorageBreakdown,
+  getDefaultFilesUsage,
   DEFAULT_STORAGE_QUOTA,
   formatBytes,
 } from '@/lib/dal/storage'
@@ -22,19 +23,24 @@ export async function GET(request: NextRequest) {
     const detail = request.nextUrl.searchParams.get('detail') === 'true'
 
     if (detail) {
-      const breakdown = await getStorageBreakdown(churchId)
+      const churchSlug = process.env.CHURCH_SLUG || 'la-ubf'
+      const [breakdown, defaultFiles] = await Promise.all([
+        getStorageBreakdown(churchId),
+        getDefaultFilesUsage(churchSlug),
+      ])
+      const totalWithDefaults = breakdown.totalBytes + defaultFiles.totalBytes
       const quota = DEFAULT_STORAGE_QUOTA
-      const remaining = Math.max(0, quota - breakdown.totalBytes)
-      const percentUsed = quota > 0 ? Math.round((breakdown.totalBytes / quota) * 100) : 0
+      const remaining = Math.max(0, quota - totalWithDefaults)
+      const percentUsed = quota > 0 ? Math.round((totalWithDefaults / quota) * 100) : 0
 
       return NextResponse.json({
         success: true,
         data: {
-          currentUsage: breakdown.totalBytes,
+          currentUsage: totalWithDefaults,
           quota,
           remaining,
           percentUsed,
-          currentUsageFormatted: formatBytes(breakdown.totalBytes),
+          currentUsageFormatted: formatBytes(totalWithDefaults),
           quotaFormatted: formatBytes(quota),
           remainingFormatted: formatBytes(remaining),
           breakdown: {
@@ -42,17 +48,29 @@ export async function GET(request: NextRequest) {
               bytes: breakdown.mediaBytes,
               formatted: formatBytes(breakdown.mediaBytes),
               fileCount: breakdown.mediaCount,
-              percent: breakdown.totalBytes > 0
-                ? Math.round((breakdown.mediaBytes / breakdown.totalBytes) * 100)
+              percent: totalWithDefaults > 0
+                ? Math.round((breakdown.mediaBytes / totalWithDefaults) * 100)
                 : 0,
             },
             attachments: {
               bytes: breakdown.attachmentBytes,
               formatted: formatBytes(breakdown.attachmentBytes),
               fileCount: breakdown.attachmentCount,
-              percent: breakdown.totalBytes > 0
-                ? Math.round((breakdown.attachmentBytes / breakdown.totalBytes) * 100)
+              percent: totalWithDefaults > 0
+                ? Math.round((breakdown.attachmentBytes / totalWithDefaults) * 100)
                 : 0,
+            },
+            defaults: {
+              bytes: defaultFiles.totalBytes,
+              formatted: formatBytes(defaultFiles.totalBytes),
+              fileCount: defaultFiles.fileCount,
+              percent: totalWithDefaults > 0
+                ? Math.round((defaultFiles.totalBytes / totalWithDefaults) * 100)
+                : 0,
+              categories: defaultFiles.categories.map((c) => ({
+                ...c,
+                formatted: formatBytes(c.bytes),
+              })),
             },
             mediaByType: breakdown.mediaByType.map((t) => ({
               ...t,

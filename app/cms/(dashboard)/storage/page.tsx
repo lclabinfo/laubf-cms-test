@@ -55,6 +55,21 @@ type TopFile = {
   linkHref: string | null
 }
 
+type DefaultsCategory = {
+  label: string
+  bytes: number
+  fileCount: number
+  formatted: string
+}
+
+type DefaultsBreakdown = {
+  bytes: number
+  formatted: string
+  fileCount: number
+  percent: number
+  categories: DefaultsCategory[]
+}
+
 type StorageDetail = {
   currentUsage: number
   quota: number
@@ -66,6 +81,7 @@ type StorageDetail = {
   breakdown: {
     media: BreakdownCategory
     attachments: BreakdownCategory
+    defaults?: DefaultsBreakdown
     mediaByType: MediaTypeBreakdown[]
   }
   topFiles: TopFile[]
@@ -231,7 +247,7 @@ export default function StoragePage() {
       </Card>
 
       {/* Breakdown cards */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-[1fr_1fr_auto]">
         {/* Media Library */}
         <Card>
           <CardHeader className="pb-3">
@@ -334,6 +350,34 @@ export default function StoragePage() {
             </p>
           </CardContent>
         </Card>
+
+        {/* Default System Files */}
+        {breakdown.defaults && breakdown.defaults.fileCount > 0 && (
+          <Card className="md:max-w-[220px]">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <File className="size-4" />
+                System Files
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-baseline gap-2 mb-3">
+                <span className="text-xl font-semibold">{breakdown.defaults.formatted}</span>
+              </div>
+              <div className="space-y-1.5 mb-3">
+                {breakdown.defaults.categories.map((cat) => (
+                  <div key={cat.label} className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">{cat.label}</span>
+                    <span className="font-mono">{cat.formatted}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-[11px] text-muted-foreground leading-relaxed">
+                Default files required to serve your website (fonts, templates).
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Top consuming files */}
