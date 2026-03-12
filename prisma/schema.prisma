@@ -91,6 +91,7 @@ model Church {
 
   // Roles & Permissions
   roles                  Role[]
+  accessRequests         AccessRequest[]
 
   @@index([slug])
   @@index([status])
@@ -126,10 +127,12 @@ model User {
   updatedAt       DateTime @updatedAt
   deletedAt       DateTime?
 
-  memberships     ChurchMember[]
-  sessions        Session[]
-  accounts        Account[]
-  personNotes     PersonNote[]
+  memberships              ChurchMember[]
+  sessions                 Session[]
+  accounts                 Account[]
+  personNotes              PersonNote[]
+  accessRequests           AccessRequest[] @relation("accessRequestsSubmitted")
+  accessRequestsReviewed   AccessRequest[] @relation("accessRequestsReviewed")
 
   @@index([email])
 }
@@ -1755,4 +1758,36 @@ model PersonRoleAssignment {
   @@unique([personId, roleId])
   @@index([personId])
   @@index([roleId])
+}
+
+// ============================================================
+// Access Requests
+// ============================================================
+
+model AccessRequest {
+  id          String              @id @default(uuid()) @db.Uuid
+  churchId    String              @db.Uuid
+  userId      String              @db.Uuid
+  message     String?             @db.Text
+  status      AccessRequestStatus @default(PENDING)
+  reviewedBy  String?             @db.Uuid
+  reviewedAt  DateTime?
+  reviewNote  String?             @db.Text
+
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  church      Church              @relation(fields: [churchId], references: [id], onDelete: Cascade)
+  user        User                @relation("accessRequestsSubmitted", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer    User?               @relation("accessRequestsReviewed", fields: [reviewedBy], references: [id], onDelete: SetNull)
+
+  @@unique([churchId, userId])
+  @@index([churchId, status])
+  @@index([userId])
+}
+
+enum AccessRequestStatus {
+  PENDING
+  APPROVED
+  DENIED
 }

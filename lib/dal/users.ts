@@ -104,16 +104,33 @@ export async function updateUserRole(
   memberId: string,
   newRole: MemberRole,
 ) {
-  return prisma.churchMember.update({
-    where: { id: memberId, churchId },
-    data: { role: newRole },
-  })
+  // Update role and bump sessionVersion so the user's JWT refreshes
+  // immediately on next request (picks up new role + permissions).
+  const [updated] = await prisma.$transaction([
+    prisma.churchMember.update({
+      where: { id: memberId, churchId },
+      data: { role: newRole },
+    }),
+    prisma.church.update({
+      where: { id: churchId },
+      data: { sessionVersion: { increment: 1 } },
+    }),
+  ])
+  return updated
 }
 
 export async function removeChurchUser(churchId: string, memberId: string) {
-  return prisma.churchMember.delete({
-    where: { id: memberId, churchId },
-  })
+  // Delete membership and bump sessionVersion so the removed user's
+  // JWT refreshes immediately on next request (clears church context).
+  return prisma.$transaction([
+    prisma.churchMember.delete({
+      where: { id: memberId, churchId },
+    }),
+    prisma.church.update({
+      where: { id: churchId },
+      data: { sessionVersion: { increment: 1 } },
+    }),
+  ])
 }
 
 export async function getChurchOwnerCount(churchId: string): Promise<number> {
@@ -248,10 +265,19 @@ export async function unlinkUserFromPerson(churchId: string, personId: string) {
 }
 
 export async function deactivateUser(churchId: string, memberId: string) {
-  return prisma.churchMember.update({
-    where: { id: memberId, churchId },
-    data: { status: 'INACTIVE' },
-  })
+  // Deactivate and bump sessionVersion so the user's JWT refreshes
+  // immediately on next request (picks up INACTIVE status).
+  const [updated] = await prisma.$transaction([
+    prisma.churchMember.update({
+      where: { id: memberId, churchId },
+      data: { status: 'INACTIVE' },
+    }),
+    prisma.church.update({
+      where: { id: churchId },
+      data: { sessionVersion: { increment: 1 } },
+    }),
+  ])
+  return updated
 }
 
 export async function reactivateUser(churchId: string, memberId: string) {

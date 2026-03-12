@@ -1,9 +1,9 @@
 "use client"
 
-import { Suspense, useState } from "react"
+import { Suspense, useState, useMemo } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ChurchIcon, Loader2Icon } from "lucide-react"
+import { ChurchIcon, Loader2Icon, CheckIcon, XIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -25,6 +25,49 @@ function GoogleIcon() {
       <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
       <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
     </svg>
+  )
+}
+
+function PasswordChecklist({ password }: { password: string }) {
+  const rules = useMemo(() => [
+    { label: "At least 8 characters", met: password.length >= 8 },
+    { label: "Uppercase letter", met: /[A-Z]/.test(password) },
+    { label: "Lowercase letter", met: /[a-z]/.test(password) },
+    { label: "Number", met: /\d/.test(password) },
+  ], [password])
+
+  // Don't show until user starts typing
+  if (!password) {
+    return (
+      <ul className="space-y-1 pt-1">
+        {rules.map((rule) => (
+          <li key={rule.label} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="size-3.5 shrink-0 rounded-full border border-muted-foreground/30" />
+            {rule.label}
+          </li>
+        ))}
+      </ul>
+    )
+  }
+
+  return (
+    <ul className="space-y-1 pt-1">
+      {rules.map((rule) => (
+        <li
+          key={rule.label}
+          className={`flex items-center gap-1.5 text-xs transition-colors ${
+            rule.met ? "text-green-600 dark:text-green-400" : "text-destructive"
+          }`}
+        >
+          {rule.met ? (
+            <CheckIcon className="size-3.5 shrink-0" />
+          ) : (
+            <XIcon className="size-3.5 shrink-0" />
+          )}
+          {rule.label}
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -187,8 +230,8 @@ function SignupForm() {
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="new-password"
-              placeholder="Min 8 chars, upper + lower + number"
             />
+            <PasswordChecklist password={password} />
           </div>
 
           <div className="space-y-2">
@@ -200,8 +243,10 @@ function SignupForm() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               autoComplete="new-password"
-              placeholder="Confirm your password"
             />
+            {confirmPassword && confirmPassword !== password && (
+              <p className="text-xs text-destructive">Passwords do not match</p>
+            )}
           </div>
 
           {error && (

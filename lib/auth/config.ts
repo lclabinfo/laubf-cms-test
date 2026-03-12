@@ -199,18 +199,65 @@ export const authConfig: NextAuthConfig = {
         }
       }
 
+      // Users without church access: periodically check if a membership was created
+      // (e.g., admin approved an access request or invited them while they're on /cms/no-access)
+      if (token.userId && !token.churchId) {
+        const NO_CHURCH_CHECK_MS = 30 * 1000 // Check every 30 seconds
+        const now = Date.now()
+        const lastCheck = (token.permissionsRefreshedAt as number) || 0
+        if (now - lastCheck > NO_CHURCH_CHECK_MS) {
+          const membership = await prisma.churchMember.findFirst({
+            where: { userId: token.userId as string },
+            include: {
+              church: {
+                select: { id: true, slug: true, name: true, sessionVersion: true },
+              },
+              customRole: {
+                select: { id: true, name: true, slug: true, priority: true, permissions: true },
+              },
+            },
+            orderBy: { joinedAt: 'asc' },
+          })
+          if (membership) {
+            token.churchId = membership.church.id
+            token.churchSlug = membership.church.slug
+            token.churchName = membership.church.name
+            token.sessionVersion = membership.church.sessionVersion
+            token.role = membership.role
+            token.memberStatus = membership.status
+            if (membership.customRole) {
+              token.roleId = membership.customRole.id
+              token.roleName = membership.customRole.name
+              token.rolePriority = membership.customRole.priority
+              token.permissions = membership.customRole.permissions
+            } else if (membership.role) {
+              const { DEFAULT_ROLES } = await import('@/lib/permissions')
+              const defaultRole = DEFAULT_ROLES[membership.role]
+              if (defaultRole) {
+                token.roleName = defaultRole.name
+                token.rolePriority = defaultRole.priority
+                token.permissions = defaultRole.permissions
+              }
+            }
+          }
+          token.permissionsRefreshedAt = now
+        }
+      }
+
       // Refresh permissions when:
-      // 1. sessionVersion changed (admin bumped it — immediate effect)
-      // 2. Periodic fallback every 5 minutes
+      // 1. Member is PENDING (always re-check so onboarding completion takes effect immediately)
+      // 2. sessionVersion changed (admin bumped it — immediate effect)
+      // 3. Periodic fallback every 5 minutes
       if (token.userId && token.churchId) {
         const PERMISSIONS_REFRESH_MS = 5 * 60 * 1000
         const now = Date.now()
         const lastRefresh = (token.permissionsRefreshedAt as number) || 0
         const timeExpired = now - lastRefresh > PERMISSIONS_REFRESH_MS
+        const isPending = token.memberStatus === 'PENDING'
 
         // Lightweight version check — single int field, no joins
         let versionChanged = false
-        if (!timeExpired) {
+        if (!timeExpired && !isPending) {
           const church = await prisma.church.findUnique({
             where: { id: token.churchId as string },
             select: { sessionVersion: true },
@@ -218,7 +265,7 @@ export const authConfig: NextAuthConfig = {
           versionChanged = church != null && church.sessionVersion !== (token.sessionVersion ?? 0)
         }
 
-        if (timeExpired || versionChanged) {
+        if (timeExpired || versionChanged || isPending) {
           const membership = await prisma.churchMember.findFirst({
             where: { userId: token.userId as string, churchId: token.churchId as string },
             include: {
@@ -252,6 +299,18 @@ export const authConfig: NextAuthConfig = {
                 token.permissions = defaultRole.permissions
               }
             }
+          } else {
+            // Membership was deleted or user was removed — clear church context
+            // so the dashboard layout redirects to login/no-access
+            token.churchId = undefined
+            token.churchSlug = undefined
+            token.churchName = undefined
+            token.role = undefined
+            token.roleId = undefined
+            token.roleName = undefined
+            token.rolePriority = undefined
+            token.permissions = []
+            token.memberStatus = undefined
           }
           token.permissionsRefreshedAt = now
         }
@@ -284,6 +343,9 @@ export const authConfig: NextAuthConfig = {
           if (freshUser) {
             extSession.user.name = [freshUser.firstName, freshUser.lastName].filter(Boolean).join(' ') || null
             extSession.user.image = freshUser.avatarUrl
+          } else {
+            // User was deleted from DB — clear session so middleware redirects to login
+            extSession.user.id = ''
           }
         } catch {
           // Best-effort — fall through to cached token values

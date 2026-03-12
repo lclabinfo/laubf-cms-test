@@ -68,6 +68,7 @@ export const PERMISSIONS = {
   'users.edit_roles': 'Change member roles',
   'users.remove': 'Remove members',
   'users.deactivate': 'Deactivate / reactivate members',
+  'users.approve_requests': 'Approve / deny access requests',
 
   'roles.view': 'View roles',
   'roles.manage': 'Manage roles & permissions',
@@ -135,6 +136,7 @@ export const PERMISSION_GROUPS: Record<string, { label: string; description: str
     description: 'Team members, roles, and church profile',
     permissions: [
       'users.view', 'users.invite', 'users.edit_roles', 'users.remove', 'users.deactivate',
+      'users.approve_requests',
       'roles.view', 'roles.manage',
       'church.profile.view', 'church.profile.edit',
     ],

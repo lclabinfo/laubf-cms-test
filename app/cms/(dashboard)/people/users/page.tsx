@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner"
 import { createUsersColumns, type UserRow, type RoleOption } from "@/components/cms/users/users-columns"
 import { InviteUserDialog } from "@/components/cms/users/invite-user-dialog"
+import { AccessRequestsPanel } from "@/components/cms/users/access-requests-panel"
 import { useCmsSession } from "@/components/cms/cms-shell"
 import { RoleGuard } from "@/components/cms/role-guard"
 
@@ -58,7 +59,16 @@ function UsersPageContent() {
   const fetchUsers = useCallback(async () => {
     try {
       const res = await fetch("/api/v1/users")
+      if (res.status === 401) {
+        // Session expired or invalid — force re-login
+        window.location.href = "/cms/login"
+        return
+      }
       const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error?.message || "Failed to load users")
+        return
+      }
       if (data.success) {
         setUsers(data.data)
       }
@@ -320,6 +330,10 @@ function UsersPageContent() {
           </SelectContent>
         </Select>
       </div>
+
+      {session.permissions.includes("users.approve_requests") && (
+        <AccessRequestsPanel onApproved={fetchUsers} />
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center py-12">

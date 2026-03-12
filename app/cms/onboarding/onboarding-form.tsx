@@ -2,7 +2,8 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { ChurchIcon, Loader2Icon, CheckCircle2Icon } from "lucide-react"
+import { signOut } from "next-auth/react"
+import { ChurchIcon, Loader2Icon, CheckCircle2Icon, LogOutIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -169,6 +170,17 @@ export function OnboardingForm({
             )}
           </Button>
         </form>
+
+        <div className="pt-2 text-center">
+          <button
+            type="button"
+            onClick={() => signOut({ callbackUrl: "/cms/login" })}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <LogOutIcon className="size-3" />
+            Sign out
+          </button>
+        </div>
       </CardContent>
     </Card>
     </>

@@ -398,22 +398,22 @@ function ActionsCell({
                 onSelect={() => setRemoveOpen(true)}
               >
                 <TrashIcon className="mr-2 h-4 w-4" />
-                Remove from church
+                Revoke access
               </DropdownMenuItem>
             </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Remove confirmation */}
+      {/* Revoke access confirmation */}
       <AlertDialog open={removeOpen} onOpenChange={setRemoveOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Remove User</AlertDialogTitle>
+            <AlertDialogTitle>Revoke CMS Access</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove <strong>{user.firstName} {user.lastName}</strong> ({user.email})
-              from this church. They will lose all CMS access. This action can be undone by
-              re-inviting them.
+              <strong>{user.firstName} {user.lastName}</strong> ({user.email}) will lose access
+              to the CMS. Their member profile in the people directory will not be affected.
+              You can re-invite them later to restore access.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -422,7 +422,7 @@ function ActionsCell({
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => onRemove(user.id)}
             >
-              Remove
+              Revoke Access
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

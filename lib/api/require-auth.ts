@@ -41,6 +41,17 @@ export async function requireApiAuth(
     }
   }
 
+  // Block inactive/pending members from making API calls
+  if (session.memberStatus !== 'ACTIVE') {
+    return {
+      authorized: false,
+      response: NextResponse.json(
+        { success: false, error: { code: 'FORBIDDEN', message: 'Account is not active' } },
+        { status: 403 },
+      ),
+    }
+  }
+
   if (requiredPermission) {
     const required = Array.isArray(requiredPermission) ? requiredPermission : [requiredPermission]
     const userPerms = new Set(session.permissions ?? [])

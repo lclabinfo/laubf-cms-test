@@ -81,7 +81,19 @@ export async function POST(request: Request) {
     })
 
     const template = invitationEmail(token, churchName, inviterName, role)
-    await sendEmail({ to: email.trim().toLowerCase(), ...template })
+
+    try {
+      await sendEmail({ to: email.trim().toLowerCase(), ...template })
+    } catch (emailError) {
+      // Email failed — roll back the membership so the admin can retry.
+      // The placeholder User is left in place (harmless, and prevents a second create).
+      console.error('[Invite] Email send failed, rolling back membership:', emailError)
+      await prisma.churchMember.delete({ where: { id: result.membershipId } }).catch(() => {})
+      return NextResponse.json(
+        { success: false, error: { code: 'EMAIL_FAILED', message: 'Invitation email could not be sent. Please try again.' } },
+        { status: 502 },
+      )
+    }
 
     return NextResponse.json({
       success: true,
