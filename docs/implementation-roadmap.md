@@ -297,6 +297,14 @@ The key insight: **Phases D and E are growth infrastructure.** They add zero val
 
 ---
 
+## Future Enhancements (Backlog)
+
+| Feature | Priority | Notes |
+|---|---|---|
+| Admin custom share message per event | P2 | Allow admins to set a custom share message in the event editor sidebar. Default: "Join us for {title}!". Populates `navigator.share()` text and clipboard fallback. Requires adding a `shareMessage` field to the `ChurchEvent` model and the event editor form. |
+
+---
+
 ## Cross-References
 
 | Topic | Document |

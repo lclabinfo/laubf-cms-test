@@ -356,6 +356,16 @@ All publishable content types share a unified status model:
 
 > ❌ **Not yet implemented.** Navigation goes directly from list → edit form. No read-only event detail/preview view exists.
 
+### 2.7.1 Public Event Detail Page (Website)
+
+> ✅ **Implemented.** Public event detail page at `/events/[slug]` with full event information.
+
+- ✅ [P0] Event detail page renders title, description (TipTap → HTML), cover image, date/time, location, contacts, and sidebar with event metadata.
+- ✅ [P0] "Add to Calendar" dropdown: Google Calendar (URL), Apple Calendar (.ics download), generic .ics file download.
+- ✅ [P0] "Share Event" button: Web Share API with message "Join us for {title}!", clipboard fallback with toast notification.
+- ✅ [P0] OG metadata with cover image for social link previews (OpenGraph + Twitter Card).
+- ❌ [P2] Admin-configurable custom share message per event. Default message is "Join us for {title}!" — admins should eventually be able to set a custom share message in the event editor sidebar. This would populate the `text` field in `navigator.share()` and the clipboard fallback.
+
 ### 2.8 Known Gaps & Required Changes
 
 > **Source:** Events Data Gap Analysis (February 2026). Field-by-field comparison between the public website's `Event` type (`laubf-test/`) and the CMS `ChurchEvent` type revealed critical mismatches that must be resolved before the database schema can serve both systems.

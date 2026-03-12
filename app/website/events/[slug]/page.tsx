@@ -16,6 +16,7 @@ import {
 } from "@/components/website/shared/icons"
 import { resolveHref } from "@/lib/website/resolve-href"
 import { contentToHtml } from "@/lib/tiptap"
+import EventActions from "@/components/website/shared/event-actions"
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -70,9 +71,25 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!event) return { title: "Event Not Found" }
 
+  const ogImages = event.coverImage
+    ? [{ url: event.coverImage, width: 1200, height: 630, alt: event.imageAlt || event.title }]
+    : []
+
   return {
     title: event.title,
     description: event.shortDescription || event.description || `Details for ${event.title}`,
+    openGraph: {
+      title: event.title,
+      description: event.shortDescription || `Details for ${event.title}`,
+      type: "article",
+      ...(ogImages.length > 0 && { images: ogImages }),
+    },
+    twitter: {
+      card: ogImages.length > 0 ? "summary_large_image" : "summary",
+      title: event.title,
+      description: event.shortDescription || `Details for ${event.title}`,
+      ...(ogImages.length > 0 && { images: [event.coverImage!] }),
+    },
   }
 }
 
@@ -407,6 +424,20 @@ export default async function EventDetailPage({ params }: PageProps) {
                 {onlineButtonLabel}
               </a>
             )}
+
+            {/* Add to Calendar + Share */}
+            <EventActions
+              event={{
+                title: event.title,
+                dateStart: event.dateStart.toISOString().split("T")[0],
+                dateEnd: event.dateEnd ? event.dateEnd.toISOString().split("T")[0] : null,
+                startTime: event.startTime,
+                endTime: event.endTime,
+                location: event.location,
+                shortDescription: event.shortDescription,
+                coverImage: event.coverImage,
+              }}
+            />
 
             {/* Event links */}
             {event.eventLinks && event.eventLinks.length > 0 && (
