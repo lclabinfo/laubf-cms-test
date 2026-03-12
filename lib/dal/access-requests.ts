@@ -106,7 +106,7 @@ export async function approveAccessRequest(
   // The WHERE includes status:'PENDING' so concurrent approvals can't both succeed.
   return prisma.$transaction(async (tx) => {
     const request = await tx.accessRequest.findFirst({
-      where: { id: requestId, status: 'PENDING' },
+      where: { id: requestId, status: { in: ['PENDING', 'IGNORED'] } },
     })
     if (!request) {
       throw new Error('Request not found or already reviewed')
@@ -146,9 +146,9 @@ export async function denyAccessRequest(
   reviewedBy: string,
   reviewNote?: string,
 ) {
-  // Include status:'PENDING' in WHERE to prevent race conditions
+  // Include actionable statuses in WHERE to prevent race conditions
   const result = await prisma.accessRequest.updateMany({
-    where: { id: requestId, status: 'PENDING' },
+    where: { id: requestId, status: { in: ['PENDING', 'IGNORED'] } },
     data: {
       status: 'DENIED',
       reviewedBy,
@@ -160,4 +160,59 @@ export async function denyAccessRequest(
     throw new Error('Request not found or already reviewed')
   }
   return prisma.accessRequest.findUniqueOrThrow({ where: { id: requestId } })
+}
+
+export async function ignoreAccessRequest(
+  requestId: string,
+  reviewedBy: string,
+) {
+  const result = await prisma.accessRequest.updateMany({
+    where: { id: requestId, status: 'PENDING' },
+    data: {
+      status: 'IGNORED',
+      reviewedBy,
+      reviewedAt: new Date(),
+    },
+  })
+  if (result.count === 0) {
+    throw new Error('Request not found or already reviewed')
+  }
+  return prisma.accessRequest.findUniqueOrThrow({ where: { id: requestId } })
+}
+
+export async function restoreAccessRequest(requestId: string) {
+  const result = await prisma.accessRequest.updateMany({
+    where: { id: requestId, status: 'IGNORED' },
+    data: {
+      status: 'PENDING',
+      reviewedBy: null,
+      reviewedAt: null,
+    },
+  })
+  if (result.count === 0) {
+    throw new Error('Request not found or not ignored')
+  }
+  return prisma.accessRequest.findUniqueOrThrow({ where: { id: requestId } })
+}
+
+/**
+ * Check if a user's APPROVED access request is still valid
+ * (i.e., they still have a ChurchMember record).
+ * Returns true if access was revoked (approved but no membership).
+ */
+export async function isAccessRevoked(
+  churchId: string,
+  userId: string,
+): Promise<boolean> {
+  const [request, member] = await Promise.all([
+    prisma.accessRequest.findUnique({
+      where: { churchId_userId: { churchId, userId } },
+      select: { status: true },
+    }),
+    prisma.churchMember.findFirst({
+      where: { churchId, userId },
+      select: { id: true },
+    }),
+  ])
+  return request?.status === 'APPROVED' && !member
 }

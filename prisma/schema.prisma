@@ -1791,4 +1791,5 @@ enum AccessRequestStatus {
   PENDING
   APPROVED
   DENIED
+  IGNORED
 }

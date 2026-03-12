@@ -231,6 +231,7 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
   const userPerms = React.useMemo(() => new Set(session.permissions ?? []), [session.permissions])
   const isDev = session.user.email === "info@lclab.io"
   const [unreadSubmissions, setUnreadSubmissions] = React.useState(0)
+  const [pendingRequests, setPendingRequests] = React.useState(0)
 
   React.useEffect(() => {
     fetch("/api/v1/form-submissions?countOnly=true")
@@ -239,7 +240,16 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
         if (json.success) setUnreadSubmissions(json.data.unreadCount)
       })
       .catch(() => {})
-  }, [])
+
+    if (userPerms.has("users.approve_requests" as Permission)) {
+      fetch("/api/v1/access-requests?status=PENDING")
+        .then((r) => r.json())
+        .then((json) => {
+          if (json.success) setPendingRequests(json.data.length)
+        })
+        .catch(() => {})
+    }
+  }, [userPerms])
 
   const initials = session.user.name
     .split(" ")
@@ -328,6 +338,10 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
                   isGroupActive && openGroup !== group.label && "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                 )}>
                   {group.label}
+                  {/* Red dot next to Admin label when there are pending requests (expanded sidebar) */}
+                  {group.label === "Admin" && pendingRequests > 0 && (
+                    <span className="ml-1.5 size-2.5 rounded-full bg-destructive shrink-0 group-data-[collapsible=icon]:hidden" />
+                  )}
                   <ChevronRightIcon className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                 </CollapsibleTrigger>
               </SidebarGroupLabel>
@@ -350,7 +364,15 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
                             className={STUB_HREFS.has(item.href) ? "opacity-40 pointer-events-none" : undefined}
                           >
                             <Link href={item.href}>
-                              <item.icon />
+                              {/* Notification dot on Users icon when sidebar is collapsed and there are pending requests */}
+                              {group.label === "Admin" && item.title === "Users" && pendingRequests > 0 ? (
+                                <span className="relative">
+                                  <item.icon />
+                                  <span className="absolute -top-1 -right-1 size-2 rounded-full bg-destructive hidden group-data-[collapsible=icon]:block" />
+                                </span>
+                              ) : (
+                                <item.icon />
+                              )}
                               <span>{item.title}</span>
                               {item.href === "/cms/form-submissions" && unreadSubmissions > 0 && (
                                 <Badge variant="default" className="ml-auto h-5 min-w-5 px-1.5 text-[10px] font-semibold justify-center">

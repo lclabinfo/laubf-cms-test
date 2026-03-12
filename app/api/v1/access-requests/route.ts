@@ -48,6 +48,18 @@ export async function POST(request: Request) {
     )
   }
 
+  // Check if user has an ignored request (can't resubmit while ignored)
+  const existingRequest = await prisma.accessRequest.findUnique({
+    where: { churchId_userId: { churchId: church.id, userId: session.user.id } },
+    select: { status: true },
+  })
+  if (existingRequest?.status === 'IGNORED') {
+    return NextResponse.json(
+      { success: false, error: { code: 'CONFLICT', message: 'Your previous request is still under review.' } },
+      { status: 409 },
+    )
+  }
+
   let body: Record<string, unknown> = {}
   try {
     body = await request.json()
@@ -75,7 +87,7 @@ export async function GET(request: Request) {
   if (!authResult.authorized) return authResult.response
 
   const { searchParams } = new URL(request.url)
-  const status = searchParams.get('status') as 'PENDING' | 'APPROVED' | 'DENIED' | null
+  const status = searchParams.get('status') as 'PENDING' | 'APPROVED' | 'DENIED' | 'IGNORED' | null
 
   const data = await listAccessRequests(
     authResult.churchId,

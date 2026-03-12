@@ -23,7 +23,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-type RequestStatus = "PENDING" | "APPROVED" | "DENIED" | null
+type RequestStatus = "PENDING" | "APPROVED" | "DENIED" | "IGNORED" | "REVOKED" | null
 
 export default function NoAccessPage() {
   const [status, setStatus] = useState<RequestStatus>(null)
@@ -96,7 +96,11 @@ export default function NoAccessPage() {
                 ? "Your access request has been submitted and is awaiting review by an administrator."
                 : status === "DENIED"
                   ? "Your access request was denied. You can submit a new request if you'd like to try again."
-                  : "Your access request was approved. Try refreshing the page or signing out and back in."}
+                  : status === "REVOKED"
+                    ? "Your access to the CMS has been revoked by an administrator. You can request access again below."
+                    : status === "IGNORED"
+                      ? "Your access request is still under review. Please check back later."
+                      : "Your access request was approved. Try refreshing the page or signing out and back in."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -136,8 +140,32 @@ export default function NoAccessPage() {
             </div>
           )}
 
-          {/* Request form — show when no request or denied */}
-          {(status === null || status === "DENIED") && (
+          {status === "REVOKED" && (
+            <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 dark:border-red-900 dark:bg-red-950/30">
+              <ShieldAlertIcon className="h-4 w-4 text-red-600 shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium text-red-800 dark:text-red-200">Access Revoked</p>
+                <p className="text-red-700 dark:text-red-300 text-xs mt-0.5">
+                  An administrator has revoked your access to the CMS.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {status === "IGNORED" && (
+            <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
+              <ClockIcon className="h-4 w-4 text-amber-600 shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-amber-800 dark:text-amber-200">Under Review</p>
+                <p className="text-amber-700 dark:text-amber-300 text-xs mt-0.5">
+                  Your request is still being reviewed by an administrator.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Request form — show when no request, denied, or revoked */}
+          {(status === null || status === "DENIED" || status === "REVOKED") && (
             <div className="space-y-3">
               <div className="space-y-1.5">
                 <Label htmlFor="message" className="text-xs">
@@ -163,7 +191,7 @@ export default function NoAccessPage() {
                 ) : (
                   <SendIcon className="mr-2 h-4 w-4" />
                 )}
-                {status === "DENIED" ? "Request Again" : "Request Access"}
+                {status === "DENIED" || status === "REVOKED" ? "Request Again" : "Request Access"}
               </Button>
             </div>
           )}
