@@ -1,9 +1,9 @@
 "use client"
 
-import { Suspense, useState, useMemo } from "react"
+import { Suspense, useState, useMemo, useEffect, useCallback } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
-import { ChurchIcon, Loader2Icon, CheckIcon, XIcon } from "lucide-react"
+import { ChurchIcon, Loader2Icon, CheckIcon, XIcon, MailIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -120,12 +120,41 @@ function SignupForm() {
     }
   }
 
+  const [resendCooldown, setResendCooldown] = useState(60) // start with 60s after initial send
+  const [resending, setResending] = useState(false)
+
+  useEffect(() => {
+    if (!success || resendCooldown <= 0) return
+    const timer = setInterval(() => setResendCooldown((c) => c - 1), 1000)
+    return () => clearInterval(timer)
+  }, [success, resendCooldown])
+
+  const handleResend = useCallback(async () => {
+    setResending(true)
+    try {
+      const res = await fetch("/api/v1/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      })
+      if (res.status === 429) {
+        setResendCooldown(60)
+        return
+      }
+      setResendCooldown(60)
+    } catch {
+      // Fail silently — user can try again
+    } finally {
+      setResending(false)
+    }
+  }, [email])
+
   if (success) {
     return (
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 mb-4">
-            <ChurchIcon className="h-6 w-6 text-green-600" />
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30 mb-4">
+            <MailIcon className="h-6 w-6 text-green-600 dark:text-green-400" />
           </div>
           <CardTitle className="text-xl">Check Your Email</CardTitle>
           <CardDescription>
@@ -133,8 +162,24 @@ function SignupForm() {
             Click the link to verify your account, then sign in.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Button asChild className="w-full">
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground text-center">
+            Don&apos;t see the email? Check your spam, junk, or promotions folder. The link expires in 30 minutes.
+          </p>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={handleResend}
+            disabled={resending || resendCooldown > 0}
+          >
+            {resending ? (
+              <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
+            ) : null}
+            {resendCooldown > 0
+              ? `Resend email in ${resendCooldown}s`
+              : "Resend verification email"}
+          </Button>
+          <Button asChild variant="ghost" className="w-full">
             <Link href="/cms/login">Back to Sign In</Link>
           </Button>
         </CardContent>

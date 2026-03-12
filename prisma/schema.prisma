@@ -120,8 +120,9 @@ model User {
   lastName        String
   avatarUrl       String?
   emailVerified   Boolean  @default(false)
-  twoFactorEnabled Boolean @default(false)
-  twoFactorSecret String?
+  twoFactorEnabled  Boolean @default(false)
+  twoFactorSecret   String?
+  verificationNonce String?
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

@@ -27,14 +27,14 @@ export function verificationEmail(token: string, rawChurchName: string): { subje
       <a href="${url}" style="color:#0066cc; text-decoration:none; word-break:break-all;">${url}</a>
     </p>
     <p style="margin:16px 0 0 0; font-size:13px; color:#86868b;">
-      This link expires in 24 hours. If you didn't create this account, you can safely ignore this email.
+      This link expires in 30 minutes. If you didn't create this account, you can safely ignore this email.
     </p>
   `
 
   return {
     subject: `Verify your email — ${rawChurchName}`,
     html: emailLayout(content, { churchName: rawChurchName, preheader: 'Verify your email to get started' }),
-    text: `Verify your email: ${url}\n\nThis link expires in 24 hours.`,
+    text: `Verify your email: ${url}\n\nThis link expires in 30 minutes.`,
   }
 }
 

@@ -29,7 +29,7 @@ function getSecret(): Uint8Array {
 }
 
 const EXPIRY: Record<TokenPurpose, string> = {
-  'email-verification': '24h',
+  'email-verification': '30m',
   'password-reset': '1h',
   invitation: '7d',
 }
@@ -37,9 +37,16 @@ const EXPIRY: Record<TokenPurpose, string> = {
 /**
  * Derive a nonce from user state. When the relevant state changes,
  * the nonce changes, invalidating previously issued tokens.
+ *
+ * For email-verification tokens, pass the user's verificationNonce so that
+ * resending a verification email invalidates all previous tokens.
  */
-export function deriveNonce(passwordHash: string | null, emailVerified: boolean): string {
-  const input = `${passwordHash || 'none'}:${emailVerified}`
+export function deriveNonce(
+  passwordHash: string | null,
+  emailVerified: boolean,
+  verificationNonce?: string | null,
+): string {
+  const input = `${passwordHash || 'none'}:${emailVerified}:${verificationNonce || ''}`
   return crypto.createHash('sha256').update(input).digest('hex').slice(0, 16)
 }
 

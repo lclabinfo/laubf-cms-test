@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     // Fetch user to validate nonce and check current state
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, emailVerified: true, passwordHash: true },
+      select: { id: true, emailVerified: true, passwordHash: true, verificationNonce: true },
     })
 
     if (!user) {
@@ -36,18 +36,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/cms/login?verified=true', request.url))
     }
 
-    // Validate nonce to prevent replay after state change
+    // Validate nonce — includes verificationNonce so only the latest email works
     if (payload.nonce) {
-      const expectedNonce = deriveNonce(user.passwordHash, user.emailVerified)
+      const expectedNonce = deriveNonce(user.passwordHash, user.emailVerified, user.verificationNonce)
       if (payload.nonce !== expectedNonce) {
-        return NextResponse.redirect(new URL('/cms/login?error=InvalidToken', request.url))
+        return NextResponse.redirect(new URL('/cms/verify-email?error=expired', request.url))
       }
     }
 
-    // Mark email as verified
+    // Mark email as verified and clear the verification nonce
     await prisma.user.update({
       where: { id: payload.sub },
-      data: { emailVerified: true },
+      data: { emailVerified: true, verificationNonce: null },
     })
 
     return NextResponse.redirect(new URL('/cms/login?verified=true', request.url))

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
 import { createToken, deriveNonce } from '@/lib/auth/tokens'
@@ -8,6 +9,25 @@ import { verificationEmail } from '@/lib/email/templates'
 
 const MAX_PASSWORD_LENGTH = 128
 const MAX_NAME_LENGTH = 100
+
+/** Generate a random nonce to invalidate previous verification tokens */
+function randomNonce(): string {
+  return crypto.randomBytes(16).toString('hex')
+}
+
+async function sendVerificationEmail(userId: string, email: string, passwordHash: string | null, verificationNonce: string) {
+  const nonce = deriveNonce(passwordHash, false, verificationNonce)
+  const token = await createToken({
+    sub: userId,
+    purpose: 'email-verification',
+    email,
+    nonce,
+  })
+  const churchSlug = process.env.CHURCH_SLUG || 'church'
+  const church = await prisma.church.findFirst({ where: { slug: churchSlug }, select: { name: true } })
+  const template = verificationEmail(token, church?.name || 'Church CMS')
+  return sendEmail({ to: email, ...template })
+}
 
 export async function POST(request: Request) {
   // Rate limit: 5 signups per 15 min per IP
@@ -100,18 +120,13 @@ export async function POST(request: Request) {
     const existing = await prisma.user.findUnique({ where: { email: trimmedEmail } })
     if (existing) {
       if (!existing.emailVerified) {
-        // Allow re-sending verification for unverified users
-        const nonce = deriveNonce(existing.passwordHash, existing.emailVerified)
-        const token = await createToken({
-          sub: existing.id,
-          purpose: 'email-verification',
-          email: trimmedEmail,
-          nonce,
+        // Generate new nonce to invalidate any previous verification emails
+        const newNonce = randomNonce()
+        await prisma.user.update({
+          where: { id: existing.id },
+          data: { verificationNonce: newNonce },
         })
-        const churchSlug = process.env.CHURCH_SLUG || 'church'
-        const church = await prisma.church.findFirst({ where: { slug: churchSlug }, select: { name: true } })
-        const template = verificationEmail(token, church?.name || 'Church CMS')
-        await sendEmail({ to: trimmedEmail, ...template })
+        await sendVerificationEmail(existing.id, trimmedEmail, existing.passwordHash, newNonce)
       }
       // Normalize timing — perform a dummy hash so response time is similar
       await bcrypt.hash('timing-normalization', 12)
@@ -120,6 +135,7 @@ export async function POST(request: Request) {
 
     // Create user
     const passwordHash = await bcrypt.hash(password, 12)
+    const vNonce = randomNonce()
     const user = await prisma.user.create({
       data: {
         email: trimmedEmail,
@@ -127,24 +143,12 @@ export async function POST(request: Request) {
         lastName: lastName.trim(),
         passwordHash,
         emailVerified: false,
+        verificationNonce: vNonce,
       },
     })
 
     // Send verification email
-    const nonce = deriveNonce(passwordHash, false)
-    const token = await createToken({
-      sub: user.id,
-      purpose: 'email-verification',
-      email: trimmedEmail,
-      nonce,
-    })
-
-    const churchSlug = process.env.CHURCH_SLUG || 'church'
-    const church = await prisma.church.findFirst({ where: { slug: churchSlug }, select: { name: true } })
-    const churchName = church?.name || 'Church CMS'
-
-    const template = verificationEmail(token, churchName)
-    const emailSent = await sendEmail({ to: trimmedEmail, ...template })
+    const emailSent = await sendVerificationEmail(user.id, trimmedEmail, passwordHash, vNonce)
 
     if (!emailSent) {
       // Clean up the user if email failed — prevent orphaned unverifiable accounts
