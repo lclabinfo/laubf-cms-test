@@ -1880,6 +1880,7 @@ async function main() {
         sectionType: 'DAILY_BREAD_FEATURE',
         label: 'Daily Bread',
         colorScheme: 'LIGHT',
+        paddingY: 'NONE',
         content: {
           dataSource: 'latest-daily-bread',
         },

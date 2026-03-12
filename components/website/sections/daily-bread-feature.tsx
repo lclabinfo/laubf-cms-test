@@ -310,7 +310,7 @@ export default function DailyBreadFeatureSection({
   return (
     <SectionContainer
       colorScheme={colorScheme}
-      paddingY={paddingY ?? "none"}
+      paddingY="none"
       containerWidth={containerWidth}
       noContainer
     >
@@ -319,76 +319,79 @@ export default function DailyBreadFeatureSection({
       ) : (
         <>
           <div ref={containerRef} className="flex">
-            {/* ── Left Sidebar — Scripture (desktop, resizable) ── */}
-            {showSidebar && (
-              <>
-                <div
-                  style={{ width: `${splitRatio}%` }}
-                  className={cn(
-                    "hidden lg:flex flex-col border-r h-screen sticky top-0",
-                    t.surfaceBg,
-                    t.borderColor
-                  )}
-                >
-                  {/* Sidebar Header */}
-                  <div className={cn("border-b px-6 pt-6 pb-4 flex items-center justify-between", t.borderColor, t.surfaceBg)}>
-                    <div className={cn("flex items-center gap-2 px-4 py-2 rounded-full w-fit", t.btnPrimaryBg, t.btnPrimaryText)}>
-                      <BookOpen className="w-3.5 h-3.5" />
-                      <span className="text-xs font-medium uppercase tracking-wider">
-                        Scripture Reference
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => setShowSidebar(false)}
-                      className={cn("p-1 rounded transition-colors", t.textMuted, "hover:text-brand-1")}
-                    >
-                      <PanelLeftClose className="w-4 h-4" />
-                    </button>
+            {/* ── Left Sidebar — Scripture (desktop, resizable, animated) ── */}
+            <div
+              style={{ width: showSidebar ? `${splitRatio}%` : '0%' }}
+              className={cn(
+                "hidden lg:flex flex-col border-r h-screen sticky top-0 overflow-hidden transition-[width] duration-300 ease-in-out",
+                t.surfaceBg,
+                t.borderColor,
+                !showSidebar && "border-r-0"
+              )}
+            >
+              <div className={cn(
+                "flex flex-col h-full min-w-[300px] transition-opacity duration-300 ease-in-out",
+                showSidebar ? "opacity-100" : "opacity-0"
+              )}>
+                {/* Sidebar Header */}
+                <div className={cn("border-b px-6 pt-6 pb-4 flex items-center justify-between", t.borderColor, t.surfaceBg)}>
+                  <div className={cn("flex items-center gap-2 px-4 py-2 rounded-full w-fit", t.btnPrimaryBg, t.btnPrimaryText)}>
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span className="text-xs font-medium uppercase tracking-wider">
+                      Scripture Reference
+                    </span>
                   </div>
-
-                  {/* Sidebar Content */}
-                  <div className="flex-1 overflow-y-auto">
-                    <div className="max-w-[570px] mx-auto px-8 pt-8 pb-40">
-                      <div className={cn("flex items-center border-b pb-4 mb-6", t.borderColor)}>
-                        <h2 className={cn("text-[20px] font-bold uppercase tracking-tight", t.textPrimary)}>
-                          {entry.passage}
-                        </h2>
-                      </div>
-                      <div
-                        className="study-bible-text"
-                        dangerouslySetInnerHTML={{
-                          __html: sanitizedBibleText,
-                        }}
-                      />
-                      <div className="mt-6 pt-4 border-t border-white-2">
-                        <BibleCopyright versionCode="ESV" className={t.textMuted} />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Resize Handle */}
-                <div
-                  onMouseDown={startResizing}
-                  className={cn(
-                    "hidden lg:flex w-1 relative z-30 cursor-col-resize items-center justify-center -ml-0.5 group/resizer select-none transition-colors",
-                    "hover:bg-brand-1/10"
-                  )}
-                >
-                  <div className={cn("w-px h-full transition-colors", t.borderColor, "group-hover/resizer:bg-brand-1")} />
-                  <div className={cn(
-                    "absolute top-1/2 -translate-y-1/2 border rounded-md p-0.5 shadow-sm transition-all",
-                    t.borderColor,
-                    t.textMuted,
-                    "group-hover/resizer:text-brand-1 group-hover/resizer:border-brand-1"
-                  )}
-                    style={surfaceBgStyle}
+                  <button
+                    onClick={() => setShowSidebar(false)}
+                    className={cn("p-1 rounded transition-colors", t.textMuted, "hover:text-brand-1")}
                   >
-                    <GripVertical className="w-3 h-3" />
+                    <PanelLeftClose className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Sidebar Content */}
+                <div className="flex-1 overflow-y-auto">
+                  <div className="max-w-[570px] mx-auto px-8 pt-8 pb-40">
+                    <div className={cn("flex items-center border-b pb-4 mb-6", t.borderColor)}>
+                      <h2 className={cn("text-[20px] font-bold uppercase tracking-tight", t.textPrimary)}>
+                        {entry.passage}
+                      </h2>
+                    </div>
+                    <div
+                      className="study-bible-text"
+                      dangerouslySetInnerHTML={{
+                        __html: sanitizedBibleText,
+                      }}
+                    />
+                    <div className="mt-6 pt-4 border-t border-white-2">
+                      <BibleCopyright versionCode="ESV" className={t.textMuted} />
+                    </div>
                   </div>
                 </div>
-              </>
-            )}
+              </div>
+            </div>
+
+            {/* Resize Handle */}
+            <div
+              onMouseDown={startResizing}
+              className={cn(
+                "hidden w-1 relative z-30 cursor-col-resize items-center justify-center -ml-0.5 group/resizer select-none transition-all duration-300",
+                showSidebar ? "lg:flex opacity-100" : "lg:hidden opacity-0",
+                "hover:bg-brand-1/10"
+              )}
+            >
+              <div className={cn("w-px h-full transition-colors", t.borderColor, "group-hover/resizer:bg-brand-1")} />
+              <div className={cn(
+                "absolute top-1/2 -translate-y-1/2 border rounded-md p-0.5 shadow-sm transition-all",
+                t.borderColor,
+                t.textMuted,
+                "group-hover/resizer:text-brand-1 group-hover/resizer:border-brand-1"
+              )}
+                style={surfaceBgStyle}
+              >
+                <GripVertical className="w-3 h-3" />
+              </div>
+            </div>
 
             {/* ── Main Content ── */}
             <div className="flex-1 min-w-0">
@@ -448,7 +451,7 @@ export default function DailyBreadFeatureSection({
                       </div>
                     </div>
 
-                    <h1 className={cn("text-h1", t.textPrimary)}>{entry.title}</h1>
+                    <h1 className={cn("text-2xl lg:text-3xl font-medium leading-tight tracking-tight", t.textPrimary)}>{entry.title}</h1>
 
                     <div className={cn("flex items-center gap-3 text-[13px] font-medium flex-wrap", t.textSecondary)}>
                       <span>Passage</span>

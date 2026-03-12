@@ -3,6 +3,7 @@ import { getUpcomingEvents, getEvents, getHybridFeaturedEvents } from '@/lib/dal
 import { getVideos } from '@/lib/dal/videos'
 import { getBibleStudies } from '@/lib/dal/bible-studies'
 import { getTodaysDailyBread } from '@/lib/dal/daily-bread'
+import { fetchDailyBreadFromFeed } from '@/lib/daily-bread-feed'
 import { getCampuses } from '@/lib/dal/campuses'
 import { bibleBookLabel } from '@/lib/website/bible-book-labels'
 import { formatTime } from '@/lib/website/format-time'
@@ -293,22 +294,32 @@ export async function resolveSectionData(
 
       case 'latest-daily-bread': {
         const bread = await getTodaysDailyBread(churchId)
+
+        if (bread) {
+          return {
+            content: {
+              ...content,
+              dailyBread: {
+                slug: bread.slug,
+                title: bread.title,
+                passage: bread.passage || '',
+                keyVerse: bread.keyVerse || null,
+                body: bread.body || '',
+                bibleText: bread.bibleText || null,
+                author: bread.author,
+                audioUrl: bread.audioUrl || null,
+                date: toDateString(bread.date),
+              },
+            },
+          }
+        }
+
+        // Fall back to UBF.org XML feed when no local DB entry exists
+        const feedEntry = await fetchDailyBreadFromFeed()
         return {
           content: {
             ...content,
-            dailyBread: bread
-              ? {
-                  slug: bread.slug,
-                  title: bread.title,
-                  passage: bread.passage || '',
-                  keyVerse: bread.keyVerse || null,
-                  body: bread.body || '',
-                  bibleText: bread.bibleText || null,
-                  author: bread.author,
-                  audioUrl: bread.audioUrl || null,
-                  date: toDateString(bread.date),
-                }
-              : null,
+            dailyBread: feedEntry ?? null,
           },
         }
       }
