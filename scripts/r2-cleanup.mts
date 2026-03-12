@@ -4,11 +4,13 @@
  * Scans both the attachments and media buckets, cross-references every R2 key
  * against all database fields that store R2 URLs, and identifies orphans.
  *
- * Requires confirmation before deleting anything.
+ * Usage: npx tsx scripts/r2-cleanup.mts [options]
  *
- * Usage: npx tsx scripts/r2-cleanup.mts [--dry-run] [--yes]
- *   --dry-run   List orphans without deleting
- *   --yes       Skip confirmation prompt (use with caution)
+ * Options:
+ *   --dry-run            List orphans without deleting (default if no flags)
+ *   --yes                Skip confirmation prompt (use with caution)
+ *   --media-only         Only scan/clean the media bucket
+ *   --attachments-only   Only scan/clean the attachments bucket
  */
 import 'dotenv/config'
 import * as readline from 'node:readline'
@@ -24,6 +26,13 @@ import {
 const args = process.argv.slice(2)
 const DRY_RUN = args.includes('--dry-run')
 const AUTO_YES = args.includes('--yes')
+const MEDIA_ONLY = args.includes('--media-only')
+const ATTACHMENTS_ONLY = args.includes('--attachments-only')
+
+if (MEDIA_ONLY && ATTACHMENTS_ONLY) {
+  console.error('Cannot use --media-only and --attachments-only together')
+  process.exit(1)
+}
 
 // ── R2 Config ─────────────────────────────────────────────
 const ACCOUNT_ID = process.env.R2_ACCOUNT_ID!
@@ -87,7 +96,14 @@ async function collectReferencedUrls(): Promise<Set<string>> {
   const urls = new Set<string>()
 
   function add(val: string | null | undefined) {
-    if (val) urls.add(val)
+    if (val) {
+      urls.add(val)
+      // Also add decoded version so URL-encoded DB values match raw R2 keys
+      try {
+        const decoded = decodeURIComponent(val)
+        if (decoded !== val) urls.add(decoded)
+      } catch { /* ignore malformed URIs */ }
+    }
   }
 
   console.log('  Scanning MediaAsset...')
@@ -150,6 +166,31 @@ async function collectReferencedUrls(): Promise<Set<string>> {
     select: { photoUrl: true },
   })
   for (const p of persons) { add(p.photoUrl) }
+
+  console.log('  Scanning User.avatarUrl...')
+  const users = await prisma.user.findMany({
+    select: { avatarUrl: true },
+  })
+  for (const u of users) { add(u.avatarUrl) }
+
+  console.log('  Scanning Video.thumbnailUrl...')
+  const videos = await prisma.video.findMany({
+    where: { deletedAt: null },
+    select: { thumbnailUrl: true },
+  })
+  for (const v of videos) { add(v.thumbnailUrl) }
+
+  console.log('  Scanning DailyBread.audioUrl...')
+  const dailyBreads = await prisma.dailyBread.findMany({
+    select: { audioUrl: true },
+  })
+  for (const d of dailyBreads) { add(d.audioUrl) }
+
+  console.log('  Scanning PersonGroup.photoUrl...')
+  const groups = await prisma.personGroup.findMany({
+    select: { photoUrl: true },
+  })
+  for (const g of groups) { add(g.photoUrl) }
 
   console.log('  Scanning Church (logoUrl, faviconUrl)...')
   const churches = await prisma.church.findMany({
@@ -221,6 +262,7 @@ function urlsToKeys(urls: Set<string>): { attachmentKeys: Set<string>; mediaKeys
 const KEEP_PATTERNS = [
   /\/fonts\//,         // Custom font files (referenced in CSS, not DB)
   /\/defaults\//,      // Default template assets
+  /\/staging\//,       // In-progress uploads
 ]
 
 async function findOrphans(
@@ -236,12 +278,14 @@ async function findOrphans(
 
   for await (const obj of listAllObjects(bucket, prefix)) {
     total++
-    if (referencedKeys.has(obj.key)) continue
+    // Check both raw key and URL-encoded key against referenced set
+    const encodedKey = obj.key.split('/').map(s => encodeURIComponent(s)).join('/')
+    if (referencedKeys.has(obj.key) || referencedKeys.has(encodedKey)) continue
     if (KEEP_PATTERNS.some((p) => p.test(obj.key))) { kept++; continue }
     orphans.push(obj)
   }
 
-  console.log(`  Found ${total} objects, ${orphans.length} orphaned, ${kept} kept (fonts/defaults)`)
+  console.log(`  Found ${total} objects, ${orphans.length} orphaned, ${kept} kept (fonts/defaults/staging)`)
   return orphans
 }
 
@@ -275,6 +319,8 @@ async function deleteOrphans(
 console.log('R2 Cleanup Script')
 console.log('=================\n')
 
+if (MEDIA_ONLY) console.log('Mode: MEDIA ONLY\n')
+else if (ATTACHMENTS_ONLY) console.log('Mode: ATTACHMENTS ONLY\n')
 if (DRY_RUN) console.log('(DRY RUN — no files will be deleted)\n')
 
 // 1. Get church slug for prefix
@@ -290,13 +336,21 @@ const { attachmentKeys, mediaKeys } = urlsToKeys(referencedUrls)
 console.log(`  Attachment keys: ${attachmentKeys.size}`)
 console.log(`  Media keys: ${mediaKeys.size}`)
 
-// 3. Scan both buckets
-const attachmentOrphans = await findOrphans(
-  ATTACHMENTS_BUCKET, 'Attachments', `${slug}/`, attachmentKeys,
-)
-const mediaOrphans = await findOrphans(
-  MEDIA_BUCKET, 'Media', `${slug}/`, mediaKeys,
-)
+// 3. Scan buckets based on mode
+let attachmentOrphans: { key: string; size: number }[] = []
+let mediaOrphans: { key: string; size: number }[] = []
+
+if (!MEDIA_ONLY) {
+  attachmentOrphans = await findOrphans(
+    ATTACHMENTS_BUCKET, 'Attachments', `${slug}/`, attachmentKeys,
+  )
+}
+
+if (!ATTACHMENTS_ONLY) {
+  mediaOrphans = await findOrphans(
+    MEDIA_BUCKET, 'Media', `${slug}/`, mediaKeys,
+  )
+}
 
 const allOrphans = [...attachmentOrphans, ...mediaOrphans]
 const totalOrphanSize = allOrphans.reduce((sum, o) => sum + o.size, 0)

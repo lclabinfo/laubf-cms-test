@@ -1,13 +1,13 @@
 /**
- * Clean up orphan R2 objects that are not referenced in the database.
+ * @deprecated Use `r2-cleanup.mts` instead — it scans ALL database URL fields
+ * (18+ models), not just MediaAsset + BibleStudyAttachment. This script would
+ * incorrectly flag files referenced by Events, Messages, Speakers, PageSections,
+ * etc. as orphans and delete them.
  *
- * Scans both R2 buckets (media + attachments) and compares against
- * MediaAsset and BibleStudyAttachment URLs in the DB. Any R2 object
- * whose public URL is not found in the DB is considered an orphan.
- *
- * Usage:
- *   npx tsx scripts/cleanup-r2-orphans.mts            # Dry run (default)
- *   npx tsx scripts/cleanup-r2-orphans.mts --delete    # Actually delete orphans
+ * Usage (use the replacement instead):
+ *   npx tsx scripts/r2-cleanup.mts --dry-run           # Preview all orphans
+ *   npx tsx scripts/r2-cleanup.mts --media-only        # Media bucket only
+ *   npx tsx scripts/r2-cleanup.mts --attachments-only  # Attachments only
  */
 import 'dotenv/config'
 import pg from 'pg'

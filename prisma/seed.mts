@@ -386,7 +386,7 @@ const EVENTS: Array<{
   { slug: "sunday-livestream", title: "Sunday Livestream", type: "meeting", dateStart: "2026-02-01", startTime: "11:00 AM", endTime: "12:30 PM", location: "LA UBF Main Center / YouTube Live", shortDescription: "Join our Sunday worship service in person or watch the livestream.", ministry: "church-wide", campus: "all", isRecurring: true, meetingUrl: "https://www.youtube.com/@LAUBF/streams", recurrenceType: "weekly", recurrenceDays: ["SUN"], recurrenceSchedule: "Sun @ 11 AM" },
   // ── 2026 events (from LA UBF schedule) ──
   { slug: "spring-bible-academy", title: "Spring Bible Academy", type: "event", dateStart: "2026-03-05", dateEnd: "2026-03-06", startTime: "19:00", location: "LA UBF Main Center", shortDescription: "A 2-day intensive Bible academy for deeper study and training.", description: '{"type":"doc","content":[{"type":"paragraph","attrs":{"indent":0,"hangingIndent":false,"textAlign":null,"lineHeight":null,"spacingBefore":null,"spacingAfter":null},"content":[{"type":"text","marks":[{"type":"bold"}],"text":"Born Again Bible Academy"},{"type":"text","text":" is a two-day gathering where we\'ll explore what Jesus meant when He said, "},{"type":"text","marks":[{"type":"italic"}],"text":"\u201cYou must be born again.\u201d"},{"type":"text","text":" Through messages, testimonies, praise and worship, fellowship, and Bible study, we\'ll take time to reflect on what it means to experience new life through the Spirit."}]},{"type":"paragraph","attrs":{"indent":0,"hangingIndent":false,"textAlign":null,"lineHeight":null,"spacingBefore":null,"spacingAfter":null}},{"type":"paragraph","attrs":{"indent":0,"hangingIndent":false,"textAlign":null,"lineHeight":null,"spacingBefore":null,"spacingAfter":null},"content":[{"type":"text","text":"Join us on "},{"type":"text","marks":[{"type":"bold"}],"text":"March 5\u20136 at 7 PM"},{"type":"text","text":" as we learn, worship, and spend time together in God\u2019s word."}]},{"type":"paragraph","attrs":{"indent":0,"hangingIndent":false,"textAlign":null,"lineHeight":null,"spacingBefore":null,"spacingAfter":null},"content":[{"type":"text","text":"\ud83d\udccd "},{"type":"text","marks":[{"type":"bold"}],"text":"11625 Paramount Blvd, Downey, CA"}]}]}', coverImage: "https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/images/2026/697d5cf7-4b34-47aa-a718-6d271ca0a1b6-born-again.webp", isRecurring: false },
-  { slug: "spring-bible-conference-2026", title: "Spring Bible Conference", type: "event", dateStart: "2026-04-03", dateEnd: "2026-04-05", location: "LA UBF Main Center", shortDescription: "Our annual Spring Bible Conference — 3 days of worship, study, and fellowship.", ministry: "church-wide", isRecurring: false, isFeatured: true },
+  { slug: "spring-bible-conference-2026", title: "Spring Bible Conference", type: "event", dateStart: "2026-04-03", dateEnd: "2026-04-05", location: "LA UBF Main Center", shortDescription: "Our annual Spring Bible Conference — 3 days of worship, study, and fellowship.", coverImage: "https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/images/2026/33d7033b-ee57-4872-9d22-0e08e53ff8e1-believe-invitation_card.jpeg", ministry: "church-wide", isRecurring: false, isFeatured: true },
   { slug: "world-mission-congress-2026", title: "World Mission Congress 2026", type: "event", dateStart: "2026-05-17", dateEnd: "2026-05-22", location: "Korea", description: WMC_2026_DESCRIPTION, coverImage: "https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/images/2026/02b9afdf-143c-465a-bcd1-b8debf3acf37-wmc.jpg", isRecurring: false, isFeatured: true, registrationUrl: "https://2026wmcubf.org/" },
   { slug: "na-young-adult-conference", title: "NA Young Adult Conference", type: "event", dateStart: "2026-05-29", dateEnd: "2026-06-01", location: "TBD", shortDescription: "North America Young Adult Conference — 4 days of fellowship, worship, and Bible study for young adults.", description: '{"type":"doc","content":[{"type":"paragraph","attrs":{"indent":0,"hangingIndent":false,"textAlign":null,"lineHeight":null,"spacingBefore":null,"spacingAfter":null},"content":[{"type":"text","text":"A conference for young people who want to have fellowship and encounter who is Jesus"}]},{"type":"paragraph","attrs":{"indent":0,"hangingIndent":false,"textAlign":null,"lineHeight":null,"spacingBefore":"0","spacingAfter":"0"},"content":[{"type":"text","text":"If you are a"},{"type":"text","marks":[{"type":"bold"}],"text":" young adult (19-35 years old)"},{"type":"text","text":", you are invited to join! More info at "},{"type":"text","marks":[{"type":"link","attrs":{"href":"https://ubf-nayac.org/","target":"_blank","rel":"noopener noreferrer","class":null,"title":null}}],"text":"https://ubf-nayac.org/"},{"type":"text","text":" Registration closes May 3, 2026."}]}]}', coverImage: "https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/images/2026/63291050-fe7d-40ce-9a9f-637f75bd85e9-nayac.webp", ministry: "young-adult", isRecurring: false, isFeatured: true, registrationUrl: "https://ubf-nayac.org" },
   { slug: "jbf-hbf-conference-2026", title: "JBF/HBF Conference", type: "event", dateStart: "2026-07-17", dateEnd: "2026-07-19", location: "TBD", shortDescription: "A 3-day conference for middle and high school students.", ministry: "high-school", isRecurring: false },
@@ -4089,6 +4089,39 @@ async function main() {
       templateCreated++
     }
     console.log(`  Created ${templateCreated} event template images in "${EVENT_TEMPLATES_FOLDER}" folder`)
+
+    // ── Event Cover Images (uploaded via CMS, tracked in Events folder) ──
+    const EVENT_COVER_IMAGES = [
+      { filename: 'born-again.webp', url: 'https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/images/2026/697d5cf7-4b34-47aa-a718-6d271ca0a1b6-born-again.webp', mimeType: 'image/webp', fileSize: 57258, alt: 'Spring Bible Academy — Born Again' },
+      { filename: 'BELIEVE-invitation_card.jpeg', url: 'https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/images/2026/33d7033b-ee57-4872-9d22-0e08e53ff8e1-believe-invitation_card.jpeg', mimeType: 'image/jpeg', fileSize: 431737, alt: 'Spring Bible Conference — BELIEVE' },
+      { filename: 'wmc.jpg', url: 'https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/images/2026/02b9afdf-143c-465a-bcd1-b8debf3acf37-wmc.jpg', mimeType: 'image/jpeg', fileSize: 148566, alt: 'World Mission Congress 2026' },
+      { filename: 'nayac.webp', url: 'https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/images/2026/63291050-fe7d-40ce-9a9f-637f75bd85e9-nayac.webp', mimeType: 'image/webp', fileSize: 31570, alt: 'NA Young Adult Conference' },
+    ]
+
+    const existingCoverUrls = new Set(
+      (await prisma.mediaAsset.findMany({
+        where: { churchId, folder: EVENT_TEMPLATES_FOLDER, url: { in: EVENT_COVER_IMAGES.map((i) => i.url) } },
+        select: { url: true },
+      })).map((m) => m.url)
+    )
+
+    let coverCreated = 0
+    for (const img of EVENT_COVER_IMAGES) {
+      if (existingCoverUrls.has(img.url)) continue
+      await prisma.mediaAsset.create({
+        data: {
+          churchId,
+          filename: img.filename,
+          url: img.url,
+          mimeType: img.mimeType,
+          fileSize: img.fileSize,
+          alt: img.alt,
+          folder: EVENT_TEMPLATES_FOLDER,
+        },
+      })
+      coverCreated++
+    }
+    console.log(`  Created ${coverCreated} event cover images in "${EVENT_TEMPLATES_FOLDER}" folder`)
   }
 
   // ── Bible Verses (global, not church-scoped) ─────────────────
