@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useCanEditWebsite, WebsiteReadOnlyBanner } from "@/components/cms/role-guard"
 import {
   Plus,
   Pencil,
@@ -115,6 +116,7 @@ const locationLabels: Record<string, string> = {
 // ── Main Page ──
 
 export default function WebsiteNavigationPage() {
+  const canEdit = useCanEditWebsite()
   const [menus, setMenus] = useState<MenuRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("")
@@ -362,6 +364,7 @@ export default function WebsiteNavigationPage() {
           Configure your website navigation menus.
         </p>
       </div>
+      <WebsiteReadOnlyBanner />
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList variant="line">

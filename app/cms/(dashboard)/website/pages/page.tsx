@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { useCmsSession } from "@/components/cms/cms-shell"
+import { useCanEditWebsite, WebsiteReadOnlyBanner } from "@/components/cms/role-guard"
 import { PageHeader } from "@/components/cms/page-header"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -103,6 +104,7 @@ function globalFilterFn(
 export default function WebsitePagesPage() {
   const router = useRouter()
   const { user } = useCmsSession()
+  const canEdit = useCanEditWebsite()
   const [pages, setPages] = useState<PageRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [globalFilter, setGlobalFilter] = useState("")
@@ -286,6 +288,7 @@ export default function WebsitePagesPage() {
         tutorialId="website"
         userId={user.id}
       />
+      <WebsiteReadOnlyBanner />
 
       {/* Toolbar */}
       <div data-tutorial="web-toolbar" className="flex flex-wrap items-center gap-2 min-h-[38px]">
@@ -301,12 +304,14 @@ export default function WebsitePagesPage() {
 
         <div className="flex-1" />
 
-        <Button asChild>
-          <Link href="/cms/website/pages/new">
-            <Plus />
-            <span className="hidden sm:inline">New Page</span>
-          </Link>
-        </Button>
+        {canEdit && (
+          <Button asChild>
+            <Link href="/cms/website/pages/new">
+              <Plus />
+              <span className="hidden sm:inline">New Page</span>
+            </Link>
+          </Button>
+        )}
       </div>
 
       {/* Content */}

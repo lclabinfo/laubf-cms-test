@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useCanEditWebsite, WebsiteReadOnlyBanner } from "@/components/cms/role-guard"
 import {
   SaveIcon,
   Loader2Icon,
@@ -139,6 +140,7 @@ const COLOR_FIELDS = [
 /* -------------------------------------------------------------------------- */
 
 export default function WebsiteThemePage() {
+  const canEdit = useCanEditWebsite()
   const [theme, setTheme] = useState<ThemeCustomizationData | null>(null)
   const [originalTheme, setOriginalTheme] = useState<ThemeCustomizationData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -267,6 +269,7 @@ export default function WebsiteThemePage() {
             Customize your website&apos;s appearance
           </p>
         </div>
+        {canEdit && (
         <div className="flex items-center gap-2">
           {saveStatus === "success" && (
             <span className="flex items-center gap-1.5 text-sm text-emerald-600">
@@ -293,7 +296,9 @@ export default function WebsiteThemePage() {
             {saving ? "Saving..." : "Save"}
           </Button>
         </div>
+        )}
       </div>
+      <WebsiteReadOnlyBanner />
 
       {/* Two-column layout */}
       <div className="flex flex-col lg:flex-row flex-1 gap-6 min-h-0">

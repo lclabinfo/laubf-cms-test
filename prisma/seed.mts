@@ -3577,34 +3577,10 @@ async function main() {
   console.log('  Created communication preferences')
 
   // --- Person Role Definitions (Groups in UI) ---
-  const pastorRole = await prisma.personRoleDefinition.create({
-    data: { churchId, name: 'Pastor', slug: 'pastor', description: 'Church pastors and shepherds', isSystem: true, color: '#8b5cf6', icon: 'shield', sortOrder: 1 },
-  })
   const bibleStudyLeaderRole = await prisma.personRoleDefinition.create({
-    data: { churchId, name: 'Bible Study Leader', slug: 'bible-study-leader', description: 'Leaders who facilitate Bible study groups', isSystem: false, color: '#10b981', icon: 'book-open', sortOrder: 2 },
+    data: { churchId, name: 'Bible Study Leader', slug: 'bible-study-leader', description: 'Leaders who facilitate Bible study groups', isSystem: false, color: '#10b981', icon: 'book-open', sortOrder: 1 },
   })
-  console.log('  Created 2 group definitions (1 system + 1 custom)')
-
-  // --- Assign Pastor role ---
-  const pWilliam = personRecords['william-larsen']
-  if (pWilliam) {
-    await prisma.personRoleAssignment.create({
-      data: { personId: pWilliam, roleId: pastorRole.id, title: 'Senior Pastor' },
-    })
-  }
-  const pJohnKwon = personRecords['john-kwon']
-  if (pJohnKwon) {
-    await prisma.personRoleAssignment.create({
-      data: { personId: pJohnKwon, roleId: pastorRole.id, title: 'Associate Pastor' },
-    })
-  }
-  const pDavidPark = personRecords['david-park']
-  if (pDavidPark) {
-    await prisma.personRoleAssignment.create({
-      data: { personId: pDavidPark, roleId: pastorRole.id, title: 'Associate Pastor' },
-    })
-  }
-  console.log('  Assigned Pastor role to 3 people')
+  console.log('  Created 1 group definition')
 
   // --- Assign Bible Study Leader role ---
   for (const slug of ['william-larsen', 'john-kwon', 'robert-fishman', 'ron-ward', 'frank-holman']) {

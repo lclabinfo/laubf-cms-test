@@ -128,7 +128,7 @@ function WebsiteDomainsPageContent() {
 
 export default function WebsiteDomainsPage() {
   return (
-    <RoleGuard requiredPermission="website.domains.manage">
+    <RoleGuard requiredPermission="website.domains.view">
       <WebsiteDomainsPageContent />
     </RoleGuard>
   )

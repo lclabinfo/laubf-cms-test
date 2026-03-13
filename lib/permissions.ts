@@ -156,9 +156,9 @@ export interface DefaultRoleDef {
 
 export const DEFAULT_ROLES: Record<string, DefaultRoleDef> = {
   OWNER: {
-    name: 'Owner',
+    name: 'Owner (Dev)',
     slug: 'owner',
-    description: 'Full access to everything. Cannot be deleted.',
+    description: 'Full access to everything including website builder. Cannot be deleted.',
     priority: 1000,
     isSystem: true,
     color: 'purple',
@@ -184,11 +184,10 @@ export const DEFAULT_ROLES: Record<string, DefaultRoleDef> = {
       'groups.view', 'groups.manage',
       'ministries.view', 'ministries.manage',
       'campuses.view', 'campuses.manage',
-      'website.pages.view', 'website.pages.edit', 'website.pages.create',
-      'website.pages.delete',
-      'website.navigation.view', 'website.navigation.edit',
-      'website.theme.view', 'website.theme.edit',
-      'website.settings.view', 'website.settings.edit',
+      'website.pages.view',
+      'website.navigation.view',
+      'website.theme.view',
+      'website.settings.view',
       'website.domains.view',
       'users.view', 'users.invite', 'users.edit_roles', 'users.deactivate',
       'roles.view',

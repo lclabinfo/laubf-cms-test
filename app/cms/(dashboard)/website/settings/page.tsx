@@ -32,7 +32,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
-import { RoleGuard } from "@/components/cms/role-guard"
+import { RoleGuard, useCanEditWebsite, WebsiteReadOnlyBanner } from "@/components/cms/role-guard"
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -98,6 +98,7 @@ const DAYS_OF_WEEK = [
 /* -------------------------------------------------------------------------- */
 
 function SiteSettingsPageContent() {
+  const canEdit = useCanEditWebsite()
   const [settings, setSettings] = useState<SiteSettingsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -251,6 +252,7 @@ function SiteSettingsPageContent() {
             Configure your website&apos;s global settings
           </p>
         </div>
+        {canEdit && (
         <div className="flex items-center gap-2">
           {saveStatus === "success" && (
             <span className="flex items-center gap-1.5 text-sm text-emerald-600">
@@ -273,7 +275,9 @@ function SiteSettingsPageContent() {
             {saving ? "Saving..." : "Save"}
           </Button>
         </div>
+        )}
       </div>
+      <WebsiteReadOnlyBanner />
 
       {/* Scrollable form */}
       <div className="overflow-y-auto space-y-6 p-0.5 -m-0.5">
@@ -852,7 +856,7 @@ function SiteSettingsPageContent() {
 
 export default function SiteSettingsPage() {
   return (
-    <RoleGuard requiredPermission="website.settings.edit">
+    <RoleGuard requiredPermission="website.settings.view">
       <SiteSettingsPageContent />
     </RoleGuard>
   )
