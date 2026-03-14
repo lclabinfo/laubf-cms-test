@@ -113,6 +113,21 @@ const recurrenceEndTypeToApi: Record<string, string> = {
   after: "AFTER",
 }
 
+/** Convert "6:00 AM" or "7:30 PM" to "06:00" or "19:30" for <input type="time"> */
+function to24h(time: string | null | undefined): string {
+  if (!time) return ""
+  // Already in 24h format (e.g. "06:00" or "19:30")
+  if (/^\d{1,2}:\d{2}$/.test(time.trim())) return time.trim().padStart(5, "0")
+  const match = time.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+  if (!match) return time
+  let hours = parseInt(match[1])
+  const minutes = match[2]
+  const period = match[3].toUpperCase()
+  if (period === "PM" && hours !== 12) hours += 12
+  if (period === "AM" && hours === 12) hours = 0
+  return `${hours.toString().padStart(2, "0")}:${minutes}`
+}
+
 // --- Adapter: API response -> CMS ChurchEvent type ---
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -124,8 +139,8 @@ function apiEventToCms(apiEvt: any): ChurchEvent {
     type: eventTypeFromApi[apiEvt.type] ?? "event",
     date: apiEvt.dateStart ? new Date(apiEvt.dateStart).toISOString().slice(0, 10) : "",
     endDate: apiEvt.dateEnd ? new Date(apiEvt.dateEnd).toISOString().slice(0, 10) : (apiEvt.dateStart ? new Date(apiEvt.dateStart).toISOString().slice(0, 10) : ""),
-    startTime: apiEvt.startTime ?? "",
-    endTime: apiEvt.endTime ?? "",
+    startTime: to24h(apiEvt.startTime),
+    endTime: to24h(apiEvt.endTime),
     recurrence: recurrenceFromApi[apiEvt.recurrence] ?? "none",
     recurrenceDays: (apiEvt.recurrenceDays ?? []).map((d: string) => d.toLowerCase()),
     recurrenceEndType: recurrenceEndTypeFromApi[apiEvt.recurrenceEndType] ?? "never",

@@ -117,6 +117,10 @@ export default async function EventDetailPage({ params }: PageProps) {
     ? (event.recurrenceSchedule || getRecurrenceLabel(event.recurrence))
     : null
 
+  const recurrenceEndLabel = event.isRecurring && event.recurrenceEndType === "ON_DATE" && event.recurrenceEndDate
+    ? `Until ${new Date(event.recurrenceEndDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`
+    : null
+
   const locationLabel =
     event.locationType === "ONLINE"
       ? "Online Event"
@@ -325,10 +329,15 @@ export default async function EventDetailPage({ params }: PageProps) {
 
             {/* Recurrence info */}
             {recurrenceLabel && (
-              <div className="flex items-center gap-2 mb-4 ml-[52px]">
+              <div className="flex flex-wrap items-center gap-2 mb-4 ml-[52px]">
                 <span className="bg-accent-blue/10 text-accent-blue text-[12px] font-medium px-3 py-1 rounded-full">
                   {recurrenceLabel}
                 </span>
+                {recurrenceEndLabel && (
+                  <span className="text-[12px] text-black-3">
+                    {recurrenceEndLabel}
+                  </span>
+                )}
               </div>
             )}
 
@@ -436,6 +445,12 @@ export default async function EventDetailPage({ params }: PageProps) {
                 location: event.location,
                 shortDescription: event.shortDescription,
                 coverImage: event.coverImage,
+                isRecurring: event.isRecurring,
+                recurrence: event.recurrence,
+                recurrenceDays: event.recurrenceDays,
+                recurrenceEndType: event.recurrenceEndType,
+                recurrenceEndDate: event.recurrenceEndDate ? event.recurrenceEndDate.toISOString().split("T")[0] : null,
+                recurrenceEndAfter: event.recurrenceEndAfter,
               }}
             />
 

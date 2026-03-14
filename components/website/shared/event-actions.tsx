@@ -12,6 +12,13 @@ interface EventData {
   location?: string | null
   shortDescription?: string | null
   coverImage?: string | null
+  // Recurrence
+  isRecurring?: boolean
+  recurrence?: string | null // "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY" | "WEEKDAY" | "CUSTOM" | "NONE"
+  recurrenceDays?: string[] | null // ["MON", "TUE", ...] for WEEKLY
+  recurrenceEndType?: string | null // "NEVER" | "ON_DATE" | "AFTER"
+  recurrenceEndDate?: string | null // ISO date string
+  recurrenceEndAfter?: number | null
 }
 
 /* ── Helpers ── */
@@ -37,6 +44,88 @@ function parseTime(time: string): { hours: number; minutes: number } | null {
   return null
 }
 
+/** Map recurrence day abbreviations to iCal BYDAY values */
+const DAY_MAP: Record<string, string> = {
+  SUN: "SU", MON: "MO", TUE: "TU", WED: "WE", THU: "TH", FRI: "FR", SAT: "SA",
+}
+
+/** Map JS getDay() (0=Sun) to our day codes */
+const JS_DAY_CODES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
+
+/**
+ * For recurring events, compute the effective start date:
+ * - If dateStart is today or in the future, use it as-is
+ * - Otherwise, find the next valid occurrence day from today
+ */
+function getEffectiveStartDate(event: EventData): string {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const start = new Date(event.dateStart + "T00:00:00")
+  start.setHours(0, 0, 0, 0)
+
+  if (!event.isRecurring || start >= today) return event.dateStart
+
+  // Recurring event with a past start date — use next valid day
+  if (event.recurrenceDays && event.recurrenceDays.length > 0) {
+    // Find next day that matches one of the recurrence days
+    const validDays = new Set(event.recurrenceDays)
+    const candidate = new Date(today)
+    for (let i = 0; i < 7; i++) {
+      const dayCode = JS_DAY_CODES[candidate.getDay()]
+      if (validDays.has(dayCode)) {
+        return candidate.toISOString().split("T")[0]
+      }
+      candidate.setDate(candidate.getDate() + 1)
+    }
+  }
+
+  // Fallback: use today
+  return today.toISOString().split("T")[0]
+}
+
+/**
+ * Build an iCalendar RRULE string from event recurrence data.
+ * Returns null if the event is not recurring.
+ */
+function buildRRule(event: EventData): string | null {
+  if (!event.isRecurring || !event.recurrence || event.recurrence === "NONE") return null
+
+  const parts: string[] = []
+
+  switch (event.recurrence) {
+    case "DAILY":
+      parts.push("FREQ=DAILY")
+      break
+    case "WEEKLY":
+      parts.push("FREQ=WEEKLY")
+      if (event.recurrenceDays && event.recurrenceDays.length > 0) {
+        const byDay = event.recurrenceDays.map((d) => DAY_MAP[d] || d).join(",")
+        parts.push(`BYDAY=${byDay}`)
+      }
+      break
+    case "MONTHLY":
+      parts.push("FREQ=MONTHLY")
+      break
+    case "YEARLY":
+      parts.push("FREQ=YEARLY")
+      break
+    case "WEEKDAY":
+      parts.push("FREQ=WEEKLY")
+      parts.push("BYDAY=MO,TU,WE,TH,FR")
+      break
+    default:
+      return null
+  }
+
+  if (event.recurrenceEndType === "ON_DATE" && event.recurrenceEndDate) {
+    parts.push(`UNTIL=${event.recurrenceEndDate.replace(/-/g, "")}T235959Z`)
+  } else if (event.recurrenceEndType === "AFTER" && event.recurrenceEndAfter) {
+    parts.push(`COUNT=${event.recurrenceEndAfter}`)
+  }
+
+  return parts.join(";")
+}
+
 /** Format date as YYYYMMDD for calendar URLs */
 function toCalDate(dateStr: string): string {
   return dateStr.replace(/-/g, "")
@@ -60,22 +149,23 @@ function buildOutlookCalendarUrl(event: EventData): string {
   params.set("rru", "addevent")
   params.set("subject", event.title)
 
+  const effectiveDate = getEffectiveStartDate(event)
   const hasTime = !!event.startTime
   // Outlook uses ISO 8601 format
   if (hasTime) {
     const startParsed = parseTime(event.startTime!)
     if (startParsed) {
-      const sd = new Date(`${event.dateStart}T00:00:00`)
+      const sd = new Date(`${effectiveDate}T00:00:00`)
       sd.setHours(startParsed.hours, startParsed.minutes, 0, 0)
       params.set("startdt", sd.toISOString())
 
-      if (event.dateEnd && event.endTime) {
+      if (!event.isRecurring && event.dateEnd && event.endTime) {
         const ed = new Date(`${event.dateEnd}T00:00:00`)
         const endParsed = parseTime(event.endTime)!
         ed.setHours(endParsed.hours, endParsed.minutes, 0, 0)
         params.set("enddt", ed.toISOString())
       } else if (event.endTime) {
-        const ed = new Date(`${event.dateStart}T00:00:00`)
+        const ed = new Date(`${effectiveDate}T00:00:00`)
         const endParsed = parseTime(event.endTime)!
         ed.setHours(endParsed.hours, endParsed.minutes, 0, 0)
         params.set("enddt", ed.toISOString())
@@ -86,8 +176,8 @@ function buildOutlookCalendarUrl(event: EventData): string {
       }
     }
   } else {
-    params.set("startdt", `${event.dateStart}T00:00:00`)
-    params.set("enddt", `${event.dateEnd || event.dateStart}T23:59:00`)
+    params.set("startdt", `${effectiveDate}T00:00:00`)
+    params.set("enddt", `${effectiveDate}T23:59:00`)
     params.set("allday", "true")
   }
 
@@ -103,23 +193,24 @@ function buildGoogleCalendarUrl(event: EventData): string {
   params.set("action", "TEMPLATE")
   params.set("text", event.title)
 
+  const effectiveDate = getEffectiveStartDate(event)
   const hasTime = !!event.startTime
-  const start = toCalDateTime(event.dateStart, event.startTime)
+  const start = toCalDateTime(effectiveDate, event.startTime)
 
   let end: string
-  if (event.dateEnd) {
+  if (!event.isRecurring && event.dateEnd) {
     end = toCalDateTime(event.dateEnd, event.endTime || event.startTime)
   } else if (event.endTime) {
-    end = toCalDateTime(event.dateStart, event.endTime)
+    end = toCalDateTime(effectiveDate, event.endTime)
   } else if (hasTime) {
     // Default 1 hour duration
-    const d = new Date(`${event.dateStart}T00:00:00`)
+    const d = new Date(`${effectiveDate}T00:00:00`)
     const parsed = parseTime(event.startTime!)!
     d.setHours(parsed.hours + 1, parsed.minutes, 0, 0)
     end = d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "")
   } else {
     // All-day: end is next day for Google Calendar
-    const d = new Date(event.dateEnd || event.dateStart)
+    const d = new Date(effectiveDate)
     d.setDate(d.getDate() + 1)
     end = d.toISOString().split("T")[0].replace(/-/g, "")
   }
@@ -127,6 +218,10 @@ function buildGoogleCalendarUrl(event: EventData): string {
   params.set("dates", `${start}/${end}`)
   if (event.location) params.set("location", event.location)
   if (event.shortDescription) params.set("details", event.shortDescription)
+
+  // Add recurrence rule
+  const rrule = buildRRule(event)
+  if (rrule) params.set("recur", `RRULE:${rrule}`)
 
   return `https://calendar.google.com/calendar/render?${params.toString()}`
 }
@@ -136,29 +231,32 @@ function buildIcsContent(event: EventData, url: string): string {
   const uid = `${event.dateStart}-${event.title.replace(/\s+/g, "-").toLowerCase()}@event`
   const now = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "")
 
+  const effectiveDate = getEffectiveStartDate(event)
   const hasTime = !!event.startTime
   let dtStart: string
   let dtEnd: string
 
   if (hasTime) {
-    dtStart = `DTSTART:${toCalDateTime(event.dateStart, event.startTime)}`
-    if (event.dateEnd) {
+    dtStart = `DTSTART:${toCalDateTime(effectiveDate, event.startTime)}`
+    if (!event.isRecurring && event.dateEnd) {
       dtEnd = `DTEND:${toCalDateTime(event.dateEnd, event.endTime || event.startTime)}`
     } else if (event.endTime) {
-      dtEnd = `DTEND:${toCalDateTime(event.dateStart, event.endTime)}`
+      dtEnd = `DTEND:${toCalDateTime(effectiveDate, event.endTime)}`
     } else {
-      const d = new Date(`${event.dateStart}T00:00:00`)
+      const d = new Date(`${effectiveDate}T00:00:00`)
       const parsed = parseTime(event.startTime!)!
       d.setHours(parsed.hours + 1, parsed.minutes, 0, 0)
       dtEnd = `DTEND:${d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "")}`
     }
   } else {
     // All-day event
-    dtStart = `DTSTART;VALUE=DATE:${toCalDate(event.dateStart)}`
-    const endDate = new Date(event.dateEnd || event.dateStart)
+    dtStart = `DTSTART;VALUE=DATE:${toCalDate(effectiveDate)}`
+    const endDate = new Date(effectiveDate)
     endDate.setDate(endDate.getDate() + 1)
     dtEnd = `DTEND;VALUE=DATE:${endDate.toISOString().split("T")[0].replace(/-/g, "")}`
   }
+
+  const rrule = buildRRule(event)
 
   const lines = [
     "BEGIN:VCALENDAR",
@@ -171,6 +269,7 @@ function buildIcsContent(event: EventData, url: string): string {
     `DTSTAMP:${now}`,
     dtStart,
     dtEnd,
+    rrule ? `RRULE:${rrule}` : "",
     `SUMMARY:${escapeIcs(event.title)}`,
     event.location ? `LOCATION:${escapeIcs(event.location)}` : "",
     event.shortDescription ? `DESCRIPTION:${escapeIcs(event.shortDescription)}` : "",
@@ -200,7 +299,7 @@ function downloadIcs(event: EventData, url: string) {
 
 /* ── Component ── */
 
-export default function EventActions({ event }: { event: EventData }) {
+export default function EventActions({ event, shareUrl }: { event: EventData; shareUrl?: string }) {
   const [calOpen, setCalOpen] = useState(false)
   const [shareToast, setShareToast] = useState(false)
   const calRef = useRef<HTMLDivElement>(null)
@@ -218,7 +317,8 @@ export default function EventActions({ event }: { event: EventData }) {
     }
   }, [calOpen])
 
-  const currentUrl = typeof window !== "undefined" ? window.location.href : ""
+  // Build URL from window.location to ensure we always use the full current page URL
+  const currentUrl = shareUrl || (typeof window !== "undefined" ? window.location.origin + window.location.pathname : "")
 
   function handleGoogleCalendar() {
     window.open(buildGoogleCalendarUrl(event), "_blank", "noopener,noreferrer")
