@@ -2,12 +2,153 @@
 
 import { useEffect, useCallback, useState, useRef } from "react"
 import { useEditor, useEditorState, EditorContent } from "@tiptap/react"
-import { getExtensions, plainTextToTiptapJson } from "@/lib/tiptap"
+import { Plugin, PluginKey } from "@tiptap/pm/state"
+import { Extension } from "@tiptap/core"
+import { getExtensions, plainTextToTiptapJson, isYoutubeUrl, isVimeoUrl } from "@/lib/tiptap"
 import { ImageUpload, registerImageUploadComponent } from "@/lib/tiptap-image-upload"
 import { ImageUploadNodeView } from "@/components/ui/image-upload-node"
+import { uploadImageToStaging, isR2MediaUrl, isStagingUrl } from "@/lib/upload-media"
+import type { StagingImageEntry } from "@/lib/upload-media"
+import { toast } from "sonner"
 
 // Register the React component for the ImageUpload extension
 registerImageUploadComponent(ImageUploadNodeView)
+
+/**
+ * Ref holder for the staging images callback.
+ * The ImagePasteHandler extension reads from this ref so it can notify the
+ * parent form about newly created staging images without re-creating the
+ * extension on every render.
+ */
+let _onStagingImageRef: React.RefObject<((entry: StagingImageEntry) => void) | undefined> | null = null
+
+/**
+ * ProseMirror plugin that intercepts pasted/dropped images and uploads them
+ * to R2 staging instead of allowing TipTap to insert them as base64.
+ * Images remain in staging until the parent form saves and promotes them.
+ */
+const ImagePasteHandler = Extension.create({
+  name: "imagePasteHandler",
+
+  addStorage() {
+    return {
+      onStagingImageCreated: undefined as ((entry: StagingImageEntry) => void) | undefined,
+    }
+  },
+
+  addProseMirrorPlugins() {
+    const editor = this.editor
+
+    return [
+      new Plugin({
+        key: new PluginKey("imagePasteHandler"),
+        props: {
+          handlePaste(_view, event) {
+            const items = event.clipboardData?.items
+            if (!items) return false
+
+            for (const item of Array.from(items)) {
+              if (item.type.startsWith("image/")) {
+                event.preventDefault()
+                const file = item.getAsFile()
+                if (!file) return true
+
+                // Insert a placeholder paragraph while uploading
+                const placeholderText = "Uploading image…"
+                editor.chain().focus().insertContent({
+                  type: "paragraph",
+                  content: [{ type: "text", text: placeholderText }],
+                }).run()
+
+                uploadImageToStaging(file)
+                  .then((result) => {
+                    // Notify parent about new staging image
+                    _onStagingImageRef?.current?.({
+                      stagingUrl: result.stagingUrl,
+                      filename: result.filename,
+                      mimeType: result.mimeType,
+                      fileSize: result.fileSize,
+                      width: result.width,
+                      height: result.height,
+                    })
+
+                    // Find and replace the placeholder with the image
+                    const { doc } = editor.state
+                    let placeholderPos: number | null = null
+                    doc.descendants((node, pos) => {
+                      if (
+                        placeholderPos === null &&
+                        node.isText &&
+                        node.text === placeholderText
+                      ) {
+                        placeholderPos = pos
+                      }
+                    })
+                    if (placeholderPos !== null) {
+                      // Delete the placeholder paragraph and insert the image
+                      const resolvedPos = doc.resolve(placeholderPos)
+                      const parentStart = resolvedPos.before(resolvedPos.depth)
+                      const parentEnd = resolvedPos.after(resolvedPos.depth)
+                      editor
+                        .chain()
+                        .focus()
+                        .deleteRange({ from: parentStart, to: parentEnd })
+                        .setImage({ src: result.stagingUrl })
+                        .run()
+                    } else {
+                      // Fallback: just insert at current position
+                      editor.chain().focus().setImage({ src: result.stagingUrl }).run()
+                    }
+                  })
+                  .catch((err) => {
+                    toast.error(err instanceof Error ? err.message : "Image upload failed")
+                  })
+
+                return true
+              }
+            }
+            return false
+          },
+
+          handleDrop(_view, event) {
+            const files = event.dataTransfer?.files
+            if (!files || files.length === 0) return false
+
+            const imageFile = Array.from(files).find((f) =>
+              f.type.startsWith("image/")
+            )
+            if (!imageFile) return false
+
+            event.preventDefault()
+
+            toast.promise(
+              uploadImageToStaging(imageFile).then((result) => {
+                // Notify parent about new staging image
+                _onStagingImageRef?.current?.({
+                  stagingUrl: result.stagingUrl,
+                  filename: result.filename,
+                  mimeType: result.mimeType,
+                  fileSize: result.fileSize,
+                  width: result.width,
+                  height: result.height,
+                })
+                editor.chain().focus().setImage({ src: result.stagingUrl }).run()
+              }),
+              {
+                loading: "Uploading image…",
+                success: "Image uploaded",
+                error: (err) =>
+                  err instanceof Error ? err.message : "Image upload failed",
+              }
+            )
+
+            return true
+          },
+        },
+      }),
+    ]
+  },
+})
 import { cn } from "@/lib/utils"
 import { Toggle } from "@/components/ui/toggle"
 import { Button } from "@/components/ui/button"
@@ -83,6 +224,7 @@ import {
   Minimize2,
   Indent,
   Outdent,
+  Video,
 } from "lucide-react"
 
 /** Custom icon: horizontal lines with vertical double-arrow (line/paragraph spacing) */
@@ -104,10 +246,37 @@ function LineSpacingIcon({ className }: { className?: string }) {
 interface RichTextEditorProps {
   content: string
   onContentChange: (json: string) => void
+  /** Called with R2 media URLs that were removed from the editor content.
+   *  The parent form should collect these and call deleteImageFromR2() on save. */
+  onImagesRemoved?: (urls: string[]) => void
+  /** Called when a new image is uploaded to staging (not yet promoted).
+   *  The parent form should collect these entries and call promoteStagingImages()
+   *  on save, then replace staging URLs in the content with permanent URLs. */
+  onStagingImageCreated?: (entry: StagingImageEntry) => void
   placeholder?: string
   className?: string
   minHeight?: string
   maxHeight?: string
+}
+
+/**
+ * Extract all image `src` URLs from a TipTap JSON document.
+ * Walks the content tree recursively to find all image nodes.
+ */
+function extractImageUrls(json: Record<string, unknown>): Set<string> {
+  const urls = new Set<string>()
+  function walk(node: Record<string, unknown>) {
+    if (node.type === "image" && typeof (node.attrs as Record<string, unknown>)?.src === "string") {
+      urls.add((node.attrs as Record<string, string>).src)
+    }
+    if (Array.isArray(node.content)) {
+      for (const child of node.content) {
+        walk(child as Record<string, unknown>)
+      }
+    }
+  }
+  walk(json)
+  return urls
 }
 
 function parseContent(content: string): object | string {
@@ -123,6 +292,8 @@ function parseContent(content: string): object | string {
 export function RichTextEditor({
   content,
   onContentChange,
+  onImagesRemoved,
+  onStagingImageCreated,
   placeholder = "Start writing...",
   className,
   minHeight = "300px",
@@ -136,13 +307,59 @@ export function RichTextEditor({
   // appendTransaction → onUpdate → infinite cycle.
   const skipSyncRef = useRef(false)
 
+  // Track the set of image URLs currently in the editor content.
+  // On each update, compare with previous set to detect removed images.
+  const prevImageUrlsRef = useRef<Set<string>>(new Set())
+  // Stable ref for the callback so the editor onCreate/onUpdate closures
+  // always see the latest function without re-creating the editor.
+  const onImagesRemovedRef = useRef(onImagesRemoved)
+  useEffect(() => {
+    onImagesRemovedRef.current = onImagesRemoved
+  }, [onImagesRemoved])
+
+  // Stable ref for the staging image callback, shared with the ImagePasteHandler extension
+  const onStagingImageCreatedRef = useRef(onStagingImageCreated)
+  useEffect(() => {
+    onStagingImageCreatedRef.current = onStagingImageCreated
+    // Wire up the module-level ref so the ImagePasteHandler can access it
+    _onStagingImageRef = onStagingImageCreatedRef
+  }, [onStagingImageCreated])
+
   const editor = useEditor({
-    extensions: [...getExtensions(placeholder), ImageUpload],
+    extensions: [...getExtensions(placeholder), ImageUpload, ImagePasteHandler],
     content: parseContent(content),
     immediatelyRender: false,
+    onCreate: ({ editor }) => {
+      // Initialize the previous image URLs from the initial content
+      const json = editor.getJSON() as Record<string, unknown>
+      prevImageUrlsRef.current = extractImageUrls(json)
+      // Wire up the staging callback into editor storage so the ImageUploadNodeView can access it
+      const storage = editor.storage as unknown as Record<string, Record<string, unknown>>
+      if (storage.imagePasteHandler) {
+        storage.imagePasteHandler.onStagingImageCreated = (entry: StagingImageEntry) => {
+          onStagingImageCreatedRef.current?.(entry)
+        }
+      }
+    },
     onUpdate: ({ editor }) => {
       skipSyncRef.current = true
-      onContentChange(JSON.stringify(editor.getJSON()))
+      const json = editor.getJSON()
+      onContentChange(JSON.stringify(json))
+
+      // Detect removed R2 images (only permanent ones — staging images don't have
+      // MediaAsset records yet, so there's nothing to delete from R2/DB)
+      const currentUrls = extractImageUrls(json as Record<string, unknown>)
+      const prevUrls = prevImageUrlsRef.current
+      const removedR2Urls: string[] = []
+      for (const url of prevUrls) {
+        if (!currentUrls.has(url) && isR2MediaUrl(url) && !isStagingUrl(url)) {
+          removedR2Urls.push(url)
+        }
+      }
+      if (removedR2Urls.length > 0) {
+        onImagesRemovedRef.current?.(removedR2Urls)
+      }
+      prevImageUrlsRef.current = currentUrls
     },
   })
 
@@ -157,17 +374,27 @@ export function RichTextEditor({
     }
     const currentJson = JSON.stringify(editor.getJSON())
     if (content !== currentJson) {
+      let didUpdate = false
       try {
         const parsed = JSON.parse(content)
         // Only update if it's valid JSON and actually different
         if (JSON.stringify(parsed) !== JSON.stringify(editor.getJSON())) {
           editor.commands.setContent(parsed, { emitUpdate: false })
+          didUpdate = true
         }
       } catch {
         // If content is HTML (from DOCX import), set it as HTML
         if (content.includes("<") && content.includes(">")) {
           editor.commands.setContent(content, { emitUpdate: false })
+          didUpdate = true
         }
+      }
+      // When content is set externally (emitUpdate: false), onUpdate won't fire,
+      // so we must refresh the tracked image URLs to avoid false removal reports.
+      if (didUpdate) {
+        prevImageUrlsRef.current = extractImageUrls(
+          editor.getJSON() as Record<string, unknown>
+        )
       }
     }
   }, [content, editor])
@@ -379,6 +606,8 @@ function EditorToolbar({ editor, isFullscreen, onToggleFullscreen }: { editor: R
   const [linkUrl, setLinkUrl] = useState("")
   const [linkOpen, setLinkOpen] = useState(false)
   const [tableOpen, setTableOpen] = useState(false)
+  const [videoUrl, setVideoUrl] = useState("")
+  const [videoOpen, setVideoOpen] = useState(false)
 
   const setLink = useCallback(() => {
     if (!editor || !linkUrl) return
@@ -392,6 +621,23 @@ function EditorToolbar({ editor, isFullscreen, onToggleFullscreen }: { editor: R
     if (!editor) return
     editor.chain().focus().unsetLink().run()
   }, [editor])
+
+  const insertVideo = useCallback(() => {
+    if (!editor || !videoUrl) return
+    const url = videoUrl.trim()
+    if (isYoutubeUrl(url)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(editor.commands as any).setYoutubeVideo({ src: url, width: 640, height: 360 })
+    } else if (isVimeoUrl(url)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(editor.commands as any).setVimeoVideo({ src: url, width: 640, height: 360 })
+    } else {
+      toast.error("Unsupported video URL. Please use a YouTube or Vimeo link.")
+      return
+    }
+    setVideoUrl("")
+    setVideoOpen(false)
+  }, [editor, videoUrl])
 
   if (!editor) return null
 
@@ -770,6 +1016,46 @@ function EditorToolbar({ editor, isFullscreen, onToggleFullscreen }: { editor: R
             <ImageIcon className="size-4" />
           </Button>
         </ToolbarTooltip>
+
+        <Popover open={videoOpen} onOpenChange={(open) => { setVideoOpen(open); if (!open) setVideoUrl("") }}>
+          <ToolbarTooltip label="Insert Video">
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+              >
+                <Video className="size-4" />
+              </Button>
+            </PopoverTrigger>
+          </ToolbarTooltip>
+          <PopoverContent className="w-80 p-3" align="start">
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Paste a YouTube or Vimeo URL</p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="https://youtube.com/watch?v=..."
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault()
+                      insertVideo()
+                    }
+                  }}
+                  className="text-sm"
+                  autoFocus
+                />
+                <Button
+                  size="sm"
+                  onClick={insertVideo}
+                  disabled={!videoUrl.trim()}
+                >
+                  Embed
+                </Button>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
 
         <Popover open={tableOpen} onOpenChange={setTableOpen}>
           <ToolbarTooltip label="Insert Table">

@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
+import { deleteImageFromR2, promoteStagingImages, replaceStagingUrls } from "@/lib/upload-media"
+import type { StagingImageEntry } from "@/lib/upload-media"
 import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes"
 import {
   ArrowLeft,
@@ -110,6 +112,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const [passage, setPassage] = useState(message?.passage ?? "")
   const [bibleVersion, setBibleVersion] = useState(message?.bibleVersion ?? DEFAULT_BIBLE_VERSION.code)
   const [attachments, setAttachments] = useState<Attachment[]>(message?.attachments ?? [])
+  const pendingImageDeletionsRef = useRef<string[]>([])
+  const pendingStagingImagesRef = useRef<StagingImageEntry[]>([])
   const [publishedAt, setPublishedAt] = useState(message?.publishedAt ?? "")
 
   // Video tab state
@@ -380,9 +384,39 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     }
   }
 
-  function saveMessage(options?: { navigate?: boolean; videoPublished?: boolean; studyPublished?: boolean }) {
+  async function saveMessage(options?: { navigate?: boolean; videoPublished?: boolean; studyPublished?: boolean }) {
     const { navigate = false, videoPublished: vPub, studyPublished: sPub } = options ?? {}
+
     const data = buildMessageData({ videoPublished: vPub, studyPublished: sPub })
+
+    // Promote any staging images and replace URLs in the save data
+    const stagingEntries = [...pendingStagingImagesRef.current]
+    if (stagingEntries.length > 0) {
+      try {
+        const urlMap = await promoteStagingImages(stagingEntries)
+        // Replace staging URLs in study sections content
+        if (data.studySections) {
+          for (const section of data.studySections) {
+            section.content = replaceStagingUrls(section.content, urlMap)
+          }
+        }
+        // Replace staging URLs in raw transcript
+        if (data.rawTranscript) {
+          data.rawTranscript = replaceStagingUrls(data.rawTranscript, urlMap)
+        }
+      } catch (err) {
+        console.error("Failed to promote staging images:", err)
+        // Continue with staging URLs — they'll still work and can be promoted later
+      }
+      pendingStagingImagesRef.current = []
+    }
+
+    // Clean up R2 images removed from study section editors (permanent ones only)
+    if (pendingImageDeletionsRef.current.length > 0) {
+      const urls = [...pendingImageDeletionsRef.current]
+      pendingImageDeletionsRef.current = []
+      urls.forEach((url) => deleteImageFromR2(url).catch(() => {}))
+    }
 
     if (mode === "create") {
       addMessage(data)
@@ -937,6 +971,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
               onSectionsChange={setStudySections}
               onAttachmentAdd={(att) => setAttachments(prev => [...prev, att])}
               attachments={attachments}
+              onImagesRemoved={(urls) => pendingImageDeletionsRef.current.push(...urls)}
+              onStagingImageCreated={(entry) => pendingStagingImagesRef.current.push(entry)}
             />
 
             {/* Attachments */}
@@ -1021,6 +1057,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                   />
                 </div>
               }
+              onImagesRemoved={(urls) => pendingImageDeletionsRef.current.push(...urls)}
+              onStagingImageCreated={(entry) => pendingStagingImagesRef.current.push(entry)}
             />
           </div>
         </TabsContent>

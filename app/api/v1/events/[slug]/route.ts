@@ -5,6 +5,7 @@ import { getEventBySlug, updateEvent, deleteEvent, syncEventLinks } from '@/lib/
 import { getMinistryBySlug } from '@/lib/dal/ministries'
 import { getCampusBySlug } from '@/lib/dal/campuses'
 import { requireApiAuth } from '@/lib/api/require-auth'
+import { hardDeleteMediaAssetByUrl } from '@/lib/dal/media'
 import { validateAll, validateTitle, validateSlug, validateLongText, validateUrl, validateEnum, CONTENT_STATUS_VALUES, EVENT_TYPE_VALUES } from '@/lib/api/validation'
 
 type Params = { params: Promise<{ slug: string }> }
@@ -185,6 +186,13 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     }
 
     await deleteEvent(churchId, existing.id)
+
+    // Clean up cover image from R2 if present (best-effort, don't block response)
+    if (existing.coverImage) {
+      hardDeleteMediaAssetByUrl(churchId, existing.coverImage).catch((err) => {
+        console.warn('Failed to clean up cover image from R2:', err)
+      })
+    }
 
     // Revalidate public website pages that display events
     revalidatePath('/website')

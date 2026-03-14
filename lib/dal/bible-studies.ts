@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db'
 import { ContentStatus, Prisma, type BibleBook } from '@/lib/generated/prisma/client'
 import { paginationArgs, paginatedResult, type PaginationParams, type PaginatedResult } from './types'
+import { deleteAllStudyAttachments } from '@/lib/upload-attachment'
 
 type BibleStudyWithRelations = Prisma.BibleStudyGetPayload<{
   include: { speaker: true; series: true; attachments: true; relatedMessage: { select: { bibleVersion: true; slug: true; videoUrl: true; youtubeId: true } } }
@@ -83,6 +84,16 @@ export async function updateBibleStudy(
 }
 
 export async function deleteBibleStudy(churchId: string, id: string) {
+  // Hard-delete all attachment R2 files + DB records before soft-deleting the study
+  try {
+    const result = await deleteAllStudyAttachments(id)
+    if (result.deleted > 0) {
+      console.log(`[deleteBibleStudy] Cleaned up ${result.deleted} attachments (${result.r2Errors} R2 errors)`)
+    }
+  } catch (err) {
+    console.error('[deleteBibleStudy] Attachment cleanup warning:', err)
+  }
+
   return prisma.bibleStudy.update({
     where: { id, churchId },
     data: { deletedAt: new Date() },

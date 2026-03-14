@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { requireApiAuth } from '@/lib/api/require-auth'
-import { bulkSoftDelete } from '@/lib/dal/media'
+import { bulkHardDelete } from '@/lib/dal/media'
 
 // ---------------------------------------------------------------------------
-// POST /api/v1/media/bulk-delete — Soft-delete multiple media assets
+// POST /api/v1/media/bulk-delete — Hard-delete multiple media assets (R2 + DB)
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const result = await bulkSoftDelete(churchId, ids)
+    const result = await bulkHardDelete(churchId, ids)
 
     return NextResponse.json({ success: true, data: { deletedCount: result.count } })
   } catch (error) {

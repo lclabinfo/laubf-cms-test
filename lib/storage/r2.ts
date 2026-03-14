@@ -1,8 +1,9 @@
 import {
   S3Client,
   PutObjectCommand,
+  GetObjectCommand,
   DeleteObjectCommand,
-  CopyObjectCommand,
+  HeadObjectCommand,
   ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -83,21 +84,59 @@ export function getPublicUrl(key: string): string {
 }
 
 /**
- * Move (copy + delete) an object within a bucket.
- * Used to promote files from staging/ to their permanent key.
+ * Move an object within a bucket by downloading and re-uploading it.
+ *
+ * Previously used CopyObjectCommand, but Cloudflare R2 has known
+ * compatibility issues with the AWS SDK v3 CopyObject operation —
+ * the copy can silently fail while the subsequent delete succeeds,
+ * permanently losing the file. This download-reupload approach is
+ * reliable with R2 and includes verification before deleting the source.
  */
 export async function moveObject(
   srcKey: string,
   destKey: string,
   bucket = ATTACHMENTS_BUCKET,
 ): Promise<void> {
-  await client.send(
-    new CopyObjectCommand({
+  // 1. Download the source object
+  const getResponse = await client.send(
+    new GetObjectCommand({
       Bucket: bucket,
-      CopySource: `${bucket}/${srcKey}`,
+      Key: srcKey,
+    }),
+  );
+
+  if (!getResponse.Body) {
+    throw new Error(`moveObject: source object ${srcKey} has no body`);
+  }
+
+  // Read the full body into a buffer
+  const bodyBytes = await getResponse.Body.transformToByteArray();
+
+  // 2. Upload to the destination key
+  await client.send(
+    new PutObjectCommand({
+      Bucket: bucket,
+      Key: destKey,
+      Body: bodyBytes,
+      ContentType: getResponse.ContentType,
+    }),
+  );
+
+  // 3. Verify the destination exists before deleting the source
+  const headResponse = await client.send(
+    new HeadObjectCommand({
+      Bucket: bucket,
       Key: destKey,
     }),
   );
+
+  if (!headResponse.ContentLength || headResponse.ContentLength === 0) {
+    throw new Error(
+      `moveObject: destination object ${destKey} verification failed — aborting delete of source`,
+    );
+  }
+
+  // 4. Safe to delete the source
   await client.send(
     new DeleteObjectCommand({
       Bucket: bucket,

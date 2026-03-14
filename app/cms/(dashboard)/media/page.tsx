@@ -86,7 +86,7 @@ export default function MediaPage() {
   const [moveDialogOpen, setMoveDialogOpen] = useState(false)
   const [movingIds, setMovingIds] = useState<string[]>([])
   const [previewItem, setPreviewItem] = useState<MediaItem | null>(null)
-  const [deleteConfirm, setDeleteConfirm] = useState<{ ids: string[]; mode: "single" | "bulk"; usages?: Array<{ type: string; title: string }> } | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<{ ids: string[]; mode: "single" | "bulk"; usages?: Array<{ type: string; title: string; detail?: string }> } | null>(null)
   const [renameFolderDialogOpen, setRenameFolderDialogOpen] = useState(false)
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null)
 
@@ -941,8 +941,8 @@ export default function MediaPage() {
               <div className="space-y-2">
                 <p>
                   {deleteConfirm?.mode === "bulk"
-                    ? `This will move ${deleteConfirm.ids.length} items to trash. You can recover them later.`
-                    : "This will move the item to trash. You can recover it later."}
+                    ? `This will permanently delete ${deleteConfirm.ids.length} items and their files. This action cannot be undone.`
+                    : "This will permanently delete this item and its file. This action cannot be undone."}
                 </p>
                 {deleteConfirm?.usages && deleteConfirm.usages.length > 0 && (
                   <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
@@ -954,7 +954,7 @@ export default function MediaPage() {
                         <li key={i} className="flex items-center gap-1.5">
                           <span className="size-1 rounded-full bg-destructive/50 shrink-0" />
                           {u.title}
-                          <span className="text-xs">({u.type === "page-section" ? "Website" : "Event"})</span>
+                          {u.detail && <span className="text-xs text-muted-foreground">— {u.detail}</span>}
                         </li>
                       ))}
                     </ul>

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect, useCallback } from "react"
+import { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes"
 import { toast } from "sonner"
@@ -56,6 +56,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { cn } from "@/lib/utils"
+import { uploadImageToR2, deleteImageFromR2, isR2MediaUrl, promoteStagingImages, replaceStagingUrls } from "@/lib/upload-media"
+import type { StagingImageEntry } from "@/lib/upload-media"
 import { CustomRecurrenceDialog } from "./custom-recurrence-dialog"
 import { AddressAutocomplete } from "./address-autocomplete"
 import { useSavedAddresses } from "@/components/cms/church-profile/saved-address-settings"
@@ -238,6 +240,8 @@ export function EventForm({ mode, event }: EventFormProps) {
   const [featuredScenario, setFeaturedScenario] = useState<FeaturedToggleScenario | null>(null)
   const [contacts, setContacts] = useState<EventContact[]>(event?.contacts ?? [])
   const [coverImage, setCoverImage] = useState(event?.coverImage ?? "")
+  const pendingImageDeletionsRef = useRef<string[]>([])
+  const pendingStagingImagesRef = useRef<StagingImageEntry[]>([])
   const [imageAlt, setImageAlt] = useState(event?.imageAlt ?? "")
   // Cost & Registration
   const [costType, setCostType] = useState<CostType>(event?.costType ?? "free")
@@ -313,8 +317,22 @@ export function EventForm({ mode, event }: EventFormProps) {
     registrationUrl, maxParticipants, registrationDeadline,
   ])
 
-  const [savedSnapshot, setSavedSnapshot] = useState(() => JSON.stringify(snapshotFields()))
-  const isDirty = JSON.stringify(snapshotFields()) !== savedSnapshot
+  // Defer initial snapshot until after TipTap has normalized the content.
+  // TipTap may fire onUpdate on initialization (e.g. appendTransaction normalization),
+  // which changes `description` from the raw DB value to the normalized JSON.
+  // Capturing the snapshot synchronously would mismatch and cause a false-positive isDirty.
+  const snapshotFieldsRef = useRef(snapshotFields)
+  snapshotFieldsRef.current = snapshotFields
+  const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null)
+  useEffect(() => {
+    // Allow one tick for TipTap to initialize and normalize content via onUpdate,
+    // then capture the baseline snapshot using the ref (always latest values).
+    const timer = requestAnimationFrame(() => {
+      setSavedSnapshot((prev) => prev === null ? JSON.stringify(snapshotFieldsRef.current()) : prev)
+    })
+    return () => cancelAnimationFrame(timer)
+  }, [])
+  const isDirty = savedSnapshot !== null && JSON.stringify(snapshotFields()) !== savedSnapshot
 
   // Warn on unsaved changes (reload, sidebar nav, back/forward)
   const { navigateAway } = useUnsavedChanges(isDirty)
@@ -407,12 +425,24 @@ export function EventForm({ mode, event }: EventFormProps) {
   }
 
   function handleGenerateAI() {
+    const oldUrl = coverImage
     const random = mockUnsplashImages[Math.floor(Math.random() * mockUnsplashImages.length)]
     setCoverImage(random)
+    if (oldUrl && isR2MediaUrl(oldUrl)) {
+      deleteImageFromR2(oldUrl).catch(() => {})
+    }
   }
 
   function handleSelectFromLibrary() {
     setMediaSelectorOpen(true)
+  }
+
+  function handleRemoveCoverImage() {
+    const oldUrl = coverImage
+    setCoverImage("")
+    if (oldUrl && isR2MediaUrl(oldUrl)) {
+      deleteImageFromR2(oldUrl).catch(() => {})
+    }
   }
 
   async function handleCoverDrop(e: React.DragEvent) {
@@ -421,43 +451,15 @@ export function EventForm({ mode, event }: EventFormProps) {
     setCoverDragging(false)
     const file = e.dataTransfer.files?.[0]
     if (!file || !file.type.startsWith("image/")) return
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error("Image exceeds 10 MB limit")
-      return
-    }
     setCoverUploading(true)
     try {
-      // Ensure Events folder exists
-      fetch("/api/v1/media/folders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Events" }),
-      }).catch(() => {})
-      // Upload to R2
-      const urlRes = await fetch("/api/v1/upload-url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: file.name, contentType: file.type, fileSize: file.size, context: "media" }),
-      })
-      const urlJson = await urlRes.json()
-      if (!urlJson.success) throw new Error(urlJson.error?.message || "Upload failed")
-      await fetch(urlJson.data.uploadUrl, { method: "PUT", body: file, headers: { "Content-Type": file.type } })
-      // Get dimensions
-      const dims = await new Promise<{ w: number; h: number }>((resolve) => {
-        const img = new window.Image()
-        img.onload = () => { resolve({ w: img.naturalWidth, h: img.naturalHeight }); URL.revokeObjectURL(img.src) }
-        img.onerror = () => { resolve({ w: 0, h: 0 }); URL.revokeObjectURL(img.src) }
-        img.src = URL.createObjectURL(file)
-      })
-      // Create media record
-      const createRes = await fetch("/api/v1/media", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename: file.name, url: urlJson.data.publicUrl, mimeType: file.type, fileSize: file.size, width: dims.w || undefined, height: dims.h || undefined, folder: "Events" }),
-      })
-      const createJson = await createRes.json()
-      if (!createJson.success) throw new Error("Failed to create media record")
-      setCoverImage(createJson.data.url)
+      const oldUrl = coverImage
+      const result = await uploadImageToR2(file, "Events")
+      // Upload succeeded — now clean up old image if it was an R2 asset
+      if (oldUrl && isR2MediaUrl(oldUrl)) {
+        deleteImageFromR2(oldUrl).catch(() => {})
+      }
+      setCoverImage(result.url)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Upload failed")
     } finally {
@@ -481,7 +483,23 @@ export function EventForm({ mode, event }: EventFormProps) {
     doSave(status)
   }
 
-  function doSave(saveStatus: ContentStatus) {
+  async function doSave(saveStatus: ContentStatus) {
+    // Promote any staging images before saving
+    let finalDescription = description || ""
+    const stagingEntries = pendingStagingImagesRef.current.filter(
+      (entry) => finalDescription.includes(entry.stagingUrl)
+    )
+    if (stagingEntries.length > 0) {
+      try {
+        const urlMap = await promoteStagingImages(stagingEntries)
+        finalDescription = replaceStagingUrls(finalDescription, urlMap)
+      } catch (err) {
+        console.error("Failed to promote staging images:", err)
+        // Continue with staging URLs — they'll still work and can be promoted later
+      }
+      pendingStagingImagesRef.current = []
+    }
+
     const eventData: Omit<ChurchEvent, "id"> = {
       slug: "",  // Auto-generated from title in context layer
       title: title.trim(),
@@ -506,7 +524,7 @@ export function EventForm({ mode, event }: EventFormProps) {
       status: saveStatus,
       isFeatured,
       shortDescription: shortDescription.trim(),
-      description: description || "",
+      description: finalDescription,
       welcomeMessage: welcomeMessage || "",
       contacts: contacts.length > 0 ? contacts : [],
       coverImage: coverImage || "",
@@ -519,6 +537,13 @@ export function EventForm({ mode, event }: EventFormProps) {
       registrationUrl: registrationRequired ? registrationUrl.trim() : "",
       maxParticipants: registrationRequired ? maxParticipants : undefined,
       registrationDeadline: registrationRequired ? registrationDeadline : "",
+    }
+
+    // Clean up R2 images removed from the description editor (permanent ones only)
+    if (pendingImageDeletionsRef.current.length > 0) {
+      const urls = [...pendingImageDeletionsRef.current]
+      pendingImageDeletionsRef.current = []
+      urls.forEach((url) => deleteImageFromR2(url).catch(() => {}))
     }
 
     if (mode === "create") {
@@ -634,47 +659,42 @@ export function EventForm({ mode, event }: EventFormProps) {
               <h2 className="text-sm font-semibold">Schedule</h2>
             </div>
             <div className="p-5 space-y-4">
-              {/* Start row */}
-              <div id="field-start-date" className="grid grid-cols-[4rem_1fr_1fr] items-center gap-3">
-                <Label className="text-sm text-muted-foreground">Start <span className="text-destructive">*</span></Label>
+              {/* Date & time — [StartDate] [StartTime] to [EndTime] [EndDate] */}
+              <div id="field-start-date" className="grid grid-cols-[1fr_auto_auto_auto_1fr] items-center gap-2">
                 <DatePicker
                   value={startDate}
                   onChange={handleStartDateChange}
-                  placeholder="Select date"
+                  placeholder="Start date"
                 />
                 <Input
                   type="time"
                   value={startTime}
                   onChange={(e) => setStartTime(e.target.value)}
-                  className="[&::-webkit-calendar-picker-indicator]:dark:invert [&::-webkit-calendar-picker-indicator]:opacity-50"
+                  className="w-[120px] [&::-webkit-calendar-picker-indicator]:dark:invert [&::-webkit-calendar-picker-indicator]:opacity-60"
                 />
-              </div>
-
-              {/* End row */}
-              <div className="grid grid-cols-[4rem_1fr_1fr] items-center gap-3">
-                <Label className="text-sm text-muted-foreground">End</Label>
-                <DatePicker
-                  value={endDate}
-                  onChange={setEndDate}
-                  min={startDate}
-                  placeholder="Select date"
-                />
+                <span className="text-sm text-muted-foreground select-none px-1">to</span>
                 <Input
                   type="time"
                   value={endTime}
                   onChange={(e) => setEndTime(e.target.value)}
-                  className="[&::-webkit-calendar-picker-indicator]:dark:invert [&::-webkit-calendar-picker-indicator]:opacity-50"
+                  className="w-[120px] [&::-webkit-calendar-picker-indicator]:dark:invert [&::-webkit-calendar-picker-indicator]:opacity-60"
+                />
+                <DatePicker
+                  value={endDate}
+                  onChange={setEndDate}
+                  min={startDate}
+                  placeholder="End date"
                 />
               </div>
 
               {/* Recurrence */}
               <div className="space-y-3">
-                <Label>Recurrence</Label>
+                <Label className="text-sm font-medium">Recurrence</Label>
                 <Select
                   value={recurrence}
                   onValueChange={handleRecurrenceChange}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="w-[200px]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -687,7 +707,7 @@ export function EventForm({ mode, event }: EventFormProps) {
                 </Select>
 
                 {recurrence === "custom" && customRecurrence && (
-                  <div className="flex items-center gap-2 mt-2">
+                  <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-xs font-normal">
                       Every {customRecurrence.interval} week(s) on{" "}
                       {customRecurrence.days
@@ -748,11 +768,11 @@ export function EventForm({ mode, event }: EventFormProps) {
                   </div>
                 )}
 
-                {/* Recurrence end date */}
+                {/* Recurrence end */}
                 {isRecurring && recurrence !== "custom" && (
                   <div className="space-y-2 pt-1">
-                    <Label className="text-xs text-muted-foreground">Ends</Label>
-                    <div className="flex items-center gap-4">
+                    <Label className="text-sm font-medium">Ends</Label>
+                    <div className="flex flex-wrap items-center gap-4">
                       <RadioGroup
                         value={recurrenceEndType}
                         onValueChange={(v) => setRecurrenceEndType(v as RecurrenceEndType)}
@@ -939,6 +959,8 @@ export function EventForm({ mode, event }: EventFormProps) {
                 <RichTextEditor
                   content={description}
                   onContentChange={setDescription}
+                  onImagesRemoved={(urls) => pendingImageDeletionsRef.current.push(...urls)}
+                  onStagingImageCreated={(entry) => pendingStagingImagesRef.current.push(entry)}
                   placeholder="Event details, agenda, and notes..."
                   minHeight="200px"
                 />
@@ -1289,7 +1311,7 @@ export function EventForm({ mode, event }: EventFormProps) {
                         <Library className="size-3.5" />
                         Library
                       </Button>
-                      <Button size="sm" variant="destructive" onClick={() => setCoverImage("")}>
+                      <Button size="sm" variant="destructive" onClick={handleRemoveCoverImage}>
                         <X className="size-3.5" />
                         Remove
                       </Button>
@@ -1411,8 +1433,13 @@ export function EventForm({ mode, event }: EventFormProps) {
         onOpenChange={setMediaSelectorOpen}
         folder="Events"
         onSelect={(url, alt) => {
+          const oldUrl = coverImage
           setCoverImage(url)
           if (alt) setImageAlt(alt)
+          // Clean up old R2 image if being replaced
+          if (oldUrl && oldUrl !== url && isR2MediaUrl(oldUrl)) {
+            deleteImageFromR2(oldUrl).catch(() => {})
+          }
         }}
       />
 

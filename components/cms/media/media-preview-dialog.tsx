@@ -18,6 +18,14 @@ import {
   ChevronsUpDown,
   Trash2,
   AlertCircle,
+  Mic,
+  BookOpen,
+  Church,
+  Settings,
+  User,
+  Users,
+  Building2,
+  FileImage,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -197,10 +205,13 @@ function MediaPreviewDialogInner({
 }
 
 interface UsageEntry {
-  type: "event" | "page-section"
+  type: string
   id: string
   title: string
-  slug: string
+  url: string
+  detail?: string
+  // Legacy fields (kept for backwards compatibility)
+  slug?: string
   pageId?: string
   sectionLabel?: string | null
   sectionType?: string
@@ -620,44 +631,50 @@ function PreviewContent({
   )
 }
 
+const usageTypeConfig: Record<string, { icon: React.ElementType; label: string }> = {
+  event: { icon: Calendar, label: "Event" },
+  series: { icon: BookOpen, label: "Series" },
+  message: { icon: Mic, label: "Message" },
+  church: { icon: Church, label: "Church" },
+  "site-settings": { icon: Settings, label: "Site Settings" },
+  "page-section": { icon: Globe, label: "Website" },
+  page: { icon: FileImage, label: "Page" },
+  speaker: { icon: User, label: "Speaker" },
+  person: { icon: Users, label: "Person" },
+  ministry: { icon: Building2, label: "Ministry" },
+  campus: { icon: Building2, label: "Campus" },
+}
+
 function UsageItem({ usage: u }: { usage: UsageEntry }) {
-  if (u.type === "event") {
-    return (
-      <Link
-        href={`/cms/events/${u.id}`}
-        className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm hover:bg-accent transition-colors group"
-      >
-        <Calendar className="size-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
-        <div className="flex-1 min-w-0">
-          <span className="font-medium truncate block leading-tight">{u.title}</span>
-          <span className="text-[10px] text-muted-foreground leading-tight">Event</span>
-        </div>
-        <ExternalLink className="size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100" />
-      </Link>
-    )
-  }
-  if (u.type === "page-section") {
-    const sectionLabel = u.sectionLabel
-      || u.sectionType?.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
-      || "Section"
-    return (
-      <Link
-        href={`/cms/website/builder/${u.pageId}`}
-        className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm hover:bg-accent transition-colors group"
-      >
-        <Globe className="size-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
+  const config = usageTypeConfig[u.type] ?? { icon: FileImage, label: u.type }
+  const Icon = config.icon
+  // Use the url field from the API (new format), fall back to legacy link construction
+  const href = u.url
+    || (u.type === "event" ? `/cms/events/${u.id}` : "")
+    || (u.type === "page-section" && u.pageId ? `/cms/website/builder/${u.pageId}` : "")
+
+  const isWebsite = u.type === "page-section" || u.type === "page"
+
+  return (
+    <Link
+      href={href || "#"}
+      className="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-sm hover:bg-accent transition-colors group"
+    >
+      <Icon className="size-3.5 shrink-0 text-muted-foreground group-hover:text-foreground" />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          {isWebsite && (
             <Badge variant="outline" className="text-[9px] px-1 py-0 leading-tight font-normal shrink-0">Website</Badge>
-            <span className="font-medium truncate leading-tight">{u.title}</span>
-          </div>
-          <span className="text-[10px] text-muted-foreground leading-tight">{sectionLabel}</span>
+          )}
+          <span className="font-medium truncate leading-tight">{u.title}</span>
         </div>
-        <ExternalLink className="size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100" />
-      </Link>
-    )
-  }
-  return null
+        <span className="text-[10px] text-muted-foreground leading-tight">
+          {u.detail || config.label}
+        </span>
+      </div>
+      <ExternalLink className="size-3 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100" />
+    </Link>
+  )
 }
 
 function MetadataRow({

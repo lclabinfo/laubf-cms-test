@@ -23,6 +23,10 @@ interface VideoTabProps {
   videoTitleSlot?: React.ReactNode
   /** Speaker field — lives on the Video tab since it's about who delivered the sermon */
   speakerSlot?: React.ReactNode
+  /** Called when R2 images are removed from the transcript editor */
+  onImagesRemoved?: (urls: string[]) => void
+  /** Called when a new image is uploaded to staging in the transcript editor */
+  onStagingImageCreated?: (entry: import("@/lib/upload-media").StagingImageEntry) => void
 }
 
 function extractYouTubeId(url: string): string | null {
@@ -49,6 +53,8 @@ export function VideoTab({
   onSegmentsChange,
   speakerSlot,
   videoTitleSlot,
+  onImagesRemoved,
+  onStagingImageCreated,
 }: VideoTabProps) {
   const [urlInput, setUrlInput] = useState(videoUrl)
   const [checked, setChecked] = useState(!!videoUrl)
@@ -210,6 +216,8 @@ export function VideoTab({
           segments={segments}
           onSegmentsChange={onSegmentsChange}
           videoUrl={videoUrl}
+          onImagesRemoved={onImagesRemoved}
+          onStagingImageCreated={onStagingImageCreated}
         />
       </div>
     </div>

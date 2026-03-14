@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getSeriesById, updateSeries, deleteSeries, setSeriesMessages } from '@/lib/dal/series'
+import { hardDeleteMediaAssetByUrl } from '@/lib/dal/media'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -45,6 +46,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     // Extract messageIds if provided (handled separately via join table)
     const { messageIds, ...seriesData } = body
 
+    // If imageUrl is being changed/removed, delete old image from R2
+    if ('imageUrl' in seriesData && existing.imageUrl && existing.imageUrl !== seriesData.imageUrl) {
+      hardDeleteMediaAssetByUrl(churchId, existing.imageUrl).catch((err) => {
+        console.error('Series PATCH: failed to delete old image from R2:', err)
+      })
+    }
+
     const updated = await updateSeries(churchId, existing.id, seriesData)
 
     // Handle message assignment if messageIds is provided
@@ -75,6 +83,13 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
         { success: false, error: { code: 'NOT_FOUND', message: 'Series not found' } },
         { status: 404 },
       )
+    }
+
+    // Delete series cover image from R2 if present
+    if (existing.imageUrl) {
+      hardDeleteMediaAssetByUrl(churchId, existing.imageUrl).catch((err) => {
+        console.error('Series DELETE: failed to delete image from R2:', err)
+      })
     }
 
     await deleteSeries(churchId, existing.id)

@@ -18,7 +18,8 @@ import OrderedList from "@tiptap/extension-ordered-list"
 import BulletList from "@tiptap/extension-bullet-list"
 import { generateHTML } from "@tiptap/html"
 import ListItem from "@tiptap/extension-list-item"
-import { Extension, wrappingInputRule } from "@tiptap/core"
+import Youtube from "@tiptap/extension-youtube"
+import { Node, mergeAttributes, Extension, wrappingInputRule, type RawCommands, type SingleCommands } from "@tiptap/core"
 import { Plugin, PluginKey, TextSelection } from "@tiptap/pm/state"
 import type { Extensions } from "@tiptap/react"
 import type { JSONContent } from "@tiptap/core"
@@ -652,6 +653,91 @@ const SpacerAwareListItem = ListItem.extend({
 })
 
 /**
+ * Custom Vimeo embed node extension.
+ * Mirrors the YouTube extension pattern: wraps an iframe in a data-attributed div.
+ */
+const VimeoEmbed = Node.create({
+  name: "vimeo",
+  group: "block",
+  atom: true,
+  draggable: true,
+
+  addAttributes() {
+    return {
+      src: { default: null },
+      width: { default: 640 },
+      height: { default: 360 },
+    }
+  },
+
+  parseHTML() {
+    return [{ tag: "div[data-vimeo-video] iframe", getAttrs: (el: HTMLElement) => ({ src: el.getAttribute("src") }) }]
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    const embedUrl = getVimeoEmbedUrl(HTMLAttributes.src as string)
+    return [
+      "div",
+      { "data-vimeo-video": "", class: "video-embed" },
+      [
+        "iframe",
+        mergeAttributes(
+          {
+            src: embedUrl,
+            width: HTMLAttributes.width,
+            height: HTMLAttributes.height,
+            frameborder: "0",
+            allow: "autoplay; fullscreen; picture-in-picture",
+            allowfullscreen: "true",
+          },
+        ),
+      ],
+    ]
+  },
+
+  addCommands() {
+    return {
+      setVimeoVideo:
+        (options: { src: string; width?: number; height?: number }) =>
+        ({ commands }: { commands: SingleCommands }) => {
+          if (!isVimeoUrl(options.src)) return false
+          return commands.insertContent({
+            type: this.name,
+            attrs: {
+              src: options.src,
+              width: options.width ?? 640,
+              height: options.height ?? 360,
+            },
+          })
+        },
+    } as unknown as Partial<RawCommands>
+  },
+})
+
+/** Check if a URL is a YouTube URL */
+export function isYoutubeUrl(url: string): boolean {
+  return /(?:youtube\.com|youtu\.be)/i.test(url)
+}
+
+/** Check if a URL is a Vimeo URL */
+export function isVimeoUrl(url: string): boolean {
+  return /vimeo\.com/i.test(url)
+}
+
+/** Extract Vimeo video ID from URL */
+function getVimeoId(url: string): string | null {
+  const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)
+  return match?.[1] ?? null
+}
+
+/** Convert a Vimeo URL to its embed URL */
+function getVimeoEmbedUrl(url: string): string {
+  const id = getVimeoId(url)
+  if (id) return `https://player.vimeo.com/video/${id}`
+  return url
+}
+
+/**
  * Shared TipTap extension configuration.
  * Used by both the editor component and HTML generation to ensure parity.
  */
@@ -683,8 +769,14 @@ export function getExtensions(placeholder?: string): Extensions {
     }),
     Image.configure({
       inline: false,
-      allowBase64: true,
+      allowBase64: false,
     }),
+    Youtube.configure({
+      controls: true,
+      nocookie: true,
+      HTMLAttributes: { class: "video-embed" },
+    }),
+    VimeoEmbed,
     Table.configure({
       resizable: true,
       HTMLAttributes: { class: "tiptap-table" },
@@ -746,7 +838,13 @@ export function getParseExtensions(): Extensions {
       openOnClick: false,
       HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
     }),
-    Image.configure({ inline: false, allowBase64: true }),
+    Image.configure({ inline: false, allowBase64: false }),
+    Youtube.configure({
+      controls: true,
+      nocookie: true,
+      HTMLAttributes: { class: "video-embed" },
+    }),
+    VimeoEmbed,
     Table.configure({ resizable: true, HTMLAttributes: { class: "tiptap-table" } }),
     TableRow,
     TableHeader,

@@ -386,6 +386,9 @@ async function syncStudyAttachments(
 /**
  * Soft-deletes the linked BibleStudy when a message no longer has study content
  * or the message itself is deleted.
+ *
+ * Also hard-deletes all attachment R2 files + DB records since the study
+ * is being retired and we don't want orphaned files in storage.
  */
 export async function unlinkMessageStudy(messageId: string, studyId: string) {
   // Remove the FK link first
@@ -393,6 +396,17 @@ export async function unlinkMessageStudy(messageId: string, studyId: string) {
     where: { id: messageId },
     data: { relatedStudyId: null },
   })
+
+  // Hard-delete all attachment R2 files + DB records
+  try {
+    const { deleteAllStudyAttachments } = await import('@/lib/upload-attachment')
+    const result = await deleteAllStudyAttachments(studyId)
+    if (result.deleted > 0) {
+      console.log(`[unlinkMessageStudy] Cleaned up ${result.deleted} attachments (${result.r2Errors} R2 errors)`)
+    }
+  } catch (err) {
+    console.error('[unlinkMessageStudy] Attachment cleanup warning:', err)
+  }
 
   // Soft-delete the BibleStudy
   await prisma.bibleStudy.update({

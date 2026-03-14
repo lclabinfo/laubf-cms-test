@@ -36,6 +36,10 @@ interface StudyTabProps {
   attachments?: Attachment[]
   /** Bible version selector — lives on the Study tab since it's about study materials */
   bibleVersionSlot?: React.ReactNode
+  /** Called when R2 images are removed from a study section editor */
+  onImagesRemoved?: (urls: string[]) => void
+  /** Called when a new image is uploaded to staging in a study section editor */
+  onStagingImageCreated?: (entry: import("@/lib/upload-media").StagingImageEntry) => void
 }
 
 /** Sliding-indicator tabs for study sections (Questions / Answers / Transcript) */
@@ -128,7 +132,7 @@ function addFontToTextNodes(node: any, fontFamily: string): void {
   }
 }
 
-export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, attachments = [], bibleVersionSlot }: StudyTabProps) {
+export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, attachments = [], bibleVersionSlot, onImagesRemoved, onStagingImageCreated }: StudyTabProps) {
   const [overwriteConfirmId, setOverwriteConfirmId] = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState(sections[0]?.id ?? "")
   const [importPickerOpen, setImportPickerOpen] = useState(false)
@@ -418,6 +422,8 @@ export function StudyTab({ sections, onSectionsChange, onAttachmentAdd, attachme
             <RichTextEditor
               content={section.content}
               onContentChange={(json) => handleContentChange(section.id, json)}
+              onImagesRemoved={onImagesRemoved}
+              onStagingImageCreated={onStagingImageCreated}
               placeholder={`Write ${section.title.toLowerCase()} here...`}
             />
           </TabsContent>

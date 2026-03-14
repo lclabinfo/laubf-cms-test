@@ -35,6 +35,10 @@ interface TranscriptEditorProps {
   segments: TranscriptSegment[]
   onSegmentsChange: (segments: TranscriptSegment[]) => void
   videoUrl?: string
+  /** Called when R2 images are removed from the transcript editor */
+  onImagesRemoved?: (urls: string[]) => void
+  /** Called when a new image is uploaded to staging in the transcript editor */
+  onStagingImageCreated?: (entry: import("@/lib/upload-media").StagingImageEntry) => void
 }
 
 type TranscriptMode = "synced" | "raw"
@@ -51,6 +55,8 @@ export function TranscriptEditor({
   segments,
   onSegmentsChange,
   videoUrl,
+  onImagesRemoved,
+  onStagingImageCreated,
 }: TranscriptEditorProps) {
   const hasVideoUrl = Boolean(videoUrl)
   const [mode, setMode] = useState<TranscriptMode>("raw")
@@ -478,6 +484,8 @@ export function TranscriptEditor({
           <RichTextEditor
             content={rawTranscript}
             onContentChange={onRawTranscriptChange}
+            onImagesRemoved={onImagesRemoved}
+            onStagingImageCreated={onStagingImageCreated}
             placeholder="Paste or type the full transcript text here..."
             minHeight="200px"
           />

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { requireApiAuth } from '@/lib/api/require-auth'
-import { getMediaAsset, updateMediaAsset, deleteMediaAsset } from '@/lib/dal/media'
+import { getMediaAsset, updateMediaAsset, hardDeleteMediaAsset } from '@/lib/dal/media'
 
 // ---------------------------------------------------------------------------
 // GET /api/v1/media/[id] — Get a single media asset
@@ -81,7 +81,7 @@ export async function PATCH(
 }
 
 // ---------------------------------------------------------------------------
-// DELETE /api/v1/media/[id] — Soft-delete a media asset
+// DELETE /api/v1/media/[id] — Hard-delete a media asset (removes R2 file + DB record)
 // ---------------------------------------------------------------------------
 
 export async function DELETE(
@@ -95,8 +95,7 @@ export async function DELETE(
     const churchId = await getChurchId()
     const { id } = await params
 
-    // Soft-delete only — R2 file kept until hard-delete per project strategy
-    const deleted = await deleteMediaAsset(churchId, id)
+    const deleted = await hardDeleteMediaAsset(churchId, id)
     if (!deleted) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Media asset not found' } },

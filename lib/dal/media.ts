@@ -148,6 +148,38 @@ export async function hardDeleteMediaAsset(churchId: string, id: string) {
 }
 
 // ---------------------------------------------------------------------------
+// Find by URL
+// ---------------------------------------------------------------------------
+
+export async function findMediaAssetByUrl(churchId: string, url: string) {
+  return prisma.mediaAsset.findFirst({
+    where: { churchId, url, deletedAt: null },
+  })
+}
+
+// ---------------------------------------------------------------------------
+// Hard delete by URL (removes R2 object + DB record)
+// ---------------------------------------------------------------------------
+
+export async function hardDeleteMediaAssetByUrl(churchId: string, url: string) {
+  const existing = await prisma.mediaAsset.findFirst({
+    where: { churchId, url },
+    select: { id: true, url: true },
+  })
+  if (!existing) return null
+
+  // Delete R2 object first (best-effort)
+  const r2Key = keyFromMediaUrl(existing.url)
+  if (r2Key) {
+    try { await deleteObject(r2Key, MEDIA_BUCKET) } catch { /* best effort */ }
+  }
+
+  return prisma.mediaAsset.delete({
+    where: { id: existing.id },
+  })
+}
+
+// ---------------------------------------------------------------------------
 // Folders (persistent MediaFolder table)
 // ---------------------------------------------------------------------------
 
@@ -256,4 +288,30 @@ export async function bulkSoftDelete(churchId: string, ids: string[]) {
     where: { id: { in: ids }, churchId, deletedAt: null },
     data: { deletedAt: new Date() },
   })
+}
+
+export async function bulkHardDelete(churchId: string, ids: string[]) {
+  // Fetch all assets to get their URLs for R2 cleanup
+  const assets = await prisma.mediaAsset.findMany({
+    where: { id: { in: ids }, churchId },
+    select: { id: true, url: true },
+  })
+  if (assets.length === 0) return { count: 0 }
+
+  // Best-effort R2 deletion — don't block DB deletion on R2 failures
+  await Promise.allSettled(
+    assets.map(async (asset) => {
+      const r2Key = keyFromMediaUrl(asset.url)
+      if (r2Key) {
+        try { await deleteObject(r2Key, MEDIA_BUCKET) } catch { /* best effort */ }
+      }
+    })
+  )
+
+  // Hard-delete all DB records
+  const result = await prisma.mediaAsset.deleteMany({
+    where: { id: { in: assets.map((a) => a.id) }, churchId },
+  })
+
+  return result
 }
