@@ -85,12 +85,27 @@ export async function PATCH(request: Request) {
     }
   }
 
-  // Hash and save new password
+  // Hash and save new password, then bump sessionVersion to invalidate existing sessions
   const passwordHash = await bcrypt.hash(newPassword, 12)
-  await prisma.user.update({
-    where: { id: authResult.userId },
-    data: { passwordHash },
+
+  const membership = await prisma.churchMember.findFirst({
+    where: { userId: authResult.userId },
+    select: { churchId: true },
   })
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: authResult.userId },
+      data: { passwordHash },
+    }),
+    // Bump sessionVersion so existing JWTs are forced to refresh
+    ...(membership
+      ? [prisma.church.update({
+          where: { id: membership.churchId },
+          data: { sessionVersion: { increment: 1 } },
+        })]
+      : []),
+  ])
 
   return NextResponse.json({ success: true, message: 'Password updated successfully.' })
 }

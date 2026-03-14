@@ -1,8 +1,8 @@
 "use client"
 
-import { Suspense, useState, useEffect, useCallback } from "react"
-import { useSession, signIn } from "next-auth/react"
-import { useSearchParams } from "next/navigation"
+import { useState, useEffect, useCallback } from "react"
+import { useSession } from "next-auth/react"
+// useSearchParams removed — Connect Google button disabled (see vulnerability doc)
 import { Sun, Moon, Monitor, Check, Palette, User, Loader2, Shield, KeyRound } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -280,29 +280,13 @@ function GoogleIcon() {
 }
 
 function SecurityCard({ profile, onProfileRefresh }: { profile: ProfileData | null; onProfileRefresh: () => void }) {
-  const searchParams = useSearchParams()
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [saving, setSaving] = useState(false)
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-
-  // Handle Google link callback
-  useEffect(() => {
-    if (searchParams.get("googleLinked") === "true") {
-      onProfileRefresh()
-      toast.success("Google account connected successfully")
-      // Clean up URL
-      const url = new URL(window.location.href)
-      url.searchParams.delete("googleLinked")
-      window.history.replaceState({}, "", url.toString())
-    }
-  }, [searchParams, onProfileRefresh])
-
-  const handleConnectGoogle = () => {
-    setIsGoogleLoading(true)
-    signIn("google", { callbackUrl: "/cms/settings?googleLinked=true" })
-  }
+  // NOTE: "Connect Google" button removed due to session-swap vulnerability.
+  // See docs/00_dev-notes/google-connect-vulnerability.md for details.
+  // Will be re-implemented with a proper account-linking flow.
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -371,17 +355,7 @@ function SecurityCard({ profile, onProfileRefresh }: { profile: ProfileData | nu
             {profile.hasGoogle ? (
               <Badge variant="secondary">Connected</Badge>
             ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleConnectGoogle}
-                disabled={isGoogleLoading}
-              >
-                {isGoogleLoading ? (
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                ) : null}
-                Connect
-              </Button>
+              <Badge variant="outline" className="text-muted-foreground">Coming soon</Badge>
             )}
           </div>
         </div>
@@ -486,9 +460,7 @@ export default function SettingsPage() {
       <AccountCard profile={profile} loading={loading} onProfileUpdate={setProfile} />
 
       {/* Security card */}
-      <Suspense>
-        <SecurityCard profile={profile} onProfileRefresh={fetchProfile} />
-      </Suspense>
+      <SecurityCard profile={profile} onProfileRefresh={fetchProfile} />
 
       {/* Appearance card */}
       <Card>

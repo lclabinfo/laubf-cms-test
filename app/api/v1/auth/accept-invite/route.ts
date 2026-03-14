@@ -114,7 +114,7 @@ export async function POST(request: Request) {
 
   // Validate fields based on mode
   if (mode === 'password') {
-    if (!firstName || !lastName || firstName.trim().length > MAX_NAME_LENGTH || lastName.trim().length > MAX_NAME_LENGTH) {
+    if (!firstName?.trim() || !lastName?.trim() || firstName.trim().length > MAX_NAME_LENGTH || lastName.trim().length > MAX_NAME_LENGTH) {
       return NextResponse.json(
         { success: false, error: { code: 'VALIDATION', message: 'Name is required (max 100 characters each).' } },
         { status: 400 },
@@ -180,23 +180,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: true, message: 'Invitation accepted. Welcome!' })
     }
 
-    // mode === 'password'
+    // mode === 'password' — atomic: set user credentials + activate membership
     const passwordHash = await bcrypt.hash(password!, 12)
-    await prisma.user.update({
-      where: { id: payload.sub },
-      data: {
-        firstName: firstName!.trim(),
-        lastName: lastName!.trim(),
-        passwordHash,
-        emailVerified: true,
-      },
-    })
-
-    // Activate the church membership
-    await prisma.churchMember.update({
-      where: { id: membership.id },
-      data: { status: 'ACTIVE' },
-    })
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: payload.sub },
+        data: {
+          firstName: firstName!.trim(),
+          lastName: lastName!.trim(),
+          passwordHash,
+          emailVerified: true,
+        },
+      }),
+      prisma.churchMember.update({
+        where: { id: membership.id },
+        data: { status: 'ACTIVE' },
+      }),
+    ])
 
     return NextResponse.json({ success: true, message: 'Account set up successfully. You can now sign in.' })
   } catch (error) {
