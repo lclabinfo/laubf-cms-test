@@ -257,6 +257,37 @@ export async function linkUserToPerson(
   })
 }
 
+export async function getUserAuthMethods(userId: string): Promise<{
+  hasPassword: boolean
+  hasGoogle: boolean
+  googleEmail: string | null
+}> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      email: true,
+      passwordHash: true,
+      accounts: {
+        where: { provider: 'google' },
+        select: { providerAccountId: true },
+        take: 1,
+      },
+    },
+  })
+
+  if (!user) {
+    return { hasPassword: false, hasGoogle: false, googleEmail: null }
+  }
+
+  const hasGoogle = user.accounts.length > 0
+
+  return {
+    hasPassword: !!user.passwordHash,
+    hasGoogle,
+    googleEmail: hasGoogle ? user.email : null,
+  }
+}
+
 export async function unlinkUserFromPerson(churchId: string, personId: string) {
   return prisma.person.update({
     where: { id: personId, churchId },

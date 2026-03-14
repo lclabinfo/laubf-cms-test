@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server'
 import { requireApiAuth } from '@/lib/api/require-auth'
-import { getCurrentUserProfile, updateCurrentUserProfile } from '@/lib/dal/users'
+import { getCurrentUserProfile, updateCurrentUserProfile, getUserAuthMethods } from '@/lib/dal/users'
 
 export async function GET() {
   const authResult = await requireApiAuth()
   if (!authResult.authorized) return authResult.response
 
-  const profile = await getCurrentUserProfile(authResult.churchId, authResult.userId)
+  const [profile, authMethods] = await Promise.all([
+    getCurrentUserProfile(authResult.churchId, authResult.userId),
+    getUserAuthMethods(authResult.userId),
+  ])
+
   if (!profile) {
     return NextResponse.json(
       { success: false, error: { code: 'NOT_FOUND', message: 'Profile not found' } },
@@ -14,7 +18,15 @@ export async function GET() {
     )
   }
 
-  return NextResponse.json({ success: true, data: profile })
+  return NextResponse.json({
+    success: true,
+    data: {
+      ...profile,
+      hasPassword: authMethods.hasPassword,
+      hasGoogle: authMethods.hasGoogle,
+      googleEmail: authMethods.googleEmail,
+    },
+  })
 }
 
 export async function PATCH(request: Request) {
