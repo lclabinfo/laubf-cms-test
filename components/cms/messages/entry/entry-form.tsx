@@ -540,6 +540,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
       }
     } catch (err) {
       console.error(`Failed to upload ${file.name}:`, err)
+      toast.error(`Failed to upload ${file.name}`)
       return null
     }
   }
@@ -547,10 +548,13 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files
     if (!files || files.length === 0) return
+
+    // Copy files BEFORE clearing input — clearing value empties the live FileList
+    const filesCopy = Array.from(files)
     if (fileInputRef.current) fileInputRef.current.value = ""
 
     const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50 MB
-    const filesToProcess = Array.from(files).filter((f) => {
+    const filesToProcess = filesCopy.filter((f) => {
       if (f.size > MAX_FILE_SIZE) {
         toast.error(`${f.name} exceeds the 50 MB limit`)
         return false
