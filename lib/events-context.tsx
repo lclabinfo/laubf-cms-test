@@ -269,11 +269,12 @@ export function EventsProvider({ children }: { children: ReactNode }) {
     }
     setEvents((prev) => [tempEvent, ...prev])
 
-    // Fire API call in background
+    // Fire API call in background (keepalive prevents cancellation on navigation)
     fetch("/api/v1/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(cmsEventToApiCreate(data)),
+      keepalive: true,
     })
       .then((res) => {
         if (!res.ok) throw new Error(`Failed to create event (${res.status})`)

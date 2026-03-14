@@ -122,17 +122,32 @@ export async function moveObject(
     }),
   );
 
-  // 3. Verify the destination exists before deleting the source
-  const headResponse = await client.send(
-    new HeadObjectCommand({
-      Bucket: bucket,
-      Key: destKey,
-    }),
-  );
+  // 3. Verify the destination exists before deleting the source.
+  // R2 can have eventual consistency — retry HeadObject up to 3 times with backoff.
+  let verified = false;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const headResponse = await client.send(
+        new HeadObjectCommand({
+          Bucket: bucket,
+          Key: destKey,
+        }),
+      );
+      if (headResponse.ContentLength && headResponse.ContentLength > 0) {
+        verified = true;
+        break;
+      }
+    } catch {
+      // HeadObject may 404 briefly due to eventual consistency
+    }
+    if (attempt < 2) {
+      await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+    }
+  }
 
-  if (!headResponse.ContentLength || headResponse.ContentLength === 0) {
+  if (!verified) {
     throw new Error(
-      `moveObject: destination object ${destKey} verification failed — aborting delete of source`,
+      `moveObject: destination object ${destKey} verification failed after 3 attempts — aborting delete of source`,
     );
   }
 

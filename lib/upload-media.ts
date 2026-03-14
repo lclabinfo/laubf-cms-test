@@ -13,9 +13,14 @@ const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10 MB
 
 /**
  * Check whether a URL points to our R2 media storage.
- * Used to filter which image URLs should be tracked for deletion.
+ * Uses the configured public URL prefixes for reliable matching.
  */
 export function isR2MediaUrl(url: string): boolean {
+  // Check against configured public URL prefixes first, fall back to domain pattern
+  const mediaPublicUrl = process.env.NEXT_PUBLIC_R2_MEDIA_PUBLIC_URL || process.env.R2_MEDIA_PUBLIC_URL || ""
+  const attachPublicUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_URL || process.env.R2_ATTACHMENTS_PUBLIC_URL || process.env.R2_PUBLIC_URL || ""
+  if (mediaPublicUrl && url.startsWith(mediaPublicUrl)) return true
+  if (attachPublicUrl && url.startsWith(attachPublicUrl)) return true
   return url.includes(".r2.dev/")
 }
 
