@@ -45,6 +45,8 @@ interface ToolbarProps {
   onImportCSV: () => void
   onBulkUpdateStatus: (status: MembershipStatus) => void
   onBulkArchive: () => void
+  onViewArchived: () => void
+  archivedCount: number
 }
 
 export function MembersToolbar({
@@ -55,6 +57,8 @@ export function MembersToolbar({
   onImportCSV,
   onBulkUpdateStatus,
   onBulkArchive,
+  onViewArchived,
+  archivedCount,
 }: ToolbarProps) {
   const selectedCount = table.getFilteredSelectedRowModel().rows.length
   const statusFilter = (table.getColumn("membershipStatus")?.getFilterValue() as MembershipStatus[]) ?? []
@@ -158,6 +162,21 @@ export function MembersToolbar({
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {/* View archived */}
+      <Button
+        variant="outline"
+        size="default"
+        onClick={onViewArchived}
+      >
+        <Archive />
+        <span className="hidden sm:inline">Archived</span>
+        {archivedCount > 0 && (
+          <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
+            {archivedCount}
+          </Badge>
+        )}
+      </Button>
+
       {/* Active filter badges */}
       {hasFilters && (
         <div className="flex flex-wrap items-center gap-1">
@@ -207,6 +226,7 @@ export function MembersToolbar({
               variant="outline"
               size="sm"
               onClick={onBulkArchive}
+              className="text-warning hover:text-warning"
             >
               <Archive className="size-3.5 mr-1" />
               Archive

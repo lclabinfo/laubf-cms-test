@@ -26,12 +26,17 @@ export type MemberPerson = {
 
 interface MembersContextValue {
   members: MemberPerson[]
+  archivedMembers: MemberPerson[]
   loading: boolean
+  loadingArchived: boolean
   error: string | null
   addMember: (data: AddMemberPayload) => Promise<MemberPerson | null>
   updateMemberStatus: (ids: string[], status: MembershipStatus) => Promise<void>
   deleteMember: (id: string) => void
+  restoreMember: (id: string) => Promise<void>
+  permanentDeleteMember: (id: string) => Promise<void>
   refresh: () => void
+  refreshArchived: () => void
 }
 
 export type AddMemberPayload = {
@@ -91,7 +96,9 @@ function slugify(text: string): string {
 
 export function MembersProvider({ children }: { children: ReactNode }) {
   const [members, setMembers] = useState<MemberPerson[]>([])
+  const [archivedMembers, setArchivedMembers] = useState<MemberPerson[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingArchived, setLoadingArchived] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
@@ -99,7 +106,7 @@ export function MembersProvider({ children }: { children: ReactNode }) {
       setLoading(true)
       setError(null)
 
-      const res = await fetch("/api/v1/people?pageSize=100")
+      const res = await fetch("/api/v1/people?pageSize=500")
       if (!res.ok) throw new Error("Failed to fetch members")
 
       const json = await res.json()
@@ -109,6 +116,20 @@ export function MembersProvider({ children }: { children: ReactNode }) {
       setError(err instanceof Error ? err.message : "Failed to load members")
     } finally {
       setLoading(false)
+    }
+  }, [])
+
+  const fetchArchived = useCallback(async () => {
+    try {
+      setLoadingArchived(true)
+      const res = await fetch("/api/v1/people?pageSize=500&membershipStatus=ARCHIVED")
+      if (!res.ok) throw new Error("Failed to fetch archived members")
+      const json = await res.json()
+      setArchivedMembers((json.data ?? []).map(apiPersonToMember))
+    } catch (err) {
+      console.error("MembersProvider fetch archived error:", err)
+    } finally {
+      setLoadingArchived(false)
     }
   }, [])
 
@@ -229,13 +250,49 @@ export function MembersProvider({ children }: { children: ReactNode }) {
       })
   }, [])
 
+  const permanentDeleteMember = useCallback(async (id: string) => {
+    try {
+      const res = await fetch(`/api/v1/people/${id}?permanent=true`, { method: "DELETE" })
+      if (!res.ok) throw new Error("Failed to permanently delete member")
+      setArchivedMembers((prev) => prev.filter((m) => m.id !== id))
+    } catch (err) {
+      console.error("permanentDeleteMember error:", err)
+      toast.error("Failed to permanently delete member")
+    }
+  }, [])
+
+  const restoreMember = useCallback(async (id: string) => {
+    try {
+      const res = await fetch(`/api/v1/people/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ membershipStatus: "MEMBER" }),
+      })
+      if (!res.ok) throw new Error("Failed to restore member")
+
+      // Move from archived to active list
+      const restored = archivedMembers.find((m) => m.id === id)
+      if (restored) {
+        setArchivedMembers((prev) => prev.filter((m) => m.id !== id))
+        setMembers((prev) => [{ ...restored, membershipStatus: "MEMBER" as MembershipStatus }, ...prev])
+      }
+    } catch (err) {
+      console.error("restoreMember error:", err)
+      toast.error("Failed to restore member")
+    }
+  }, [archivedMembers])
+
   const refresh = useCallback(() => {
     fetchData()
   }, [fetchData])
 
+  const refreshArchived = useCallback(() => {
+    fetchArchived()
+  }, [fetchArchived])
+
   const value = useMemo(
-    () => ({ members, loading, error, addMember, updateMemberStatus, deleteMember, refresh }),
-    [members, loading, error, addMember, updateMemberStatus, deleteMember, refresh]
+    () => ({ members, archivedMembers, loading, loadingArchived, error, addMember, updateMemberStatus, deleteMember, permanentDeleteMember, restoreMember, refresh, refreshArchived }),
+    [members, archivedMembers, loading, loadingArchived, error, addMember, updateMemberStatus, deleteMember, permanentDeleteMember, restoreMember, refresh, refreshArchived]
   )
 
   return <MembersContext value={value}>{children}</MembersContext>

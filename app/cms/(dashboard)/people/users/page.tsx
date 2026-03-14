@@ -230,6 +230,7 @@ function UsersPageContent() {
       createUsersColumns({
         currentUser,
         roles,
+        users,
         onRoleChange: handleRoleChange,
         onRemove: handleRemove,
         onDeactivate: handleDeactivate,
@@ -237,7 +238,7 @@ function UsersPageContent() {
         onLinkPerson: handleLinkPerson,
         onUnlinkPerson: handleUnlinkPerson,
       }),
-    [currentUser, roles, handleRoleChange, handleRemove, handleDeactivate, handleReactivate, handleLinkPerson, handleUnlinkPerson],
+    [currentUser, roles, users, handleRoleChange, handleRemove, handleDeactivate, handleReactivate, handleLinkPerson, handleUnlinkPerson],
   )
 
   const filteredUsers = useMemo(() => {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getChurchId } from '@/lib/api/get-church-id'
-import { getPersonById, updatePerson, deletePerson } from '@/lib/dal/people'
+import { getPersonById, updatePerson, deletePerson, permanentDeletePerson } from '@/lib/dal/people'
 import { requireApiAuth } from '@/lib/api/require-auth'
 
 type Params = { params: Promise<{ id: string }> }
@@ -86,13 +86,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 }
 
-export async function DELETE(_request: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest, { params }: Params) {
   try {
     const authResult = await requireApiAuth('people.delete')
     if (!authResult.authorized) return authResult.response
 
     const churchId = await getChurchId()
     const { id } = await params
+    const permanent = request.nextUrl.searchParams.get('permanent') === 'true'
 
     const existing = await getPersonById(churchId, id)
     if (!existing) {
@@ -102,9 +103,13 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
       )
     }
 
-    await deletePerson(churchId, id)
+    if (permanent) {
+      await permanentDeletePerson(churchId, id)
+    } else {
+      await deletePerson(churchId, id)
+    }
 
-    return NextResponse.json({ success: true, data: { deleted: true } })
+    return NextResponse.json({ success: true, data: { deleted: true, permanent } })
   } catch (error) {
     console.error('DELETE /api/v1/people/[id] error:', error)
     return NextResponse.json(

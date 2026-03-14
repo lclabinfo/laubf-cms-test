@@ -9,6 +9,7 @@ import {
   PauseCircleIcon,
   PlayCircleIcon,
   Loader2Icon,
+  X,
 } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -45,10 +46,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Command,
+  CommandInput,
+  CommandList,
+  CommandEmpty,
+  CommandGroup,
+  CommandItem,
+} from "@/components/ui/command"
 import { SortableHeader } from "@/components/ui/sortable-header"
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { toast } from "sonner"
 
 export interface UserRow {
@@ -98,6 +106,7 @@ export interface RoleOption {
 interface ColumnOptions {
   currentUser: CurrentUser
   roles?: RoleOption[]
+  users?: UserRow[]
   onRoleChange: (memberId: string, newRole: string) => void
   onRemove: (memberId: string) => void
   onDeactivate: (memberId: string) => void
@@ -275,6 +284,7 @@ export function createUsersColumns(options: ColumnOptions): ColumnDef<UserRow>[]
         <ActionsCell
           user={row.original}
           currentUser={currentUser}
+          allUsers={options.users}
           onRemove={options.onRemove}
           onDeactivate={options.onDeactivate}
           onReactivate={options.onReactivate}
@@ -292,6 +302,7 @@ export function createUsersColumns(options: ColumnOptions): ColumnDef<UserRow>[]
 interface ActionsCellProps {
   user: UserRow
   currentUser: CurrentUser
+  allUsers?: UserRow[]
   onRemove: (id: string) => void
   onDeactivate: (id: string) => void
   onReactivate: (id: string) => void
@@ -299,9 +310,30 @@ interface ActionsCellProps {
   onUnlinkPerson: (memberId: string) => void
 }
 
+interface PersonRecord {
+  id: string
+  firstName: string
+  lastName: string
+  preferredName?: string | null
+  email?: string | null
+}
+
+function personDisplayName(p: PersonRecord): string {
+  return p.preferredName
+    ? `${p.preferredName} ${p.lastName}`
+    : `${p.firstName} ${p.lastName}`
+}
+
+function personInitials(p: PersonRecord): string {
+  const first = (p.preferredName || p.firstName || "").charAt(0)
+  const last = (p.lastName || "").charAt(0)
+  return `${first}${last}`.toUpperCase()
+}
+
 function ActionsCell({
   user,
   currentUser,
+  allUsers,
   onRemove,
   onDeactivate,
   onReactivate,
@@ -312,8 +344,13 @@ function ActionsCell({
   const [deactivateOpen, setDeactivateOpen] = useState(false)
   const [linkOpen, setLinkOpen] = useState(false)
   const [unlinkOpen, setUnlinkOpen] = useState(false)
-  const [personId, setPersonId] = useState("")
   const [isLinking, setIsLinking] = useState(false)
+
+  // Link dialog state
+  const [people, setPeople] = useState<PersonRecord[]>([])
+  const [peopleLoaded, setPeopleLoaded] = useState(false)
+  const [linkSearch, setLinkSearch] = useState("")
+  const [selectedPerson, setSelectedPerson] = useState<PersonRecord | null>(null)
 
   const isSelf = currentUser.id === user.userId
   const canModify = canModifyUser(currentUser, user)
@@ -331,16 +368,58 @@ function ActionsCell({
 
   if (!hasAnyAction) return null
 
-  const handleLink = async () => {
-    if (!personId.trim()) {
-      toast.error("Please enter a Person ID")
+  // Fetch people when link dialog opens
+  useEffect(() => {
+    if (!linkOpen) {
+      setPeopleLoaded(false)
+      setSelectedPerson(null)
+      setLinkSearch("")
       return
     }
+    let cancelled = false
+    fetch("/api/v1/people?pageSize=200")
+      .then((r) => r.json())
+      .then((data) => {
+        if (cancelled) return
+        if (data.success && data.data) setPeople(data.data)
+        setPeopleLoaded(true)
+      })
+      .catch(() => { if (!cancelled) setPeopleLoaded(true) })
+    return () => { cancelled = true }
+  }, [linkOpen])
+
+  // Set of person IDs already linked to any user
+  const linkedPersonIds = useMemo(() => {
+    const ids = new Set<string>()
+    if (allUsers) {
+      for (const u of allUsers) {
+        if (u.linkedPersonId) ids.add(u.linkedPersonId)
+      }
+    }
+    return ids
+  }, [allUsers])
+
+  // Filtered people for the command list
+  const filteredPeople = useMemo(() => {
+    return people.filter((p) => {
+      if (!linkSearch.trim()) return true
+      const q = linkSearch.toLowerCase()
+      const name = personDisplayName(p).toLowerCase()
+      return (
+        name.includes(q) ||
+        p.firstName.toLowerCase().includes(q) ||
+        p.lastName.toLowerCase().includes(q) ||
+        (p.email && p.email.toLowerCase().includes(q))
+      )
+    })
+  }, [people, linkSearch])
+
+  const handleLink = async () => {
+    if (!selectedPerson) return
     setIsLinking(true)
     try {
-      onLinkPerson(user.id, personId.trim())
+      onLinkPerson(user.id, selectedPerson.id)
       setLinkOpen(false)
-      setPersonId("")
     } finally {
       setIsLinking(false)
     }
@@ -468,28 +547,107 @@ function ActionsCell({
 
       {/* Link to Member dialog */}
       <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[480px]">
           <DialogHeader>
             <DialogTitle>Link to Member</DialogTitle>
             <DialogDescription>
               Link <strong>{user.firstName} {user.lastName}</strong> ({user.email}) to an
-              existing member record by entering the Person ID.
+              existing member record.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="person-id">Person ID</Label>
-            <Input
-              id="person-id"
-              value={personId}
-              onChange={(e) => setPersonId(e.target.value)}
-              placeholder="Enter person UUID..."
-            />
+          <div className="space-y-3">
+            <Label>Select a member</Label>
+            {selectedPerson ? (
+              <div className="flex items-center gap-3 rounded-lg border bg-muted/50 px-3 py-2.5">
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-medium text-primary">
+                  {personInitials(selectedPerson)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">
+                    {personDisplayName(selectedPerson)}
+                  </p>
+                  {selectedPerson.email && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {selectedPerson.email}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 shrink-0 text-muted-foreground hover:text-destructive"
+                  onClick={() => setSelectedPerson(null)}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </div>
+            ) : (
+              <Command shouldFilter={false} className="h-auto rounded-lg border">
+                <CommandInput
+                  placeholder="Search by name or email..."
+                  value={linkSearch}
+                  onValueChange={setLinkSearch}
+                />
+                <CommandList className="h-[200px]">
+                  {!peopleLoaded ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2Icon className="size-4 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : (
+                    <>
+                      <CommandEmpty>No members found.</CommandEmpty>
+                      {filteredPeople.length > 0 && (
+                        <CommandGroup>
+                          {filteredPeople.map((p) => {
+                            const isLinked = linkedPersonIds.has(p.id)
+                            return (
+                              <CommandItem
+                                key={p.id}
+                                value={personDisplayName(p)}
+                                onSelect={() => {
+                                  if (!isLinked) {
+                                    setSelectedPerson(p)
+                                    setLinkSearch("")
+                                  }
+                                }}
+                                disabled={isLinked}
+                                className={isLinked ? "opacity-50" : ""}
+                              >
+                                <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                                  {personInitials(p)}
+                                </div>
+                                <div className="flex flex-col flex-1 min-w-0">
+                                  <span className="truncate text-sm">
+                                    {personDisplayName(p)}
+                                  </span>
+                                  {p.email && (
+                                    <span className="text-xs text-muted-foreground truncate">
+                                      {p.email}
+                                    </span>
+                                  )}
+                                </div>
+                                {isLinked && (
+                                  <span className="text-xs text-muted-foreground shrink-0">
+                                    Already linked
+                                  </span>
+                                )}
+                              </CommandItem>
+                            )
+                          })}
+                        </CommandGroup>
+                      )}
+                    </>
+                  )}
+                </CommandList>
+              </Command>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setLinkOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleLink} disabled={isLinking || !personId.trim()}>
+            <Button onClick={handleLink} disabled={isLinking || !selectedPerson}>
               {isLinking ? (
                 <>
                   <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />

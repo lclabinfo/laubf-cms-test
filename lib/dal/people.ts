@@ -47,9 +47,11 @@ export async function getPeople(
 ): Promise<PaginatedResult<PersonWithRelations>> {
   const { skip, take, page, pageSize } = paginationArgs(filters)
 
+  // When filtering by ARCHIVED status, include soft-deleted records
+  const isArchived = filters?.membershipStatus === 'ARCHIVED'
   const where: Prisma.PersonWhereInput = {
     churchId,
-    deletedAt: null,
+    ...(isArchived ? {} : { deletedAt: null }),
     ...(filters?.membershipStatus && { membershipStatus: filters.membershipStatus }),
     ...(filters?.householdId && {
       householdMemberships: { some: { householdId: filters.householdId } },
@@ -83,8 +85,9 @@ export async function getPersonById(
   churchId: string,
   id: string,
 ): Promise<PersonDetail | null> {
+  // Include archived/soft-deleted records so they can be viewed/restored
   return prisma.person.findFirst({
-    where: { id, churchId, deletedAt: null },
+    where: { id, churchId },
     include: personDetailInclude,
   })
 }
@@ -142,6 +145,11 @@ export async function updatePerson(
     data.slug = await ensureUniquePersonSlug(churchId, data.slug, id)
   }
 
+  // When restoring from ARCHIVED, clear the soft-delete timestamp
+  if (data.membershipStatus && data.membershipStatus !== 'ARCHIVED') {
+    data.deletedAt = null
+  }
+
   return prisma.person.update({
     where: { id, churchId },
     data,
@@ -152,8 +160,18 @@ export async function updatePerson(
 export async function deletePerson(churchId: string, id: string) {
   return prisma.person.update({
     where: { id, churchId },
-    data: { deletedAt: new Date() },
+    data: { deletedAt: new Date(), membershipStatus: 'ARCHIVED' },
   })
+}
+
+export async function permanentDeletePerson(churchId: string, id: string) {
+  // Delete related records first to avoid FK constraint errors
+  await prisma.personRoleAssignment.deleteMany({ where: { person: { id, churchId } } })
+  await prisma.communicationPreference.deleteMany({ where: { person: { id, churchId } } })
+  await prisma.customFieldValue.deleteMany({ where: { person: { id, churchId } } })
+  await prisma.personNote.deleteMany({ where: { personId: id, churchId } })
+  await prisma.householdMember.deleteMany({ where: { person: { id, churchId } } })
+  return prisma.person.delete({ where: { id, churchId } })
 }
 
 export async function importPeople(

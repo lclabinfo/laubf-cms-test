@@ -23,6 +23,7 @@ import { MembersToolbar } from "@/components/cms/people/members-toolbar"
 import { AddMemberDialog } from "@/components/cms/people/add-member-dialog"
 import { CSVImportDialog } from "@/components/cms/people/csv-import-dialog"
 import { MemberPreviewPanel } from "@/components/cms/people/member-preview-panel"
+import { ArchivedMembersDialog } from "@/components/cms/people/archived-members-dialog"
 import { MembersProvider, useMembers } from "@/lib/members-context"
 import type { MemberPerson, AddMemberPayload } from "@/lib/members-context"
 import type { MembershipStatus } from "@/lib/generated/prisma/client"
@@ -71,10 +72,11 @@ function MembersPageContent() {
   const router = useRouter()
   const { user } = useCmsSession()
   const isWideScreen = useIsWideScreen()
-  const { members, loading, deleteMember, addMember, updateMemberStatus, refresh } = useMembers()
+  const { members, archivedMembers, loading, deleteMember, addMember, updateMemberStatus, refresh, refreshArchived } = useMembers()
 
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [archivedDialogOpen, setArchivedDialogOpen] = useState(false)
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
 
   // Resolve the selected member from the current members list
@@ -238,6 +240,11 @@ function MembersPageContent() {
           onImportCSV={() => setImportDialogOpen(true)}
           onBulkUpdateStatus={handleBulkUpdateStatus}
           onBulkArchive={handleBulkArchive}
+          onViewArchived={() => {
+            refreshArchived()
+            setArchivedDialogOpen(true)
+          }}
+          archivedCount={archivedMembers.length}
         />
 
         {loading ? (
@@ -317,6 +324,11 @@ function MembersPageContent() {
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
         onImportComplete={handleImportComplete}
+      />
+
+      <ArchivedMembersDialog
+        open={archivedDialogOpen}
+        onOpenChange={setArchivedDialogOpen}
       />
     </>
   )
