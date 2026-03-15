@@ -53,7 +53,7 @@ export default function HeroBannerSection({ content, enableAnimations }: Props) 
         {/* Bottom gradient overlay */}
         {/* Desktop & tablet */}
         <div
-          className="hidden sm:block absolute inset-0"
+          className="hidden sm:block absolute inset-0 pointer-events-none"
           style={{
             backgroundImage:
               "linear-gradient(195deg, rgba(13,13,13,0) 50%, rgba(13,13,13,0.5) 65%, rgb(13,13,13) 100%)",
@@ -61,7 +61,7 @@ export default function HeroBannerSection({ content, enableAnimations }: Props) 
         />
         {/* Mobile */}
         <div
-          className="block sm:hidden absolute inset-0"
+          className="block sm:hidden absolute inset-0 pointer-events-none"
           style={{
             backgroundImage:
               "linear-gradient(to bottom, rgba(13,13,13, 0) 40%, rgba(13,13,13, 0.8) 60%, rgb(13,13,13) 100%)",

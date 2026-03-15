@@ -179,12 +179,15 @@ export function SectionRenderer({
   const Component = SECTION_COMPONENTS[type]
   if (!Component) return null
 
+  // Extract anchorId from content so sections can be targeted by anchor links
+  const anchorId = (content as Record<string, unknown>).anchorId as string | undefined
+
   // Map DB enum values to the component's expected lowercase format
   const sectionColorScheme = colorScheme === 'DARK' ? 'dark' : 'light'
   const sectionPaddingY = paddingY?.toLowerCase() as 'none' | 'compact' | 'default' | 'spacious'
   const sectionContainerWidth = containerWidth?.toLowerCase() as 'standard' | 'narrow' | 'full'
 
-  return (
+  const rendered = (
     <Component
       content={content}
       churchId={churchId}
@@ -195,4 +198,11 @@ export function SectionRenderer({
       {...resolvedData}
     />
   )
+
+  // Wrap with an anchor target div if anchorId is set
+  if (anchorId) {
+    return <div id={anchorId}>{rendered}</div>
+  }
+
+  return rendered
 }

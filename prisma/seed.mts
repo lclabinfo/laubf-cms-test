@@ -3391,6 +3391,7 @@ async function main() {
         label: 'What to Expect on Sunday',
         colorScheme: 'DARK',
         content: {
+          anchorId: 'what-to-expect',
           overline: 'SUNDAY SERVICE',
           heading: 'What to Expect on Sunday',
           imageSrc: `${CDN}/compressed-visit-us.jpg`,
@@ -3422,6 +3423,7 @@ async function main() {
         label: 'Campus Ministry',
         colorScheme: 'LIGHT',
         content: {
+          anchorId: 'campus-ministry',
           overline: 'Are you a college student?',
           heading: 'Join a Campus Ministry',
           description: 'We have bible study clubs all across different college campuses. Join us for weekly group bible studies and get to know each other through fellowship.',
@@ -3451,7 +3453,7 @@ async function main() {
         sectionType: 'FORM_SECTION',
         label: 'Plan Your Visit',
         colorScheme: 'DARK',
-        content: sharedFormContent,
+        content: { anchorId: 'plan-visit', ...sharedFormContent },
       },
       {
         sectionType: 'FAQ_SECTION',
@@ -3459,6 +3461,7 @@ async function main() {
         colorScheme: 'LIGHT',
         containerWidth: 'NARROW',
         content: {
+          anchorId: 'faq',
           heading: 'Frequently Asked Questions',
           showIcon: true,
           items: [

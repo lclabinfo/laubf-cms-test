@@ -116,7 +116,7 @@ export default function QuickLinksFAB({
   return (
     <div
       ref={containerRef}
-      className="fixed bottom-6 right-4 lg:bottom-8 lg:right-8 z-40 flex flex-col items-end gap-3"
+      className="fixed bottom-6 right-4 lg:bottom-8 lg:right-8 z-40 flex flex-col items-end gap-3 pointer-events-none"
       onMouseLeave={handleMouseLeave}
     >
       {/* Expanded link list */}
@@ -125,7 +125,7 @@ export default function QuickLinksFAB({
           "flex flex-col gap-1.5 origin-bottom-right transition-all duration-300 ease-smooth",
           isOpen
             ? "opacity-100 translate-y-0 scale-100 pointer-events-auto"
-            : "opacity-0 translate-y-2 scale-95 pointer-events-none",
+            : "opacity-0 translate-y-2 scale-95",
         )}
       >
         <div className="bg-white-1 border border-white-2-5 rounded-2xl shadow-[0px_12px_24px_0px_rgba(0,0,0,0.08),0px_4px_8px_0px_rgba(0,0,0,0.04)] p-2 min-w-[240px]">
@@ -202,7 +202,7 @@ export default function QuickLinksFAB({
         }
         aria-expanded={isMobile && showScrollTop ? undefined : isOpen}
         className={cn(
-          "relative flex items-center justify-center size-14 rounded-full transition-all duration-300 ease-smooth",
+          "relative flex items-center justify-center size-14 rounded-full transition-all duration-300 ease-smooth pointer-events-auto",
           "bg-black-1 text-white-1",
           "shadow-[0px_10px_15px_var(--color-brand-shadow),0px_4px_6px_var(--color-brand-shadow)]",
           "hover:shadow-[0px_14px_20px_var(--color-brand-shadow),0px_6px_10px_var(--color-brand-shadow)]",
