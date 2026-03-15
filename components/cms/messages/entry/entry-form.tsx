@@ -345,7 +345,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
         if (!ref || validationError) {
           issues.push({
             field: "Scripture Passage",
-            message: `Scripture passage format not recognized — expected format: Book Chapter:Verse-Verse (e.g., John 3:16-18)${validationError ? `. ${validationError}` : ""}`,
+            message: `format_error${validationError ? `|${validationError}` : ""}`,
             tab: "details",
             elementId: "field-passage",
           })
@@ -1172,7 +1172,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
 
       {/* Validation dialog */}
       <AlertDialog open={validationOpen} onOpenChange={setValidationOpen}>
-        <AlertDialogContent className="sm:max-w-md">
+        <AlertDialogContent className="sm:max-w-lg">
           <AlertDialogHeader>
             <AlertDialogMedia className="bg-destructive/10">
               <AlertCircle className="text-destructive" />
@@ -1185,25 +1185,44 @@ export function EntryForm({ mode, message }: EntryFormProps) {
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          <ul className="space-y-1.5 text-sm">
-            {validationIssues.map((issue) => (
-              <li key={issue.field} className="flex items-center gap-2">
-                <span className="size-1.5 rounded-full bg-destructive shrink-0" />
-                <span className="flex-1 min-w-0">
-                  <span className="font-medium">{issue.field}</span>
-                  <span className="text-muted-foreground"> — {issue.message}</span>
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="shrink-0 h-7 px-2 text-xs gap-1"
-                  onClick={() => handleGoToField(issue)}
-                >
-                  Go to field
-                  <ArrowRight className="size-3" />
-                </Button>
-              </li>
-            ))}
+          <ul className="space-y-3 text-sm">
+            {validationIssues.map((issue) => {
+              const isFormatError = issue.message.startsWith("format_error")
+              const formatDetail = isFormatError ? issue.message.split("|")[1] : null
+
+              return (
+                <li key={issue.field} className="flex items-start gap-2">
+                  <span className="size-1.5 rounded-full bg-destructive shrink-0 mt-1.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium">{issue.field}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="shrink-0 h-7 px-2 text-xs gap-1"
+                        onClick={() => handleGoToField(issue)}
+                      >
+                        Go to field
+                        <ArrowRight className="size-3" />
+                      </Button>
+                    </div>
+                    {isFormatError ? (
+                      <div className="text-muted-foreground space-y-1.5 mt-0.5">
+                        <p className="text-balance">Scripture passage format not recognized.</p>
+                        {formatDetail && (
+                          <p className="text-balance text-destructive/80">{formatDetail}</p>
+                        )}
+                        <p className="text-balance text-xs">
+                          Expected format: Book Chapter:Verse-Verse (e.g., John 3:16-18)
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground text-balance mt-0.5">{issue.message}</p>
+                    )}
+                  </div>
+                </li>
+              )
+            })}
           </ul>
 
           <AlertDialogFooter>

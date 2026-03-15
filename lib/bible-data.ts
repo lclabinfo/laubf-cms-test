@@ -1,9 +1,16 @@
+export interface VerseRange {
+  start: number
+  end: number
+}
+
 export interface BibleReference {
   book: string
   chapter: number
   /** undefined means "whole chapter" (e.g. "Acts 2") */
   verseStart?: number
   verseEnd?: number
+  /** Multiple verse ranges for comma-separated passages like "John 1:1-3, 10, 20". Sorted by start. */
+  ranges?: VerseRange[]
 }
 
 export const BIBLE_BOOKS = [
@@ -39,20 +46,29 @@ export const BOOK_ABBREVIATIONS: Record<string, string> = {
   "2jn": "2 John", "3jn": "3 John", "jud": "Jude", "rev": "Revelation"
 }
 
+/**
+ * Normalizes input: ~ → -, collapse spaces, normalize spacing around : and -.
+ */
+function normalizeInput(input: string): string {
+  let s = input.trim()
+  s = s.replace(/~/g, "-")
+  s = s.replace(/\s+/g, " ")
+  s = s.replace(/\s*:\s*/g, ":")
+  s = s.replace(/(\d)\s*-\s*(\d)/g, "$1-$2")
+  return s
+}
+
 export function parseBibleReference(input: string): BibleReference | null {
   if (!input) return null
 
-  let cleanInput = input.trim()
+  let cleanInput = normalizeInput(input)
 
-  // Normalize ~ to - (Korean convention for verse ranges)
-  cleanInput = cleanInput.replace(/~/g, "-")
-
-  // Collapse multiple spaces into one
-  cleanInput = cleanInput.replace(/\s+/g, " ")
-
-  // Normalize spaces around : and - so "Acts 1 : 20 - 39" → "Acts 1:20-39"
-  cleanInput = cleanInput.replace(/\s*:\s*/g, ":")
-  cleanInput = cleanInput.replace(/(\d)\s*-\s*(\d)/g, "$1-$2")
+  // Check for comma-separated verse parts: "John 1:1-3, 10, 20"
+  // Split on commas, but only after the chapter:verse portion starts
+  const commaIdx = cleanInput.indexOf(",")
+  if (commaIdx !== -1) {
+    return parseMultiRangeReference(cleanInput)
+  }
 
   // Detect trailing dash: "John 1:22-" means "verse 22 to end of chapter"
   const hasTrailingDash = /\d+-$/.test(cleanInput)
@@ -89,6 +105,106 @@ export function parseBibleReference(input: string): BibleReference | null {
     verseStart,
     verseEnd
   }
+}
+
+/**
+ * Parses comma-separated verse references like "John 1:1-3, 10, 20-25".
+ * All parts must share the same book + chapter.
+ * Ranges are sorted by start verse and merged if overlapping.
+ */
+function parseMultiRangeReference(input: string): BibleReference | null {
+  // Find the first colon to locate where verses start
+  // Parse "Book Chapter:versePart1, versePart2, ..."
+  const colonIdx = input.indexOf(":")
+  if (colonIdx === -1) return null
+
+  const bookChapterPart = input.substring(0, colonIdx).trim()
+  const versePart = input.substring(colonIdx + 1).trim()
+
+  // Strip trailing non-alnum from bookChapter
+  let cleaned = bookChapterPart
+  while (cleaned.length > 0 && /[^a-zA-Z0-9]$/.test(cleaned)) {
+    cleaned = cleaned.slice(0, -1).trim()
+  }
+
+  const bcMatch = cleaned.match(/^(.+?)\s+(\d+)$/)
+  if (!bcMatch) return null
+
+  const foundBook = findBook(bcMatch[1])
+  if (!foundBook) return null
+  const chapter = parseInt(bcMatch[2], 10)
+
+  // Get max verse for trailing dash support
+  const bookData = BIBLE_VERSE_COUNTS[foundBook]
+  const maxVerse = bookData && chapter >= 1 && chapter <= bookData.length
+    ? bookData[chapter - 1]
+    : undefined
+
+  // Parse each comma-separated segment
+  const segments = versePart.split(",").map(s => s.trim()).filter(Boolean)
+  if (segments.length === 0) return null
+
+  const ranges: VerseRange[] = []
+  for (const seg of segments) {
+    // Strip trailing non-alnum (handles trailing comma, dash, etc.)
+    let s = seg
+    const segHasTrailingDash = /\d+-$/.test(s)
+    while (s.length > 0 && /[^0-9]$/.test(s)) {
+      s = s.slice(0, -1).trim()
+    }
+    if (!s) continue
+
+    const rangeMatch = s.match(/^(\d+)(?:-(\d+))?$/)
+    if (!rangeMatch) continue
+
+    let start = parseInt(rangeMatch[1], 10)
+    let end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : start
+
+    // Trailing dash means "to end of chapter"
+    if (segHasTrailingDash && !rangeMatch[2] && maxVerse) {
+      end = maxVerse
+    }
+
+    ranges.push({ start, end })
+  }
+
+  if (ranges.length === 0) return null
+
+  // Sort by start verse, then merge overlapping/adjacent
+  const sorted = sortAndMergeRanges(ranges)
+
+  // For backward compat, set verseStart/verseEnd from first/last range
+  const verseStart = sorted[0].start
+  const verseEnd = sorted[sorted.length - 1].end
+
+  return {
+    book: foundBook,
+    chapter,
+    verseStart,
+    verseEnd,
+    ranges: sorted.length > 1 ? sorted : undefined,
+  }
+}
+
+/**
+ * Sorts ranges by start verse and merges overlapping/adjacent ranges.
+ */
+function sortAndMergeRanges(ranges: VerseRange[]): VerseRange[] {
+  const sorted = [...ranges].sort((a, b) => a.start - b.start)
+  const merged: VerseRange[] = [sorted[0]]
+
+  for (let i = 1; i < sorted.length; i++) {
+    const last = merged[merged.length - 1]
+    const curr = sorted[i]
+    if (curr.start <= last.end + 1) {
+      // Overlapping or adjacent — merge
+      last.end = Math.max(last.end, curr.end)
+    } else {
+      merged.push(curr)
+    }
+  }
+
+  return merged
 }
 
 /**
@@ -161,6 +277,26 @@ function clampReference(ref: BibleReference): BibleReference | null {
   if (chapter > bookData.length) chapter = bookData.length
 
   const maxVerse = bookData[chapter - 1]
+
+  // Clamp multi-range
+  if (ref.ranges && ref.ranges.length > 0) {
+    const clamped: VerseRange[] = ref.ranges.map(r => ({
+      start: Math.max(1, Math.min(r.start, maxVerse)),
+      end: Math.max(1, Math.min(r.end, maxVerse)),
+    })).map(r => ({
+      start: r.start,
+      end: Math.max(r.start, r.end),
+    }))
+    const sorted = sortAndMergeRanges(clamped)
+    return {
+      book: ref.book,
+      chapter,
+      verseStart: sorted[0].start,
+      verseEnd: sorted[sorted.length - 1].end,
+      ranges: sorted.length > 1 ? sorted : undefined,
+    }
+  }
+
   let verseStart = ref.verseStart
   let verseEnd = ref.verseEnd
 
@@ -198,9 +334,18 @@ export function findBook(query: string): string | null {
 
 export function formatReference(ref: BibleReference): string {
   let text = `${ref.book} ${ref.chapter}`
-  if (ref.verseStart !== undefined) {
+
+  if (ref.ranges && ref.ranges.length > 1) {
+    // Multi-range: "John 1:1-3, 10, 20-25"
+    const parts = ref.ranges.map(r =>
+      r.start === r.end ? `${r.start}` : `${r.start}-${r.end}`
+    )
+    text += `:${parts.join(", ")}`
+  } else if (ref.verseStart !== undefined) {
     text += `:${ref.verseStart}`
-    if (ref.verseEnd !== undefined) text += `-${ref.verseEnd}`
+    if (ref.verseEnd !== undefined && ref.verseEnd !== ref.verseStart) {
+      text += `-${ref.verseEnd}`
+    }
   }
   return text
 }
@@ -218,6 +363,17 @@ export function validateReference(ref: BibleReference): string | null {
   }
 
   const maxVerse = bookData[ref.chapter - 1]
+
+  // Validate multi-range if present
+  if (ref.ranges && ref.ranges.length > 0) {
+    for (const range of ref.ranges) {
+      if (range.start < 1) return `Verse must be at least 1`
+      if (range.start > maxVerse) return `${ref.book} ${ref.chapter} has ${maxVerse} verses`
+      if (range.end < range.start) return `End verse must be after start verse`
+      if (range.end > maxVerse) return `${ref.book} ${ref.chapter} has ${maxVerse} verses`
+    }
+    return null
+  }
 
   if (ref.verseStart !== undefined) {
     if (ref.verseStart < 1) return `Verse must be at least 1`

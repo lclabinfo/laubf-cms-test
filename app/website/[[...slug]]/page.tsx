@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getChurchId } from '@/lib/tenant/context'
 import { getPageBySlug, getHomepage } from '@/lib/dal/pages'
+import { getSiteSettings } from '@/lib/dal/site-settings'
 import { SectionRenderer } from '@/components/website/sections/registry'
 import { resolveSectionData } from '@/lib/website/resolve-section-data'
 import type { SectionType } from '@/lib/db/types'
@@ -27,17 +28,32 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { page, isHomepage } = await resolvePage(params)
   if (!page) return {}
 
+  const churchId = await getChurchId()
+  const siteSettings = await getSiteSettings(churchId)
+
   // Homepage uses the layout's default title (site name only)
   const title = isHomepage ? undefined : (page.metaTitle || page.title)
+
+  const siteName = siteSettings?.siteName ?? 'Church'
+
+  // For OG title: homepage uses full name + tagline; other pages use "Page | Site"
+  const ogTitle = isHomepage
+    ? (siteSettings?.tagline
+      ? `${siteName} (${siteSettings.tagline})`
+      : siteName)
+    : `${title || page.title} | ${siteName}`
+
+  // Use page-level OG image, fall back to site-level default
+  const ogImage = page.ogImageUrl || siteSettings?.ogImageUrl || undefined
 
   return {
     // When title is undefined (homepage), the layout default is used
     ...(title ? { title } : {}),
     description: page.metaDescription || undefined,
     openGraph: {
-      title: title || page.metaTitle || page.title,
-      description: page.metaDescription || undefined,
-      images: page.ogImageUrl ? [page.ogImageUrl] : undefined,
+      title: ogTitle,
+      description: page.metaDescription || siteSettings?.description || undefined,
+      images: ogImage ? [ogImage] : undefined,
     },
     robots: page.noIndex ? { index: false } : undefined,
   }

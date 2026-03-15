@@ -30,6 +30,12 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       siteName,
       description: description ?? undefined,
+      images: ogImageUrl ? [{ url: ogImageUrl, width: 1200, height: 630, alt: siteName }] : undefined,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: siteName,
+      description: description ?? undefined,
       images: ogImageUrl ? [ogImageUrl] : undefined,
     },
     icons: siteSettings?.faviconUrl
