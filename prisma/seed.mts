@@ -1051,6 +1051,7 @@ async function main() {
       logoUrl: `${CDN}/laubf-logo.svg`,
       logoDarkUrl: `${CDN}/laubf-logo-blue.svg`,
       logoAlt: 'LA UBF',
+      ogImageUrl: `${CDN}/compressed-congregation.jpg`,
       faviconUrl: '/favicon.ico',
       contactEmail: 'laubf.downey@gmail.com',
       contactPhone: '(562) 396-6350',
@@ -3339,6 +3340,7 @@ async function main() {
       slug: 'im-new',
       title: "I'm New",
       metaDescription: "New to LA UBF? Plan your visit, learn what to expect, and find ways to connect with our community.",
+      ogImageUrl: `${CDN}/images-home-compressed-sunday-worship.jpg`,
       sortOrder: 12,
     },
     [
