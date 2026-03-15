@@ -9,6 +9,7 @@ import {
   parseBibleReference,
   formatReference,
   validateReference,
+  suggestPassage,
   type BibleReference,
 } from "@/lib/bible-data"
 
@@ -30,6 +31,10 @@ export function BiblePassageInput({
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const [isEditing, setIsEditing] = useState(false)
+  // "Did you mean?" suggestion shown below the input when user leaves with unrecognized text
+  const [suggestion, setSuggestion] = useState<string | null>(null)
+  // Track whether the saved value is unformatted (raw text, not from autofill)
+  const [isUnformatted, setIsUnformatted] = useState(false)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -40,12 +45,74 @@ export function BiblePassageInput({
   // Show the badge when confirmed and not actively editing
   const showBadge = hasConfirmedPassage && !isEditing
 
-  // Close dropdown on outside click; if confirmed, exit editing mode
+  /**
+   * On blur / click-outside:
+   * 1. If input is parseable → auto-confirm silently (format + save)
+   * 2. If input is NOT parseable but has text → save raw text + show "Did you mean?" suggestion
+   * 3. If already confirmed → exit editing mode
+   */
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setShowSuggestions(false)
-        if (hasConfirmedPassage) {
+
+        const trimmed = inputValue.trim()
+        if (trimmed && !hasConfirmedPassage) {
+          // User is leaving with text but no confirmed value
+          // Try to auto-format if parseable
+          const ref = parseBibleReference(trimmed)
+          const error = ref ? validateReference(ref) : null
+
+          if (ref && !error) {
+            // Valid reference — auto-confirm silently
+            const formatted = formatReference(ref)
+            onChange(formatted, ref)
+            setInputValue("")
+            setParsedReference(null)
+            setIsEditing(false)
+            setSuggestion(null)
+            setIsUnformatted(false)
+          } else {
+            // Not parseable — save raw text and show suggestion
+            onChange(trimmed, null)
+            setIsEditing(false)
+            setIsUnformatted(true)
+
+            const suggested = suggestPassage(trimmed)
+            if (suggested && suggested.toLowerCase() !== trimmed.toLowerCase()) {
+              setSuggestion(suggested)
+            } else {
+              setSuggestion(null)
+            }
+          }
+        } else if (trimmed && hasConfirmedPassage) {
+          // User was editing an existing value but clicked outside
+          // Try to auto-format the edited text
+          const ref = parseBibleReference(trimmed)
+          const error = ref ? validateReference(ref) : null
+
+          if (ref && !error) {
+            const formatted = formatReference(ref)
+            onChange(formatted, ref)
+            setInputValue("")
+            setParsedReference(null)
+            setIsEditing(false)
+            setSuggestion(null)
+            setIsUnformatted(false)
+          } else {
+            // Save edited raw text
+            onChange(trimmed, null)
+            setIsEditing(false)
+            setIsUnformatted(true)
+
+            const suggested = suggestPassage(trimmed)
+            if (suggested && suggested.toLowerCase() !== trimmed.toLowerCase()) {
+              setSuggestion(suggested)
+            } else {
+              setSuggestion(null)
+            }
+          }
+        } else if (hasConfirmedPassage) {
           setIsEditing(false)
           setInputValue("")
         }
@@ -53,7 +120,7 @@ export function BiblePassageInput({
     }
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [hasConfirmedPassage])
+  }, [hasConfirmedPassage, inputValue, onChange])
 
   // Update suggestions and parsed reference as user types
   useEffect(() => {
@@ -98,21 +165,27 @@ export function BiblePassageInput({
       setParsedReference(null)
       setShowSuggestions(false)
       setIsEditing(false)
+      setSuggestion(null)
+      setIsUnformatted(false)
     },
     [onChange]
   )
 
   const handleClear = useCallback(() => {
     onChange("", null)
-    setInputValue("")
+    // Pre-fill with the formatted version (not original raw text)
+    setInputValue(value)
     setParsedReference(null)
     setIsEditing(true)
+    setSuggestion(null)
+    setIsUnformatted(false)
     setTimeout(() => inputRef.current?.focus(), 0)
-  }, [onChange])
+  }, [onChange, value])
 
   const handleEditClick = useCallback(() => {
     setIsEditing(true)
     setInputValue(value)
+    setSuggestion(null)
     setTimeout(() => inputRef.current?.focus(), 0)
   }, [value])
 
@@ -121,7 +194,27 @@ export function BiblePassageInput({
     inputRef.current?.focus()
   }, [])
 
+  const handleAcceptSuggestion = useCallback((suggested: string) => {
+    const ref = parseBibleReference(suggested)
+    if (ref && !validateReference(ref)) {
+      onChange(formatReference(ref), ref)
+      setSuggestion(null)
+      setIsUnformatted(false)
+    } else {
+      // Suggestion itself might not parse perfectly, just save it
+      onChange(suggested, null)
+      setSuggestion(null)
+      setIsUnformatted(false)
+    }
+  }, [onChange])
+
   function handleKeyDown(e: React.KeyboardEvent) {
+    // Tab — treat like blur, auto-confirm if valid
+    if (e.key === "Tab" && parsedReference) {
+      handleConfirm(parsedReference)
+      return
+    }
+
     // If we have a valid parsed reference, Enter confirms it
     if (parsedReference) {
       if (e.key === "Enter") {
@@ -164,25 +257,41 @@ export function BiblePassageInput({
   return (
     <div ref={containerRef} className="relative w-full text-sm">
       {showBadge ? (
-        /* Confirmed state: styled badge/pill */
-        <Badge
-          variant="secondary"
-          className="h-8 gap-1.5 pl-2 pr-1 text-sm font-normal cursor-pointer hover:bg-secondary/80"
-          onClick={handleEditClick}
-        >
-          <BookOpen className="size-3.5 text-muted-foreground" />
-          <span className="truncate">{value}</span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              handleClear()
-            }}
-            className="ml-0.5 p-0.5 rounded-full text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors focus:outline-none"
-            type="button"
+        <>
+          {/* Confirmed state: styled badge/pill */}
+          <Badge
+            variant="secondary"
+            className={cn(
+              "h-8 gap-1.5 pl-2 pr-1 text-sm font-normal cursor-pointer hover:bg-secondary/80",
+              isUnformatted && "border-amber-500/50"
+            )}
+            onClick={handleEditClick}
           >
-            <X className="size-3" />
-          </button>
-        </Badge>
+            <BookOpen className="size-3.5 text-muted-foreground" />
+            <span className="truncate">{value}</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                handleClear()
+              }}
+              className="ml-0.5 p-0.5 rounded-full text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors focus:outline-none"
+              type="button"
+            >
+              <X className="size-3" />
+            </button>
+          </Badge>
+
+          {/* "Did you mean?" suggestion below the badge */}
+          {suggestion && (
+            <button
+              type="button"
+              onClick={() => handleAcceptSuggestion(suggestion)}
+              className="mt-1.5 text-xs text-amber-600 dark:text-amber-400 hover:underline cursor-pointer flex items-center gap-1"
+            >
+              Did you mean <span className="font-medium">{suggestion}</span>?
+            </button>
+          )}
+        </>
       ) : (
         <>
           {/* Editing state: clean input */}

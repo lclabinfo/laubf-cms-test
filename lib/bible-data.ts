@@ -44,6 +44,19 @@ export function parseBibleReference(input: string): BibleReference | null {
 
   let cleanInput = input.trim()
 
+  // Normalize ~ to - (Korean convention for verse ranges)
+  cleanInput = cleanInput.replace(/~/g, "-")
+
+  // Collapse multiple spaces into one
+  cleanInput = cleanInput.replace(/\s+/g, " ")
+
+  // Normalize spaces around : and - so "Acts 1 : 20 - 39" → "Acts 1:20-39"
+  cleanInput = cleanInput.replace(/\s*:\s*/g, ":")
+  cleanInput = cleanInput.replace(/(\d)\s*-\s*(\d)/g, "$1-$2")
+
+  // Detect trailing dash: "John 1:22-" means "verse 22 to end of chapter"
+  const hasTrailingDash = /\d+-$/.test(cleanInput)
+
   // Strip trailing non-alphanumeric chars (like : or -) so partial input
   // like "Romans 1:" parses as "Romans 1"
   while (cleanInput.length > 0 && /[^a-zA-Z0-9]$/.test(cleanInput)) {
@@ -57,10 +70,18 @@ export function parseBibleReference(input: string): BibleReference | null {
   const bookStr = match[1]
   const chapter = parseInt(match[2], 10)
   const verseStart = match[3] ? parseInt(match[3], 10) : undefined
-  const verseEnd = match[4] ? parseInt(match[4], 10) : undefined
+  let verseEnd = match[4] ? parseInt(match[4], 10) : undefined
 
   const foundBook = findBook(bookStr)
   if (!foundBook) return null
+
+  // If user typed trailing dash (e.g. "John 1:22-"), fill verseEnd to last verse
+  if (hasTrailingDash && verseStart !== undefined && verseEnd === undefined) {
+    const bookData = BIBLE_VERSE_COUNTS[foundBook]
+    if (bookData && chapter >= 1 && chapter <= bookData.length) {
+      verseEnd = bookData[chapter - 1]
+    }
+  }
 
   return {
     book: foundBook,
@@ -68,6 +89,92 @@ export function parseBibleReference(input: string): BibleReference | null {
     verseStart,
     verseEnd
   }
+}
+
+/**
+ * Attempts to make a best-guess suggestion from user input that didn't fully parse.
+ * Clamps out-of-range chapters/verses to valid bounds.
+ * Returns a formatted reference string or null if no reasonable guess can be made.
+ */
+export function suggestPassage(input: string): string | null {
+  if (!input) return null
+
+  let cleanInput = input.trim()
+  if (!cleanInput) return null
+
+  // First, try parsing directly (handles ~ normalization, spacing, etc.)
+  const direct = parseBibleReference(cleanInput)
+  if (direct && !validateReference(direct)) {
+    return formatReference(direct)
+  }
+
+  // If it parsed but has validation errors, try clamping
+  if (direct) {
+    const clamped = clampReference(direct)
+    if (clamped) return formatReference(clamped)
+  }
+
+  // Try to find a book name match from the input
+  // Strip numbers and punctuation from the end to isolate book name
+  const bookOnly = cleanInput.replace(/[\d:;,.\-~\s]+$/, "").trim()
+  if (!bookOnly) return null
+
+  const foundBook = findBook(bookOnly)
+  if (!foundBook) return null
+
+  // We found a book — try to extract chapter:verse from the remaining text
+  const remaining = cleanInput.slice(bookOnly.length).trim()
+    .replace(/~/g, "-")
+    .replace(/\s+/g, "")
+
+  if (!remaining) {
+    // Just a book name — suggest chapter 1
+    return `${foundBook} 1`
+  }
+
+  // Try to parse chapter:verse from remaining
+  const cvMatch = remaining.match(/^(\d+)(?::(\d+)(?:-(\d+))?)?/)
+  if (cvMatch) {
+    const chapter = parseInt(cvMatch[1], 10)
+    const verseStart = cvMatch[2] ? parseInt(cvMatch[2], 10) : undefined
+    const verseEnd = cvMatch[3] ? parseInt(cvMatch[3], 10) : undefined
+
+    const ref: BibleReference = { book: foundBook, chapter, verseStart, verseEnd }
+    const clamped = clampReference(ref)
+    if (clamped) return formatReference(clamped)
+  }
+
+  // Fallback: just book + chapter 1
+  return `${foundBook} 1`
+}
+
+/**
+ * Clamps a BibleReference to valid bounds (chapter count, verse count).
+ * e.g. John 1:22-193 → John 1:22-51 (John 1 has 51 verses)
+ */
+function clampReference(ref: BibleReference): BibleReference | null {
+  const bookData = BIBLE_VERSE_COUNTS[ref.book]
+  if (!bookData) return null
+
+  let chapter = ref.chapter
+  if (chapter < 1) chapter = 1
+  if (chapter > bookData.length) chapter = bookData.length
+
+  const maxVerse = bookData[chapter - 1]
+  let verseStart = ref.verseStart
+  let verseEnd = ref.verseEnd
+
+  if (verseStart !== undefined) {
+    if (verseStart < 1) verseStart = 1
+    if (verseStart > maxVerse) verseStart = maxVerse
+  }
+
+  if (verseEnd !== undefined) {
+    if (verseEnd > maxVerse) verseEnd = maxVerse
+    if (verseStart !== undefined && verseEnd < verseStart) verseEnd = verseStart
+  }
+
+  return { book: ref.book, chapter, verseStart, verseEnd }
 }
 
 export function findBook(query: string): string | null {

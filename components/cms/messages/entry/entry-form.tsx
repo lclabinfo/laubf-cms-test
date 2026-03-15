@@ -5,6 +5,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { deleteImageFromR2, promoteStagingImages, replaceStagingUrls } from "@/lib/upload-media"
 import type { StagingImageEntry } from "@/lib/upload-media"
 import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes"
+import { parseBibleReference, validateReference } from "@/lib/bible-data"
 import {
   ArrowLeft,
   AlertCircle,
@@ -337,6 +338,18 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     if (sPub) {
       if (!passage.trim()) {
         issues.push({ field: "Scripture Passage", message: "A scripture passage is required to publish the bible study", tab: "details", elementId: "field-passage" })
+      } else {
+        // Check if the passage is in a recognized format
+        const ref = parseBibleReference(passage)
+        const validationError = ref ? validateReference(ref) : null
+        if (!ref || validationError) {
+          issues.push({
+            field: "Scripture Passage",
+            message: `Scripture passage format not recognized — expected format: Book Chapter:Verse-Verse (e.g., John 3:16-18)${validationError ? `. ${validationError}` : ""}`,
+            tab: "details",
+            elementId: "field-passage",
+          })
+        }
       }
       if (!studyContentExists) {
         issues.push({ field: "Study Content", message: "At least one study section with content is required", tab: "study", elementId: "field-study-content" })
