@@ -12,6 +12,7 @@ interface SimpleMessage {
   id: string
   slug: string
   title: string
+  videoTitle?: string | null
   passage: string
   speaker: string
   series: string
@@ -114,6 +115,7 @@ export default function AllMessagesClient({ messages, heading }: Props) {
       result = result.filter(
         (m) =>
           m.title.toLowerCase().includes(q) ||
+          (m.videoTitle && m.videoTitle.toLowerCase().includes(q)) ||
           m.speaker.toLowerCase().includes(q) ||
           m.passage.toLowerCase().includes(q)
       )
@@ -421,8 +423,13 @@ function MessageListView({ messages }: { messages: SimpleMessage[] }) {
               </span>
             </div>
             <h3 className="text-[18px] font-medium text-black-1 mb-1 sm:truncate">
-              {message.title}
+              {message.videoTitle || message.title}
             </h3>
+            {message.videoTitle && message.videoTitle !== message.title && (
+              <p className="text-[13px] text-black-3 mb-1 sm:truncate">
+                {message.title}
+              </p>
+            )}
             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
               <div className="flex items-center gap-2">
                 <IconUser className="size-[14px] text-black-3 shrink-0" />

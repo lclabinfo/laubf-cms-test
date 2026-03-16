@@ -8,6 +8,7 @@
  */
 "use client"
 
+import { useMemo } from "react"
 import { useResolvedTheme, type SectionTheme } from "./theme-tokens"
 import { cn } from "@/lib/utils"
 import { resolveHref } from "@/lib/website/resolve-href"
@@ -49,6 +50,12 @@ export default function CTAButton({
 }: CTAButtonProps) {
   const tokens = useResolvedTheme(theme)
 
+  // Dynamically replace hardcoded ?month=N or &month=N with the current month
+  const resolvedMonthHref = useMemo(() => {
+    if (!href) return href
+    return href.replace(/([?&])month=\d+/, (_match, sep) => `${sep}month=${new Date().getMonth() + 1}`)
+  }, [href])
+
   const base = cn(
     "group/btn inline-flex items-center justify-center",
     variant === "campus" ? "rounded-lg" : "rounded-full",
@@ -84,13 +91,13 @@ export default function CTAButton({
     </span>
   ) : null
 
-  // Anchor links: smooth scroll instead of navigation
-  if (href && href.startsWith("#")) {
+  // Anchor links (same-page): smooth scroll to target section
+  if (resolvedMonthHref && resolvedMonthHref.startsWith("#")) {
     return (
       <button
         onClick={(e) => {
           e.preventDefault()
-          const el = document.getElementById(href.slice(1))
+          const el = document.getElementById(resolvedMonthHref.slice(1))
           if (el) {
             el.scrollIntoView({ behavior: "smooth", block: "start" })
           }
@@ -103,8 +110,38 @@ export default function CTAButton({
     )
   }
 
-  if (href) {
-    const resolved = resolveHref(href)
+  // Cross-page anchor links (e.g., /im-new#plan-visit): navigate or smooth-scroll if already on that page
+  if (resolvedMonthHref && resolvedMonthHref.includes("#") && !resolvedMonthHref.startsWith("http")) {
+    const [pagePath, anchor] = resolvedMonthHref.split("#")
+    const resolvedPagePath = resolveHref(pagePath)
+    const fullHref = `${resolvedPagePath}#${anchor}`
+
+    return (
+      <a
+        href={fullHref}
+        className={classes}
+        onClick={(e) => {
+          // If already on the target page, prevent navigation and smooth-scroll instead
+          if (typeof window !== "undefined" && window.location.pathname === resolvedPagePath) {
+            e.preventDefault()
+            const el = document.getElementById(anchor)
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+          }
+          // Otherwise, let the browser handle full navigation + anchor scroll natively
+        }}
+        target={target}
+        rel={rel}
+      >
+        {label}
+        {iconWrapped}
+      </a>
+    )
+  }
+
+  if (resolvedMonthHref) {
+    const resolved = resolveHref(resolvedMonthHref)
     return (
       <Link
         href={resolved}

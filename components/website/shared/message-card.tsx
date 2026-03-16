@@ -16,6 +16,7 @@ interface Message {
   id: string
   slug: string
   title: string
+  videoTitle?: string | null
   youtubeId: string
   videoUrl?: string
   hasVideo?: boolean
@@ -44,6 +45,8 @@ export default function MessageCard({ message }: { message: Message }) {
   const hasYouTube = message.hasVideo && !!message.youtubeId
   const hasVimeo = message.hasVideo && !hasYouTube && !!message.videoUrl
   const hasAnyVideo = message.hasVideo && (hasYouTube || hasVimeo)
+  const displayTitle = message.videoTitle || message.title
+  const showSubtitle = message.videoTitle && message.videoTitle !== message.title
 
   return (
     <Link
@@ -57,7 +60,7 @@ export default function MessageCard({ message }: { message: Message }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={`https://img.youtube.com/vi/${message.youtubeId}/hqdefault.jpg`}
-              alt={message.title}
+              alt={displayTitle}
               className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
             {/* Dark overlay */}
@@ -127,8 +130,13 @@ export default function MessageCard({ message }: { message: Message }) {
         {/* Title */}
         <div className="w-full mb-[12px]">
           <p className="font-medium leading-[1.2] text-black-1 text-[18px] sm:text-[24px] tracking-[-0.72px] line-clamp-2">
-            {message.title}
+            {displayTitle}
           </p>
+          {showSubtitle && (
+            <p className="font-medium leading-[1.3] text-black-3 text-[13px] sm:text-[14px] tracking-[-0.28px] mt-1 line-clamp-1">
+              {message.title}
+            </p>
+          )}
         </div>
 
         {/* Speaker + Passage */}

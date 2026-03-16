@@ -20,14 +20,16 @@ interface Props {
 export default function CustomEmbedSection({ content, colorScheme = "light", paddingY, containerWidth }: Props) {
   return (
     <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
-      <div className="relative w-full" style={{ aspectRatio: content.aspectRatio ?? "16/9" }}>
-        <iframe
-          src={content.embedUrl}
-          title={content.title ?? "Embedded content"}
-          className="w-full h-full rounded-2xl"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-        />
+      <div className="mx-auto w-[80%] max-w-[960px]">
+        <div className="relative w-full" style={{ aspectRatio: content.aspectRatio ?? "16/9" }}>
+          <iframe
+            src={content.embedUrl}
+            title={content.title ?? "Embedded content"}
+            className="w-full h-full rounded-2xl"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
       </div>
     </SectionContainer>
   )

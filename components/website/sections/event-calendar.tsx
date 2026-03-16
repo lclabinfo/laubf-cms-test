@@ -23,7 +23,8 @@ interface Event {
   title: string
   dateStart: string
   dateEnd?: string
-  time: string
+  time?: string
+  timeStart?: string
   type: string
   location?: string
   description?: string
@@ -57,11 +58,17 @@ interface Props {
   events?: Event[]
 }
 
-export default function EventCalendarSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth, events = [] }: Props) {
+export default function EventCalendarSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth, events: rawEvents = [] }: Props) {
   const animate = enableAnimations !== false
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
+
+  // Normalize: resolver provides `timeStart`, but component uses `time`
+  const events = useMemo(() =>
+    rawEvents.map((e) => ({ ...e, time: e.time || e.timeStart || "" })),
+    [rawEvents],
+  )
 
   const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [activeFilter, setActiveFilter] = useState<FilterType>("all")
@@ -183,9 +190,9 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
             )}
           </div>
 
-          {/* Filter pills + upcoming count */}
+          {/* Filter pills + recurring toggle + upcoming count */}
           <div className="relative z-10 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {FILTERS.map((filter) => (
                 <button
                   key={filter.value}

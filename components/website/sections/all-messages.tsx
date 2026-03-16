@@ -26,6 +26,7 @@ export default async function AllMessagesSection({ content, churchId }: Props) {
       id: m.id,
       slug: m.slug,
       title: m.title,
+      videoTitle: m.videoTitle || undefined,
       passage: m.passage || '',
       speaker: m.speaker?.name || 'Unknown',
       series: m.messageSeries?.[0]?.series?.name || '',

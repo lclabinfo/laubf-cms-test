@@ -4,12 +4,12 @@ import Link from "next/link"
 import { getChurchId } from "@/lib/tenant/context"
 import { getMessageBySlug } from "@/lib/dal/messages"
 import { resolveHref } from "@/lib/website/resolve-href"
+import { contentToHtml } from "@/lib/tiptap"
 import {
   IconChevronLeft,
   IconCalendar,
   IconArrowRight,
   IconBookOpen,
-  IconUser,
   IconFileText,
 } from "@/components/website/shared/icons"
 import TranscriptPanel from "./transcript-panel"
@@ -67,6 +67,17 @@ export default async function MessageDetailPage({ params }: PageProps) {
   const seriesName = message.messageSeries?.[0]?.series?.name
   const speakerName = message.speaker?.name
 
+  // Pre-convert transcripts from TipTap JSON / plain text to HTML
+  // Fall back to related study transcript when message-level transcripts are empty
+  const liveTranscriptHtml = contentToHtml(message.liveTranscript)
+  const rawTranscriptHtml = contentToHtml(message.rawTranscript)
+    || contentToHtml(message.relatedStudy?.transcript)
+
+  // Determine whether the right column has any content
+  const hasTranscript = !!(liveTranscriptHtml || rawTranscriptHtml)
+  const hasStudyGuide = !!(message.relatedStudy && message.relatedStudy.status === "PUBLISHED")
+  const hasRightColumn = hasTranscript || hasStudyGuide
+
   return (
     <main className="bg-white-1 min-h-screen">
       {/* Sub-navigation bar */}
@@ -91,7 +102,7 @@ export default async function MessageDetailPage({ params }: PageProps) {
       </div>
 
       {/* Content */}
-      <div className="container-standard pt-2 pb-20 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-10">
+      <div className={`container-standard pt-2 pb-20 ${hasRightColumn ? "grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-10" : "max-w-4xl mx-auto"}`}>
         {/* ── Left column: Video + Metadata ── */}
         <div>
           {/* YouTube Embed */}
@@ -127,7 +138,7 @@ export default async function MessageDetailPage({ params }: PageProps) {
           )}
 
           {/* Series badge + Date */}
-          <div className="flex items-center gap-4 mt-8">
+          <div className={`flex items-center gap-4 mt-8 ${!hasRightColumn ? "justify-center" : ""}`}>
             {seriesName && (
               <span className="bg-accent-blue text-white-0 text-[12px] font-bold uppercase tracking-[0.6px] px-3 py-1 rounded-[10px]">
                 {seriesName}
@@ -142,12 +153,12 @@ export default async function MessageDetailPage({ params }: PageProps) {
           </div>
 
           {/* Title */}
-          <h1 className="text-[36px] md:text-[48px] font-black leading-[1.15] tracking-[-0.85px] text-black-1 uppercase mt-4">
+          <h1 className={`text-[36px] md:text-[48px] font-black leading-[1.15] tracking-[-0.85px] text-black-1 uppercase mt-4 text-balance ${!hasRightColumn ? "text-center" : ""}`}>
             {message.videoTitle || message.title}
           </h1>
 
           {/* Passage + Speaker */}
-          <div className="flex flex-col gap-1 mt-4 pb-6 border-b border-white-2">
+          <div className={`flex flex-col gap-1 mt-4 pb-6 border-b border-white-2 ${!hasRightColumn ? "items-center text-center" : ""}`}>
             {message.passage && (
               <p className="text-[18px] font-bold text-black-1 tracking-[-0.44px]">
                 {message.passage}
@@ -163,7 +174,7 @@ export default async function MessageDetailPage({ params }: PageProps) {
 
           {/* Duration */}
           {message.duration && (
-            <p className="text-[14px] text-black-3 mt-4">
+            <p className={`text-[14px] text-black-3 mt-4 ${!hasRightColumn ? "text-center" : ""}`}>
               Duration: {message.duration}
             </p>
           )}
@@ -171,73 +182,98 @@ export default async function MessageDetailPage({ params }: PageProps) {
           {/* Video Description */}
           {message.videoDescription && (
             <div className="mt-8">
-              <p className="text-[16px] text-black-2 leading-[1.5] tracking-[-0.31px]">
+              <p className={`text-[16px] text-black-2 leading-[1.5] tracking-[-0.31px] ${!hasRightColumn ? "text-center" : ""}`}>
                 {message.videoDescription}
               </p>
             </div>
           )}
 
-          {/* Attachments from related study */}
-          {message.relatedStudy?.attachments && message.relatedStudy.attachments.length > 0 && (
-            <div className="mt-8 pt-6 border-t border-white-2">
-              <h3 className="text-[12px] font-black text-black-3 uppercase tracking-[1.1px] mb-4">
-                Attachments
-              </h3>
-              <div className="flex flex-col gap-2">
-                {message.relatedStudy.attachments.map((att) => (
-                  <a
-                    key={att.id}
-                    href={att.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    download
-                    className="flex items-center gap-3 rounded-[14px] bg-white-1-5 border border-white-2 px-4 py-3 hover:bg-white-2/60 transition-colors group"
-                  >
-                    <IconFileText className="size-5 text-accent-blue shrink-0" />
-                    <span className="text-[14px] font-medium text-black-1 truncate">
-                      {att.name}
-                    </span>
-                    <span className="ml-auto text-[12px] text-black-3 uppercase shrink-0">
-                      {att.type}
-                    </span>
-                  </a>
-                ))}
+          {/* Attachments — merge message-level JSON attachments + related study DB attachments */}
+          {(() => {
+            // Message-level attachments (JSON field)
+            const msgAttachments = Array.isArray(message.attachments)
+              ? (message.attachments as { id: string; name: string; type: string; url?: string }[]).filter((a) => a.url)
+              : []
+            // Related study attachments (DB relation)
+            const studyAttachments = (message.relatedStudy?.attachments ?? []).map((att) => ({
+              id: att.id,
+              name: att.name,
+              type: att.type,
+              url: att.url,
+            }))
+            // De-duplicate by URL
+            const seen = new Set<string>()
+            const allAttachments = [...msgAttachments, ...studyAttachments].filter((a) => {
+              if (!a.url || seen.has(a.url)) return false
+              seen.add(a.url)
+              return true
+            })
+            if (allAttachments.length === 0) return null
+            return (
+              <div className="mt-8 pt-6 border-t border-white-2">
+                <h3 className="text-[12px] font-black text-black-3 uppercase tracking-[1.1px] mb-4">
+                  Attachments
+                </h3>
+                <div className="flex flex-col gap-2">
+                  {allAttachments.map((att) => (
+                    <a
+                      key={att.id}
+                      href={att.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      download
+                      className="flex items-center gap-3 rounded-[14px] bg-white-1-5 border border-white-2 px-4 py-3 hover:bg-white-2/60 transition-colors group"
+                    >
+                      <IconFileText className="size-5 text-accent-blue shrink-0" />
+                      <span className="text-[14px] font-medium text-black-1 truncate">
+                        {att.name}
+                      </span>
+                      <span className="ml-auto text-[12px] text-black-3 uppercase shrink-0">
+                        {att.type}
+                      </span>
+                    </a>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )
+          })()}
         </div>
 
         {/* ── Right column: Transcript + Study Guide ── */}
-        <aside className="flex flex-col gap-6 lg:sticky lg:top-[96px] h-fit">
-          <TranscriptPanel
-            liveTranscript={message.liveTranscript}
-            rawTranscript={message.rawTranscript}
-          />
-
-          {/* Study Guide Card — only show when study is published */}
-          {message.relatedStudy && message.relatedStudy.status === "PUBLISHED" && (
-            <Link
-              href={resolveHref(`/bible-study/${message.relatedStudy.slug}`)}
-              className="group relative rounded-[24px] bg-white-0 border border-accent-blue/20 overflow-hidden p-5 shadow-[0px_10px_15px_-3px_rgba(28,57,142,0.05),0px_4px_6px_-4px_rgba(28,57,142,0.05)] hover:shadow-[0px_10px_15px_-3px_rgba(28,57,142,0.1)] transition-shadow"
-            >
-              {/* Blue glow */}
-              <div
-                aria-hidden="true"
-                className="absolute -top-12 -right-12 size-24 rounded-full bg-accent-blue/10 blur-[40px]"
+        {hasRightColumn && (
+          <aside className="flex flex-col gap-6 lg:sticky lg:top-[96px] h-fit">
+            {hasTranscript && (
+              <TranscriptPanel
+                liveTranscript={liveTranscriptHtml || null}
+                rawTranscript={rawTranscriptHtml || null}
               />
-              <p className="text-[10px] font-black text-accent-blue uppercase tracking-[1.1px] mb-1">
-                Preparation
-              </p>
-              <p className="text-[14px] font-bold text-black-1 tracking-[-0.15px] mb-3">
-                Study Guide Available
-              </p>
-              <div className="flex items-center justify-center gap-2 w-full rounded-[14px] bg-accent-blue text-white-0 py-3 text-[12px] font-bold uppercase tracking-[0.3px] transition-colors group-hover:bg-accent-blue/90">
-                Open Guide
-                <IconArrowRight className="size-4" />
-              </div>
-            </Link>
-          )}
-        </aside>
+            )}
+
+            {/* Study Guide Card — only show when study is published */}
+            {hasStudyGuide && message.relatedStudy && (
+              <Link
+                href={resolveHref(`/bible-study/${message.relatedStudy.slug}`)}
+                className="group relative rounded-[24px] bg-white-0 border border-accent-blue/20 overflow-hidden p-5 shadow-[0px_10px_15px_-3px_rgba(28,57,142,0.05),0px_4px_6px_-4px_rgba(28,57,142,0.05)] hover:shadow-[0px_10px_15px_-3px_rgba(28,57,142,0.1)] transition-shadow"
+              >
+                {/* Blue glow */}
+                <div
+                  aria-hidden="true"
+                  className="absolute -top-12 -right-12 size-24 rounded-full bg-accent-blue/10 blur-[40px]"
+                />
+                <p className="text-[10px] font-black text-accent-blue uppercase tracking-[1.1px] mb-1">
+                  Preparation
+                </p>
+                <p className="text-[14px] font-bold text-black-1 tracking-[-0.15px] mb-3">
+                  Study Guide Available
+                </p>
+                <div className="flex items-center justify-center gap-2 w-full rounded-[14px] bg-accent-blue text-white-0 py-3 text-[12px] font-bold uppercase tracking-[0.3px] transition-colors group-hover:bg-accent-blue/90">
+                  Open Guide
+                  <IconArrowRight className="size-4" />
+                </div>
+              </Link>
+            )}
+          </aside>
+        )}
       </div>
     </main>
   )

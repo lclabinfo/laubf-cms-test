@@ -35,9 +35,9 @@ export default function ActionCardGridSection({ content, enableAnimations, color
 
   return (
     <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
-      <div className="flex flex-col gap-10 lg:flex-row lg:gap-10">
-        {/* Left header */}
-        <AnimateOnScroll animation="fade-left" enabled={animate} className="flex flex-col gap-5 lg:w-[280px] lg:shrink-0">
+      <div className="flex flex-col gap-10 min-[1100px]:flex-row min-[1100px]:gap-10">
+        {/* Left header — horizontal layout kicks in at 1100px to avoid text clipping near 1024px */}
+        <AnimateOnScroll animation="fade-left" enabled={animate} className="flex flex-col gap-5 min-[1100px]:w-[280px] min-[1100px]:shrink-0">
           <h2 className="text-h2 text-black-1 leading-none">
             <span>{content.heading.line1}</span>
             <br />
@@ -59,7 +59,7 @@ export default function ActionCardGridSection({ content, enableAnimations, color
         </AnimateOnScroll>
 
         {/* 2x2 grid */}
-        <div className="grid flex-1 grid-cols-1 gap-5 lg:grid-cols-2">
+        <div className="grid flex-1 grid-cols-1 gap-5 sm:grid-cols-2">
           {content.cards.map((card, i) => (
             <AnimateOnScroll key={card.id} animation="fade-up" staggerIndex={i} enabled={animate}>
               <ImageCard data={card} />

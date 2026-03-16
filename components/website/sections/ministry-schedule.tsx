@@ -96,6 +96,8 @@ export default function MinistryScheduleSection({ content, enableAnimations, col
                 variant="secondary"
                 size="small"
                 icon={<IconExternalLink className="ml-2 size-4" />}
+                target="_blank"
+                rel="noopener noreferrer"
               />
             </div>
           )}
@@ -114,43 +116,50 @@ export default function MinistryScheduleSection({ content, enableAnimations, col
               />
             </div>
           ) : (
-            /* Schedule entries layout (college variant) */
-            content.scheduleEntries && content.scheduleEntries.length > 0 && (
-              <div>
-                {content.scheduleLabel && (
-                  <p className={`text-overline ${t.textMuted} mb-6`}>
-                    {content.scheduleLabel}
-                  </p>
-                )}
-                <div className="flex flex-col gap-6">
-                  {content.scheduleEntries.map((entry, i) => (
-                    <div key={i}>
-                      <p className={`text-h3 font-medium ${t.textPrimary}`}>
-                        <span className="font-medium">{entry.day}</span> @ {entry.time}
-                      </p>
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <IconMapPin className={`size-4 ${t.textMuted} shrink-0`} />
-                        <p className={`text-body-2 ${t.textMuted}`}>{entry.location}</p>
+            /* Schedule entries layout (college variant) -- also renders buttons when no entries */
+            <div>
+              {content.scheduleEntries && content.scheduleEntries.length > 0 && (
+                <>
+                  {content.scheduleLabel && (
+                    <p className={`text-overline ${t.textMuted} mb-6`}>
+                      {content.scheduleLabel}
+                    </p>
+                  )}
+                  <div className="flex flex-col gap-6">
+                    {content.scheduleEntries.map((entry, i) => (
+                      <div key={i}>
+                        <p className={`text-h3 font-medium ${t.textPrimary}`}>
+                          <span className="font-medium">{entry.day}</span> @ {entry.time}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <IconMapPin className={`size-4 ${t.textMuted} shrink-0`} />
+                          <p className={`text-body-2 ${t.textMuted}`}>{entry.location}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                </>
+              )}
 
-                {/* Buttons below schedule */}
-                {content.buttons && content.buttons.length > 0 && (
-                  <div className="flex flex-wrap gap-3 mt-8">
-                    {content.buttons.map((btn, i) => (
+              {/* Buttons below schedule (or standalone when no schedule entries) */}
+              {content.buttons && content.buttons.length > 0 && (
+                <div className={`flex flex-wrap gap-3 ${content.scheduleEntries && content.scheduleEntries.length > 0 ? "mt-8" : ""}`}>
+                  {content.buttons.map((btn, i) => {
+                    const isExternal = btn.href.startsWith("http")
+                    return (
                       <CTAButton
                         key={i}
                         label={btn.label}
                         href={btn.href}
                         variant={btn.variant}
+                        target={isExternal ? "_blank" : undefined}
+                        rel={isExternal ? "noopener noreferrer" : undefined}
                       />
-                    ))}
-                  </div>
-                )}
-              </div>
-            )
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           )}
         </AnimateOnScroll>
       </div>

@@ -58,7 +58,14 @@ export async function resolveSectionData(
         if (!message) return { content }
 
         const dateLabel = message.dateFor
-          ? new Date(message.dateFor).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
+          ? (() => {
+              const d = new Date(message.dateFor)
+              const now = new Date()
+              const sameYear = d.getFullYear() === now.getFullYear()
+              return sameYear
+                ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
+                : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
+            })()
           : ''
 
         return {
@@ -116,10 +123,15 @@ export async function resolveSectionData(
 
       case 'upcoming-events': {
         const events = await getUpcomingEvents(churchId, 100)
+        // For UPCOMING_EVENTS section, filter out recurring meetings (only show actual events)
+        // EVENT_CALENDAR and RECURRING_MEETINGS sections also use this dataSource but handle their own filtering
+        const filteredEvents = sectionType === 'UPCOMING_EVENTS'
+          ? events.filter((e) => !e.isRecurring)
+          : events
         return {
           content,
           resolvedData: {
-            events: events.map((e) => ({
+            events: filteredEvents.map((e) => ({
               slug: e.slug,
               title: e.title,
               dateStart: toDateString(e.dateStart),
@@ -140,18 +152,19 @@ export async function resolveSectionData(
 
       case 'ministry-events': {
         const ministrySlug = content.ministrySlug as string
-        const events = await getUpcomingEvents(churchId, 6)
-        // Filter by ministry if slug is provided
-        const filtered = ministrySlug
-          ? events.filter((e) => e.ministry?.slug === ministrySlug)
-          : events
+        const events = await getUpcomingEvents(churchId, 20)
+        // Include non-recurring events for the specific ministry AND church-wide events
+        const filtered = events
+          .filter((e) => !e.isRecurring)
+          .filter((e) => !ministrySlug || e.ministry?.slug === ministrySlug || e.ministry?.slug === 'church-wide')
         return {
           content,
           resolvedData: {
-            events: filtered.map((e) => ({
+            events: filtered.slice(0, 6).map((e) => ({
               slug: e.slug,
               title: e.title,
               dateStart: toDateString(e.dateStart),
+              dateEnd: e.dateEnd ? toDateString(e.dateEnd) : undefined,
               timeStart: e.startTime || '',
               type: e.type.toLowerCase(),
               location: e.location || '',
@@ -193,6 +206,7 @@ export async function resolveSectionData(
               id: m.id,
               slug: m.slug,
               title: m.title,
+              videoTitle: m.videoTitle || undefined,
               passage: m.passage || '',
               speaker: m.speaker?.name || 'Unknown',
               series: m.messageSeries?.[0]?.series?.name || '',

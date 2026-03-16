@@ -21,7 +21,7 @@ export default function CustomHtmlSection({ content, colorScheme = "light", padd
 
   return (
     <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
-      <div dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
+      <div className="mx-auto w-[80%] max-w-[960px]" dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
     </SectionContainer>
   )
 }

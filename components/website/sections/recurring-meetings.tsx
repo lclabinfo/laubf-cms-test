@@ -16,7 +16,8 @@ interface Event {
   slug: string
   title: string
   type: string
-  time: string
+  time?: string
+  timeStart?: string
   isRecurring?: boolean
   recurrenceSchedule?: string
   meetingUrl?: string
@@ -78,6 +79,7 @@ export default function RecurringMeetingsSection({ content, colorScheme = "light
 function MeetingItem({ event }: { event: Event }) {
   const schedule = event.recurrenceSchedule
   const hasOnlineMeeting = !!event.meetingUrl
+  const displayTime = event.time || event.timeStart || ""
 
   return (
     <div className="bg-white-0 border border-white-2-5 rounded-[24px] shadow-[0px_12px_20px_0px_rgba(0,0,0,0.03)]">
@@ -102,7 +104,7 @@ function MeetingItem({ event }: { event: Event }) {
             )}
             <span className="inline-flex items-center gap-[6px] text-body-2 text-black-3">
               <IconClock className="size-[16px] shrink-0" />
-              {event.time}
+              {displayTime}
             </span>
           </div>
         </div>

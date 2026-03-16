@@ -82,6 +82,7 @@ export async function getMessages(
     ...(filters?.search && {
       OR: [
         { title: { contains: filters.search, mode: 'insensitive' as const } },
+        { videoTitle: { contains: filters.search, mode: 'insensitive' as const } },
         { passage: { contains: filters.search, mode: 'insensitive' as const } },
         { speaker: { name: { contains: filters.search, mode: 'insensitive' as const } } },
         { videoDescription: { contains: filters.search, mode: 'insensitive' as const } },
@@ -147,8 +148,33 @@ export async function getMessageById(
 export async function getLatestMessage(
   churchId: string,
 ): Promise<MessageWithRelations | null> {
+  const today = new Date()
+  today.setHours(23, 59, 59, 999)
+
+  // Prefer the most recent message with a video (for spotlight player)
+  const withVideo = await prisma.message.findFirst({
+    where: {
+      churchId,
+      deletedAt: null,
+      archivedAt: null,
+      hasVideo: true,
+      dateFor: { lte: today },
+    },
+    include: messageListInclude,
+    orderBy: { dateFor: 'desc' },
+  })
+
+  if (withVideo) return withVideo
+
+  // Fall back to any message with study material
   return prisma.message.findFirst({
-    where: { churchId, deletedAt: null, OR: [{ hasVideo: true }, { hasStudy: true }] },
+    where: {
+      churchId,
+      deletedAt: null,
+      archivedAt: null,
+      hasStudy: true,
+      dateFor: { lte: today },
+    },
     include: messageListInclude,
     orderBy: { dateFor: 'desc' },
   })

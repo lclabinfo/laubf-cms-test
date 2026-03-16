@@ -69,6 +69,8 @@ export default function LocationDetailSection({ content, enableAnimations, color
               href={content.directionsUrl}
               variant="secondary"
               icon={<IconExternalLink className="ml-2 size-4" />}
+              target="_blank"
+              rel="noopener noreferrer"
             />
           </div>
         </AnimateOnScroll>

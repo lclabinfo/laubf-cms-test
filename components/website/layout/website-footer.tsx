@@ -68,7 +68,7 @@ export function WebsiteFooter({ menu, siteSettings }: WebsiteFooterProps) {
 
   return (
     <footer className="bg-black-1 px-4 py-20 lg:px-30">
-      <div className="container-standard">
+      <div className="w-[90%] max-w-[980px] mx-auto">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-12">
           {/* Brand column */}
           <div className="flex flex-col gap-8">
@@ -92,7 +92,7 @@ export function WebsiteFooter({ menu, siteSettings }: WebsiteFooterProps) {
               )}
             </div>
             {/* Social links */}
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               {siteSettings.instagramUrl && (
                 <SocialLink href={siteSettings.instagramUrl} platform="instagram" />
               )}
@@ -181,7 +181,7 @@ function SocialLink({ href, platform }: { href: string; platform: string }) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex size-11 items-center justify-center rounded-full bg-black-2 text-white-2 transition-colors hover:bg-black-3"
+      className="flex size-11 shrink-0 items-center justify-center rounded-full bg-black-2 text-white-2 transition-colors hover:bg-black-3"
       aria-label={platform}
     >
       <SocialIcon platform={platform} />

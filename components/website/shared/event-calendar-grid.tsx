@@ -67,6 +67,7 @@ interface CalendarEvent {
   dateStart: string
   dateEnd?: string
   time: string
+  timeStart?: string
   type: string
   location?: string
   description?: string
@@ -124,11 +125,17 @@ interface EventCalendarGridProps {
   year?: number
 }
 
-export default function EventCalendarGrid({ events, month: controlledMonth, year: controlledYear }: EventCalendarGridProps) {
+export default function EventCalendarGrid({ events: rawEvents, month: controlledMonth, year: controlledYear }: EventCalendarGridProps) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
   const isMobile = useIsMobile()
+
+  // Normalize: resolver provides `timeStart`, but component uses `time`
+  const events = useMemo(() =>
+    rawEvents.map((e) => ({ ...e, time: e.time || e.timeStart || "" })),
+    [rawEvents],
+  )
 
   const isControlled = controlledMonth !== undefined && controlledYear !== undefined
 
@@ -140,6 +147,8 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
 
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [expandedDayKey, setExpandedDayKey] = useState<string | null>(null)
+  // "all" = show all events + recurring for that day, "recurring" = only recurring meetings
+  const [expandedDayMode, setExpandedDayMode] = useState<"all" | "recurring">("all")
   const popoverRef = useRef<HTMLDivElement>(null)
   const dayPopoverRef = useRef<HTMLDivElement>(null)
 
@@ -248,13 +257,18 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
     return [...nonRecurring, ...synthetics]
   }, [events, calendarDays])
 
-  /* ---- Build event spans per week (desktop only) ---- */
+  /* ---- Non-recurring expanded events (for desktop event blocks) ---- */
+  const nonRecurringExpandedEvents = useMemo(() => {
+    return expandedEvents.filter((e) => !e.isRecurring)
+  }, [expandedEvents])
+
+  /* ---- Build event spans per week (desktop only — non-recurring events as blocks) ---- */
   const weekEventSpans = useMemo(() => {
     return weeks.map((week) => {
       const weekStartKey = week[0].key
       const weekEndKey = week[6].key
 
-      const overlapping = expandedEvents.filter((evt) => {
+      const overlapping = nonRecurringExpandedEvents.filter((evt) => {
         const evtStart = evt.dateStart
         const evtEnd = evt.dateEnd || evt.dateStart
         return evtStart <= weekEndKey && evtEnd >= weekStartKey
@@ -323,7 +337,7 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
 
       return { spans: placed, dayOverflows }
     })
-  }, [weeks, expandedEvents])
+  }, [weeks, nonRecurringExpandedEvents])
 
   /* ---- Per-day event map (for mobile dots) ---- */
   const dayEventsMap = useMemo(() => {
@@ -340,16 +354,36 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
     return map
   }, [calendarDays, expandedEvents])
 
+  /* ---- Recurring events per day (for desktop dot clusters) ---- */
+  const dayRecurringMap = useMemo(() => {
+    const map: Record<string, CalendarEvent[]> = {}
+    for (const day of calendarDays) {
+      const recurring = expandedEvents.filter((e) => {
+        if (!e.isRecurring) return false
+        const end = e.dateEnd || e.dateStart
+        return e.dateStart <= day.key && end >= day.key
+      })
+      if (recurring.length > 0) {
+        map[day.key] = recurring
+      }
+    }
+    return map
+  }, [calendarDays, expandedEvents])
+
   /* ---- Events for expanded day ---- */
   const expandedDayEvents = useMemo(() => {
     if (!expandedDayKey) return []
-    return expandedEvents
+    const allForDay = expandedEvents
       .filter((e) => {
         const end = e.dateEnd || e.dateStart
         return e.dateStart <= expandedDayKey && end >= expandedDayKey
       })
       .sort((a, b) => a.time.localeCompare(b.time))
-  }, [expandedEvents, expandedDayKey])
+    if (expandedDayMode === "recurring") {
+      return allForDay.filter((e) => e.isRecurring)
+    }
+    return allForDay
+  }, [expandedEvents, expandedDayKey, expandedDayMode])
 
   const expandedDayLabel = expandedDayKey
     ? new Date(expandedDayKey + "T00:00:00").toLocaleDateString("en-US", {
@@ -460,50 +494,74 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
                   const dayEvents = dayEventsMap[day.key] || []
                   const dotEvents = dayEvents.slice(0, MOBILE_MAX_DOTS)
                   const overflowCount = dayEvents.length - MOBILE_MAX_DOTS
+                  const hasAnyEvents = dayEvents.length > 0
+
+                  const cellClickHandler = hasAnyEvents
+                    ? () => { setExpandedDayMode("all"); setExpandedDayKey(day.key) }
+                    : undefined
 
                   return (
                     <div
                       key={day.key}
+                      onClick={cellClickHandler}
+                      role={hasAnyEvents ? "button" : undefined}
+                      tabIndex={hasAnyEvents ? 0 : undefined}
+                      onKeyDown={hasAnyEvents ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cellClickHandler?.() } } : undefined}
                       className={`border-r border-white-2/50 last:border-r-0 ${
                         !day.isCurrentMonth ? "bg-white-1-5" : ""
-                      } ${isMobile ? "px-0.5 pt-1.5 pb-2" : "px-2 pt-2 pb-1"}`}
+                      } ${isMobile ? "px-0.5 pt-1.5 pb-2" : "px-2 pt-2 pb-1"} ${
+                        hasAnyEvents ? "cursor-pointer transition-colors hover:bg-white-1-5/80" : ""
+                      }`}
                     >
                       {/* Day number */}
-                      {isMobile && dayEvents.length > 0 ? (
-                        <button
-                          onClick={() => setExpandedDayKey(day.key)}
-                          className={`flex size-6 items-center justify-center rounded-full text-[12px] mx-auto ${
-                            day.isToday
-                              ? "bg-black-1 text-white-0 font-medium"
-                              : day.isCurrentMonth
-                                ? "text-black-1"
-                                : "text-black-3/40"
-                          }`}
-                        >
-                          {day.date}
-                        </button>
-                      ) : (
-                        <span
-                          className={`flex items-center justify-center rounded-full text-[12px] sm:text-[14px] mx-auto ${
-                            isMobile ? "size-6" : "size-7"
-                          } ${
-                            day.isToday
-                              ? "bg-black-1 text-white-0 font-medium"
-                              : day.isCurrentMonth
-                                ? "text-black-1"
-                                : "text-black-3/40"
-                          }`}
-                        >
-                          {day.date}
-                        </span>
-                      )}
+                      <span
+                        className={`flex items-center justify-center rounded-full text-[12px] sm:text-[14px] mx-auto ${
+                          isMobile ? "size-6" : "size-7"
+                        } ${
+                          day.isToday
+                            ? "bg-black-1 text-white-0 font-medium"
+                            : day.isCurrentMonth
+                              ? "text-black-1"
+                              : "text-black-3/40"
+                        }`}
+                      >
+                        {day.date}
+                      </span>
 
-                      {/* Mobile: colored dots below day number */}
+                      {/* Desktop: recurring meeting dot clusters (visual indicator only) */}
+                      {!isMobile && (() => {
+                        const recurringForDay = dayRecurringMap[day.key]
+                        if (!recurringForDay || recurringForDay.length === 0) return null
+                        const MAX_DOTS = 2
+                        const visibleDots = recurringForDay.slice(0, MAX_DOTS)
+                        const extraCount = recurringForDay.length - MAX_DOTS
+                        return (
+                          <div
+                            className="flex items-center justify-center mt-0.5 gap-0"
+                            title={`${recurringForDay.length} recurring meeting${recurringForDay.length !== 1 ? "s" : ""}`}
+                          >
+                            <span className="flex items-center -space-x-1">
+                              {visibleDots.map((evt, i) => (
+                                <span
+                                  key={`${evt.slug}-dot-${i}`}
+                                  className={`size-[8px] rounded-full border border-white-0 ${
+                                    TYPE_PILL_COLORS[evt.type] ?? "bg-black-3"
+                                  }`}
+                                />
+                              ))}
+                            </span>
+                            {extraCount > 0 && (
+                              <span className="text-[9px] font-medium text-black-3 leading-none ml-0.5">
+                                +{extraCount}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })()}
+
+                      {/* Mobile: colored dots below day number (visual indicator only) */}
                       {isMobile && dayEvents.length > 0 && (
-                        <button
-                          onClick={() => setExpandedDayKey(day.key)}
-                          className="flex flex-wrap items-center justify-center gap-[3px] mt-1"
-                        >
+                        <div className="flex flex-wrap items-center justify-center gap-[3px] mt-1">
                           {dotEvents.map((evt, i) => (
                             <span
                               key={`${evt.slug}-${i}`}
@@ -519,7 +577,7 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
                               +{overflowCount}
                             </span>
                           )}
-                        </button>
+                        </div>
                       )}
                     </div>
                   )
@@ -529,16 +587,21 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
               {/* Desktop: Event blocks layer */}
               {!isMobile && (
                 <div className="relative w-full" style={{ height: `${FIXED_EVENT_AREA_H}px` }}>
-                  {/* Background column separators */}
-                  <div className="absolute inset-0 grid grid-cols-7 pointer-events-none">
-                    {week.map((day) => (
-                      <div
-                        key={day.key}
-                        className={`border-r border-white-2/50 last:border-r-0 ${
-                          !day.isCurrentMonth ? "bg-white-1-5" : ""
-                        }`}
-                      />
-                    ))}
+                  {/* Background column separators — also clickable to open day popover */}
+                  <div className="absolute inset-0 grid grid-cols-7">
+                    {week.map((day) => {
+                      const dayEvents = dayEventsMap[day.key] || []
+                      const hasAnyEvents = dayEvents.length > 0
+                      return (
+                        <div
+                          key={day.key}
+                          onClick={hasAnyEvents ? () => { setExpandedDayMode("all"); setExpandedDayKey(day.key) } : undefined}
+                          className={`border-r border-white-2/50 last:border-r-0 ${
+                            !day.isCurrentMonth ? "bg-white-1-5" : ""
+                          } ${hasAnyEvents ? "cursor-pointer" : ""}`}
+                        />
+                      )
+                    })}
                   </div>
 
                   {/* Positioned event spans */}
@@ -574,7 +637,7 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
                     count > 0 ? (
                       <button
                         key={`overflow-${colIndex}`}
-                        onClick={() => setExpandedDayKey(week[colIndex].key)}
+                        onClick={() => { setExpandedDayMode("all"); setExpandedDayKey(week[colIndex].key) }}
                         className="absolute text-[11px] font-medium text-accent-blue hover:underline cursor-pointer z-10"
                         style={{
                           top: `${MAX_VISIBLE_ROWS * EVENT_ROW_H + 2}px`,
@@ -690,11 +753,14 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
               <IconClose className="size-4" />
             </button>
 
-            <h4 className="text-[16px] font-medium text-black-1 mb-4 pr-8">
+            <h4 className="text-[16px] font-medium text-black-1 mb-1 pr-8">
               {expandedDayLabel}
             </h4>
+            <p className="text-[12px] text-black-3 mb-3">
+              {expandedDayEvents.length} event{expandedDayEvents.length !== 1 ? "s" : ""}
+            </p>
 
-            <div className="flex flex-col gap-1 max-h-[300px] overflow-y-auto">
+            <div className="flex flex-col gap-1 max-h-60 overflow-y-auto">
               {expandedDayEvents.map((evt) => (
                 <button
                   key={evt.slug}
@@ -718,6 +784,9 @@ export default function EventCalendarGrid({ events, month: controlledMonth, year
                     <span className="text-[12px] text-black-3">
                       {evt.time.split(" - ")[0]}
                       {evt.location && ` · ${evt.location}`}
+                      {" · "}
+                      <span className="capitalize">{evt.type}</span>
+                      {evt.isRecurring && " (recurring)"}
                     </span>
                   </div>
                 </button>

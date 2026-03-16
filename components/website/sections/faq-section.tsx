@@ -10,6 +10,8 @@ import { IconQuestionMark, IconChevronDown } from "@/components/website/shared/i
 interface FAQItem {
   question: string
   answer: string
+  /** Optional HTML answer -- when present, rendered as rich text instead of plain text */
+  answerHtml?: string
 }
 
 interface FAQContent {
@@ -90,9 +92,16 @@ export default function FAQSection({ content, enableAnimations, colorScheme = "l
               >
                 <div className="overflow-hidden">
                   <div className="px-8 pb-5">
-                    <p className={`text-body-2 ${t.textSecondary} leading-relaxed`}>
-                      {item.answer}
-                    </p>
+                    {item.answerHtml ? (
+                      <div
+                        className={`text-body-2 ${t.textSecondary} leading-relaxed [&_a]:underline [&_a]:font-medium [&_a]:text-current hover:[&_a]:opacity-80`}
+                        dangerouslySetInnerHTML={{ __html: item.answerHtml }}
+                      />
+                    ) : (
+                      <p className={`text-body-2 ${t.textSecondary} leading-relaxed`}>
+                        {item.answer}
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

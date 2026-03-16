@@ -108,10 +108,13 @@ interface Props {
 export default function StatementSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
 
+  // Minimal mode: no leadIn + few paragraphs = centered layout (e.g., "coming soon" pages)
+  const isMinimal = !content.leadIn && content.paragraphs.length <= 2
+
   return (
     <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       {/* Header — centered */}
-      <div className="flex flex-col items-center text-center mb-16 lg:mb-20">
+      <div className={`flex flex-col items-center text-center ${isMinimal ? "mb-0" : "mb-16 lg:mb-20"}`}>
         {content.showIcon && (
           <div
             className="mb-6 w-[67px] h-[92px] bg-black-3 opacity-85"
@@ -129,16 +132,32 @@ export default function StatementSection({ content, enableAnimations, colorSchem
             }}
           />
         )}
-        <p className={`text-h4 ${t.textMuted} mb-2`}>{content.overline}</p>
+        {content.overline && (
+          <p className={`text-h4 ${t.textMuted} mb-2`}>{content.overline}</p>
+        )}
         <h2 className={`text-h2 ${t.textPrimary}`}>{content.heading}</h2>
       </div>
 
-      {/* Two-column scroll-tracked content */}
-      <StatementContent
-        leadIn={content.leadIn}
-        paragraphs={content.paragraphs}
-        colorScheme={colorScheme}
-      />
+      {isMinimal ? (
+        /* Centered minimal layout for short content like "coming soon" */
+        <div className="flex flex-col items-center text-center gap-4 py-12 lg:py-16">
+          {content.paragraphs.map((para, i) => (
+            <p
+              key={i}
+              className={`text-body-1 max-w-xl ${para.isBold ? `font-semibold ${t.textPrimary}` : t.textSecondary}`}
+            >
+              {para.text}
+            </p>
+          ))}
+        </div>
+      ) : (
+        /* Two-column scroll-tracked content */
+        <StatementContent
+          leadIn={content.leadIn}
+          paragraphs={content.paragraphs}
+          colorScheme={colorScheme}
+        />
+      )}
     </SectionContainer>
   )
 }

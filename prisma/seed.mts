@@ -1453,6 +1453,7 @@ async function main() {
       colorScheme?: string
       paddingY?: string
       containerWidth?: string
+      visible?: boolean
       content: Record<string, unknown>
     }>,
   ) {
@@ -1483,6 +1484,7 @@ async function main() {
           colorScheme: (s.colorScheme || 'LIGHT') as any,
           paddingY: (s.paddingY || 'DEFAULT') as any,
           containerWidth: (s.containerWidth || 'STANDARD') as any,
+          visible: s.visible ?? true,
           content: s.content,
         },
       })
@@ -1558,7 +1560,7 @@ async function main() {
           heading: 'Schedule',
           filters: ['ALL', 'Events', 'Meetings', 'Programs'],
           ctaButtons: [
-            { label: '2026 LA UBF Calendar', href: 'https://laubf.org/calendar?month=2', icon: true },
+            { label: '2026 LA UBF Calendar', href: 'https://laubf.org/calendar', icon: true },
             { label: 'View all events', href: '/events' },
           ],
           dataSource: 'upcoming-events',
@@ -1614,15 +1616,15 @@ async function main() {
           ],
           image: { src: `${CDN}/images-home-compressed-campus-ministry-list.png`, alt: 'Campus ministry students' },
           ctaHeading: "Don't see your campus?",
-          ctaButton: { label: 'Let us know your interest', href: '/im-new' },
+          ctaButton: { label: 'Let us know your interest', href: '/im-new#plan-visit' },
         },
       },
       {
         sectionType: 'SPOTLIGHT_MEDIA',
-        label: "This Week's Message",
+        label: 'Latest Message',
         colorScheme: 'DARK',
         content: {
-          sectionHeading: "This Week\u2019s Message",
+          sectionHeading: 'Latest Message',
           dataSource: 'latest-message',
         },
       },
@@ -1747,11 +1749,11 @@ async function main() {
     [
       {
         sectionType: 'SPOTLIGHT_MEDIA',
-        label: "This Week's Message",
+        label: 'Latest Message',
         colorScheme: 'DARK',
         paddingY: 'COMPACT',
         content: {
-          sectionHeading: "This Week\u2019s Message",
+          sectionHeading: 'Latest Message',
           dataSource: 'latest-message',
         },
       },
@@ -1954,6 +1956,7 @@ async function main() {
           ],
           ctaHeading: "Don\u2019t see your campus?",
           ctaButton: { label: 'Let us know your interest', href: '/im-new#plan-visit' },
+          showCtaIcon: false,
         },
       },
       {
@@ -1995,7 +1998,8 @@ async function main() {
       { id: 'cal-poly-pomona', abbreviation: '', fullName: 'Cal Poly Pomona', href: '/ministries/campus/cal-poly-pomona' },
     ],
     ctaHeading: "Don\u2019t see your campus?",
-    ctaButton: { label: 'Contact Us', href: '#plan-visit' },
+    ctaButton: { label: 'Contact Us', href: '/im-new#plan-visit' },
+    showCtaIcon: false,
   }
 
   // Shared newcomer content
@@ -2089,6 +2093,7 @@ async function main() {
         sectionType: 'PHOTO_GALLERY',
         label: 'Photo Gallery',
         colorScheme: 'LIGHT',
+        visible: true,
         content: {
           heading: 'Snippets from the Ministry',
           images: [
@@ -2282,6 +2287,7 @@ async function main() {
         sectionType: 'PHOTO_GALLERY',
         label: 'Photo Gallery',
         colorScheme: 'LIGHT',
+        visible: false,
         content: {
           heading: 'Snippets from the Ministry',
           images: [
@@ -2427,11 +2433,11 @@ async function main() {
 
   // ── CAMPUS DETAIL PAGES ──────────────────────────────────
   // Shared content for campus detail pages
-  const sharedCampusFaq = (campusName: string) => ({
+  const sharedCampusFaq = (campusName: string, ctaHref?: string, hasSocialLinks = false) => ({
     heading: 'Frequently Asked Questions',
     showIcon: true,
     items: [
-      { question: 'Where and when do campus groups meet?', answer: "Campus Bible study groups meet at various times throughout the week depending on the campus. Most groups meet once or twice a week. Fill out the contact form above and we\u2019ll connect you with the group nearest to you." },
+      { question: 'How do I sign up?', answer: `It\u2019s easy! Visit the Start Bible Study link to fill out a short form.${hasSocialLinks ? ' You can also email or reach out to us via our social media listed at the top of this page.' : ''} We\u2019ll get you connected with a Bible study group right away.`, answerHtml: `It\u2019s easy! Visit <a href="${ctaHref || '#'}" target="_blank" rel="noopener noreferrer">Start Bible Study</a> to fill out a short form.${hasSocialLinks ? ' You can also email or reach out to us via our social media listed at the top of this page.' : ''} We\u2019ll get you connected with a Bible study group right away.` },
       { question: 'Do I need to bring anything?', answer: "Just bring yourself! We provide study materials and Bibles. Feel free to bring your own Bible if you have one." },
       { question: `Is this only for ${campusName} students?`, answer: `While our group is based at ${campusName}, anyone is welcome to join. You don\u2019t have to be a current student to attend.` },
       { question: 'What denomination is UBF?', answer: "UBF is a non-denominational evangelical Christian organization. We focus on Bible study and discipleship across all Christian traditions." },
@@ -2537,7 +2543,7 @@ async function main() {
         label: 'LBCC FAQ',
         colorScheme: 'LIGHT',
         containerWidth: 'NARROW',
-        content: sharedCampusFaq('LBCC'),
+        content: sharedCampusFaq('LBCC', 'https://startbiblestudy.org/lbcc', true),
       },
       {
         sectionType: 'CAMPUS_CARD_GRID',
@@ -2620,7 +2626,7 @@ async function main() {
         label: 'CSULB FAQ',
         colorScheme: 'LIGHT',
         containerWidth: 'NARROW',
-        content: sharedCampusFaq('CSULB'),
+        content: sharedCampusFaq('CSULB', 'https://startbiblestudy.org/csulb', true),
       },
       {
         sectionType: 'CAMPUS_CARD_GRID',
@@ -2702,7 +2708,7 @@ async function main() {
         label: 'CSUF FAQ',
         colorScheme: 'LIGHT',
         containerWidth: 'NARROW',
-        content: sharedCampusFaq('CSUF'),
+        content: sharedCampusFaq('CSUF', 'https://startbiblestudy.org/csuf', true),
       },
       {
         sectionType: 'CAMPUS_CARD_GRID',
@@ -2779,7 +2785,7 @@ async function main() {
         label: 'UCLA FAQ',
         colorScheme: 'LIGHT',
         containerWidth: 'NARROW',
-        content: sharedCampusFaq('UCLA'),
+        content: sharedCampusFaq('UCLA', 'https://startbiblestudy.org/ucla'),
       },
       {
         sectionType: 'CAMPUS_CARD_GRID',
@@ -2858,7 +2864,7 @@ async function main() {
         label: 'USC FAQ',
         colorScheme: 'LIGHT',
         containerWidth: 'NARROW',
-        content: sharedCampusFaq('USC'),
+        content: sharedCampusFaq('USC', 'https://startbiblestudy.org/usc'),
       },
       {
         sectionType: 'CAMPUS_CARD_GRID',
@@ -2937,7 +2943,7 @@ async function main() {
         label: 'CSUDH FAQ',
         colorScheme: 'LIGHT',
         containerWidth: 'NARROW',
-        content: sharedCampusFaq('CSUDH'),
+        content: sharedCampusFaq('CSUDH', 'https://startbiblestudy.org/csudh'),
       },
       {
         sectionType: 'CAMPUS_CARD_GRID',
@@ -3014,7 +3020,7 @@ async function main() {
         label: 'CCC FAQ',
         colorScheme: 'LIGHT',
         containerWidth: 'NARROW',
-        content: sharedCampusFaq('Cerritos College'),
+        content: sharedCampusFaq('Cerritos College', 'https://startbiblestudy.org/ccc'),
       },
       {
         sectionType: 'CAMPUS_CARD_GRID',
@@ -3091,7 +3097,7 @@ async function main() {
         label: 'Mt. SAC FAQ',
         colorScheme: 'LIGHT',
         containerWidth: 'NARROW',
-        content: sharedCampusFaq('Mt. SAC'),
+        content: sharedCampusFaq('Mt. SAC', 'https://startbiblestudy.org/mt-sac'),
       },
       {
         sectionType: 'CAMPUS_CARD_GRID',
@@ -3168,7 +3174,7 @@ async function main() {
         label: 'Golden West FAQ',
         colorScheme: 'LIGHT',
         containerWidth: 'NARROW',
-        content: sharedCampusFaq('Golden West College'),
+        content: sharedCampusFaq('Golden West College', 'https://startbiblestudy.org/golden-cc'),
       },
       {
         sectionType: 'CAMPUS_CARD_GRID',
@@ -3245,7 +3251,7 @@ async function main() {
         label: 'Cypress FAQ',
         colorScheme: 'LIGHT',
         containerWidth: 'NARROW',
-        content: sharedCampusFaq('Cypress College'),
+        content: sharedCampusFaq('Cypress College', 'https://startbiblestudy.org/cypress'),
       },
       {
         sectionType: 'CAMPUS_CARD_GRID',
@@ -3322,7 +3328,7 @@ async function main() {
         label: 'Cal Poly Pomona FAQ',
         colorScheme: 'LIGHT',
         containerWidth: 'NARROW',
-        content: sharedCampusFaq('Cal Poly Pomona'),
+        content: sharedCampusFaq('Cal Poly Pomona', 'https://startbiblestudy.org/cal-poly-pomona'),
       },
       {
         sectionType: 'CAMPUS_CARD_GRID',
@@ -3449,6 +3455,7 @@ async function main() {
           ],
           ctaHeading: "Don\u2019t see your campus?",
           ctaButton: { label: 'Let us know your interest', href: '#plan-visit' },
+          showCtaIcon: true,
         },
       },
       {
@@ -3467,7 +3474,6 @@ async function main() {
           heading: 'Frequently Asked Questions',
           showIcon: true,
           items: [
-            { question: 'Where and when do campus groups meet?', answer: "Campus Bible study groups meet at various times throughout the week depending on the campus. Most groups meet once or twice a week. Fill out the contact form above and we\u2019ll connect you with the group nearest to you." },
             { question: 'What should I expect on my first Sunday visit?', answer: "Our Sunday worship service is about 90 minutes and includes praise, prayer, and a sermon. Dress is casual\u2014come as you are. You\u2019re welcome to sit anywhere, and someone from our welcome team will be happy to help you get settled." },
             { question: 'Do I need to know the Bible to attend?', answer: 'Not at all! Many of our members started with little or no Bible knowledge. Our studies are designed to be accessible to everyone, and our leaders are happy to walk alongside you at your own pace.' },
             { question: 'Is there parking available at the church?', answer: 'Yes, we have a free parking lot on-site. Street parking is also available on the surrounding blocks. If the lot is full, our parking team can help direct you.' },
@@ -3493,7 +3499,7 @@ async function main() {
         label: 'Giving Hero',
         colorScheme: 'LIGHT',
         content: {
-          overline: 'GIVING',
+          overline: 'COMING SOON',
           heading: 'Giving',
         },
       },
@@ -3501,6 +3507,7 @@ async function main() {
         sectionType: 'STATEMENT',
         label: 'Giving Info',
         colorScheme: 'LIGHT',
+        visible: false,
         content: {
           heading: 'Giving',
           paragraphs: [

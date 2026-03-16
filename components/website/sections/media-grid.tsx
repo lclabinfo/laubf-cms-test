@@ -43,9 +43,31 @@ interface Props {
   videos?: Video[]
 }
 
-export default function MediaGridSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth, videos }: Props) {
+export default function MediaGridSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth, videos: videosProp }: Props) {
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
   const animate = enableAnimations !== false
+
+  // Build Video objects for the modal from content.videos data (which includes youtubeId)
+  // Fall back to the videos prop if provided separately via resolvedData
+  const contentVideos = content.videos ?? []
+  const modalVideos: Video[] = videosProp ?? contentVideos
+    .filter((v) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return !!(v as any).youtubeId
+    })
+    .map((v) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const raw = v as any
+      return {
+        id: v.id,
+        title: v.title,
+        youtubeId: raw.youtubeId as string,
+        duration: (raw.duration as string) || "",
+        category: (raw.category as string) || "",
+        datePublished: (raw.datePublished as string) || "",
+        description: (raw.description as string) || "",
+      }
+    })
 
   return (
     <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth} className="!pt-0">
@@ -58,26 +80,29 @@ export default function MediaGridSection({ content, enableAnimations, colorSchem
           />
         </AnimateOnScroll>
 
-        <div className={`flex flex-wrap gap-5 ${(content.videos ?? []).length < 3 ? "justify-center" : ""}`}>
-          {(content.videos ?? []).map((video, i) => (
-            <AnimateOnScroll
-              key={video.id}
-              animation="fade-up"
-              staggerIndex={i}
-              enabled={animate}
-              className="w-full sm:w-[calc(50%-0.625rem)] lg:w-[calc(33.333%-0.875rem)]"
-            >
-              <VideoThumbnail
-                data={video}
-                size="grid"
-                onClick={
-                  videos && videos[i]
-                    ? () => setSelectedVideo(videos[i])
-                    : undefined
-                }
-              />
-            </AnimateOnScroll>
-          ))}
+        <div className={`flex flex-wrap gap-5 ${contentVideos.length < 3 ? "justify-center" : ""}`}>
+          {contentVideos.map((video, i) => {
+            const modalVideo = modalVideos.find((mv) => mv.id === video.id) ?? modalVideos[i]
+            return (
+              <AnimateOnScroll
+                key={video.id}
+                animation="fade-up"
+                staggerIndex={i}
+                enabled={animate}
+                className="w-full sm:w-[calc(50%-0.625rem)] lg:w-[calc(33.333%-0.875rem)]"
+              >
+                <VideoThumbnail
+                  data={video}
+                  size="grid"
+                  onClick={
+                    modalVideo
+                      ? () => setSelectedVideo(modalVideo)
+                      : undefined
+                  }
+                />
+              </AnimateOnScroll>
+            )
+          })}
         </div>
       </div>
 

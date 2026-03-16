@@ -41,6 +41,7 @@ interface CampusCardGridContent {
   campuses: CampusCardItem[]
   ctaHeading?: string
   ctaButton?: { label: string; href: string }
+  showCtaIcon?: boolean
 }
 
 interface Props {
@@ -127,7 +128,7 @@ export default function CampusCardGridSection({ content, enableAnimations, color
             label={content.ctaButton.label}
             href={content.ctaButton.href}
             variant="secondary"
-            icon={<IconChevronDown className="ml-2 size-5" />}
+            icon={content.showCtaIcon === true ? <IconChevronDown className="ml-2 size-5" /> : undefined}
           />
         </div>
       )}
