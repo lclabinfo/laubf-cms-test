@@ -1,6 +1,8 @@
 "use client"
 
+import { useEffect } from "react"
 import Link from "next/link"
+import { toast } from "sonner"
 import { PageHeader } from "@/components/cms/page-header"
 import {
   MessageSquare,
@@ -164,6 +166,16 @@ export function DashboardContent({
   upcomingEvents,
   recentActivity,
 }: DashboardContentProps) {
+  // Show toast when Google was just auto-linked during login
+  useEffect(() => {
+    const cookie = document.cookie.split('; ').find(c => c.startsWith('google-just-linked='))
+    if (cookie) {
+      toast.success("Google sign-in has been linked to your account.")
+      // Clear the cookie
+      document.cookie = 'google-just-linked=; max-age=0; path=/'
+    }
+  }, [])
+
   return (
     <div className="pt-5 space-y-6 pb-6">
       {/* Page header */}

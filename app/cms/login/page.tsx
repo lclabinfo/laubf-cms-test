@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState } from "react"
+import { Suspense, useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { signIn } from "next-auth/react"
@@ -41,26 +41,37 @@ function GoogleIcon() {
   )
 }
 
-function getErrorMessage(error: string | null, code: string | null): string | null {
-  if (!error) return null
-  if (code === "RateLimited") return "Too many attempts. Please try again later."
-  if (error === "CredentialsSignin") return "Invalid email or password."
-  if (error === "InvalidToken") return "Verification link is invalid or expired."
-  return "Something went wrong. Please try again."
-}
-
 function LoginForm() {
   const searchParams = useSearchParams()
   const error = searchParams.get("error")
   const code = searchParams.get("code")
   const verified = searchParams.get("verified")
+  const linked = searchParams.get("linked")
   const callbackUrl = searchParams.get("callbackUrl") || "/cms/dashboard"
-  const errorMessage = getErrorMessage(error, code)
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [authHint, setAuthHint] = useState<"google" | null>(null)
+
+  // When credentials fail, check if this email uses Google
+  useEffect(() => {
+    if (error === "CredentialsSignin" && email) {
+      fetch("/api/v1/auth/check-auth-method", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.success && data.data?.method === "google") {
+            setAuthHint("google")
+          }
+        })
+        .catch(() => {})
+    }
+  }, [error, email])
 
   const handleGoogleSignIn = () => {
     setIsGoogleLoading(true)
@@ -69,6 +80,7 @@ function LoginForm() {
 
   const handleCredentialsSignIn = (e: React.FormEvent) => {
     e.preventDefault()
+    setAuthHint(null)
     setIsLoading(true)
     signIn("credentials", {
       email,
@@ -76,6 +88,17 @@ function LoginForm() {
       callbackUrl,
     })
   }
+
+  const errorMessage = (() => {
+    if (!error) return null
+    if (code === "RateLimited") return "Too many attempts. Please try again later."
+    if (error === "CredentialsSignin") {
+      if (authHint === "google") return null // handled separately below
+      return "Invalid email or password."
+    }
+    if (error === "InvalidToken") return "Verification link is invalid or expired."
+    return "Something went wrong. Please try again."
+  })()
 
   return (
     <Card className="w-full max-w-sm">
@@ -116,7 +139,7 @@ function LoginForm() {
               type="email"
               placeholder="you@example.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setAuthHint(null) }}
               required
               autoComplete="email"
             />
@@ -137,6 +160,30 @@ function LoginForm() {
             <p className="text-sm text-green-600 text-center">
               Email verified! You can now sign in.
             </p>
+          )}
+
+          {linked && (
+            <p className="text-sm text-green-600 text-center">
+              Google sign-in has been linked to your account.
+            </p>
+          )}
+
+          {authHint === "google" && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30 p-3 text-center space-y-2">
+              <p className="text-sm text-blue-800 dark:text-blue-300">
+                This account uses Google sign-in.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mx-auto"
+                onClick={handleGoogleSignIn}
+              >
+                <GoogleIcon />
+                Sign in with Google
+              </Button>
+            </div>
           )}
 
           {errorMessage && (

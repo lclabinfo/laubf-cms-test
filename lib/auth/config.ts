@@ -115,6 +115,18 @@ export const authConfig: NextAuthConfig = {
           return true
         }
 
+        // Check for invite-email-guard (user accepting invite via Google)
+        const inviteGuard = cookieStore.get('invite-email-guard')
+        if (inviteGuard) {
+          cookieStore.delete('invite-email-guard')
+          const expectedEmail = inviteGuard.value.trim().toLowerCase()
+          if (user.email.trim().toLowerCase() !== expectedEmail) {
+            // Google email doesn't match invitation email — block
+            return false
+          }
+          // Email matches — fall through to normal flow
+        }
+
         const existingUser = await prisma.user.findUnique({
           where: { email: user.email },
           include: { accounts: true },
@@ -178,6 +190,14 @@ export const authConfig: NextAuthConfig = {
                 id_token: account.id_token,
                 session_state: account.session_state as string | undefined,
               },
+            })
+            // Set cookie so the dashboard can show a "Google linked" toast
+            cookieStore.set('google-just-linked', '1', {
+              httpOnly: false, // readable by client JS
+              secure: process.env.NODE_ENV === 'production',
+              sameSite: 'lax',
+              maxAge: 60,
+              path: '/',
             })
           }
           user.id = existingUser.id

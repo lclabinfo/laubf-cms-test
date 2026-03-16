@@ -54,6 +54,7 @@ function AcceptInviteForm() {
   const searchParams = useSearchParams()
   const token = searchParams.get("token")
   const afterGoogle = searchParams.get("afterGoogle")
+  const authError = searchParams.get("error")
 
   const [inviteState, setInviteState] = useState<InviteState | null>(null)
   const [loadingState, setLoadingState] = useState(true)
@@ -119,6 +120,25 @@ function AcceptInviteForm() {
       activateWithGoogle()
     }
   }, [afterGoogle, inviteState, activateWithGoogle])
+
+  const handleGoogleSignIn = async () => {
+    setIsGoogleLoading(true)
+    try {
+      // Set guard cookie so signIn callback enforces email match
+      if (inviteState?.userEmail) {
+        await fetch("/api/v1/auth/set-invite-email-guard", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: inviteState.userEmail }),
+        })
+      }
+      const callbackUrl = `/cms/accept-invite?token=${encodeURIComponent(token!)}&afterGoogle=true`
+      signIn("google", { callbackUrl })
+    } catch {
+      setError("Failed to start Google sign-in. Please try again.")
+      setIsGoogleLoading(false)
+    }
+  }
 
   if (!token) {
     return (
@@ -204,6 +224,31 @@ function AcceptInviteForm() {
     )
   }
 
+  // Google email mismatch — signIn callback blocked the attempt
+  if (authError === "AccessDenied" && token) {
+    return (
+      <Card className="w-full max-w-sm">
+        <CardHeader className="text-center">
+          <CardTitle className="text-xl">Email Mismatch</CardTitle>
+          <CardDescription>
+            The Google account you signed in with doesn&apos;t match the invited email
+            {inviteState?.userEmail ? (
+              <> (<strong>{inviteState.userEmail}</strong>)</>
+            ) : null}. Please sign in with the correct Google account.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <Button className="w-full" onClick={handleGoogleSignIn} disabled={isGoogleLoading}>
+            Try again with correct account
+          </Button>
+          <Button asChild variant="ghost" className="w-full">
+            <Link href="/cms/login">Go to Sign In</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
   // After Google redirect, show loading while auto-activating
   if (afterGoogle === "true") {
     return (
@@ -225,12 +270,6 @@ function AcceptInviteForm() {
         </CardContent>
       </Card>
     )
-  }
-
-  const handleGoogleSignIn = () => {
-    setIsGoogleLoading(true)
-    const callbackUrl = `/cms/accept-invite?token=${encodeURIComponent(token)}&afterGoogle=true`
-    signIn("google", { callbackUrl })
   }
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
