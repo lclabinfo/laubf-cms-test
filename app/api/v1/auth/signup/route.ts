@@ -7,7 +7,7 @@ import { createToken, deriveNonce } from '@/lib/auth/tokens'
 import { sendEmail } from '@/lib/email/send-email'
 import { verificationEmail } from '@/lib/email/templates'
 
-const MAX_PASSWORD_LENGTH = 128
+const MAX_PASSWORD_LENGTH = 72
 const MAX_NAME_LENGTH = 100
 
 /** Generate a random nonce to invalidate previous verification tokens */
@@ -116,21 +116,45 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Check existing user — if exists, resend verification for unverified users
-    const existing = await prisma.user.findUnique({ where: { email: trimmedEmail } })
+    // Check existing user — tell user how the account was created
+    const existing = await prisma.user.findUnique({
+      where: { email: trimmedEmail },
+      include: { accounts: { select: { provider: true } } },
+    })
     if (existing) {
-      if (!existing.emailVerified) {
-        // Generate new nonce to invalidate any previous verification emails
+      if (!existing.emailVerified && existing.passwordHash) {
+        // Unverified native account — resend verification
         const newNonce = randomNonce()
         await prisma.user.update({
           where: { id: existing.id },
           data: { verificationNonce: newNonce },
         })
         await sendVerificationEmail(existing.id, trimmedEmail, existing.passwordHash, newNonce)
+        return NextResponse.json(
+          { success: false, error: { code: 'UNVERIFIED', message: 'This email already has a pending account. We\'ve resent the verification email.' } },
+          { status: 409 },
+        )
       }
-      // Normalize timing — perform a dummy hash so response time is similar
+
+      // Determine account type for user-friendly error
+      const hasGoogle = existing.accounts.some((a) => a.provider === 'google')
+      const hasPassword = !!existing.passwordHash
+
+      if (hasGoogle && !hasPassword) {
+        // Google-only account
+        await bcrypt.hash('timing-normalization', 12)
+        return NextResponse.json(
+          { success: false, error: { code: 'GOOGLE_ACCOUNT', message: 'This email is linked to a Google account. Please sign in with Google instead.' } },
+          { status: 409 },
+        )
+      }
+
+      // Native account (with or without Google linked)
       await bcrypt.hash('timing-normalization', 12)
-      return NextResponse.json({ success: true, message: 'Check your email to verify your account.' })
+      return NextResponse.json(
+        { success: false, error: { code: 'EMAIL_EXISTS', message: 'An account with this email already exists. Please sign in, or use "Forgot password" to reset your password.' } },
+        { status: 409 },
+      )
     }
 
     // Create user

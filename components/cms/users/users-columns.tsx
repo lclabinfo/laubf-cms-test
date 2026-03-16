@@ -8,6 +8,7 @@ import {
   UnlinkIcon,
   PauseCircleIcon,
   PlayCircleIcon,
+  SendIcon,
   Loader2Icon,
   X,
 } from "lucide-react"
@@ -111,6 +112,7 @@ interface ColumnOptions {
   onRemove: (memberId: string) => void
   onDeactivate: (memberId: string) => void
   onReactivate: (memberId: string) => void
+  onResendInvite: (memberId: string) => void
   onLinkPerson: (memberId: string, personId: string) => void
   onUnlinkPerson: (memberId: string) => void
 }
@@ -288,6 +290,7 @@ export function createUsersColumns(options: ColumnOptions): ColumnDef<UserRow>[]
           onRemove={options.onRemove}
           onDeactivate={options.onDeactivate}
           onReactivate={options.onReactivate}
+          onResendInvite={options.onResendInvite}
           onLinkPerson={options.onLinkPerson}
           onUnlinkPerson={options.onUnlinkPerson}
         />
@@ -306,6 +309,7 @@ interface ActionsCellProps {
   onRemove: (id: string) => void
   onDeactivate: (id: string) => void
   onReactivate: (id: string) => void
+  onResendInvite: (id: string) => void
   onLinkPerson: (memberId: string, personId: string) => void
   onUnlinkPerson: (memberId: string) => void
 }
@@ -337,6 +341,7 @@ function ActionsCell({
   onRemove,
   onDeactivate,
   onReactivate,
+  onResendInvite,
   onLinkPerson,
   onUnlinkPerson,
 }: ActionsCellProps) {
@@ -358,13 +363,14 @@ function ActionsCell({
   const isAdmin = currentUser.role === "ADMIN" || isOwner
 
   // Determine which actions to show
+  const showResendInvite = !isSelf && canModify && user.status === "PENDING"
   const showDeactivate = !isSelf && canModify && user.status === "ACTIVE"
   const showReactivate = !isSelf && canModify && user.status === "INACTIVE"
   const showLinkPerson = isAdmin && !user.linkedPersonId
   const showUnlinkPerson = isAdmin && !!user.linkedPersonId
   const showRemove = isOwner && !isSelf
 
-  const hasAnyAction = showDeactivate || showReactivate || showLinkPerson || showUnlinkPerson || showRemove
+  const hasAnyAction = showResendInvite || showDeactivate || showReactivate || showLinkPerson || showUnlinkPerson || showRemove
 
   if (!hasAnyAction) return null
 
@@ -436,6 +442,17 @@ function ActionsCell({
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>Actions</DropdownMenuLabel>
           <DropdownMenuSeparator />
+
+          {showResendInvite && (
+            <DropdownMenuItem onSelect={() => onResendInvite(user.id)}>
+              <SendIcon className="mr-2 h-4 w-4" />
+              Resend invite
+            </DropdownMenuItem>
+          )}
+
+          {showResendInvite && (showLinkPerson || showUnlinkPerson || showDeactivate || showReactivate || showRemove) && (
+            <DropdownMenuSeparator />
+          )}
 
           {showLinkPerson && (
             <DropdownMenuItem onSelect={() => setLinkOpen(true)}>

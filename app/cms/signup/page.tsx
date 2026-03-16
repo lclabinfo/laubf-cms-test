@@ -42,6 +42,7 @@ function SignupForm() {
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorCode, setErrorCode] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
   const handleGoogleSignIn = () => {
@@ -52,6 +53,7 @@ function SignupForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setErrorCode(null)
 
     if (password !== confirmPassword) {
       setError("Passwords do not match.")
@@ -69,6 +71,7 @@ function SignupForm() {
 
       if (!res.ok && data.error) {
         setError(data.error.message)
+        setErrorCode(data.error.code || null)
       } else {
         setSuccess(true)
       }
@@ -252,7 +255,35 @@ function SignupForm() {
           </div>
 
           {error && (
-            <p className="text-sm text-destructive text-center">{error}</p>
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-center space-y-2">
+              <p className="text-sm text-destructive">{error}</p>
+              {errorCode === 'EMAIL_EXISTS' && (
+                <div className="flex items-center justify-center gap-3 text-xs">
+                  <Link href="/cms/login" className="text-primary underline-offset-4 hover:underline font-medium">
+                    Sign in
+                  </Link>
+                  <span className="text-muted-foreground">or</span>
+                  <Link href="/cms/forgot-password" className="text-primary underline-offset-4 hover:underline font-medium">
+                    Forgot password?
+                  </Link>
+                </div>
+              )}
+              {errorCode === 'GOOGLE_ACCOUNT' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mx-auto"
+                  onClick={handleGoogleSignIn}
+                >
+                  <GoogleIcon />
+                  Sign in with Google
+                </Button>
+              )}
+              {errorCode === 'UNVERIFIED' && (
+                <p className="text-xs text-muted-foreground">Check your inbox and spam folder for the verification link.</p>
+              )}
+            </div>
           )}
 
           <Button type="submit" className="w-full" disabled={isLoading}>

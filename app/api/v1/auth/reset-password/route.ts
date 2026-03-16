@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { verifyToken, deriveNonce } from '@/lib/auth/tokens'
 import { rateLimit } from '@/lib/rate-limit'
 
-const MAX_PASSWORD_LENGTH = 128
+const MAX_PASSWORD_LENGTH = 72
 
 export async function POST(request: Request) {
   const ip = request.headers.get('x-forwarded-for') || 'unknown'
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
   if (password.length < 8 || password.length > MAX_PASSWORD_LENGTH || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/[0-9]/.test(password)) {
     return NextResponse.json(
-      { success: false, error: { code: 'VALIDATION', message: 'Password must be 8-128 characters with uppercase, lowercase, and a number.' } },
+      { success: false, error: { code: 'VALIDATION', message: 'Password must be 8-72 characters with uppercase, lowercase, and a number.' } },
       { status: 400 },
     )
   }

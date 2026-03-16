@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { auth } from '@/lib/auth'
+import { rateLimit } from '@/lib/rate-limit'
 
 /**
  * Sets a short-lived httpOnly cookie signaling that the current user
@@ -13,6 +14,14 @@ export async function POST() {
     return NextResponse.json(
       { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
       { status: 401 },
+    )
+  }
+
+  const rl = rateLimit(`google-link:${session.user.id}`, 5, 60 * 60 * 1000)
+  if (!rl.success) {
+    return NextResponse.json(
+      { success: false, error: { code: 'RATE_LIMITED', message: 'Too many attempts. Please try again later.' } },
+      { status: 429 },
     )
   }
 

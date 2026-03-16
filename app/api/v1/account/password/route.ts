@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db'
 import { requireApiAuth } from '@/lib/api/require-auth'
 import { rateLimit } from '@/lib/rate-limit'
 
-const MAX_PASSWORD_LENGTH = 128
+const MAX_PASSWORD_LENGTH = 72
 
 export async function PATCH(request: Request) {
   const authResult = await requireApiAuth()
@@ -43,7 +43,7 @@ export async function PATCH(request: Request) {
 
   if (newPassword.length < 8 || newPassword.length > MAX_PASSWORD_LENGTH || !/[a-z]/.test(newPassword) || !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
     return NextResponse.json(
-      { success: false, error: { code: 'VALIDATION', message: 'Password must be 8-128 characters with uppercase, lowercase, and a number.' } },
+      { success: false, error: { code: 'VALIDATION', message: 'Password must be 8-72 characters with uppercase, lowercase, and a number.' } },
       { status: 400 },
     )
   }

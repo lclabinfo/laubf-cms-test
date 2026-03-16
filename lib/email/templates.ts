@@ -67,6 +67,33 @@ export function passwordResetEmail(token: string, rawChurchName: string): { subj
   }
 }
 
+export function passwordResetCodeEmail(code: string, rawChurchName: string): { subject: string; html: string; text: string } {
+  const churchName = escapeHtml(rawChurchName)
+
+  const content = `
+    <h1 style="margin:0 0 8px 0; font-size:24px; font-weight:600; letter-spacing:-0.02em; color:#1d1d1f;">
+      Your password reset code
+    </h1>
+    <p style="margin:0 0 16px 0; font-size:15px; line-height:1.7; color:#424245;">
+      Use the code below to reset your ${churchName} account password.
+    </p>
+    <div style="margin:0 0 16px 0; padding:16px 24px; background:#f5f5f7; border-radius:12px; text-align:center;">
+      <span style="font-size:32px; font-weight:700; letter-spacing:8px; color:#1d1d1f; font-family:monospace;">
+        ${code}
+      </span>
+    </div>
+    <p style="margin:0 0 0 0; font-size:13px; color:#86868b;">
+      This code expires in 15 minutes. If you didn't request this, ignore this email — your password won't change.
+    </p>
+  `
+
+  return {
+    subject: `${code} is your password reset code — ${rawChurchName}`,
+    html: emailLayout(content, { churchName: rawChurchName, preheader: `Your password reset code is ${code}` }),
+    text: `Your password reset code is: ${code}\n\nThis code expires in 15 minutes. If you didn't request this, ignore this email.`,
+  }
+}
+
 export function invitationEmail(
   token: string,
   rawChurchName: string,

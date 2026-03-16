@@ -42,8 +42,8 @@ export const authConfig: NextAuthConfig = {
         const normalizedEmail = email.trim().toLowerCase()
         const { success } = rateLimit(`login:${normalizedEmail}`, 5, 15 * 60 * 1000)
         if (!success) throw new RateLimitError()
-        // Prevent bcrypt DoS with oversized passwords
-        if (password.length > 128) return null
+        // Prevent bcrypt DoS with oversized passwords (72 = bcrypt byte limit)
+        if (password.length > 72) return null
 
         const user = await prisma.user.findUnique({
           where: { email: email.trim().toLowerCase() },

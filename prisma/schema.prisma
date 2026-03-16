@@ -123,6 +123,8 @@ model User {
   twoFactorEnabled  Boolean @default(false)
   twoFactorSecret   String?
   verificationNonce String?
+  resetCodeHash      String?
+  resetCodeExpiresAt DateTime?
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

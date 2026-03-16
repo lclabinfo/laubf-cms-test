@@ -200,6 +200,26 @@ function UsersPageContent() {
     [fetchUsers],
   )
 
+  const handleResendInvite = useCallback(
+    async (memberId: string) => {
+      try {
+        const res = await fetch(`/api/v1/users/${memberId}/resend-invite`, {
+          method: "POST",
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          toast.error(data.error?.message || "Failed to resend invitation")
+          return
+        }
+        toast.success(`Invitation resent to ${data.data?.email || "user"}`)
+        fetchUsers()
+      } catch {
+        toast.error("Failed to resend invitation")
+      }
+    },
+    [fetchUsers],
+  )
+
   const handleUnlinkPerson = useCallback(
     async (memberId: string) => {
       try {
@@ -235,10 +255,11 @@ function UsersPageContent() {
         onRemove: handleRemove,
         onDeactivate: handleDeactivate,
         onReactivate: handleReactivate,
+        onResendInvite: handleResendInvite,
         onLinkPerson: handleLinkPerson,
         onUnlinkPerson: handleUnlinkPerson,
       }),
-    [currentUser, roles, users, handleRoleChange, handleRemove, handleDeactivate, handleReactivate, handleLinkPerson, handleUnlinkPerson],
+    [currentUser, roles, users, handleRoleChange, handleRemove, handleDeactivate, handleReactivate, handleResendInvite, handleLinkPerson, handleUnlinkPerson],
   )
 
   const filteredUsers = useMemo(() => {
