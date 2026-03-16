@@ -94,8 +94,11 @@ User → /cms/login → enters email + wrong password
 User → /cms/login → enters email (Google-only, no passwordHash)
   → authorize() → user.passwordHash is null → return null
   → UI shows: "Invalid email or password"
+  → useEffect calls POST /api/v1/auth/check-auth-method
+  → API returns { method: 'google' }
+  → UI shows: "This account uses Google sign-in" + Google button
 ```
-**Result:** Blocked. **CURRENT GAP:** Error is generic — user doesn't know to use Google instead. **FIX PLANNED:** Show "This account uses Google sign-in" hint.
+**Result:** Blocked with helpful guidance to use Google sign-in.
 
 ### 2.4 Credentials Login — Unverified Email
 ```
