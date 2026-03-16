@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getPeople, createPerson, type PersonFilters } from '@/lib/dal/people'
 import { type MembershipStatus } from '@/lib/generated/prisma/client'
@@ -50,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     const person = await createPerson(churchId, body)
-
+    revalidateTag('members', 'max')
 
     return NextResponse.json({ success: true, data: person }, { status: 201 })
   } catch (error) {

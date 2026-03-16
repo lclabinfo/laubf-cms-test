@@ -1,20 +1,31 @@
 import { NextResponse } from 'next/server'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { prisma } from '@/lib/db'
+import { unstable_cache } from 'next/cache'
 
 /**
  * GET /api/v1/speakers/frequent
  *
  * Returns all members (Person records) sorted by how frequently they appear
- * as messengers in messages. Fresh query every time so new members appear
- * immediately after creation.
+ * as messengers in messages. Cached indefinitely, invalidated via
+ * revalidateTag('members', 'max') when members are created/updated.
  */
-export const dynamic = 'force-dynamic'
-
 export async function GET() {
   try {
     const churchId = await getChurchId()
+    const data = await getFrequentSpeakers(churchId)
+    return NextResponse.json({ success: true, data })
+  } catch (error) {
+    console.error('GET /api/v1/speakers/frequent error:', error)
+    return NextResponse.json(
+      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch members' } },
+      { status: 500 },
+    )
+  }
+}
 
+const getFrequentSpeakers = unstable_cache(
+  async (churchId: string) => {
     const people = await prisma.person.findMany({
       where: { churchId, deletedAt: null },
       select: {
@@ -43,12 +54,8 @@ export async function GET() {
       return a.name.localeCompare(b.name)
     })
 
-    return NextResponse.json({ success: true, data: results })
-  } catch (error) {
-    console.error('GET /api/v1/speakers/frequent error:', error)
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch members' } },
-      { status: 500 },
-    )
-  }
-}
+    return results
+  },
+  ['frequent-speakers'],
+  { tags: ['members'] },
+)

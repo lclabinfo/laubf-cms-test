@@ -3,6 +3,7 @@
  * Retained for backward compatibility with website rendering.
  */
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { prisma } from '@/lib/db'
 
@@ -73,8 +74,7 @@ export async function POST(request: NextRequest) {
         membershipStatus: 'VISITOR',
       },
     })
-
-
+    revalidateTag('members', 'max')
 
     return NextResponse.json({
       success: true,
