@@ -31,6 +31,9 @@ import {
 interface MemberOption {
   id: string
   name: string
+  firstName: string
+  lastName: string
+  preferredName: string | null
   messageCount: number
 }
 
@@ -64,9 +67,20 @@ export function SpeakerSelect({ value, onChange }: SpeakerSelectProps) {
     refreshOptions()
   }, [refreshOptions])
 
-  const filtered = options.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = options.filter((s) => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase().trim()
+    // Support multi-word: every word must match at least one name field
+    const words = q.split(/\s+/)
+    const fields = [
+      s.firstName.toLowerCase(),
+      s.lastName.toLowerCase(),
+      s.preferredName?.toLowerCase() || "",
+      s.name.toLowerCase(), // "First Last" combined
+      `${s.lastName} ${s.firstName}`.toLowerCase(), // "Last First" reversed
+    ]
+    return words.every((word) => fields.some((f) => f.includes(word)))
+  })
 
   const handleCreateOpen = () => {
     setOpen(false)

@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
 
     const person = await createPerson(churchId, body)
 
+
     return NextResponse.json({ success: true, data: person }, { status: 201 })
   } catch (error) {
     console.error('POST /api/v1/people error:', error)
