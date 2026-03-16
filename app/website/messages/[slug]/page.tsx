@@ -65,7 +65,11 @@ export default async function MessageDetailPage({ params }: PageProps) {
   }
 
   const seriesName = message.messageSeries?.[0]?.series?.name
-  const speakerName = message.speaker?.name
+  const speakerName = message.speaker
+    ? (message.speaker.preferredName
+      ? `${message.speaker.preferredName} ${message.speaker.lastName}`
+      : `${message.speaker.firstName} ${message.speaker.lastName}`)
+    : undefined
 
   // Pre-convert transcripts from TipTap JSON / plain text to HTML
   // Fall back to related study transcript when message-level transcripts are empty

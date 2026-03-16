@@ -74,7 +74,11 @@ export async function resolveSectionData(
             sermon: {
               slug: message.slug,
               title: message.title,
-              speaker: message.speaker?.name || 'Unknown',
+              speaker: message.speaker
+                ? (message.speaker.preferredName
+                  ? `${message.speaker.preferredName} ${message.speaker.lastName}`
+                  : `${message.speaker.firstName} ${message.speaker.lastName}`)
+                : 'Unknown',
               date: dateLabel,
               series: message.messageSeries?.[0]?.series?.name?.toUpperCase() || '',
               thumbnailUrl: message.thumbnailUrl ||
@@ -208,7 +212,11 @@ export async function resolveSectionData(
               title: m.title,
               videoTitle: m.videoTitle || undefined,
               passage: m.passage || '',
-              speaker: m.speaker?.name || 'Unknown',
+              speaker: m.speaker
+                ? (m.speaker.preferredName
+                  ? `${m.speaker.preferredName} ${m.speaker.lastName}`
+                  : `${m.speaker.firstName} ${m.speaker.lastName}`)
+                : 'Unknown',
               series: m.messageSeries?.[0]?.series?.name || '',
               dateFor: m.dateFor instanceof Date ? m.dateFor.toISOString().split('T')[0] : String(m.dateFor),
               youtubeId: m.youtubeId || '',

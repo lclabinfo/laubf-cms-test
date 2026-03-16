@@ -163,7 +163,11 @@ function apiMessageToCms(apiMsg: any): Message {
     videoTitle: apiMsg.videoTitle ?? undefined,
     passage: apiMsg.passage ?? "",
     bibleVersion: apiMsg.bibleVersion ?? "ESV",
-    speaker: apiMsg.speaker?.name ?? "",
+    speaker: apiMsg.speaker
+      ? (apiMsg.speaker.preferredName
+        ? `${apiMsg.speaker.preferredName} ${apiMsg.speaker.lastName}`
+        : `${apiMsg.speaker.firstName} ${apiMsg.speaker.lastName}`)
+      : "",
     speakerId: apiMsg.speaker?.id ?? undefined,
     seriesId: (apiMsg.messageSeries ?? []).length > 0 ? apiMsg.messageSeries[0].series.id : null,
     date: apiMsg.dateFor ? new Date(apiMsg.dateFor).toISOString().slice(0, 10) : "",

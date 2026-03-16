@@ -40,7 +40,11 @@ function transformStudy(study: NonNullable<Awaited<ReturnType<typeof getBibleStu
     passage: study.passage,
     dateFor: study.dateFor.toISOString().split("T")[0],
     series: study.series?.name ?? "",
-    messenger: study.speaker?.name ?? undefined,
+    messenger: study.speaker
+      ? (study.speaker.preferredName
+        ? `${study.speaker.preferredName} ${study.speaker.lastName}`
+        : `${study.speaker.firstName} ${study.speaker.lastName}`)
+      : undefined,
     keyVerse:
       study.keyVerseRef && study.keyVerseText
         ? { verse: study.keyVerseRef, text: study.keyVerseText }

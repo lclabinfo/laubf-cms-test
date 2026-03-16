@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { ChevronsUpDown, UserPlus, Plus, Loader2, X, Info } from "lucide-react"
+import { ChevronsUpDown, Plus, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -28,7 +28,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 
-interface SpeakerOption {
+interface MemberOption {
   id: string
   name: string
   messageCount: number
@@ -41,7 +41,7 @@ interface SpeakerSelectProps {
 
 export function SpeakerSelect({ value, onChange }: SpeakerSelectProps) {
   const [open, setOpen] = useState(false)
-  const [options, setOptions] = useState<SpeakerOption[]>([])
+  const [options, setOptions] = useState<MemberOption[]>([])
   const [search, setSearch] = useState("")
 
   const [createOpen, setCreateOpen] = useState(false)
@@ -85,20 +85,27 @@ export function SpeakerSelect({ value, onChange }: SpeakerSelectProps) {
 
     setCreating(true)
     try {
-      const name = `${newFirstName.trim()} ${newLastName.trim()}`
       const baseSlug = `${newFirstName}-${newLastName}`.toLowerCase().replace(/[^a-z0-9-]/g, "-")
-      const res = await fetch("/api/v1/speakers", {
+      const res = await fetch("/api/v1/people", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, slug: baseSlug }),
+        body: JSON.stringify({
+          firstName: newFirstName.trim(),
+          lastName: newLastName.trim(),
+          slug: baseSlug,
+          membershipStatus: "VISITOR",
+        }),
       })
       const json = await res.json()
       if (json.success && json.data) {
-        onChange(json.data.name, json.data.id)
+        const name = json.data.preferredName
+          ? `${json.data.preferredName} ${json.data.lastName}`
+          : `${json.data.firstName} ${json.data.lastName}`
+        onChange(name, json.data.id)
         refreshOptions()
       }
     } catch (error) {
-      console.error("Failed to create speaker:", error)
+      console.error("Failed to create member:", error)
     } finally {
       setCreating(false)
       setCreateOpen(false)
@@ -110,7 +117,7 @@ export function SpeakerSelect({ value, onChange }: SpeakerSelectProps) {
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button variant="outline" className="w-full justify-between font-normal">
-            {value || "Select speaker..."}
+            {value || "Select messenger..."}
             <ChevronsUpDown className="size-4 text-muted-foreground" />
           </Button>
         </PopoverTrigger>
@@ -171,9 +178,9 @@ export function SpeakerSelect({ value, onChange }: SpeakerSelectProps) {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Create new speaker</DialogTitle>
+            <DialogTitle>Create new member</DialogTitle>
             <DialogDescription>
-              This will create a new speaker for messages and bible studies.
+              This will add a new member to your directory.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="space-y-4">

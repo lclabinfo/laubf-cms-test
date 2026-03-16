@@ -6,9 +6,9 @@ import { unstable_cache } from 'next/cache'
 /**
  * GET /api/v1/speakers/frequent
  *
- * Returns all members sorted by how frequently they appear as speakers
- * in messages. Members with the most messages appear first, followed by
- * all remaining members alphabetically.
+ * Returns all members (Person records) sorted by how frequently they appear
+ * as messengers in messages. Members with the most messages appear first,
+ * followed by all remaining members alphabetically.
  *
  * Results are cached for 5 minutes to avoid repeated DB queries.
  */
@@ -22,7 +22,7 @@ export async function GET() {
   } catch (error) {
     console.error('GET /api/v1/speakers/frequent error:', error)
     return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch speakers' } },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch members' } },
       { status: 500 },
     )
   }
@@ -30,25 +30,29 @@ export async function GET() {
 
 const getCachedFrequentSpeakers = unstable_cache(
   async (churchId: string) => {
-    // Message.speakerId references the Speaker table, so we must return Speaker IDs.
-    // Fetch all speakers with their message counts.
-    const speakers = await prisma.speaker.findMany({
+    // Query Person records directly with message counts.
+    // Message.speakerId now references Person.id.
+    const people = await prisma.person.findMany({
       where: { churchId, deletedAt: null },
       select: {
         id: true,
-        name: true,
+        firstName: true,
+        lastName: true,
+        preferredName: true,
         _count: { select: { messages: true } },
       },
-      orderBy: [{ name: 'asc' }],
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     })
 
-    const results = speakers.map((s) => ({
-      id: s.id,
-      name: s.name,
-      messageCount: s._count.messages,
+    const results = people.map((p) => ({
+      id: p.id,
+      name: p.preferredName
+        ? `${p.preferredName} ${p.lastName}`
+        : `${p.firstName} ${p.lastName}`,
+      messageCount: p._count.messages,
     }))
 
-    // Sort: most frequent speakers first, then alphabetically
+    // Sort: most frequent messengers first, then alphabetically
     results.sort((a, b) => {
       if (a.messageCount !== b.messageCount) return b.messageCount - a.messageCount
       return a.name.localeCompare(b.name)
@@ -57,5 +61,5 @@ const getCachedFrequentSpeakers = unstable_cache(
     return results
   },
   ['frequent-speakers'],
-  { revalidate: 300 }, // Cache for 5 minutes
+  { revalidate: 300 },
 )

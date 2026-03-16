@@ -1,5 +1,4 @@
 import { getMessages } from '@/lib/dal/messages'
-import { getSpeakers } from '@/lib/dal/speakers'
 import { getAllSeries } from '@/lib/dal/series'
 import AllMessagesClient from './all-messages-client'
 
@@ -15,9 +14,8 @@ interface Props {
 
 export default async function AllMessagesSection({ content, churchId }: Props) {
   try {
-    const [messagesResult, speakers, series] = await Promise.all([
+    const [messagesResult, series] = await Promise.all([
       getMessages(churchId, { pageSize: 200, videoPublished: true }),
-      getSpeakers(churchId),
       getAllSeries(churchId),
     ])
 
@@ -28,7 +26,11 @@ export default async function AllMessagesSection({ content, churchId }: Props) {
       title: m.title,
       videoTitle: m.videoTitle || undefined,
       passage: m.passage || '',
-      speaker: m.speaker?.name || 'Unknown',
+      speaker: m.speaker
+        ? (m.speaker.preferredName
+          ? `${m.speaker.preferredName} ${m.speaker.lastName}`
+          : `${m.speaker.firstName} ${m.speaker.lastName}`)
+        : 'Unknown',
       series: m.messageSeries?.[0]?.series?.name || '',
       dateFor: m.dateFor instanceof Date ? m.dateFor.toISOString().split('T')[0] : String(m.dateFor),
       youtubeId: m.youtubeId || '',

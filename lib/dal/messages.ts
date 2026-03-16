@@ -84,7 +84,9 @@ export async function getMessages(
         { title: { contains: filters.search, mode: 'insensitive' as const } },
         { videoTitle: { contains: filters.search, mode: 'insensitive' as const } },
         { passage: { contains: filters.search, mode: 'insensitive' as const } },
-        { speaker: { name: { contains: filters.search, mode: 'insensitive' as const } } },
+        { speaker: { firstName: { contains: filters.search, mode: 'insensitive' as const } } },
+        { speaker: { lastName: { contains: filters.search, mode: 'insensitive' as const } } },
+        { speaker: { preferredName: { contains: filters.search, mode: 'insensitive' as const } } },
         { videoDescription: { contains: filters.search, mode: 'insensitive' as const } },
       ],
     }),
@@ -102,7 +104,7 @@ export async function getMessages(
   const sortDir = filters?.sortDir ?? 'desc'
   const orderBy: Prisma.MessageOrderByWithRelationInput =
     sortBy === 'speaker'
-      ? { speaker: { name: sortDir } }
+      ? { speaker: { lastName: sortDir } }
       : { [sortBy]: sortDir }
 
   const [data, total] = await Promise.all([

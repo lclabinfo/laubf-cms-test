@@ -310,8 +310,6 @@ model Speaker {
   deletedAt DateTime?
 
   church       Church       @relation(fields: [churchId], references: [id], onDelete: Cascade)
-  messages     Message[]
-  bibleStudies BibleStudy[]
 
   @@unique([churchId, slug])
   @@index([churchId, isActive])
@@ -464,7 +462,7 @@ model Message {
 
   // Relations
   church           Church        @relation(fields: [churchId], references: [id], onDelete: Cascade)
-  speaker          Speaker?      @relation(fields: [speakerId], references: [id], onDelete: SetNull)
+  speaker          Person?       @relation("MessageSpeaker", fields: [speakerId], references: [id], onDelete: SetNull)
   messageSeries    MessageSeries[]
   relatedStudy     BibleStudy?   @relation("MessageStudy", fields: [relatedStudyId], references: [id], onDelete: SetNull)
 
@@ -690,7 +688,7 @@ model BibleStudy {
   // Relations
   church           Church        @relation(fields: [churchId], references: [id], onDelete: Cascade)
   series           Series?       @relation(fields: [seriesId], references: [id], onDelete: SetNull)
-  speaker          Speaker?      @relation(fields: [speakerId], references: [id], onDelete: SetNull)
+  speaker          Person?       @relation("BibleStudySpeaker", fields: [speakerId], references: [id], onDelete: SetNull)
   attachments      BibleStudyAttachment[]
 
   @@unique([churchId, slug])
@@ -1450,6 +1448,8 @@ model Person {
   personNotes             PersonNote[]
   communicationPreferences CommunicationPreference[]
   roleAssignments         PersonRoleAssignment[]
+  messages                Message[]               @relation("MessageSpeaker")
+  bibleStudies            BibleStudy[]            @relation("BibleStudySpeaker")
 
   @@unique([churchId, slug])
   @@index([churchId])

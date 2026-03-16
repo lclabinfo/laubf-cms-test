@@ -330,7 +330,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
     // Video publish requires speaker + video URL
     if (vPub) {
       if (!speaker.trim() || speaker.trim().length < 2) {
-        issues.push({ field: "Speaker", message: "Speaker is required to publish the video", tab: "video", elementId: "field-speaker" })
+        issues.push({ field: "Messenger", message: "Messenger is required to publish the video", tab: "video", elementId: "field-speaker" })
       }
       if (!videoUrl) {
         issues.push({ field: "Video URL", message: "A video URL is required to publish the video", tab: "video", elementId: "field-video-url" })
@@ -1087,7 +1087,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
               }
               speakerSlot={
                 <div id="field-speaker" className="space-y-2 max-w-xs">
-                  <Label>Speaker <span className="text-destructive">*</span></Label>
+                  <Label>Messenger <span className="text-destructive">*</span></Label>
                   <SpeakerSelect
                     value={speaker}
                     onChange={(name, id) => {
