@@ -16,6 +16,7 @@
  *  12. Rename "This Week's Message" → "Latest Message" on SPOTLIGHT_MEDIA sections
  *  13. Fix college page CAMPUS_CARD_GRID: href to /im-new#plan-visit + showCtaIcon: false
  *  14. Set showCtaIcon: true on I'm New page CAMPUS_CARD_GRID
+ *  15. Replace Sunday Worship image with sunday-praise.webp + add to media library
  *
  * This script is IDEMPOTENT — safe to run multiple times.
  * It only updates specific fields and does not delete/recreate anything.
@@ -660,6 +661,73 @@ if (!imNewPageForGrid) {
       console.log('  ✓ Set showCtaIcon: true on I\'m New CAMPUS_CARD_GRID')
     }
   }
+}
+
+// ============================================================
+// 15. Replace Sunday Worship image in Next Steps with sunday-praise.webp
+// ============================================================
+console.log('\n── 15. Replacing Sunday Worship image in Next Steps ──')
+
+const CDN = 'https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/initial-setup'
+const oldSundayImg = `${CDN}/images-home-compressed-sunday-worship.jpg`
+const newSundayImg = `${CDN}/sunday-praise.webp`
+
+const homePageForImg = await prisma.page.findFirst({
+  where: { churchId, isHomepage: true },
+  include: { sections: { orderBy: { sortOrder: 'asc' } } },
+})
+
+if (!homePageForImg) {
+  console.warn('  ⚠ Home page not found — skipping')
+} else {
+  const actionGrid = homePageForImg.sections.find(s => s.sectionType === 'ACTION_CARD_GRID')
+  if (!actionGrid) {
+    console.warn('  ⚠ ACTION_CARD_GRID not found on home page — skipping')
+  } else {
+    const agContent = actionGrid.content as Record<string, unknown>
+    const cards = agContent.cards as Array<{ id: string; imageUrl: string; [k: string]: unknown }> | undefined
+
+    if (!cards) {
+      console.warn('  ⚠ No cards found in ACTION_CARD_GRID — skipping')
+    } else {
+      const sundayCard = cards.find(c => c.id === 'ns-1' || c.imageUrl === oldSundayImg)
+      if (!sundayCard) {
+        console.log('  ⚠ Sunday Worship card not found — skipping')
+      } else if (sundayCard.imageUrl === newSundayImg) {
+        console.log('  ✓ Sunday Worship image already updated')
+      } else {
+        const updatedCards = cards.map(c => {
+          if (c === sundayCard) return { ...c, imageUrl: newSundayImg }
+          return c
+        })
+        await prisma.pageSection.update({
+          where: { id: actionGrid.id },
+          data: { content: { ...agContent, cards: updatedCards } },
+        })
+        console.log(`  ✓ Updated Sunday Worship image to sunday-praise.webp`)
+      }
+    }
+  }
+}
+
+// Also ensure the media library has this asset
+const existingMedia = await prisma.mediaAsset.findFirst({
+  where: { churchId, filename: 'sunday-praise.webp', deletedAt: null },
+})
+if (existingMedia) {
+  console.log('  ✓ sunday-praise.webp already in media library')
+} else {
+  await prisma.mediaAsset.create({
+    data: {
+      churchId,
+      filename: 'sunday-praise.webp',
+      url: newSundayImg,
+      mimeType: 'image/webp',
+      fileSize: 56854,
+      folder: 'initial-setup',
+    },
+  })
+  console.log('  ✓ Added sunday-praise.webp to media library')
 }
 
 // ============================================================

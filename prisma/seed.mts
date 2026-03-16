@@ -1588,7 +1588,7 @@ async function main() {
           subheading: 'Explore different ways to connect, grow in faith, and be part of our community.',
           ctaButton: { label: 'Plan your visit', href: '/im-new' },
           cards: [
-            { id: 'ns-1', title: 'Sunday Worship', description: 'Join us every Sunday for worship, teaching, and fellowship with believers.', imageUrl: `${CDN}/images-home-compressed-sunday-worship.jpg`, imageAlt: 'Sunday worship service' },
+            { id: 'ns-1', title: 'Sunday Worship', description: 'Join us every Sunday for worship, teaching, and fellowship with believers.', imageUrl: `${CDN}/sunday-praise.webp`, imageAlt: 'Sunday worship service' },
             { id: 'ns-2', title: 'College Campus Ministries', description: 'Connect with other students on your campus for Bible study and community.', imageUrl: `${CDN}/images-home-compressed-campus-ministry.jpg`, imageAlt: 'Campus ministry gathering' },
             { id: 'ns-3', title: 'Personal Bible Studies', description: 'Study the Bible one-on-one with a mentor at a time that works for you.', imageUrl: `${CDN}/images-home-compressed-bible-study.png`, imageAlt: 'One-on-one Bible study' },
             { id: 'ns-4', title: 'Fellowship', description: 'Build lasting friendships through shared meals, activities, and life together.', imageUrl: `${CDN}/images-home-compressed-fellowship.jpg`, imageAlt: 'Fellowship dinner' },
@@ -3845,6 +3845,7 @@ async function main() {
       { path: 'images-home-compressed-event-christmas.png', mimeType: 'image/png', fileSize: 772096 },
       { path: 'images-home-compressed-fellowship.jpg', mimeType: 'image/jpeg', fileSize: 1147904 },
       { path: 'images-home-compressed-sunday-worship.jpg', mimeType: 'image/jpeg', fileSize: 1155072 },
+      { path: 'sunday-praise.webp', mimeType: 'image/webp', fileSize: 56854 },
       { path: 'compressed-visit-us.jpg', mimeType: 'image/jpeg', fileSize: 987136 },
       { path: 'images-home-rotatingwheel-compressed-bible-study.png', mimeType: 'image/png', fileSize: 1210368 },
       { path: 'images-home-rotatingwheel-compressed-campus-ministry-list.png', mimeType: 'image/png', fileSize: 1606656 },
