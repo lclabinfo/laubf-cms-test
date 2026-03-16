@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, MapPin, Globe, Pencil, Copy, Trash2, Clock, Repeat, Star, TriangleAlert } from "lucide-react"
+import { MoreHorizontal, MapPin, Globe, Pencil, Copy, Trash2, Clock, Repeat, Star, TriangleAlert, Eye, EyeOff, Archive, ArchiveRestore } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { SortableHeader } from "@/components/ui/sortable-header"
@@ -85,8 +85,30 @@ function getEffectiveSortDate(event: ChurchEvent): string {
   return event.date
 }
 
-function EventActionsCell({ row, onDelete }: { row: { original: ChurchEvent }; onDelete?: (id: string) => void }) {
+function EventActionsCell({
+  row,
+  onDelete,
+  onPublish,
+  onUnpublish,
+  onArchive,
+  onUnarchive,
+}: {
+  row: { original: ChurchEvent }
+  onDelete?: (id: string) => void
+  onPublish?: (id: string) => void
+  onUnpublish?: (id: string) => void
+  onArchive?: (id: string) => void
+  onUnarchive?: (id: string) => void
+}) {
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [publishOpen, setPublishOpen] = useState(false)
+  const [unpublishOpen, setUnpublishOpen] = useState(false)
+  const [archiveOpen, setArchiveOpen] = useState(false)
+  const [unarchiveOpen, setUnarchiveOpen] = useState(false)
+
+  const status = row.original.status
+  const isArchived = status === "archived"
+  const isPublished = status === "published"
 
   return (
     <>
@@ -104,11 +126,49 @@ function EventActionsCell({ row, onDelete }: { row: { original: ChurchEvent }; o
               Edit
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Copy />
-            Duplicate
-          </DropdownMenuItem>
+          {isPublished ? (
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault()
+                setUnpublishOpen(true)
+              }}
+            >
+              <EyeOff />
+              Unpublish
+            </DropdownMenuItem>
+          ) : !isArchived ? (
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault()
+                setPublishOpen(true)
+              }}
+            >
+              <Eye />
+              Publish
+            </DropdownMenuItem>
+          ) : null}
           <DropdownMenuSeparator />
+          {isArchived ? (
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault()
+                setUnarchiveOpen(true)
+              }}
+            >
+              <ArchiveRestore />
+              Unarchive
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault()
+                setArchiveOpen(true)
+              }}
+            >
+              <Archive />
+              Archive
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem
             variant="destructive"
             onSelect={(e) => {
@@ -122,6 +182,7 @@ function EventActionsCell({ row, onDelete }: { row: { original: ChurchEvent }; o
         </DropdownMenuContent>
       </DropdownMenu>
 
+      {/* Delete dialog */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -144,6 +205,90 @@ function EventActionsCell({ row, onDelete }: { row: { original: ChurchEvent }; o
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Publish dialog */}
+      <AlertDialog open={publishOpen} onOpenChange={setPublishOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-primary/10">
+              <Eye className="text-primary" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Publish event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &ldquo;{row.original.title}&rdquo; will be visible on the website.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onPublish?.(row.original.id)}>
+              Publish
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Unpublish dialog */}
+      <AlertDialog open={unpublishOpen} onOpenChange={setUnpublishOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-warning/10">
+              <EyeOff className="text-warning" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Unpublish event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &ldquo;{row.original.title}&rdquo; will be hidden from the website.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onUnpublish?.(row.original.id)}>
+              Unpublish
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Archive dialog */}
+      <AlertDialog open={archiveOpen} onOpenChange={setArchiveOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-warning/10">
+              <Archive className="text-warning" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Archive event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &ldquo;{row.original.title}&rdquo; will be archived and hidden from the website.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onArchive?.(row.original.id)}>
+              Archive
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Unarchive dialog */}
+      <AlertDialog open={unarchiveOpen} onOpenChange={setUnarchiveOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-primary/10">
+              <ArchiveRestore className="text-primary" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Unarchive event?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &ldquo;{row.original.title}&rdquo; will be restored as a draft.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => onUnarchive?.(row.original.id)}>
+              Unarchive
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   )
 }
@@ -151,9 +296,17 @@ function EventActionsCell({ row, onDelete }: { row: { original: ChurchEvent }; o
 export function createColumns(options?: {
   onDelete?: (id: string) => void
   onToggleFeatured?: (event: ChurchEvent) => void
+  onPublish?: (id: string) => void
+  onUnpublish?: (id: string) => void
+  onArchive?: (id: string) => void
+  onUnarchive?: (id: string) => void
 }): ColumnDef<ChurchEvent>[] {
   const onDelete = options?.onDelete
   const onToggleFeatured = options?.onToggleFeatured
+  const onPublish = options?.onPublish
+  const onUnpublish = options?.onUnpublish
+  const onArchive = options?.onArchive
+  const onUnarchive = options?.onUnarchive
 
   return [
   {
@@ -187,8 +340,9 @@ export function createColumns(options?: {
     cell: ({ row }) => {
       const isRecurring = row.original.recurrence !== "none"
       const past = isPast(row.original.date, isRecurring)
+      const isArchived = row.original.status === "archived"
       return (
-        <div className={cn("flex items-center gap-2 min-w-0", past && "opacity-60")}>
+        <div className={cn("flex items-center gap-2 min-w-0", (past || isArchived) && "opacity-60")}>
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -381,7 +535,16 @@ export function createColumns(options?: {
   },
   {
     id: "actions",
-    cell: ({ row }) => <EventActionsCell row={row} onDelete={onDelete} />,
+    cell: ({ row }) => (
+      <EventActionsCell
+        row={row}
+        onDelete={onDelete}
+        onPublish={onPublish}
+        onUnpublish={onUnpublish}
+        onArchive={onArchive}
+        onUnarchive={onUnarchive}
+      />
+    ),
     enableSorting: false,
     enableHiding: false,
     size: 50,

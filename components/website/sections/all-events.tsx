@@ -22,8 +22,14 @@ export default async function AllEventsSection({ content, churchId }: Props) {
       title: e.title,
       description: e.description || '',
       type: e.type.toLowerCase() as 'event' | 'meeting' | 'program',
-      dateStart: e.dateStart instanceof Date ? e.dateStart.toISOString() : String(e.dateStart),
-      dateEnd: e.dateEnd instanceof Date ? e.dateEnd.toISOString() : e.dateEnd ? String(e.dateEnd) : null,
+      dateStart: e.dateStart instanceof Date
+        ? `${e.dateStart.getUTCFullYear()}-${String(e.dateStart.getUTCMonth() + 1).padStart(2, '0')}-${String(e.dateStart.getUTCDate()).padStart(2, '0')}`
+        : String(e.dateStart).slice(0, 10),
+      dateEnd: e.dateEnd
+        ? (e.dateEnd instanceof Date
+            ? `${e.dateEnd.getUTCFullYear()}-${String(e.dateEnd.getUTCMonth() + 1).padStart(2, '0')}-${String(e.dateEnd.getUTCDate()).padStart(2, '0')}`
+            : String(e.dateEnd).slice(0, 10))
+        : null,
       timeStart: e.startTime || '',
       timeEnd: e.endTime || '',
       location: e.location || '',

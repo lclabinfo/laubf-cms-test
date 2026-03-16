@@ -333,6 +333,7 @@ function CardView({ events }: { events: SimpleEvent[] }) {
             title: event.title,
             type: event.type,
             dateStart: toDateKey(event.dateStart),
+            dateEnd: event.dateEnd ? toDateKey(event.dateEnd) : undefined,
             timeStart: event.timeStart,
             location: event.location,
             thumbnailUrl: event.thumbnailUrl || undefined,

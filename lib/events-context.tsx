@@ -32,6 +32,8 @@ interface EventsContextValue {
   addEvent: (data: Omit<ChurchEvent, "id">) => ChurchEvent
   updateEvent: (id: string, data: Partial<Omit<ChurchEvent, "id">>) => void
   deleteEvent: (id: string) => void
+  bulkAction: (action: 'delete' | 'archive' | 'unarchive' | 'publish' | 'unpublish', ids: string[]) => Promise<void>
+  refetch: () => void
 }
 
 const EventsContext = createContext<EventsContextValue | null>(null)
@@ -230,35 +232,28 @@ export function EventsProvider({ children }: { children: ReactNode }) {
   const eventsRef = useRef(events)
   eventsRef.current = events
 
+  const fetchEvents = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const res = await fetch("/api/v1/events?pageSize=100&status=")
+      if (!res.ok) throw new Error("Failed to fetch events")
+
+      const json = await res.json()
+      setEvents((json.data ?? []).map(apiEventToCms))
+    } catch (err) {
+      console.error("EventsProvider fetch error:", err)
+      setError(err instanceof Error ? err.message : "Failed to load events")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
   // Fetch events from API on mount
   useEffect(() => {
-    let cancelled = false
-
-    async function fetchData() {
-      try {
-        setLoading(true)
-        setError(null)
-
-        const res = await fetch("/api/v1/events?pageSize=100&status=")
-        if (!res.ok) throw new Error("Failed to fetch events")
-
-        const json = await res.json()
-        if (cancelled) return
-
-        setEvents((json.data ?? []).map(apiEventToCms))
-      } catch (err) {
-        if (!cancelled) {
-          console.error("EventsProvider fetch error:", err)
-          setError(err instanceof Error ? err.message : "Failed to load events")
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    fetchData()
-    return () => { cancelled = true }
-  }, [])
+    fetchEvents()
+  }, [fetchEvents])
 
   const addEvent = useCallback((data: Omit<ChurchEvent, "id">) => {
     const slug = data.slug || generateSlug(data.title)
@@ -400,9 +395,50 @@ export function EventsProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const refetch = useCallback(() => {
+    fetchEvents()
+  }, [fetchEvents])
+
+  const bulkAction = useCallback(async (action: 'delete' | 'archive' | 'unarchive' | 'publish' | 'unpublish', ids: string[]) => {
+    const snapshot = [...events]
+
+    if (action === 'delete') {
+      setEvents((prev) => prev.filter((e) => !ids.includes(e.id)))
+    } else if (action === 'archive') {
+      setEvents((prev) => prev.map((e) =>
+        ids.includes(e.id) ? { ...e, status: "archived" as ContentStatus } : e
+      ))
+    } else if (action === 'publish') {
+      setEvents((prev) => prev.map((e) =>
+        ids.includes(e.id) ? { ...e, status: "published" as ContentStatus } : e
+      ))
+    } else if (action === 'unpublish') {
+      setEvents((prev) => prev.map((e) =>
+        ids.includes(e.id) ? { ...e, status: "draft" as ContentStatus } : e
+      ))
+    } else if (action === 'unarchive') {
+      setEvents((prev) => prev.map((e) =>
+        ids.includes(e.id) ? { ...e, status: "draft" as ContentStatus } : e
+      ))
+    }
+
+    try {
+      const res = await fetch("/api/v1/events/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ids }),
+      })
+      if (!res.ok) throw new Error(`Bulk ${action} failed`)
+    } catch (err) {
+      console.error(`bulkAction ${action} error:`, err)
+      setEvents(snapshot)
+      throw err
+    }
+  }, [events])
+
   const value = useMemo(
-    () => ({ events, loading, error, addEvent, updateEvent, deleteEvent }),
-    [events, loading, error, addEvent, updateEvent, deleteEvent]
+    () => ({ events, loading, error, addEvent, updateEvent, deleteEvent, bulkAction, refetch }),
+    [events, loading, error, addEvent, updateEvent, deleteEvent, bulkAction, refetch]
   )
 
   return <EventsContext value={value}>{children}</EventsContext>

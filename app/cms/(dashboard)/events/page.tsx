@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useRef } from "react"
 import { useSessionState } from "@/lib/hooks/use-session-state"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCmsSession } from "@/components/cms/cms-shell"
@@ -185,15 +185,101 @@ export default function EventsPage() {
   const searchParams = useSearchParams()
   const defaultTab = searchParams.get("tab") === "settings" ? "settings" : "list"
   const { user } = useCmsSession()
-  const { events, loading, deleteEvent, updateEvent } = useEvents()
+  const { events, loading, deleteEvent, updateEvent, bulkAction, refetch } = useEvents()
+
+  // Use ref for refetch so toast undo always calls latest
+  const refetchRef = useRef(refetch)
+  refetchRef.current = refetch
+
+  const undoDelete = useCallback(async (ids: string[]) => {
+    try {
+      const res = await fetch("/api/v1/events/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "undelete", ids }),
+      })
+      if (!res.ok) throw new Error("Failed to undo")
+      refetchRef.current()
+      toast.success("Delete undone", { description: `${ids.length} ${ids.length === 1 ? "event" : "events"} restored.` })
+    } catch {
+      toast.error("Failed to undo delete")
+    }
+  }, [])
 
   const handleDelete = useCallback((id: string) => {
     const event = events.find((e) => e.id === id)
     deleteEvent(id)
     toast.success("Event deleted", {
       description: event ? `"${event.title}" has been deleted.` : undefined,
+      action: {
+        label: "Undo",
+        onClick: () => undoDelete([id]),
+      },
     })
-  }, [events, deleteEvent])
+  }, [events, deleteEvent, undoDelete])
+
+  const handlePublish = useCallback((id: string) => {
+    const event = events.find((e) => e.id === id)
+    updateEvent(id, { status: "published" })
+    toast.success("Event published", {
+      description: event ? `"${event.title}" is now visible on the website.` : undefined,
+    })
+  }, [events, updateEvent])
+
+  const handleUnpublish = useCallback((id: string) => {
+    const event = events.find((e) => e.id === id)
+    updateEvent(id, { status: "draft" })
+    toast.success("Event unpublished", {
+      description: event ? `"${event.title}" has been hidden from the website.` : undefined,
+    })
+  }, [events, updateEvent])
+
+  const handleArchive = useCallback((id: string) => {
+    const event = events.find((e) => e.id === id)
+    updateEvent(id, { status: "archived" })
+    toast.success("Event archived", {
+      description: event ? `"${event.title}" has been archived.` : undefined,
+    })
+  }, [events, updateEvent])
+
+  const handleUnarchive = useCallback((id: string) => {
+    const event = events.find((e) => e.id === id)
+    updateEvent(id, { status: "draft" })
+    toast.success("Event unarchived", {
+      description: event ? `"${event.title}" has been restored as a draft.` : undefined,
+    })
+  }, [events, updateEvent])
+
+  // Bulk handlers
+  const handleBulkDelete = useCallback(async (ids: string[]) => {
+    await bulkAction("delete", ids)
+    toast.success(`${ids.length} ${ids.length === 1 ? "event" : "events"} deleted`, {
+      action: {
+        label: "Undo",
+        onClick: () => undoDelete(ids),
+      },
+    })
+  }, [bulkAction, undoDelete])
+
+  const handleBulkArchive = useCallback(async (ids: string[]) => {
+    await bulkAction("archive", ids)
+    toast.success(`${ids.length} ${ids.length === 1 ? "event" : "events"} archived`)
+  }, [bulkAction])
+
+  const handleBulkPublish = useCallback(async (ids: string[]) => {
+    await bulkAction("publish", ids)
+    toast.success(`${ids.length} ${ids.length === 1 ? "event" : "events"} published`)
+  }, [bulkAction])
+
+  const handleBulkUnpublish = useCallback(async (ids: string[]) => {
+    await bulkAction("unpublish", ids)
+    toast.success(`${ids.length} ${ids.length === 1 ? "event" : "events"} unpublished`)
+  }, [bulkAction])
+
+  const handleBulkUnarchive = useCallback(async (ids: string[]) => {
+    await bulkAction("unarchive", ids)
+    toast.success(`${ids.length} ${ids.length === 1 ? "event" : "events"} unarchived`)
+  }, [bulkAction])
 
   // Featured toggle
   const [featuredScenario, setFeaturedScenario] = useState<FeaturedToggleScenario | null>(null)
@@ -224,7 +310,11 @@ export default function EventsPage() {
   const columns = useMemo(() => createColumns({
     onDelete: handleDelete,
     onToggleFeatured: handleToggleFeatured,
-  }), [handleDelete, handleToggleFeatured])
+    onPublish: handlePublish,
+    onUnpublish: handleUnpublish,
+    onArchive: handleArchive,
+    onUnarchive: handleUnarchive,
+  }), [handleDelete, handleToggleFeatured, handlePublish, handleUnpublish, handleArchive, handleUnarchive])
 
   const [sorting, setSorting] = useSessionState<SortingState>("cms:events:sorting", [
     { id: "date", desc: true },
@@ -282,6 +372,7 @@ export default function EventsPage() {
   const table = useReactTable({
     data: sortedEvents,
     columns,
+    getRowId: (row) => row.id,
     state: {
       sorting,
       columnFilters,
@@ -366,17 +457,24 @@ export default function EventsPage() {
         </TabsList>
 
         <TabsContent value="list" className="space-y-4">
-          <Toolbar
-            table={table}
-            globalFilter={globalFilter}
-            setGlobalFilter={handleGlobalFilterChange}
-            view={view}
-            onViewChange={setView}
-            dateFrom={dateFrom}
-            dateTo={dateTo}
-            onDateFromChange={setDateFrom}
-            onDateToChange={setDateTo}
-          />
+          <div className="sticky top-0 z-10 bg-background">
+            <Toolbar
+              table={table}
+              globalFilter={globalFilter}
+              setGlobalFilter={handleGlobalFilterChange}
+              view={view}
+              onViewChange={setView}
+              dateFrom={dateFrom}
+              dateTo={dateTo}
+              onDateFromChange={setDateFrom}
+              onDateToChange={setDateTo}
+              onBulkDelete={handleBulkDelete}
+              onBulkArchive={handleBulkArchive}
+              onBulkUnarchive={handleBulkUnarchive}
+              onBulkPublish={handleBulkPublish}
+              onBulkUnpublish={handleBulkUnpublish}
+            />
+          </div>
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="size-6 animate-spin text-muted-foreground" />

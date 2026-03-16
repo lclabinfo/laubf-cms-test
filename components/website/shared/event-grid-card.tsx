@@ -11,6 +11,7 @@ interface EventGridCardEvent {
   title: string
   type: string
   dateStart: string
+  dateEnd?: string
   timeStart: string
   location: string
   thumbnailUrl?: string
@@ -22,6 +23,13 @@ function getEventBadge(event: EventGridCardEvent): string | null {
   if (event.isFeatured) return "FEATURED"
   return null
 }
+
+const fmtDate = (dateStr: string) =>
+  new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  })
 
 export default function EventGridCard({ event }: { event: EventGridCardEvent }) {
   const badge = getEventBadge(event)
@@ -105,11 +113,13 @@ export default function EventGridCard({ event }: { event: EventGridCardEvent }) 
           <div className="flex items-center gap-2">
             <IconClock className="size-4 text-black-2 shrink-0" />
             <span className="text-body-3 text-black-2">
-              {new Date(event.dateStart + "T00:00:00").toLocaleDateString(
-                "en-US",
-                { weekday: "short", month: "short", day: "numeric" },
-              )}{" "}
-              @ {formatTime(event.timeStart)}
+              {fmtDate(event.dateStart)}
+              {event.dateEnd && event.dateEnd !== event.dateStart && (
+                <> – {fmtDate(event.dateEnd)}</>
+              )}
+              {formatTime(event.timeStart) && (
+                <> @ {formatTime(event.timeStart)}</>
+              )}
             </span>
           </div>
           <div className="flex items-center gap-2">

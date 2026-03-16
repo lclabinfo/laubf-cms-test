@@ -41,6 +41,7 @@ import { cn } from "@/lib/utils"
 import { createColumns } from "@/components/cms/messages/columns"
 import { Toolbar } from "@/components/cms/messages/toolbar"
 import { SeriesTab } from "@/components/cms/messages/series/tab"
+import type { Message } from "@/lib/messages-data"
 import { useMessages } from "@/lib/messages-context"
 
 // Hoist row model factories outside the component so they are stable references
@@ -368,22 +369,45 @@ function MessagesPageContent() {
   }, [sorting, setSort])
 
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({ status: false, publishedAt: false, speaker: false })
-  const [rowSelection, setRowSelection] = useState({})
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({})
+
+  // Track selected message objects across pages.
+  // This map accumulates message data as pages are visited.
+  const [selectedItemsMap, setSelectedItemsMap] = useState<Map<string, Message>>(new Map())
+
+  // When current page messages change, update the map with their data
+  useEffect(() => {
+    setSelectedItemsMap((prev) => {
+      const next = new Map(prev)
+      for (const msg of messages) {
+        next.set(msg.id, msg) // always update with latest data
+      }
+      return next
+    })
+  }, [messages])
+
+  // Derive the selected messages array from the map + rowSelection
+  const selectedMessages = useMemo(() => {
+    const items: Message[] = []
+    for (const id of Object.keys(rowSelection)) {
+      if (rowSelection[id]) {
+        const msg = selectedItemsMap.get(id)
+        if (msg) items.push(msg)
+      }
+    }
+    return items
+  }, [rowSelection, selectedItemsMap])
+
+  const selectedCount = Object.keys(rowSelection).filter((id) => rowSelection[id]).length
+
+  const clearSelection = useCallback(() => {
+    setRowSelection({})
+  }, [])
 
   const speakers = useMemo(() => {
     const names = new Set(messages.map((m) => m.speaker).filter(Boolean))
     return Array.from(names).sort()
   }, [messages])
-
-  // Clear selection when page changes to avoid stale index-based selection
-  const currentPage = pagination.page
-  const prevPageRef = useRef(currentPage)
-  useEffect(() => {
-    if (prevPageRef.current !== currentPage) {
-      setRowSelection({})
-      prevPageRef.current = currentPage
-    }
-  }, [currentPage])
 
   // Server-side pagination: TanStack shows all rows from the current API page
   const table = useReactTable({
@@ -441,6 +465,9 @@ function MessagesPageContent() {
             onBulkArchive={handleBulkArchive}
             onBulkUnarchive={handleBulkUnarchive}
             onPublishToggle={handlePublishToggle}
+            selectedMessages={selectedMessages}
+            selectedCount={selectedCount}
+            onClearSelection={clearSelection}
           />
           </div>
           {loading ? (

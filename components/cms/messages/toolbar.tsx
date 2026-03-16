@@ -68,12 +68,18 @@ interface ToolbarProps {
   onBulkArchive?: (ids: string[]) => void
   onBulkUnarchive?: (ids: string[]) => void
   onPublishToggle?: (id: string, videoPublished: boolean, studyPublished: boolean) => void
+  /** Selected messages across all pages (passed from parent for cross-page selection) */
+  selectedMessages?: Message[]
+  /** Total selected count (may exceed selectedMessages.length if some data not yet loaded) */
+  selectedCount?: number
+  onClearSelection?: () => void
 }
 
-export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateFrom, dateTo, onDateFromChange, onDateToChange, seriesFilter, onSeriesFilterChange, archiveFilter, onArchiveFilterChange, onBulkDelete, onBulkArchive, onBulkUnarchive, onPublishToggle }: ToolbarProps) {
-  const selectedRows = table.getFilteredSelectedRowModel().rows
-  const selectedCount = selectedRows.length
-  const selectedMessages = selectedRows.map((r) => r.original)
+export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateFrom, dateTo, onDateFromChange, onDateToChange, seriesFilter, onSeriesFilterChange, archiveFilter, onArchiveFilterChange, onBulkDelete, onBulkArchive, onBulkUnarchive, onPublishToggle, selectedMessages: selectedMessagesProp, selectedCount: selectedCountProp, onClearSelection }: ToolbarProps) {
+  // Use prop if provided (cross-page selection), otherwise fall back to table model
+  const tableSelected = table.getFilteredSelectedRowModel().rows.map((r) => r.original)
+  const selectedMessages = selectedMessagesProp ?? tableSelected
+  const selectedCount = selectedCountProp ?? selectedMessages.length
 
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
   const [bulkArchiveOpen, setBulkArchiveOpen] = useState(false)
@@ -258,7 +264,7 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
                 <Button variant="outline" size="sm" onClick={() => {
                   const ids = selectedMessages.map((m) => m.id)
                   onBulkUnarchive?.(ids)
-                  table.toggleAllRowsSelected(false)
+                  onClearSelection ? onClearSelection() : table.toggleAllRowsSelected(false)
                 }}>
                   Unarchive
                 </Button>
@@ -275,7 +281,7 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
               variant="ghost"
               size="sm"
               className="ml-auto whitespace-nowrap"
-              onClick={() => table.toggleAllRowsSelected(false)}
+              onClick={() => onClearSelection ? onClearSelection() : table.toggleAllRowsSelected(false)}
             >
               Clear selection
             </Button>
@@ -309,7 +315,7 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
               onClick={() => {
                 const ids = selectedMessages.map((m) => m.id)
                 onBulkDelete?.(ids)
-                table.toggleAllRowsSelected(false)
+                onClearSelection ? onClearSelection() : table.toggleAllRowsSelected(false)
                 setBulkDeleteOpen(false)
               }}
             >
@@ -337,7 +343,7 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
             <AlertDialogAction onClick={() => {
               const ids = selectedMessages.map((m) => m.id)
               onBulkArchive?.(ids)
-              table.toggleAllRowsSelected(false)
+              onClearSelection ? onClearSelection() : table.toggleAllRowsSelected(false)
               setBulkArchiveOpen(false)
             }}>
               Archive
@@ -370,7 +376,7 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
               <Button variant="outline" onClick={() => setPublishOpen(false)}>Cancel</Button>
               <Button onClick={() => {
                 onPublishToggle?.(singleMessage.id, videoPub, studyPub)
-                table.toggleAllRowsSelected(false)
+                onClearSelection ? onClearSelection() : table.toggleAllRowsSelected(false)
                 setPublishOpen(false)
               }}>
                 Save

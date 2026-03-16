@@ -124,7 +124,7 @@ export async function resolveSectionData(
               title: e.title,
               dateStart: toDateString(e.dateStart),
               dateEnd: e.dateEnd ? toDateString(e.dateEnd) : undefined,
-              time: formatTime(e.startTime),
+              timeStart: formatTime(e.startTime),
               type: e.type.toLowerCase(),
               location: e.location || '',
               thumbnailUrl: e.coverImage || undefined,

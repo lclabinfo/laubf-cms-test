@@ -12,6 +12,7 @@ interface Event {
   slug: string
   title: string
   dateStart: string
+  dateEnd?: string
   timeStart: string
   type: string
   location: string

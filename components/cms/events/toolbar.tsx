@@ -1,8 +1,9 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { Table as TanstackTable } from "@tanstack/react-table"
-import { Search, SlidersHorizontal, Settings2, Plus, X, List, LayoutGrid } from "lucide-react"
+import { Search, SlidersHorizontal, Settings2, Plus, X, List, LayoutGrid, Archive, ArchiveRestore, Trash2, TriangleAlert, Eye, EyeOff } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -18,8 +19,20 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import type { ChurchEvent, EventType, Recurrence, MinistryTag } from "@/lib/events-data"
 import type { ContentStatus } from "@/lib/status"
+import { statusDisplay } from "@/lib/status"
 
 type RecurrenceFilter = "recurring" | "one-time"
 
@@ -68,9 +81,14 @@ interface ToolbarProps {
   dateTo?: string
   onDateFromChange?: (value: string) => void
   onDateToChange?: (value: string) => void
+  onBulkDelete?: (ids: string[]) => void
+  onBulkArchive?: (ids: string[]) => void
+  onBulkUnarchive?: (ids: string[]) => void
+  onBulkPublish?: (ids: string[]) => void
+  onBulkUnpublish?: (ids: string[]) => void
 }
 
-export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChange, dateFrom, dateTo, onDateFromChange, onDateToChange }: ToolbarProps) {
+export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChange, dateFrom, dateTo, onDateFromChange, onDateToChange, onBulkDelete, onBulkArchive, onBulkUnarchive, onBulkPublish, onBulkUnpublish }: ToolbarProps) {
   const selectedCount = table.getFilteredSelectedRowModel().rows.length
   const statusFilter = (table.getColumn("status")?.getFilterValue() as ContentStatus[]) ?? []
   const typeFilter = (table.getColumn("type")?.getFilterValue() as EventType[]) ?? []
@@ -324,33 +342,14 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChan
 
       {/* Right side: bulk actions replace primary action when rows are selected */}
       {selectedCount > 0 ? (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-muted/50 px-3 py-1">
-          <span className="text-sm font-medium whitespace-nowrap">
-            {selectedCount} selected
-          </span>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm">
-              Publish
-            </Button>
-            <Button variant="outline" size="sm">
-              Draft
-            </Button>
-            <Button variant="outline" size="sm">
-              Archive
-            </Button>
-            <Button variant="destructive" size="sm">
-              Delete
-            </Button>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ml-auto whitespace-nowrap"
-            onClick={() => table.toggleAllRowsSelected(false)}
-          >
-            Clear selection
-          </Button>
-        </div>
+        <BulkActionsBar
+          table={table}
+          onBulkDelete={onBulkDelete}
+          onBulkArchive={onBulkArchive}
+          onBulkUnarchive={onBulkUnarchive}
+          onBulkPublish={onBulkPublish}
+          onBulkUnpublish={onBulkUnpublish}
+        />
       ) : (
         <Button asChild data-tutorial="evt-new-btn">
           <Link href="/cms/events/new">
@@ -360,5 +359,216 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, view, onViewChan
         </Button>
       )}
     </div>
+  )
+}
+
+/* ── Bulk event list for confirmation dialogs ── */
+
+function BulkEventList({ events }: { events: ChurchEvent[] }) {
+  return (
+    <div className="h-[280px] overflow-y-auto rounded-lg border border-border">
+      {events.map((event) => {
+        const config = statusDisplay[event.status]
+        return (
+          <div key={event.id} className="flex items-center justify-between px-3 py-2 border-b border-border last:border-b-0">
+            <span className="text-sm truncate mr-2">{event.title}</span>
+            <Badge variant={config.variant} className="shrink-0 text-xs">
+              {config.label}
+            </Badge>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/* ── Bulk actions bar ── */
+
+function BulkActionsBar({
+  table,
+  onBulkDelete,
+  onBulkArchive,
+  onBulkUnarchive,
+  onBulkPublish,
+  onBulkUnpublish,
+}: {
+  table: TanstackTable<ChurchEvent>
+  onBulkDelete?: (ids: string[]) => void
+  onBulkArchive?: (ids: string[]) => void
+  onBulkUnarchive?: (ids: string[]) => void
+  onBulkPublish?: (ids: string[]) => void
+  onBulkUnpublish?: (ids: string[]) => void
+}) {
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [archiveOpen, setArchiveOpen] = useState(false)
+  const [publishOpen, setPublishOpen] = useState(false)
+  const [unpublishOpen, setUnpublishOpen] = useState(false)
+
+  const selectedRows = table.getFilteredSelectedRowModel().rows
+  const selectedCount = selectedRows.length
+  const selectedEvents = selectedRows.map((r) => r.original)
+  const selectedIds = selectedEvents.map((e) => e.id)
+
+  // Determine which status-change buttons to show
+  const allStatuses = new Set(selectedEvents.map((e) => e.status))
+  const allSameStatus = allStatuses.size === 1
+  const singleStatus = allSameStatus ? [...allStatuses][0] : null
+
+  const showPublish = singleStatus === "draft" || singleStatus === "scheduled"
+  const showUnpublish = singleStatus === "published"
+  const allArchived = singleStatus === "archived"
+
+  function handleConfirmAndClear(action: ((ids: string[]) => void) | undefined, setter: (v: boolean) => void) {
+    action?.(selectedIds)
+    setter(false)
+    table.toggleAllRowsSelected(false)
+  }
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-muted/50 px-3 py-1">
+        <span className="text-sm font-medium whitespace-nowrap">
+          {selectedCount} selected
+        </span>
+        <div className="flex items-center gap-1">
+          {showPublish && (
+            <Button variant="outline" size="sm" onClick={() => setPublishOpen(true)}>
+              <Eye className="size-3.5" />
+              Publish
+            </Button>
+          )}
+          {showUnpublish && (
+            <Button variant="outline" size="sm" onClick={() => setUnpublishOpen(true)}>
+              <EyeOff className="size-3.5" />
+              Unpublish
+            </Button>
+          )}
+          {allArchived ? (
+            <Button variant="outline" size="sm" onClick={() => setArchiveOpen(true)}>
+              <ArchiveRestore className="size-3.5" />
+              Unarchive
+            </Button>
+          ) : (
+            <Button variant="outline" size="sm" onClick={() => setArchiveOpen(true)}>
+              <Archive className="size-3.5" />
+              Archive
+            </Button>
+          )}
+          <Button variant="destructive" size="sm" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="size-3.5" />
+            Delete
+          </Button>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto whitespace-nowrap"
+          onClick={() => table.toggleAllRowsSelected(false)}
+        >
+          Clear selection
+        </Button>
+      </div>
+
+      {/* Bulk delete dialog */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent className="sm:max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10">
+              <TriangleAlert className="text-destructive" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              Delete {selectedCount} {selectedCount === 1 ? "event" : "events"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              The following {selectedCount === 1 ? "event" : "events"} will be deleted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <BulkEventList events={selectedEvents} />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => handleConfirmAndClear(onBulkDelete, setDeleteOpen)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk archive/unarchive dialog */}
+      <AlertDialog open={archiveOpen} onOpenChange={setArchiveOpen}>
+        <AlertDialogContent className="sm:max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-warning/10">
+              {allArchived ? <ArchiveRestore className="text-warning" /> : <Archive className="text-warning" />}
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              {allArchived ? "Unarchive" : "Archive"} {selectedCount} {selectedCount === 1 ? "event" : "events"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {allArchived
+                ? `The following ${selectedCount === 1 ? "event" : "events"} will be restored as drafts.`
+                : `The following ${selectedCount === 1 ? "event" : "events"} will be archived and hidden from the website.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <BulkEventList events={selectedEvents} />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => handleConfirmAndClear(allArchived ? onBulkUnarchive : onBulkArchive, setArchiveOpen)}
+            >
+              {allArchived ? "Unarchive" : "Archive"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk publish dialog */}
+      <AlertDialog open={publishOpen} onOpenChange={setPublishOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-primary/10">
+              <Eye className="text-primary" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              Publish {selectedCount} {selectedCount === 1 ? "event" : "events"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedCount} {selectedCount === 1 ? "event" : "events"} will be published and visible on the website.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleConfirmAndClear(onBulkPublish, setPublishOpen)}>
+              Publish
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk unpublish dialog */}
+      <AlertDialog open={unpublishOpen} onOpenChange={setUnpublishOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-warning/10">
+              <EyeOff className="text-warning" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>
+              Unpublish {selectedCount} {selectedCount === 1 ? "event" : "events"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedCount} {selectedCount === 1 ? "event" : "events"} will be unpublished and hidden from the website.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleConfirmAndClear(onBulkUnpublish, setUnpublishOpen)}>
+              Unpublish
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
 }
