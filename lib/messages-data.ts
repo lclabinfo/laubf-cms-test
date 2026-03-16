@@ -35,12 +35,18 @@ export type Message = {
   date: string
   /** When the entry was first published */
   publishedAt?: string
+  /** When the entry was archived (null = not archived) */
+  archivedAt?: string | null
   hasVideo: boolean
   hasStudy: boolean
   /** Whether the video content is published on the public site */
   videoPublished: boolean
   /** Whether the bible study content is published on the public site */
   studyPublished: boolean
+  /** Whether video content exists (URL/youtubeId set), regardless of publish state */
+  hasVideoContent: boolean
+  /** Whether study content exists (studySections with content), regardless of publish state */
+  hasStudyContent: boolean
   // Detail fields (populated when editing)
   videoUrl?: string
   videoDescription?: string

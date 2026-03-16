@@ -444,6 +444,7 @@ model Message {
 
   // Publishing
   publishedAt      DateTime?
+  archivedAt       DateTime?
 
   // Relationship to Bible Study
   relatedStudyId   String?       @unique @db.Uuid

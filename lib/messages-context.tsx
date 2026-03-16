@@ -42,6 +42,7 @@ interface PaginationInfo {
 
 export type SortBy = 'dateFor' | 'title' | 'speaker'
 export type SortDir = 'asc' | 'desc'
+export type ArchiveFilter = 'all' | 'active' | 'archived'
 
 interface MessagesContextValue {
   series: Series[]
@@ -55,6 +56,7 @@ interface MessagesContextValue {
   dateFrom: string
   dateTo: string
   seriesFilter: string | undefined
+  archiveFilter: ArchiveFilter
   sortBy: SortBy
   sortDir: SortDir
   setPage: (page: number) => void
@@ -63,6 +65,7 @@ interface MessagesContextValue {
   setDateFrom: (dateFrom: string) => void
   setDateTo: (dateTo: string) => void
   setSeriesFilter: (seriesId: string | undefined) => void
+  setArchiveFilter: (filter: ArchiveFilter) => void
   setSort: (sortBy: SortBy, sortDir: SortDir) => void
   refetch: () => void
   fetchMessageById: (id: string) => Promise<Message | null>
@@ -73,6 +76,9 @@ interface MessagesContextValue {
   addMessage: (data: Omit<Message, "id">) => Message
   updateMessage: (id: string, data: Partial<Omit<Message, "id">>) => void
   deleteMessage: (id: string) => void
+  archiveMessage: (id: string) => void
+  unarchiveMessage: (id: string) => void
+  bulkAction: (action: 'delete' | 'archive' | 'unarchive', ids: string[]) => Promise<void>
 }
 
 const MessagesContext = createContext<MessagesContextValue | null>(null)
@@ -116,6 +122,20 @@ function synthesizeAttachments(relatedStudy: any): Attachment[] | undefined {
   }))
 }
 
+// For list view: relatedStudy only has _count, not full attachment data.
+// Create placeholder entries so the attachment badge count renders.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function synthesizeAttachmentCount(relatedStudy: any): Attachment[] | undefined {
+  const count = relatedStudy?._count?.attachments
+  if (!count || count === 0) return undefined
+  return Array.from({ length: count }, (_, i) => ({
+    id: `count-placeholder-${i}`,
+    name: "",
+    size: "",
+    type: "",
+  }))
+}
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
@@ -129,6 +149,13 @@ function apiMessageToCms(apiMsg: any): Message {
     videoUrl = `https://www.youtube.com/watch?v=${apiMsg.youtubeId}`
   }
 
+  // Compute content existence independent of publish state.
+  // For list view (no relatedStudy), fall back to hasStudy/hasVideo DB flags
+  // which indicate content was published at some point.
+  const studySections = apiMsg.studySections ?? synthesizeStudySections(apiMsg.relatedStudy)
+  const hasVideoContent = !!(videoUrl || apiMsg.youtubeId || apiMsg.hasVideo)
+  const hasStudyContent = !!((studySections && studySections.length > 0) || apiMsg.hasStudy)
+
   return {
     id: apiMsg.id,
     slug: apiMsg.slug ?? "",
@@ -141,10 +168,13 @@ function apiMessageToCms(apiMsg: any): Message {
     seriesId: (apiMsg.messageSeries ?? []).length > 0 ? apiMsg.messageSeries[0].series.id : null,
     date: apiMsg.dateFor ? new Date(apiMsg.dateFor).toISOString().slice(0, 10) : "",
     publishedAt: apiMsg.publishedAt ? new Date(apiMsg.publishedAt).toISOString() : undefined,
+    archivedAt: apiMsg.archivedAt ? new Date(apiMsg.archivedAt).toISOString() : null,
     hasVideo: apiMsg.hasVideo ?? false,
     hasStudy: apiMsg.hasStudy ?? false,
     videoPublished: apiMsg.hasVideo ?? false,
     studyPublished: apiMsg.hasStudy ?? false,
+    hasVideoContent,
+    hasStudyContent,
     videoUrl,
     videoDescription: apiMsg.videoDescription ?? undefined,
     youtubeId: apiMsg.youtubeId ?? undefined,
@@ -154,8 +184,10 @@ function apiMessageToCms(apiMsg: any): Message {
     rawTranscript: apiMsg.rawTranscript ?? apiMsg.relatedStudy?.transcript ?? undefined,
     liveTranscript: apiMsg.liveTranscript ?? undefined,
     transcriptSegments: apiMsg.transcriptSegments ?? undefined,
-    studySections: apiMsg.studySections ?? synthesizeStudySections(apiMsg.relatedStudy),
-    attachments: apiMsg.attachments ?? synthesizeAttachments(apiMsg.relatedStudy),
+    studySections,
+    attachments: apiMsg.attachments
+      ?? synthesizeAttachments(apiMsg.relatedStudy)
+      ?? synthesizeAttachmentCount(apiMsg.relatedStudy),
   }
 }
 
@@ -220,6 +252,10 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
     if (ytId) {
       payload.youtubeId = ytId
       payload.thumbnailUrl = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`
+    } else {
+      // Clear YouTube-derived fields when URL is removed or non-YouTube
+      payload.youtubeId = null
+      payload.thumbnailUrl = null
     }
   }
   if (data.videoPublished !== undefined || data.studyPublished !== undefined) {
@@ -238,12 +274,13 @@ function cmsMessageToApiUpdate(data: Partial<Omit<Message, "id">>) {
   if (data.audioUrl !== undefined) payload.audioUrl = data.audioUrl || null
   if (data.rawTranscript !== undefined) payload.rawTranscript = data.rawTranscript || null
   if (data.liveTranscript !== undefined) payload.liveTranscript = data.liveTranscript || null
-  if (data.transcriptSegments !== undefined) payload.transcriptSegments = data.transcriptSegments || null
-  if (data.studySections !== undefined) payload.studySections = data.studySections || null
-  if (data.attachments !== undefined) payload.attachments = data.attachments || null
+  if (data.transcriptSegments !== undefined) payload.transcriptSegments = data.transcriptSegments?.length ? data.transcriptSegments : null
+  if (data.studySections !== undefined) payload.studySections = data.studySections?.length ? data.studySections : null
+  if (data.attachments !== undefined) payload.attachments = data.attachments?.length ? data.attachments : null
   if (data.publishedAt !== undefined) payload.publishedAt = data.publishedAt ? new Date(data.publishedAt).toISOString() : null
   if (data.speakerId !== undefined) payload.speakerId = data.speakerId || null
   if (data.seriesId !== undefined) payload.seriesId = data.seriesId || null
+  if ('archivedAt' in data) payload.archivedAt = data.archivedAt ? new Date(data.archivedAt).toISOString() : null
   return payload
 }
 
@@ -266,6 +303,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
   const [dateFrom, setDateFromState] = useSessionState("cms:messages:dateFrom", "")
   const [dateTo, setDateToState] = useSessionState("cms:messages:dateTo", "")
   const [seriesFilter, setSeriesFilterState] = useSessionState<string | undefined>("cms:messages:seriesFilter", undefined)
+  const [archiveFilter, setArchiveFilterState] = useSessionState<ArchiveFilter>("cms:messages:archiveFilter", "all")
   const [sortBy, setSortByState] = useSessionState<SortBy>("cms:messages:sortBy", "dateFor")
   const [sortDir, setSortDirState] = useSessionState<SortDir>("cms:messages:sortDir", "desc")
 
@@ -281,6 +319,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
     dateFrom?: string
     dateTo?: string
     seriesId?: string
+    archiveFilter?: string
     sortBy?: string
     sortDir?: string
   }) => {
@@ -301,6 +340,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       if (params.dateFrom) qs.set("dateFrom", params.dateFrom)
       if (params.dateTo) qs.set("dateTo", params.dateTo)
       if (params.seriesId) qs.set("seriesId", params.seriesId)
+      if (params.archiveFilter && params.archiveFilter !== 'all') qs.set("archiveFilter", params.archiveFilter)
       if (params.sortBy) qs.set("sortBy", params.sortBy)
       if (params.sortDir) qs.set("sortDir", params.sortDir)
 
@@ -354,10 +394,11 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       dateFrom,
       dateTo,
       seriesId: seriesFilter,
+      archiveFilter,
       sortBy,
       sortDir,
     })
-  }, [fetchMessages, pagination.page, pagination.pageSize, search, dateFrom, dateTo, seriesFilter, sortBy, sortDir])
+  }, [fetchMessages, pagination.page, pagination.pageSize, search, dateFrom, dateTo, seriesFilter, archiveFilter, sortBy, sortDir])
 
   const setPage = useCallback((page: number) => {
     setPagination((prev) => ({ ...prev, page }))
@@ -396,6 +437,11 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
     setPagination((prev) => ({ ...prev, page: 1 }))
   }, [setSortByState, setSortDirState])
 
+  const setArchiveFilter = useCallback((filter: ArchiveFilter) => {
+    setArchiveFilterState(filter)
+    setPagination((prev) => ({ ...prev, page: 1 }))
+  }, [setArchiveFilterState])
+
   const refetch = useCallback(() => {
     fetchMessages({
       page: pagination.page,
@@ -404,16 +450,18 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       dateFrom,
       dateTo,
       seriesId: seriesFilter,
+      archiveFilter,
       sortBy,
       sortDir,
     })
-  }, [fetchMessages, pagination.page, pagination.pageSize, search, dateFrom, dateTo, seriesFilter, sortBy, sortDir])
+  }, [fetchMessages, pagination.page, pagination.pageSize, search, dateFrom, dateTo, seriesFilter, archiveFilter, sortBy, sortDir])
 
   const fetchMessageById = useCallback(async (id: string): Promise<Message | null> => {
     // Always fetch from API to get full detail data (including relatedStudy).
     // The local messages list uses lightweight includes that omit heavy fields.
+    // Use no-store to bypass HTTP cache — editor must always get fresh data after saves.
     try {
-      const res = await fetch(`/api/v1/messages/${id}`)
+      const res = await fetch(`/api/v1/messages/${id}`, { cache: 'no-store' })
       if (!res.ok) return null
       const json = await res.json()
       if (json.success && json.data) {
@@ -640,6 +688,91 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const archiveMessageCb = useCallback((id: string) => {
+    let snapshot: Message | undefined
+    setMessages((prev) => {
+      snapshot = prev.find((m) => m.id === id)
+      return prev.map((m) => m.id === id ? { ...m, archivedAt: new Date().toISOString(), hasVideo: false, hasStudy: false, videoPublished: false, studyPublished: false } : m)
+    })
+
+    const slug = snapshot?.slug
+    if (!slug) return
+
+    fetch(`/api/v1/messages/${slug}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "archive" }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to archive message")
+      })
+      .catch((err) => {
+        console.error("archiveMessage error:", err)
+        if (snapshot) {
+          setMessages((p) => p.map((m) => (m.id === id ? snapshot! : m)))
+        }
+      })
+  }, [])
+
+  const unarchiveMessageCb = useCallback((id: string) => {
+    let snapshot: Message | undefined
+    setMessages((prev) => {
+      snapshot = prev.find((m) => m.id === id)
+      return prev.map((m) => m.id === id ? { ...m, archivedAt: null } : m)
+    })
+
+    const slug = snapshot?.slug
+    if (!slug) return
+
+    fetch(`/api/v1/messages/${slug}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "unarchive" }),
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to unarchive message")
+      })
+      .catch((err) => {
+        console.error("unarchiveMessage error:", err)
+        if (snapshot) {
+          setMessages((p) => p.map((m) => (m.id === id ? snapshot! : m)))
+        }
+      })
+  }, [])
+
+  const bulkAction = useCallback(async (action: 'delete' | 'archive' | 'unarchive', ids: string[]) => {
+    const snapshot = [...messages]
+
+    if (action === 'delete') {
+      setMessages((prev) => prev.filter((m) => !ids.includes(m.id)))
+      setPagination((prev) => ({ ...prev, total: Math.max(0, prev.total - ids.length) }))
+    } else if (action === 'archive') {
+      setMessages((prev) => prev.map((m) =>
+        ids.includes(m.id) ? { ...m, archivedAt: new Date().toISOString(), hasVideo: false, hasStudy: false, videoPublished: false, studyPublished: false } : m
+      ))
+    } else if (action === 'unarchive') {
+      setMessages((prev) => prev.map((m) =>
+        ids.includes(m.id) ? { ...m, archivedAt: null } : m
+      ))
+    }
+
+    try {
+      const res = await fetch("/api/v1/messages/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ids }),
+      })
+      if (!res.ok) throw new Error(`Bulk ${action} failed`)
+    } catch (err) {
+      console.error(`bulkAction ${action} error:`, err)
+      setMessages(snapshot)
+      if (action === 'delete') {
+        setPagination((prev) => ({ ...prev, total: prev.total + ids.length }))
+      }
+      throw err
+    }
+  }, [messages])
+
   const value = useMemo(
     () => ({
       series,
@@ -652,6 +785,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       dateFrom,
       dateTo,
       seriesFilter,
+      archiveFilter,
       sortBy,
       sortDir,
       setPage,
@@ -660,6 +794,7 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       setDateFrom,
       setDateTo,
       setSeriesFilter: setSeriesFilterCb,
+      setArchiveFilter,
       setSort,
       refetch,
       fetchMessageById,
@@ -670,8 +805,11 @@ export function MessagesProvider({ children }: { children: ReactNode }) {
       addMessage,
       updateMessage,
       deleteMessage,
+      archiveMessage: archiveMessageCb,
+      unarchiveMessage: unarchiveMessageCb,
+      bulkAction,
     }),
-    [series, messages, loading, reloading, error, pagination, search, dateFrom, dateTo, seriesFilter, sortBy, sortDir, setPage, setPageSize, setSearch, setDateFrom, setDateTo, setSeriesFilterCb, setSort, refetch, fetchMessageById, addSeries, updateSeries, deleteSeries, setSeriesMessages, addMessage, updateMessage, deleteMessage]
+    [series, messages, loading, reloading, error, pagination, search, dateFrom, dateTo, seriesFilter, archiveFilter, sortBy, sortDir, setPage, setPageSize, setSearch, setDateFrom, setDateTo, setSeriesFilterCb, setArchiveFilter, setSort, refetch, fetchMessageById, addSeries, updateSeries, deleteSeries, setSeriesMessages, addMessage, updateMessage, deleteMessage, archiveMessageCb, unarchiveMessageCb, bulkAction]
   )
 
   return <MessagesContext value={value}>{children}</MessagesContext>

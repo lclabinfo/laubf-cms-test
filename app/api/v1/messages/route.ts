@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
       dateTo: searchParams.get('dateTo') ?? undefined,
       sortBy: sortByParam && ['dateFor', 'title', 'speaker'].includes(sortByParam) ? sortByParam as 'dateFor' | 'title' | 'speaker' : undefined,
       sortDir: sortDirParam && ['asc', 'desc'].includes(sortDirParam) ? sortDirParam as 'asc' | 'desc' : undefined,
+      archiveFilter: (searchParams.get('archiveFilter') as 'all' | 'active' | 'archived') ?? undefined,
     }
 
     const result = await getMessages(churchId, filters)

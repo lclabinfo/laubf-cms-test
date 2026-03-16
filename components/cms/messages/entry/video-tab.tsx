@@ -109,9 +109,15 @@ export function VideoTab({
               <Input
                 value={urlInput}
                 onChange={(e) => {
-                  setUrlInput(e.target.value)
+                  const val = e.target.value
+                  setUrlInput(val)
                   setChecked(false)
                   setUrlError("")
+                  // When the field is cleared, immediately notify parent
+                  // so dirty tracking and save data reflect the deletion
+                  if (!val.trim()) {
+                    onVideoUrlChange("")
+                  }
                 }}
                 placeholder="Paste YouTube or Vimeo link"
               />

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
-import { getMessageBySlug, getMessageById, updateMessage, deleteMessage } from '@/lib/dal/messages'
+import { getMessageBySlug, getMessageById, updateMessage, deleteMessage, archiveMessage, unarchiveMessage } from '@/lib/dal/messages'
 import { syncMessageStudy, unlinkMessageStudy } from '@/lib/dal/sync-message-study'
 import { requireApiAuth } from '@/lib/api/require-auth'
 
@@ -51,6 +51,22 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         { success: false, error: { code: 'NOT_FOUND', message: 'Message not found' } },
         { status: 404 },
       )
+    }
+
+    // Handle archive/unarchive actions
+    if (body.action === 'archive') {
+      const result = await archiveMessage(churchId, existing.id)
+      revalidatePath('/website')
+      revalidatePath('/website/messages')
+      revalidatePath('/website/bible-study')
+      return NextResponse.json({ success: true, data: result })
+    }
+    if (body.action === 'unarchive') {
+      const result = await unarchiveMessage(churchId, existing.id)
+      revalidatePath('/website')
+      revalidatePath('/website/messages')
+      revalidatePath('/website/bible-study')
+      return NextResponse.json({ success: true, data: result })
     }
 
     // Extract seriesId (not a Message column — handled via MessageSeries join table)

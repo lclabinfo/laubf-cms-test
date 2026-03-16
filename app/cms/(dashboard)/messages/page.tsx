@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState, useCallback, useMemo } from "react"
+import { Suspense, useState, useCallback, useMemo, useRef, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { useCmsSession } from "@/components/cms/cms-shell"
@@ -206,15 +206,22 @@ function MessagesPageContent() {
     dateFrom,
     dateTo,
     seriesFilter,
+    archiveFilter,
     sortBy,
     sortDir,
     deleteMessage,
+    archiveMessage,
+    unarchiveMessage,
+    updateMessage,
+    bulkAction,
+    refetch,
     setPage,
     setPageSize,
     setSearch,
     setDateFrom,
     setDateTo,
     setSeriesFilter,
+    setArchiveFilter,
     setSort,
   } = useMessages()
 
@@ -227,15 +234,122 @@ function MessagesPageContent() {
     setSearch(value)
   }, [setSearch])
 
+  // Use a ref so the toast undo callback always calls the latest refetch
+  const refetchRef = useRef(refetch)
+  refetchRef.current = refetch
+
+  const undoDelete = useCallback(async (ids: string[]) => {
+    try {
+      const res = await fetch("/api/v1/messages/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "undelete", ids }),
+      })
+      if (!res.ok) throw new Error("Failed to undo")
+      refetchRef.current()
+      toast.success("Delete undone", { description: `${ids.length} ${ids.length === 1 ? "entry" : "entries"} restored.` })
+    } catch {
+      toast.error("Failed to undo delete")
+    }
+  }, [])
+
   const handleDelete = useCallback((id: string) => {
     const message = messages.find((m) => m.id === id)
     deleteMessage(id)
-    toast.success("Message deleted", {
-      description: message ? `"${message.title}" has been deleted.` : undefined,
+    toast(`"${message?.title ?? "Entry"}" deleted`, {
+      action: { label: "Undo", onClick: () => undoDelete([id]) },
     })
-  }, [messages, deleteMessage])
+  }, [messages, deleteMessage, undoDelete])
 
-  const columns = useMemo(() => createColumns({ series, onDelete: handleDelete }), [series, handleDelete])
+  const handleArchive = useCallback((id: string) => {
+    const message = messages.find((m) => m.id === id)
+    archiveMessage(id)
+    toast.success("Entry archived", {
+      description: message ? `"${message.title}" has been archived.` : undefined,
+    })
+  }, [messages, archiveMessage])
+
+  const handleUnarchive = useCallback((id: string) => {
+    const message = messages.find((m) => m.id === id)
+    unarchiveMessage(id)
+    toast.success("Entry unarchived", {
+      description: message ? `"${message.title}" has been unarchived. Its contents remain as drafts.` : undefined,
+    })
+  }, [messages, unarchiveMessage])
+
+  const handlePublishToggle = useCallback((id: string, videoPublished: boolean, studyPublished: boolean) => {
+    const message = messages.find((m) => m.id === id)
+    if (!message) return
+
+    const isArchived = !!message.archivedAt
+    const data: Record<string, unknown> = {
+      videoPublished,
+      studyPublished,
+      hasVideo: videoPublished && message.hasVideoContent,
+      hasStudy: studyPublished && message.hasStudyContent,
+    }
+
+    // If archived and user is publishing something, unarchive
+    if (isArchived && (videoPublished || studyPublished)) {
+      data.archivedAt = null
+    }
+
+    // Set publishedAt if first time publishing
+    if ((videoPublished || studyPublished) && !message.publishedAt) {
+      data.publishedAt = new Date().toISOString()
+    }
+
+    updateMessage(id, data)
+
+    if (isArchived && (videoPublished || studyPublished)) {
+      toast.success("Entry unarchived & published", {
+        description: `"${message.title}" has been unarchived.`,
+      })
+    } else {
+      toast.success("Publish state updated", {
+        description: `"${message.title}" updated.`,
+      })
+    }
+  }, [messages, updateMessage])
+
+  const handleBulkDelete = useCallback(async (ids: string[]) => {
+    try {
+      await bulkAction("delete", ids)
+      toast(`${ids.length} ${ids.length === 1 ? "entry" : "entries"} deleted`, {
+        action: { label: "Undo", onClick: () => undoDelete(ids) },
+      })
+    } catch {
+      toast.error("Failed to delete entries")
+    }
+  }, [bulkAction, undoDelete])
+
+  const handleBulkArchive = useCallback(async (ids: string[]) => {
+    try {
+      await bulkAction("archive", ids)
+      toast.success(`${ids.length} ${ids.length === 1 ? "entry" : "entries"} archived`)
+    } catch {
+      toast.error("Failed to archive entries")
+    }
+  }, [bulkAction])
+
+  const handleBulkUnarchive = useCallback(async (ids: string[]) => {
+    try {
+      await bulkAction("unarchive", ids)
+      toast.success(`${ids.length} ${ids.length === 1 ? "entry" : "entries"} unarchived`, {
+        description: "All contents set to draft. Publish them individually.",
+      })
+    } catch {
+      toast.error("Failed to unarchive entries")
+    }
+  }, [bulkAction])
+
+  const columns = useMemo(() => createColumns({
+    series,
+    onDelete: handleDelete,
+    onArchive: handleArchive,
+    onUnarchive: handleUnarchive,
+    onPublishToggle: handlePublishToggle,
+  }), [series, handleDelete, handleArchive, handleUnarchive, handlePublishToggle])
 
   // Derive TanStack sorting state from server-side sort
   const sorting = useMemo<SortingState>(() => [
@@ -261,6 +375,16 @@ function MessagesPageContent() {
     return Array.from(names).sort()
   }, [messages])
 
+  // Clear selection when page changes to avoid stale index-based selection
+  const currentPage = pagination.page
+  const prevPageRef = useRef(currentPage)
+  useEffect(() => {
+    if (prevPageRef.current !== currentPage) {
+      setRowSelection({})
+      prevPageRef.current = currentPage
+    }
+  }, [currentPage])
+
   // Server-side pagination: TanStack shows all rows from the current API page
   const table = useReactTable({
     data: messages,
@@ -271,6 +395,7 @@ function MessagesPageContent() {
       rowSelection,
       pagination: { pageIndex: 0, pageSize: pagination.pageSize },
     },
+    getRowId: (row) => row.id,
     onSortingChange: handleSortingChange,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
@@ -297,6 +422,7 @@ function MessagesPageContent() {
         </TabsList>
 
         <TabsContent value="all" className="space-y-4">
+          <div className="sticky top-0 z-10 bg-background">
           <Toolbar
             table={table}
             globalFilter={searchInput}
@@ -309,7 +435,14 @@ function MessagesPageContent() {
             onDateToChange={setDateTo}
             seriesFilter={seriesFilter}
             onSeriesFilterChange={setSeriesFilter}
+            archiveFilter={archiveFilter}
+            onArchiveFilterChange={setArchiveFilter}
+            onBulkDelete={handleBulkDelete}
+            onBulkArchive={handleBulkArchive}
+            onBulkUnarchive={handleBulkUnarchive}
+            onPublishToggle={handlePublishToggle}
           />
+          </div>
           {loading ? (
             <MessagesTableSkeleton />
           ) : (

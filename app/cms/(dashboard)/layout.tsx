@@ -44,7 +44,19 @@ export default async function DashboardLayout({ children }: { children: React.Re
       }}
     >
       {children}
-      <Toaster position="bottom-right" richColors />
+      <Toaster
+        position="bottom-right"
+        richColors
+        toastOptions={{
+          className: "!rounded-lg !border-border !font-[var(--font-sans)] !text-sm !shadow-lg",
+          actionButtonStyle: {
+            borderRadius: 'var(--radius)',
+            fontWeight: '500',
+            fontSize: '13px',
+            padding: '4px 12px',
+          },
+        }}
+      />
     </CmsShell>
   )
 }

@@ -1,8 +1,9 @@
 "use client"
 
+import { useState } from "react"
 import Link from "next/link"
 import { Table as TanstackTable } from "@tanstack/react-table"
-import { Search, SlidersHorizontal, Settings2, Plus, X } from "lucide-react"
+import { Search, SlidersHorizontal, Settings2, Plus, X, Archive, Trash2, TriangleAlert, ArchiveRestore } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -18,7 +19,29 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { PublishToggles } from "@/components/cms/messages/publish-toggles"
+import { EntryListPanel } from "@/components/cms/messages/entry-list-panel"
 import type { Message } from "@/lib/messages-data"
+import type { ArchiveFilter } from "@/lib/messages-context"
 
 const columnLabels: Record<string, string> = {
   title: "Title",
@@ -39,10 +62,40 @@ interface ToolbarProps {
   onDateToChange?: (value: string) => void
   seriesFilter?: string
   onSeriesFilterChange?: (seriesId: string | undefined) => void
+  archiveFilter: ArchiveFilter
+  onArchiveFilterChange: (filter: ArchiveFilter) => void
+  onBulkDelete?: (ids: string[]) => void
+  onBulkArchive?: (ids: string[]) => void
+  onBulkUnarchive?: (ids: string[]) => void
+  onPublishToggle?: (id: string, videoPublished: boolean, studyPublished: boolean) => void
 }
 
-export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateFrom, dateTo, onDateFromChange, onDateToChange, seriesFilter, onSeriesFilterChange }: ToolbarProps) {
-  const selectedCount = table.getFilteredSelectedRowModel().rows.length
+export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateFrom, dateTo, onDateFromChange, onDateToChange, seriesFilter, onSeriesFilterChange, archiveFilter, onArchiveFilterChange, onBulkDelete, onBulkArchive, onBulkUnarchive, onPublishToggle }: ToolbarProps) {
+  const selectedRows = table.getFilteredSelectedRowModel().rows
+  const selectedCount = selectedRows.length
+  const selectedMessages = selectedRows.map((r) => r.original)
+
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkArchiveOpen, setBulkArchiveOpen] = useState(false)
+  const [publishOpen, setPublishOpen] = useState(false)
+
+  // For single-entry publish dialog — use pre-computed content-existence flags
+  const singleMessage = selectedCount === 1 ? selectedMessages[0] : null
+  const hasVideoContent = singleMessage?.hasVideoContent ?? false
+  const hasStudyContent = singleMessage?.hasStudyContent ?? false
+  const [videoPub, setVideoPub] = useState(false)
+  const [studyPub, setStudyPub] = useState(false)
+  const isSingleArchived = singleMessage ? !!singleMessage.archivedAt : false
+
+  // Check if all selected are archived (for showing unarchive)
+  const allSelectedArchived = selectedMessages.length > 0 && selectedMessages.every((m) => !!m.archivedAt)
+
+  function openPublishDialog() {
+    if (!singleMessage) return
+    setVideoPub(singleMessage.videoPublished)
+    setStudyPub(singleMessage.studyPublished)
+    setPublishOpen(true)
+  }
 
   function toggleSeries(seriesId: string) {
     if (onSeriesFilterChange) {
@@ -54,11 +107,13 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
     onSeriesFilterChange?.(undefined)
     onDateFromChange?.("")
     onDateToChange?.("")
+    onArchiveFilterChange("all")
   }
 
   const hasDateFilter = !!(dateFrom || dateTo)
   const hasSeriesFilter = !!seriesFilter
-  const filterCount = (hasSeriesFilter ? 1 : 0) + (hasDateFilter ? 1 : 0)
+  const hasArchiveFilter = archiveFilter !== "all"
+  const filterCount = (hasSeriesFilter ? 1 : 0) + (hasDateFilter ? 1 : 0) + (hasArchiveFilter ? 1 : 0)
   const hasFilters = filterCount > 0
 
   return (
@@ -97,6 +152,23 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
                     Clear all
                   </Button>
                 )}
+              </div>
+
+              {/* Status (archive filter) */}
+              <div className="space-y-2">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Status</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {(["all", "active", "archived"] as const).map((filter) => (
+                    <Badge
+                      key={filter}
+                      variant={archiveFilter === filter ? "default" : "outline"}
+                      className="cursor-pointer capitalize"
+                      onClick={() => onArchiveFilterChange(filter)}
+                    >
+                      {filter === "all" ? "All" : filter === "active" ? "Active" : "Archived"}
+                    </Badge>
+                  ))}
+                </div>
               </div>
 
               {/* Series */}
@@ -175,16 +247,27 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
               {selectedCount} selected
             </span>
             <div className="flex items-center gap-1">
-              <Button variant="outline" size="sm">
-                Publish
-              </Button>
-              <Button variant="outline" size="sm">
-                Draft
-              </Button>
-              <Button variant="outline" size="sm">
-                Archive
-              </Button>
-              <Button variant="destructive" size="sm">
+              {/* Publish/Unpublish: only for single entry */}
+              {selectedCount === 1 && (
+                <Button variant="outline" size="sm" onClick={openPublishDialog}>
+                  Publish / Unpublish
+                </Button>
+              )}
+              {/* Archive / Unarchive */}
+              {allSelectedArchived ? (
+                <Button variant="outline" size="sm" onClick={() => {
+                  const ids = selectedMessages.map((m) => m.id)
+                  onBulkUnarchive?.(ids)
+                  table.toggleAllRowsSelected(false)
+                }}>
+                  Unarchive
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" onClick={() => setBulkArchiveOpen(true)}>
+                  Archive
+                </Button>
+              )}
+              <Button variant="destructive" size="sm" onClick={() => setBulkDeleteOpen(true)}>
                 Delete
               </Button>
             </div>
@@ -205,6 +288,97 @@ export function Toolbar({ table, globalFilter, setGlobalFilter, allSeries, dateF
             </Link>
           </Button>
         )}
+
+      {/* Bulk Delete dialog — shows scrollable list of entries with their status */}
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent className="sm:max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-destructive/10">
+              <TriangleAlert className="text-destructive" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Delete {selectedCount} {selectedCount === 1 ? "entry" : "entries"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The following entries and all their contents will be permanently deleted. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <EntryListPanel messages={selectedMessages} />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                const ids = selectedMessages.map((m) => m.id)
+                onBulkDelete?.(ids)
+                table.toggleAllRowsSelected(false)
+                setBulkDeleteOpen(false)
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Archive dialog — shows scrollable list of entries with their status */}
+      <AlertDialog open={bulkArchiveOpen} onOpenChange={setBulkArchiveOpen}>
+        <AlertDialogContent className="sm:max-w-lg">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-warning/10">
+              <Archive className="text-warning" />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Archive {selectedCount} {selectedCount === 1 ? "entry" : "entries"}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The following entries will be archived. All published content will be set to draft and hidden from the public site.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <EntryListPanel messages={selectedMessages} />
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              const ids = selectedMessages.map((m) => m.id)
+              onBulkArchive?.(ids)
+              table.toggleAllRowsSelected(false)
+              setBulkArchiveOpen(false)
+            }}>
+              Archive
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Single-entry Publish/Unpublish dialog — uses same component as editor */}
+      {singleMessage && (
+        <Dialog open={publishOpen} onOpenChange={setPublishOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>{isSingleArchived ? "Publish & Unarchive" : "Publish / Unpublish"}</DialogTitle>
+              <DialogDescription>
+                {isSingleArchived
+                  ? "This entry is archived. Publishing content will also unarchive it."
+                  : "Review what will be visible on the public site."}
+              </DialogDescription>
+            </DialogHeader>
+            <PublishToggles
+              studyPublished={studyPub}
+              videoPublished={videoPub}
+              studyContentExists={hasStudyContent}
+              videoContentExists={hasVideoContent}
+              onStudyChange={setStudyPub}
+              onVideoChange={setVideoPub}
+            />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPublishOpen(false)}>Cancel</Button>
+              <Button onClick={() => {
+                onPublishToggle?.(singleMessage.id, videoPub, studyPub)
+                table.toggleAllRowsSelected(false)
+                setPublishOpen(false)
+              }}>
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }

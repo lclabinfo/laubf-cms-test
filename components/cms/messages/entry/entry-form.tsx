@@ -7,6 +7,7 @@ import type { StagingImageEntry } from "@/lib/upload-media"
 import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes"
 import { parseBibleReference, validateReference } from "@/lib/bible-data"
 import {
+  Archive,
   ArrowLeft,
   AlertCircle,
   Video,
@@ -53,6 +54,7 @@ import { StudyTab } from "./study-tab"
 import { SpeakerSelect } from "./speaker-select"
 import { SeriesSelect } from "./series-select"
 import { BiblePassageInput } from "./bible-passage-input"
+import { PublishToggles } from "@/components/cms/messages/publish-toggles"
 import { Switch } from "@/components/ui/switch"
 import {
   Tooltip,
@@ -116,6 +118,7 @@ export function EntryForm({ mode, message }: EntryFormProps) {
   const pendingImageDeletionsRef = useRef<string[]>([])
   const pendingStagingImagesRef = useRef<StagingImageEntry[]>([])
   const [publishedAt, setPublishedAt] = useState(message?.publishedAt ?? "")
+  const isArchived = !!(message?.archivedAt)
 
   // Video tab state
   const [videoTitle, setVideoTitle] = useState(message?.videoTitle ?? "")
@@ -370,9 +373,18 @@ export function EntryForm({ mode, message }: EntryFormProps) {
       finalPublishedAt = new Date().toISOString()
     }
 
+    // If this entry is archived and user is publishing, unarchive it
+    const shouldUnarchive = isArchived && isPublished
+
+    // Always send all fields so deletions/clears are persisted.
+    // Empty strings become empty strings (API adapter converts to null).
+    const hasVidContent = !!videoUrl
+    const hasStudContent = studySections.length > 0 &&
+      studySections.some((s) => !isTiptapContentEmpty(s.content))
+
     return {
       title: title.trim(),
-      videoTitle: videoTitle.trim() || undefined,
+      videoTitle: videoTitle.trim(),
       slug: generateSlug(title.trim()),
       passage: passage.trim(),
       bibleVersion,
@@ -381,19 +393,22 @@ export function EntryForm({ mode, message }: EntryFormProps) {
       seriesId,
       date,
       publishedAt: finalPublishedAt,
-      hasVideo: vPub,
-      hasStudy: sPub,
+      archivedAt: shouldUnarchive ? null : undefined,
+      hasVideo: vPub && hasVidContent,
+      hasStudy: sPub && hasStudContent,
       videoPublished: vPub,
       studyPublished: sPub,
-      videoUrl: videoUrl || undefined,
-      videoDescription: videoDescription || undefined,
-      duration: duration || undefined,
-      audioUrl: audioUrl || undefined,
-      rawTranscript: rawTranscript || undefined,
-      liveTranscript: liveTranscript || undefined,
-      transcriptSegments: transcriptSegments.length > 0 ? transcriptSegments : undefined,
-      studySections: studySections.length > 0 ? studySections : undefined,
-      attachments: attachments.length > 0 ? attachments : undefined,
+      hasVideoContent: hasVidContent,
+      hasStudyContent: hasStudContent,
+      videoUrl,
+      videoDescription,
+      duration,
+      audioUrl,
+      rawTranscript,
+      liveTranscript,
+      transcriptSegments,
+      studySections,
+      attachments,
     }
   }
 
@@ -760,6 +775,14 @@ export function EntryForm({ mode, message }: EntryFormProps) {
             </div>
           </div>
 
+          {/* Archived banner */}
+          {isArchived && (
+            <div className="flex items-center gap-2 mx-6 mb-2 px-3 py-2 rounded-md bg-warning/10 text-warning text-sm">
+              <Archive className="size-4 shrink-0" />
+              <span>This entry is archived. Publishing any content will unarchive it.</span>
+            </div>
+          )}
+
           {/* Tab row with bottom border */}
           <div className="border-b border-border px-6">
             <TabsList variant="line">
@@ -1096,46 +1119,20 @@ export function EntryForm({ mode, message }: EntryFormProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Save Changes</AlertDialogTitle>
             <AlertDialogDescription>
-              Review what will be visible on the public site.
+              {isArchived && (dialogVideoPublished || dialogStudyPublished)
+                ? "This entry is archived. Publishing content will also unarchive it."
+                : "Review what will be visible on the public site."}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
-              <div className="flex items-center gap-2.5">
-                <BookOpen className="size-4 text-purple-600 dark:text-purple-400" />
-                <span className="text-sm font-medium">Bible Study</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Badge variant={dialogStudyPublished ? "success" : studyContentExists ? "secondary" : "outline"}>
-                  {dialogStudyPublished ? "Published" : studyContentExists ? "Draft" : "Empty"}
-                </Badge>
-                <Switch
-                  checked={dialogStudyPublished}
-                  onCheckedChange={setDialogStudyPublished}
-                  disabled={!studyContentExists}
-                  aria-label="Toggle bible study publish status"
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between rounded-lg bg-muted/50 p-3">
-              <div className="flex items-center gap-2.5">
-                <Video className="size-4 text-blue-600 dark:text-blue-400" />
-                <span className="text-sm font-medium">Video</span>
-              </div>
-              <div className="flex items-center gap-2.5">
-                <Badge variant={dialogVideoPublished ? "success" : videoContentExists ? "secondary" : "outline"}>
-                  {dialogVideoPublished ? "Published" : videoContentExists ? "Draft" : "Empty"}
-                </Badge>
-                <Switch
-                  checked={dialogVideoPublished}
-                  onCheckedChange={setDialogVideoPublished}
-                  disabled={!videoContentExists}
-                  aria-label="Toggle video publish status"
-                />
-              </div>
-            </div>
-          </div>
+          <PublishToggles
+            studyPublished={dialogStudyPublished}
+            videoPublished={dialogVideoPublished}
+            studyContentExists={studyContentExists}
+            videoContentExists={videoContentExists}
+            onStudyChange={setDialogStudyPublished}
+            onVideoChange={setDialogVideoPublished}
+          />
 
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>

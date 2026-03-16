@@ -25,6 +25,11 @@ const messageListInclude = {
     include: { series: true },
     orderBy: { sortOrder: 'asc' as const },
   },
+  relatedStudy: {
+    select: {
+      _count: { select: { attachments: true } },
+    },
+  },
 } satisfies Prisma.MessageInclude
 
 const messageDetailInclude = {
@@ -52,6 +57,8 @@ export type MessageFilters = {
   sortBy?: 'dateFor' | 'title' | 'speaker'
   /** Sort direction (default: desc) */
   sortDir?: 'asc' | 'desc'
+  /** Filter by archive status: 'all' (default), 'active', 'archived' */
+  archiveFilter?: 'all' | 'active' | 'archived'
 }
 
 export async function getMessages(
@@ -60,9 +67,12 @@ export async function getMessages(
 ): Promise<PaginatedResult<MessageWithRelations>> {
   const { skip, take, page, pageSize } = paginationArgs(filters)
 
+  const archiveFilter = filters?.archiveFilter ?? 'all'
   const where: Prisma.MessageWhereInput = {
     churchId,
     deletedAt: null,
+    ...(archiveFilter === 'active' && { archivedAt: null }),
+    ...(archiveFilter === 'archived' && { archivedAt: { not: null } }),
     ...(filters?.videoPublished && { hasVideo: true }),
     ...(filters?.publishedOnly && !filters?.videoPublished && { OR: [{ hasVideo: true }, { hasStudy: true }] }),
     ...(filters?.speakerId && { speakerId: filters.speakerId }),
@@ -320,5 +330,50 @@ export async function deleteMessage(churchId: string, id: string) {
   return prisma.message.update({
     where: { id, churchId },
     data: { deletedAt: new Date() },
+  })
+}
+
+export async function archiveMessage(churchId: string, id: string) {
+  return prisma.message.update({
+    where: { id, churchId },
+    data: {
+      archivedAt: new Date(),
+      hasVideo: false,
+      hasStudy: false,
+    },
+    include: messageDetailInclude,
+  })
+}
+
+export async function unarchiveMessage(churchId: string, id: string) {
+  return prisma.message.update({
+    where: { id, churchId },
+    data: { archivedAt: null },
+    include: messageDetailInclude,
+  })
+}
+
+export async function bulkDeleteMessages(churchId: string, ids: string[]) {
+  return prisma.message.updateMany({
+    where: { id: { in: ids }, churchId, deletedAt: null },
+    data: { deletedAt: new Date() },
+  })
+}
+
+export async function bulkArchiveMessages(churchId: string, ids: string[]) {
+  return prisma.message.updateMany({
+    where: { id: { in: ids }, churchId, deletedAt: null },
+    data: {
+      archivedAt: new Date(),
+      hasVideo: false,
+      hasStudy: false,
+    },
+  })
+}
+
+export async function bulkUnarchiveMessages(churchId: string, ids: string[]) {
+  return prisma.message.updateMany({
+    where: { id: { in: ids }, churchId, deletedAt: null },
+    data: { archivedAt: null },
   })
 }
