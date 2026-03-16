@@ -52,7 +52,23 @@ async function main() {
   const studiesWithSpeaker = await prisma.bibleStudy.count({ where: { deletedAt: null, speakerId: { not: null } } })
   console.log(`  Bible Studies: ${studiesWithSpeaker}/${totalStudies} have a messenger assigned`)
 
-  // 3. Verify Speaker table is dropped
+  // 3. Delete legacy "Messenger" group and all its assignments
+  const messengerGroup = await prisma.personRoleDefinition.findFirst({
+    where: { slug: 'messenger' },
+  })
+  if (messengerGroup) {
+    const deleted = await prisma.personRoleAssignment.deleteMany({
+      where: { roleId: messengerGroup.id },
+    })
+    await prisma.personRoleDefinition.delete({
+      where: { id: messengerGroup.id },
+    })
+    console.log(`\n✓ Deleted "Messenger" group and ${deleted.count} member assignments`)
+  } else {
+    console.log('\n✓ "Messenger" group already removed')
+  }
+
+  // 4. Verify Speaker table is dropped
   const tableExists = await prisma.$queryRaw<{ exists: boolean }[]>`
     SELECT EXISTS (
       SELECT FROM information_schema.tables WHERE table_name = 'Speaker'
