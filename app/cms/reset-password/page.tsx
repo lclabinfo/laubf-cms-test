@@ -12,7 +12,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
+import { PasswordChecklist } from "@/components/ui/password-checklist"
 import { Label } from "@/components/ui/label"
 
 function ResetPasswordForm() {
@@ -106,27 +107,29 @@ function ResetPasswordForm() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="password">New Password</Label>
-            <Input
+            <PasswordInput
               id="password"
-              type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="new-password"
               placeholder="Min 8 chars, upper + lower + number"
             />
+            <PasswordChecklist password={password} />
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirm New Password</Label>
-            <Input
+            <PasswordInput
               id="confirmPassword"
-              type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               autoComplete="new-password"
               placeholder="Confirm your password"
             />
+            {confirmPassword && confirmPassword !== password && (
+              <p className="text-xs text-destructive">Passwords do not match</p>
+            )}
           </div>
 
           {error && (

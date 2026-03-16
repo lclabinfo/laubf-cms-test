@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { useSession } from "next-auth/react"
-// useSearchParams removed — Connect Google button disabled (see vulnerability doc)
+import { Suspense, useState, useEffect, useCallback } from "react"
+import { useSession, signIn } from "next-auth/react"
+import { useSearchParams } from "next/navigation"
 import { Sun, Moon, Monitor, Check, Palette, User, Loader2, Shield, KeyRound } from "lucide-react"
 import { toast } from "sonner"
 import {
@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
+import { PasswordChecklist } from "@/components/ui/password-checklist"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
@@ -280,13 +282,39 @@ function GoogleIcon() {
 }
 
 function SecurityCard({ profile, onProfileRefresh }: { profile: ProfileData | null; onProfileRefresh: () => void }) {
+  const searchParams = useSearchParams()
   const [currentPassword, setCurrentPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [saving, setSaving] = useState(false)
-  // NOTE: "Connect Google" button removed due to session-swap vulnerability.
-  // See docs/00_dev-notes/google-connect-vulnerability.md for details.
-  // Will be re-implemented with a proper account-linking flow.
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+
+  // Handle Google link success/error from redirect
+  useEffect(() => {
+    if (searchParams.get("googleLinked") === "true") {
+      toast.success("Google account connected")
+      onProfileRefresh()
+      // Clean URL without reload
+      window.history.replaceState({}, "", "/cms/settings")
+    }
+    if (searchParams.get("error") === "AccessDenied") {
+      toast.error("Could not connect Google — the Google email must match your account email.")
+      window.history.replaceState({}, "", "/cms/settings")
+    }
+  }, [searchParams, onProfileRefresh])
+
+  const handleConnectGoogle = async () => {
+    setIsGoogleLoading(true)
+    try {
+      // Set linking intent cookie (prevents session-swap vulnerability)
+      await fetch("/api/v1/auth/link-google-intent", { method: "POST" })
+      // Redirect to Google OAuth
+      signIn("google", { callbackUrl: "/cms/settings?googleLinked=true" })
+    } catch {
+      toast.error("Failed to start Google connection")
+      setIsGoogleLoading(false)
+    }
+  }
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -355,7 +383,17 @@ function SecurityCard({ profile, onProfileRefresh }: { profile: ProfileData | nu
             {profile.hasGoogle ? (
               <Badge variant="secondary">Connected</Badge>
             ) : (
-              <Badge variant="outline" className="text-muted-foreground">Coming soon</Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleConnectGoogle}
+                disabled={isGoogleLoading}
+              >
+                {isGoogleLoading ? (
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                ) : null}
+                Connect
+              </Button>
             )}
           </div>
         </div>
@@ -377,9 +415,8 @@ function SecurityCard({ profile, onProfileRefresh }: { profile: ProfileData | nu
             {profile.hasPassword && (
               <div className="space-y-2">
                 <Label htmlFor="currentPassword" className="text-xs">Current password</Label>
-                <Input
+                <PasswordInput
                   id="currentPassword"
-                  type="password"
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   required
@@ -391,26 +428,28 @@ function SecurityCard({ profile, onProfileRefresh }: { profile: ProfileData | nu
               <Label htmlFor="newPassword" className="text-xs">
                 {profile.hasPassword ? "New password" : "Password"}
               </Label>
-              <Input
+              <PasswordInput
                 id="newPassword"
-                type="password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
                 autoComplete="new-password"
                 placeholder="Min 8 chars, upper + lower + number"
               />
+              <PasswordChecklist password={newPassword} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmNewPassword" className="text-xs">Confirm password</Label>
-              <Input
+              <PasswordInput
                 id="confirmNewPassword"
-                type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 autoComplete="new-password"
               />
+              {confirmPassword && confirmPassword !== newPassword && (
+                <p className="text-xs text-destructive">Passwords do not match</p>
+              )}
             </div>
             <div className="flex justify-end">
               <Button type="submit" size="sm" disabled={saving || !newPassword || !confirmPassword}>
@@ -425,7 +464,7 @@ function SecurityCard({ profile, onProfileRefresh }: { profile: ProfileData | nu
   )
 }
 
-export default function SettingsPage() {
+function SettingsContent() {
   const { theme, accent, setTheme, setAccent } = useCmsTheme()
   const [profile, setProfile] = useState<ProfileData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -550,5 +589,13 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
     </div>
+  )
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsContent />
+    </Suspense>
   )
 }

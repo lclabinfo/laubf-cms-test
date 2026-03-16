@@ -3,6 +3,7 @@ import { CredentialsSignin } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
 import bcrypt from 'bcryptjs'
+import { cookies } from 'next/headers'
 import { prisma } from '@/lib/db'
 import { rateLimit } from '@/lib/rate-limit'
 import type { MemberRole } from '@/lib/generated/prisma/client'
@@ -72,6 +73,48 @@ export const authConfig: NextAuthConfig = {
     async signIn({ user, account }) {
       // For Google OAuth: create or link User + Account
       if (account?.provider === 'google' && user.email) {
+        // Check for Google-link intent (user clicked "Connect Google" from settings)
+        const cookieStore = await cookies()
+        const linkIntent = cookieStore.get('google-link-intent')
+
+        if (linkIntent) {
+          // Always clear the cookie, regardless of outcome
+          cookieStore.delete('google-link-intent')
+
+          // Verify the Google email matches the current user's CMS email
+          const intentUser = await prisma.user.findUnique({
+            where: { id: linkIntent.value },
+            include: { accounts: true },
+          })
+
+          if (!intentUser || intentUser.email !== user.email) {
+            // Email mismatch — block to prevent session swap
+            return false
+          }
+
+          // Email matches — link Google Account if not already linked
+          const hasGoogle = intentUser.accounts.some((a) => a.provider === 'google')
+          if (!hasGoogle) {
+            await prisma.account.create({
+              data: {
+                userId: intentUser.id,
+                type: account.type,
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+                refresh_token: account.refresh_token,
+                access_token: account.access_token,
+                expires_at: account.expires_at,
+                token_type: account.token_type,
+                scope: account.scope,
+                id_token: account.id_token,
+                session_state: account.session_state as string | undefined,
+              },
+            })
+          }
+          user.id = intentUser.id
+          return true
+        }
+
         const existingUser = await prisma.user.findUnique({
           where: { email: user.email },
           include: { accounts: true },

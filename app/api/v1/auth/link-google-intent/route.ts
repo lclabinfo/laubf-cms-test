@@ -1,0 +1,29 @@
+import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+import { auth } from '@/lib/auth'
+
+/**
+ * Sets a short-lived httpOnly cookie signaling that the current user
+ * wants to link their Google account. The signIn callback checks this
+ * cookie and only allows linking when the Google email matches.
+ */
+export async function POST() {
+  const session = await auth()
+  if (!session?.user?.id) {
+    return NextResponse.json(
+      { success: false, error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+      { status: 401 },
+    )
+  }
+
+  const cookieStore = await cookies()
+  cookieStore.set('google-link-intent', session.user.id, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 5 * 60, // 5 minutes
+    path: '/',
+  })
+
+  return NextResponse.json({ success: true })
+}
