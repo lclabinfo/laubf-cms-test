@@ -30,49 +30,23 @@ export async function GET() {
 
 const getCachedFrequentSpeakers = unstable_cache(
   async (churchId: string) => {
-    // Get all people
-    const people = await prisma.person.findMany({
-      where: { churchId, deletedAt: null },
-      select: {
-        id: true,
-        firstName: true,
-        lastName: true,
-        preferredName: true,
-      },
-      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
-    })
-
-    // Get all speakers with their message counts (legacy Speaker table)
-    // Messages reference Speaker.name, and Person records match Speaker records by name
+    // Message.speakerId references the Speaker table, so we must return Speaker IDs.
+    // Fetch all speakers with their message counts.
     const speakers = await prisma.speaker.findMany({
       where: { churchId, deletedAt: null },
       select: {
+        id: true,
         name: true,
         _count: { select: { messages: true } },
       },
+      orderBy: [{ name: 'asc' }],
     })
 
-    // Build a map of speaker name → message count
-    const speakerCounts = new Map<string, number>()
-    for (const s of speakers) {
-      speakerCounts.set(s.name.toLowerCase(), s._count.messages)
-    }
-
-    // Map people to results with message counts
-    const results = people.map((p) => {
-      const displayName = p.preferredName
-        ? `${p.preferredName} ${p.lastName}`
-        : `${p.firstName} ${p.lastName}`
-
-      // Match by full name (case-insensitive)
-      const messageCount = speakerCounts.get(displayName.toLowerCase()) ?? 0
-
-      return {
-        id: p.id,
-        name: displayName,
-        messageCount,
-      }
-    })
+    const results = speakers.map((s) => ({
+      id: s.id,
+      name: s.name,
+      messageCount: s._count.messages,
+    }))
 
     // Sort: most frequent speakers first, then alphabetically
     results.sort((a, b) => {

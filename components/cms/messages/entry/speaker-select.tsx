@@ -85,27 +85,20 @@ export function SpeakerSelect({ value, onChange }: SpeakerSelectProps) {
 
     setCreating(true)
     try {
+      const name = `${newFirstName.trim()} ${newLastName.trim()}`
       const baseSlug = `${newFirstName}-${newLastName}`.toLowerCase().replace(/[^a-z0-9-]/g, "-")
-      const res = await fetch("/api/v1/people", {
+      const res = await fetch("/api/v1/speakers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          firstName: newFirstName.trim(),
-          lastName: newLastName.trim(),
-          slug: baseSlug,
-          membershipStatus: "VISITOR",
-        }),
+        body: JSON.stringify({ name, slug: baseSlug }),
       })
       const json = await res.json()
       if (json.success && json.data) {
-        const name = json.data.preferredName
-          ? `${json.data.preferredName} ${json.data.lastName}`
-          : `${json.data.firstName} ${json.data.lastName}`
-        onChange(name, json.data.id)
+        onChange(json.data.name, json.data.id)
         refreshOptions()
       }
     } catch (error) {
-      console.error("Failed to create person:", error)
+      console.error("Failed to create speaker:", error)
     } finally {
       setCreating(false)
       setCreateOpen(false)
@@ -178,9 +171,9 @@ export function SpeakerSelect({ value, onChange }: SpeakerSelectProps) {
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Create new member</DialogTitle>
+            <DialogTitle>Create new speaker</DialogTitle>
             <DialogDescription>
-              This will create a new member entry in your directory.
+              This will create a new speaker for messages and bible studies.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateSubmit} className="space-y-4">
