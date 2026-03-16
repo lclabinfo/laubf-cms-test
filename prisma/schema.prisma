@@ -60,7 +60,6 @@ model Church {
   members            ChurchMember[]
   subscription       Subscription?
   customDomains      CustomDomain[]
-  speakers           Speaker[]
   serieses           Series[]
   ministries         Ministry[]
   campuses           Campus[]
@@ -293,28 +292,6 @@ enum SslStatus {
 // 2. Shared Reference Tables
 // ============================================================
 
-model Speaker {
-  id        String   @id @default(uuid()) @db.Uuid
-  churchId  String   @db.Uuid
-  name      String
-  slug      String
-  title     String?
-  bio       String?  @db.Text
-  photoUrl  String?
-  email     String?
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime?
-
-  church       Church       @relation(fields: [churchId], references: [id], onDelete: Cascade)
-
-  @@unique([churchId, slug])
-  @@index([churchId, isActive])
-  @@index([churchId, name])
-}
 
 model Series {
   id          String    @id @default(uuid()) @db.Uuid

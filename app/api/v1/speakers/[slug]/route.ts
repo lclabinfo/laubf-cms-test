@@ -1,7 +1,10 @@
+/**
+ * Legacy speaker-by-slug endpoints — now backed by Person table.
+ * Retained for backward compatibility with website rendering.
+ */
 import { NextRequest, NextResponse } from 'next/server'
-import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
-import { getSpeakerBySlug, updateSpeaker, deleteSpeaker } from '@/lib/dal/speakers'
+import { prisma } from '@/lib/db'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -10,74 +13,43 @@ export async function GET(_request: NextRequest, { params }: Params) {
     const churchId = await getChurchId()
     const { slug } = await params
 
-    const speaker = await getSpeakerBySlug(churchId, slug)
-    if (!speaker) {
+    const person = await prisma.person.findFirst({
+      where: { churchId, slug, deletedAt: null },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        preferredName: true,
+        title: true,
+        bio: true,
+        photoUrl: true,
+        email: true,
+      },
+    })
+
+    if (!person) {
       return NextResponse.json(
         { success: false, error: { code: 'NOT_FOUND', message: 'Speaker not found' } },
         { status: 404 },
       )
     }
 
-    return NextResponse.json({ success: true, data: speaker })
+    return NextResponse.json({
+      success: true,
+      data: {
+        id: person.id,
+        name: person.preferredName ? `${person.preferredName} ${person.lastName}` : `${person.firstName} ${person.lastName}`,
+        slug,
+        title: person.title,
+        bio: person.bio,
+        photoUrl: person.photoUrl,
+        email: person.email,
+      },
+    })
   } catch (error) {
     console.error('GET /api/v1/speakers/[slug] error:', error)
     return NextResponse.json(
       { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to fetch speaker' } },
-      { status: 500 },
-    )
-  }
-}
-
-export async function PATCH(request: NextRequest, { params }: Params) {
-  try {
-    const churchId = await getChurchId()
-    const { slug } = await params
-    const body = await request.json()
-
-    const existing = await getSpeakerBySlug(churchId, slug)
-    if (!existing) {
-      return NextResponse.json(
-        { success: false, error: { code: 'NOT_FOUND', message: 'Speaker not found' } },
-        { status: 404 },
-      )
-    }
-
-    const updated = await updateSpeaker(churchId, existing.id, body)
-
-    revalidatePath('/website', 'layout')
-
-    return NextResponse.json({ success: true, data: updated })
-  } catch (error) {
-    console.error('PATCH /api/v1/speakers/[slug] error:', error)
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update speaker' } },
-      { status: 500 },
-    )
-  }
-}
-
-export async function DELETE(_request: NextRequest, { params }: Params) {
-  try {
-    const churchId = await getChurchId()
-    const { slug } = await params
-
-    const existing = await getSpeakerBySlug(churchId, slug)
-    if (!existing) {
-      return NextResponse.json(
-        { success: false, error: { code: 'NOT_FOUND', message: 'Speaker not found' } },
-        { status: 404 },
-      )
-    }
-
-    await deleteSpeaker(churchId, existing.id)
-
-    revalidatePath('/website', 'layout')
-
-    return NextResponse.json({ success: true, data: { deleted: true } })
-  } catch (error) {
-    console.error('DELETE /api/v1/speakers/[slug] error:', error)
-    return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to delete speaker' } },
       { status: 500 },
     )
   }

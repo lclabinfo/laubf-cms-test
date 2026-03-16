@@ -13,7 +13,6 @@ export * from './videos'
 export * from './daily-bread'
 
 // Reference DAL modules
-export * from './speakers'
 export * from './series'
 export * from './ministries'
 export * from './campuses'

@@ -68,10 +68,6 @@ export function SpeakerSelect({ value, onChange }: SpeakerSelectProps) {
     s.name.toLowerCase().includes(search.toLowerCase())
   )
 
-  const showCustomOption =
-    search.trim() &&
-    !options.some((s) => s.name.toLowerCase() === search.trim().toLowerCase())
-
   const handleCreateOpen = () => {
     setOpen(false)
     setCreateOpen(true)
@@ -143,33 +139,20 @@ export function SpeakerSelect({ value, onChange }: SpeakerSelectProps) {
                     data-checked={value === opt.name}
                   >
                     <span className="flex-1">{opt.name}</span>
-                    {opt.messageCount > 0 && (
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {opt.messageCount}
-                      </span>
-                    )}
                   </CommandItem>
                 ))}
-                {showCustomOption && (
-                  <CommandItem
-                    value={`custom-${search.trim()}`}
-                    onSelect={() => {
-                      onChange(search.trim())
-                      setOpen(false)
-                      setSearch("")
-                    }}
-                  >
-                    Use &ldquo;{search.trim()}&rdquo;
-                  </CommandItem>
-                )}
               </CommandGroup>
-              <CommandSeparator />
-              <CommandGroup>
-                <CommandItem onSelect={handleCreateOpen}>
-                  <Plus className="size-4" />
-                  Create new member...
-                </CommandItem>
-              </CommandGroup>
+              {filtered.length === 0 && search.trim() && (
+                <>
+                  <CommandSeparator />
+                  <CommandGroup>
+                    <CommandItem onSelect={handleCreateOpen}>
+                      <Plus className="size-4" />
+                      Create new member...
+                    </CommandItem>
+                  </CommandGroup>
+                </>
+              )}
             </CommandList>
           </Command>
         </PopoverContent>

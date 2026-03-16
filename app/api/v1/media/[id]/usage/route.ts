@@ -47,7 +47,6 @@ export async function GET(
       siteSettingsResults,
       sectionRows,
       pageOgResults,
-      speakerResults,
       personResults,
       ministryResults,
       campusResults,
@@ -153,14 +152,7 @@ export async function GET(
         take: 20,
       }),
 
-      // 11. Speaker.photoUrl
-      prisma.speaker.findMany({
-        where: { churchId, photoUrl: url, deletedAt: null },
-        select: { id: true, name: true },
-        take: 20,
-      }),
-
-      // 12. Person.photoUrl
+      // 11. Person.photoUrl
       prisma.person.findMany({
         where: { churchId, photoUrl: url, deletedAt: null },
         select: { id: true, firstName: true, lastName: true },
@@ -302,15 +294,6 @@ export async function GET(
       })
     }
 
-    for (const s of speakerResults) {
-      usages.push({
-        type: 'speaker',
-        id: s.id,
-        title: s.name,
-        url: `/cms/messages?speaker=${s.id}`,
-        detail: 'Speaker Photo',
-      })
-    }
 
     for (const p of personResults) {
       usages.push({
