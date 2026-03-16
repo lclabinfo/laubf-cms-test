@@ -5,47 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 /* ---- Website Font Loading ---- */
-/* Helvetica Neue + Strude served from R2 (la-ubf/fonts/) */
+/* Custom fonts (Helvetica Neue, Strude) loaded dynamically via FontLoader from DB config */
 /* DM Serif Display loaded via next/font/google in layout.tsx */
-@font-face {
-  font-family: "Helvetica Neue";
-  src:
-    local("Helvetica Neue"),
-    local("HelveticaNeue"),
-    url("https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/fonts/helvetica-neue/HelveticaNeueRoman.otf") format("opentype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Helvetica Neue";
-  src:
-    local("Helvetica Neue Medium"),
-    local("HelveticaNeue-Medium"),
-    url("https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/fonts/helvetica-neue/HelveticaNeueMedium.otf") format("opentype");
-  font-weight: 500;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Helvetica Neue";
-  src:
-    local("Helvetica Neue Bold"),
-    local("HelveticaNeue-Bold"),
-    url("https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/fonts/helvetica-neue/HelveticaNeueBold.otf") format("opentype");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "strude";
-  src: url("https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/fonts/strude/strude.ttf") format("truetype");
-  font-weight: 400;
-  font-display: swap;
-}
 
 @theme inline {
   --color-background: var(--background);

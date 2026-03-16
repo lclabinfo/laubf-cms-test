@@ -5,6 +5,21 @@ interface CustomFontDescriptor {
   url: string
   weight?: string
   style?: string
+  format?: string
+}
+
+/** Detect font format from file extension */
+function detectFontFormat(url: string): string {
+  const ext = url.split('.').pop()?.toLowerCase()
+  switch (ext) {
+    case 'woff2': return 'woff2'
+    case 'woff': return 'woff'
+    case 'ttf': return 'truetype'
+    case 'otf': return 'opentype'
+    case 'eot': return 'embedded-opentype'
+    case 'svg': return 'svg'
+    default: return 'woff2'
+  }
 }
 
 interface TokenOverrides {
@@ -49,7 +64,7 @@ export async function FontLoader({ churchId }: { churchId: string }) {
       (f) =>
         `@font-face {
   font-family: '${f.family}';
-  src: url('${f.url}') format('woff2');
+  src: url('${f.url}') format('${f.format || detectFontFormat(f.url)}');
   font-weight: ${f.weight ?? '400'};
   font-style: ${f.style ?? 'normal'};
   font-display: swap;

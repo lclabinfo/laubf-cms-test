@@ -17,6 +17,7 @@
  *  13. Fix college page CAMPUS_CARD_GRID: href to /im-new#plan-visit + showCtaIcon: false
  *  14. Set showCtaIcon: true on I'm New page CAMPUS_CARD_GRID
  *  15. Replace Sunday Worship image with sunday-praise.webp + add to media library
+ *  16. Fix custom font URLs: relative /fonts/ paths → R2 CDN URLs
  *
  * This script is IDEMPOTENT — safe to run multiple times.
  * It only updates specific fields and does not delete/recreate anything.
@@ -728,6 +729,50 @@ if (existingMedia) {
     },
   })
   console.log('  ✓ Added sunday-praise.webp to media library')
+}
+
+// ============================================================
+// 16. Fix custom font URLs: relative paths → R2 CDN URLs
+// ============================================================
+console.log('\n── 16. Fixing custom font URLs in ThemeCustomization ──')
+
+const R2_FONT_CDN = 'https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/fonts'
+const fontUrlMap: Record<string, string> = {
+  '/fonts/helvetica-neue/HelveticaNeueRoman.otf': `${R2_FONT_CDN}/helvetica-neue/HelveticaNeueRoman.otf`,
+  '/fonts/helvetica-neue/HelveticaNeueMedium.otf': `${R2_FONT_CDN}/helvetica-neue/HelveticaNeueMedium.otf`,
+  '/fonts/helvetica-neue/HelveticaNeueBold.otf': `${R2_FONT_CDN}/helvetica-neue/HelveticaNeueBold.otf`,
+  '/fonts/strude/strude.ttf': `${R2_FONT_CDN}/strude/strude.ttf`,
+}
+
+const themeCustomizations = await prisma.themeCustomization.findMany({
+  where: { churchId },
+})
+
+for (const tc of themeCustomizations) {
+  const overrides = (tc.tokenOverrides ?? {}) as Record<string, unknown>
+  const fonts = overrides.customFonts as Array<{ family: string; url: string; [k: string]: unknown }> | undefined
+  if (!fonts || fonts.length === 0) continue
+
+  let changed = false
+  const updatedFonts = fonts.map(f => {
+    const newUrl = fontUrlMap[f.url]
+    if (newUrl) {
+      changed = true
+      return { ...f, url: newUrl }
+    }
+    return f
+  })
+
+  if (!changed) {
+    console.log(`  ✓ ThemeCustomization ${tc.id}: font URLs already correct`)
+    continue
+  }
+
+  await prisma.themeCustomization.update({
+    where: { id: tc.id },
+    data: { tokenOverrides: { ...overrides, customFonts: updatedFonts } },
+  })
+  console.log(`  ✓ Updated ${updatedFonts.length} font URLs to R2 CDN in ThemeCustomization ${tc.id}`)
 }
 
 // ============================================================
