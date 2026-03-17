@@ -309,8 +309,8 @@ The consolidation from two apps to one happens during the **Website Rendering In
 
 1. **Phase A**: Get the single-tenant MVP working — root CMS + laubf-test public site, both reading from the same database, no route groups needed yet. **STATUS: COMPLETE.**
 2. **Phase B**: Move public website components (`sections/`, layouts, theme) from `laubf-test/` into the root project under `components/website/` and `app/(website)/`. Retire `laubf-test/` as a standalone app. **STATUS: B.1, B.2, and B.3 COMPLETE (40/42 section types have real implementations; 2 intentional placeholders).**
-3. **Phase C (v1)**: Website builder admin UI. **STATUS: COMPLETE.** List-based editor with all CRUD operations for pages, sections, menus, theme, domains, and site settings. See `docs/00_dev-notes/website-admin-implementation.md`.
-3b. **Phase C (v2)**: Full-screen website builder. **STATUS: IN PROGRESS.** Canvas-based WYSIWYG editor replacing the v1 list-based editor. See `docs/00_dev-notes/website-builder-plan.md`.
+3. **Phase C (v1)**: Website builder admin UI. **STATUS: COMPLETE.** List-based editor with all CRUD operations for pages, sections, menus, theme, domains, and site settings. See `docs/04_builder/admin-implementation.md`.
+3b. **Phase C (v2)**: Full-screen website builder. **STATUS: ~85% COMPLETE.** Canvas-based WYSIWYG editor replacing the v1 list-based editor. See `docs/04_builder/builder-plan.md`.
 4. **Phase D**: Add middleware for tenant resolution and route group separation. **STATUS: NOT STARTED.**
 
 ---
@@ -359,7 +359,7 @@ Our website builder is intentionally closer to **Shopify** than **Wix/Framer**:
 
 2. **Templates define safe defaults.** A template is a preset combination of pages + sections + theme tokens. Churches can customize within the template's boundaries. Switching templates re-skins the site without losing content.
 
-3. **Section-based visual editor.** ~~The section editor is a list-based UI (v1).~~ The full-screen builder (v2, in progress) provides a WYSIWYG canvas that renders actual section components with drag-and-drop reordering via @dnd-kit. Section content is edited in modal forms, not inline on the canvas. See `docs/00_dev-notes/website-builder-plan.md` for the builder architecture.
+3. **Section-based visual editor.** ~~The section editor is a list-based UI (v1).~~ The full-screen builder (v2, in progress) provides a WYSIWYG canvas that renders actual section components with drag-and-drop reordering via @dnd-kit. Section content is edited in modal forms, not inline on the canvas. See `docs/04_builder/builder-plan.md` for the builder architecture.
 
 4. **CMS content pages are immutable in structure.** The Messages page always renders `SPOTLIGHT_MEDIA → ALL_MESSAGES`. The admin can configure display options (grid vs. list, items per page), but they can't remove or rearrange those sections. This prevents "I accidentally deleted my sermons page" support tickets.
 
@@ -683,4 +683,4 @@ See `docs/website-rendering/09-section-component-guide.md` for the full catalog 
 
 ## 13. Builder Rendering Pipeline
 
-The full-screen website builder at `app/cms/website/builder/` renders the same section components as the live website but in a different context (client-side, within the CMS admin). For the complete builder rendering architecture, known gaps (especially the responsive preview limitation), z-index scheme, and theme token flow, see **`docs/03_website-rendering/10-builder-rendering.md`**.
+The full-screen website builder at `app/cms/website/builder/` renders the same section components as the live website but in a different context (client-side, within the CMS admin). For the complete builder rendering architecture, known gaps (especially the responsive preview limitation), z-index scheme, and theme token flow, see **`docs/04_builder/builder-rendering.md`**.

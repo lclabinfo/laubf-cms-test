@@ -176,7 +176,7 @@ These settings are stored on `PageSection` (not in JSONB `content`) because they
 
 ## 6. Website Builder Admin API Routes
 
-All API routes listed below are **COMPLETE** (implemented as part of Phase C v1). See `docs/00_dev-notes/website-admin-implementation.md` for the full list of 20 endpoints.
+All API routes listed below are **COMPLETE** (implemented as part of Phase C v1). See `docs/04_builder/admin-implementation.md` for the full list of 20 endpoints.
 
 ```
 app/api/v1/
@@ -222,11 +222,11 @@ The v2 builder at `app/cms/website/builder/` renders actual `SectionRenderer` co
 3. On save, the API is called (PATCH) and the canvas re-renders with updated content
 4. The canvas shows the same section components used on the public website
 
-This approach (Approach B from the original design) provides live preview without a separate preview mode, because the canvas IS the preview. See `docs/00_dev-notes/website-builder-plan.md` Phase 2 (Canvas) and Phase 5 (Section Editors).
+This approach (Approach B from the original design) provides live preview without a separate preview mode, because the canvas IS the preview. See `docs/04_builder/builder-plan.md` Phase 2 (Canvas) and Phase 5 (Section Editors).
 
-**Known limitation:** The builder's device preview (mobile/tablet) constrains the canvas container width but does not change the browser viewport. CSS media queries (`@media (min-width: ...)`) and Tailwind responsive prefixes (`sm:`, `md:`, `lg:`) still evaluate against the full viewport, so responsive breakpoint behavior (show/hide elements, grid column changes) is not accurately previewed. See `docs/03_website-rendering/10-builder-rendering.md` Section 5 for the full analysis and future options.
+**Known limitation:** The builder's device preview (mobile/tablet) constrains the canvas container width but does not change the browser viewport. CSS media queries (`@media (min-width: ...)`) and Tailwind responsive prefixes (`sm:`, `md:`, `lg:`) still evaluate against the full viewport, so responsive breakpoint behavior (show/hide elements, grid column changes) is not accurately previewed. See `docs/04_builder/builder-rendering.md` Section 5 for the full analysis and future options.
 
-**Rendering parity:** The builder canvas applies the same theme CSS variables, custom CSS, font loading, and section component props as the live website. See `docs/03_website-rendering/10-builder-rendering.md` for the complete comparison.
+**Rendering parity:** The builder canvas applies the same theme CSS variables, custom CSS, font loading, and section component props as the live website. See `docs/04_builder/builder-rendering.md` for the complete comparison.
 
 ---
 

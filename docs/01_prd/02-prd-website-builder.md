@@ -7,11 +7,11 @@
 
 ## Current Implementation Status
 
-> **Last updated**: February 24, 2026
+> **Last updated**: March 17, 2026
 
 ### Summary
 
-The Website Builder is being implemented as a **full-screen visual builder** with a live canvas preview, replacing the initial list-based page editor (Phase C v1). The builder renders actual section components in a WYSIWYG canvas and provides structured editing via modals.
+The Website Builder is a **full-screen visual builder** with a live canvas preview, replacing the v1 list-based page editor. The builder renders actual section components in a WYSIWYG canvas and provides structured editing via a right-panel drawer (Shopify-style).
 
 ### What Exists Today
 
@@ -24,34 +24,37 @@ The Website Builder is being implemented as a **full-screen visual builder** wit
 | **Section components** | COMPLETE (40/42) | 40 real implementations, 2 intentional placeholders (NAVBAR, DAILY_BREAD_FEATURE) |
 | **Section registry** | COMPLETE | Maps SectionType enum to React components |
 | **Public website rendering** | COMPLETE | Catch-all route, ThemeProvider, FontLoader, SectionWrapper |
-| **CMS page editor (v1)** | COMPLETE | List-based editor at `/cms/website/pages/[slug]` with section picker, JSON editor, move up/down |
+| **Builder shell** | COMPLETE | Full-screen layout, topbar, sidebar, drawer, canvas, device preview |
+| **Builder canvas** | COMPLETE | Live section rendering, DnD reordering, section selection, floating toolbar |
+| **Section picker** | COMPLETE | Categorized, searchable, 40+ types with previews |
+| **Page management** | COMPLETE | Page tree, add/duplicate/delete pages, page settings modal |
+| **Section editors** | ~85% COMPLETE | 14 editor files, 28/41 sections fully correct. 13 need gap fixes. |
+| **Undo/redo** | COMPLETE | In-memory, 50-snapshot cap, Cmd+Z/Shift+Z |
+| **Auto-save** | COMPLETE | 30s debounce + manual Cmd+S |
 | **Theme customizer (v1)** | COMPLETE | Color pickers, font selector, font size, custom CSS |
 | **Navigation editor (v1)** | COMPLETE | Menu items CRUD with hierarchy, reorder |
 | **Domain manager** | COMPLETE | Custom domain add/remove, DNS instructions |
 | **Site settings** | COMPLETE | General, logo, contact, social, service times, SEO, maintenance |
-| **Builder layout** | IN PROGRESS | Full-screen layout at `app/cms/website/builder/layout.tsx` with auth check |
-| **Builder entry page** | IN PROGRESS | Redirect logic at `app/cms/website/builder/page.tsx` |
-| **Builder [pageId] route** | NOT STARTED | Data loading + BuilderShell |
-| **Builder components** | NOT STARTED | Shell, sidebar, drawer, canvas, topbar, section picker, editors |
-| **Drag-and-drop** | NOT STARTED | @dnd-kit installed but not wired |
+| **Design panel (in-builder)** | NOT STARTED | Stub exists, deferred to Phase 2 |
 
 ### Builder Approach
 
-The full-screen builder follows the Figma prototype (`figma-cms-2:11:26/`) and is modeled after Shopify's section-based editor:
+The full-screen builder follows the Figma prototype and is modeled after Shopify's section-based editor:
 
-- **Full-screen experience** -- hides CMS sidebar, dedicated builder layout at `app/cms/website/builder/`
-- **Live canvas preview** -- renders actual `SectionRenderer` components wrapped in interactive chrome (selection, hover, floating toolbar)
-- **Section-based editing** -- sections are the atomic unit; admins compose pages from 42 section types across 7 categories
-- **Modal editors** -- section content is edited in modal forms, not inline on the canvas
-- **Template-governed** -- CMS content pages (messages, events, etc.) have protected section structures
-- **Device preview** -- desktop/tablet/mobile viewport switching in the canvas
+- **Full-screen experience** — hides CMS sidebar, dedicated builder layout at `app/cms/website/builder/`
+- **Live canvas preview** — renders actual section components wrapped in interactive chrome (selection, hover, floating toolbar)
+- **Right-panel drawer editing** — section content edited in form fields with live canvas preview (Shopify-style)
+- **Section-based editing** — sections are the atomic unit; admins compose pages from 42 section types across 7 categories
+- **Template-governed** — CMS content pages (messages, events, etc.) have protected section structures
+- **Device preview** — desktop/tablet/mobile viewport switching in the canvas
 
-### Implementation Plan Reference
+### Documentation Reference
 
-The detailed implementation plan with 9 phases and 48 tasks is at:
-- **Master plan**: `docs/00_dev-notes/website-builder-plan.md`
-- **Status tracker**: `docs/00_dev-notes/website-builder-status.md`
-- **Architecture doc**: `docs/00_dev-notes/website-builder-plan.md` (Architecture section + Key Design Decisions)
+All builder documentation is consolidated at `docs/04_builder/`:
+- **Roadmap**: `docs/04_builder/builder-roadmap.md` — what to build next
+- **Architecture**: `docs/04_builder/builder-plan.md` — component hierarchy, state management, API integration
+- **Editor spec**: `docs/04_builder/section-editor-spec.md` — field-by-field gap analysis
+- **Full index**: `docs/04_builder/README.md`
 
 ### Priority Legend
 
@@ -209,7 +212,7 @@ The detailed implementation plan with 9 phases and 48 tasks is at:
 
 ## 6. Full-Screen Website Builder (New)
 
-> This section describes the full-screen builder that supersedes the v1 list-based page editor. See `docs/00_dev-notes/website-builder-plan.md` for the detailed implementation plan.
+> This section describes the full-screen builder that supersedes the v1 list-based page editor. See `docs/04_builder/builder-plan.md` for the detailed implementation plan.
 
 ### 6.1 Builder Shell
 

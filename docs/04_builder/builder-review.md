@@ -671,7 +671,7 @@ The seed data in `prisma/seed.mts` represents the **source of truth** for what t
 5. **The GIVING page is minimal** — just PAGE_HERO + hidden STATEMENT. This suggests it's incomplete or intentionally simple.
 6. **PHOTO_GALLERY is hidden on some pages** — `visible: false` on high-school ministry. The visibility toggle is already being used in production seed data.
 
-**Important:** When auditing section rendering, use the **public website** (`laubf.lclab.io` or `localhost:3000/website/`) as the ground truth — not the builder canvas (which may have rendering differences noted in `docs/03_website-rendering/10-builder-rendering.md`).
+**Important:** When auditing section rendering, use the **public website** (`laubf.lclab.io` or `localhost:3000/website/`) as the ground truth — not the builder canvas (which may have rendering differences noted in `docs/04_builder/builder-rendering.md`).
 
 ---
 

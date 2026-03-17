@@ -196,7 +196,7 @@ The drawer already uses `<ScrollArea className="flex-1">` (line 234 of builder-r
 ## Issue 6: Section Documentation
 
 **Status:** TODO
-**Output:** `docs/00_dev-notes/section-catalog-reference.md`
+**Output:** `docs/04_builder/section-catalog-reference.md`
 
 ### Requirement
 Create comprehensive documentation of:
