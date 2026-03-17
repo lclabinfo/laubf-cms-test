@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getPersonById, updatePerson, deletePerson, permanentDeletePerson } from '@/lib/dal/people'
 import { requireApiAuth } from '@/lib/api/require-auth'
@@ -46,6 +47,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     }
 
     const updated = await updatePerson(churchId, id, body)
+    revalidateTag('members', { expire: 0 })
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -75,6 +77,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     }
 
     const updated = await updatePerson(churchId, id, body)
+    revalidateTag('members', { expire: 0 })
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -108,6 +111,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     } else {
       await deletePerson(churchId, id)
     }
+    revalidateTag('members', { expire: 0 })
 
     return NextResponse.json({ success: true, data: { deleted: true, permanent } })
   } catch (error) {

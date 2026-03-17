@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getPeople, createPerson, type PersonFilters } from '@/lib/dal/people'
+import { requireApiAuth } from '@/lib/api/require-auth'
 import { type MembershipStatus } from '@/lib/generated/prisma/client'
 
 export async function GET(request: NextRequest) {
@@ -40,6 +41,9 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authResult = await requireApiAuth('people.edit')
+    if (!authResult.authorized) return authResult.response
+
     const churchId = await getChurchId()
     const body = await request.json()
 
@@ -51,7 +55,7 @@ export async function POST(request: NextRequest) {
     }
 
     const person = await createPerson(churchId, body)
-    revalidateTag('members', 'max')
+    revalidateTag('members', { expire: 0 })
 
     return NextResponse.json({ success: true, data: person }, { status: 201 })
   } catch (error) {
