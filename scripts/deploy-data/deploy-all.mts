@@ -24,7 +24,7 @@ const scripts = [
   { name: 'Reference Data', file: 'apply-reference-data.mts' },
   { name: 'People Data', file: 'apply-people-data.mts' },
   { name: 'Recurring Events', file: 'apply-recurring-events.mts' },
-  { name: 'Website Data', file: 'apply-website-data.mts' },
+  { name: 'Website Seed (reset)', file: 'reset-website-seed.mts' },
   { name: 'Verification', file: 'verify-deploy.mts' },
 ]
 
