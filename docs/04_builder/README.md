@@ -1,31 +1,54 @@
 # Website Builder Documentation
 
-> **Last updated**: March 17, 2026
+> **Last updated**: March 18, 2026
 
 All documentation for the website builder lives in this directory. The builder is a full-screen Shopify-style editor at `app/cms/website/builder/` with a live canvas + right-panel drawer editing.
 
 ---
 
-## Document Index
+## Active Documents (Root)
 
-| Document | Purpose | Status |
-|---|---|---|
-| **[builder-roadmap.md](builder-roadmap.md)** | Forward-looking plan: what to build next, weekly targets, phases | **Active** — updated March 17. Start here. |
-| **[section-editor-spec.md](section-editor-spec.md)** | Field-by-field gap analysis: what each editor exposes vs. what it should expose | **Active** — 28/41 complete, 13 need changes. David reviews before implementing. |
-| **[builder-review.md](builder-review.md)** | Product design critique: editing approach decision (drawer-first), section audit, effort estimates | **Reference** — core decisions still valid. Editing approach is settled. |
-| **[builder-plan.md](builder-plan.md)** | Original implementation architecture: component hierarchy, state management, API integration, 9-phase task breakdown | **Reference** — architecture is accurate. Phase status is outdated (builder is ~85% built, not 0/48). Use roadmap for current status. |
-| **[section-catalog-reference.md](section-catalog-reference.md)** | Raw field inventory: every content field for all 41 section types, default values, editor file mappings | **Reference** — field definitions are accurate. For gap analysis, use section-editor-spec.md instead. |
-| **[section-db-audit.md](section-db-audit.md)** | Database connectivity audit: how each section gets its data (DAL functions, data sources, static JSONB) | **Reference** — data flow architecture is still accurate. |
-| **[builder-rendering.md](builder-rendering.md)** | Rendering pipeline: how builder canvas renders sections vs. live website, known gaps (responsive preview), z-index architecture | **Reference** — accurate and detailed. |
-| **[undo-redo-and-save-architecture.md](undo-redo-and-save-architecture.md)** | Undo/redo + save system: in-memory React state, 50-snapshot cap, auto-save at 30s, no Redis needed | **Reference** — accurate and implemented. |
-| **[admin-implementation.md](admin-implementation.md)** | Historical tracker for v1 CMS admin pages (pages manager, theme, navigation, domains, settings) — all marked COMPLETE | **Historical** — all v1 work is done. Kept for reference on what API routes/DAL functions exist. |
-| **[builder-ux-issues.md](builder-ux-issues.md)** | 8 specific UX issues (drag preview, selection border, picker positioning, scrollable sidebar, etc.) | **Active** — these bugs need fixing. |
+| Document | Purpose |
+|---|---|
+| **[builder-roadmap.md](builder-roadmap.md)** | What to build next. Weekly targets, phases. Start here. |
+| **[section-editor-spec.md](section-editor-spec.md)** | Field-by-field gap analysis: what each editor exposes vs. what it should. David reviews before implementing. |
 
-## Related Documents (Not in This Directory)
+## Dev Notes (`dev-notes/`)
 
-| Document | Location | Why It's Separate |
-|---|---|---|
-| Website Builder PRD | `docs/01_prd/02-prd-website-builder.md` | PRD — lives with other PRDs |
-| Section Component Guide | `docs/03_website-rendering/09-section-component-guide.md` | About rendering/migration, not builder-specific |
-| Primary User Profile | `docs/01_prd/00-primary-user-profile.md` | User persona — referenced by builder docs |
-| Messages Editor Refactor | `docs/00_dev-notes/messages-editor-refactor.md` | CMS messages editor, not website builder |
+Technical references for implementation.
+
+| Document | Purpose |
+|---|---|
+| [dev-guide-day1.md](dev-notes/dev-guide-day1.md) | Day 1 working reference — key files, task details, patterns, DOs/DON'Ts. Load as Claude Code context. |
+| [builder-system-architecture.md](dev-notes/builder-system-architecture.md) | Full system analysis — data flow, state management, section lifecycle, pain points, optimization recs. |
+| [builder-rendering.md](dev-notes/builder-rendering.md) | Builder canvas vs. live website rendering pipeline, known gaps, z-index scheme. |
+| [undo-redo-and-save-architecture.md](dev-notes/undo-redo-and-save-architecture.md) | Undo/redo + save system design. In-memory React state, 50-snapshot cap, auto-save 30s. |
+| [section-catalog-reference.md](dev-notes/section-catalog-reference.md) | Raw field inventory for all 41 section types + default values. |
+| [section-db-audit.md](dev-notes/section-db-audit.md) | DB connectivity per section — DAL functions, data sources. |
+| [admin-implementation.md](dev-notes/admin-implementation.md) | Historical: v1 CMS admin pages (all COMPLETE). API route/DAL reference. |
+
+## Mental Model (`mental-model/`)
+
+| Document | Purpose |
+|---|---|
+| [builder-review.md](mental-model/builder-review.md) | Product design critique — editing approach decision (drawer-first), Shopify comparison, section audit. |
+
+## Backlogs (`backlogs/`)
+
+| Document | Purpose |
+|---|---|
+| [builder-ux-issues.md](backlogs/builder-ux-issues.md) | 8 UX bugs to fix (drag preview, selection border, picker positioning, etc.) |
+
+## Soon to Archive (`soon-to-archive/`)
+
+| Document | Purpose |
+|---|---|
+| [builder-plan.md](soon-to-archive/builder-plan.md) | Original 9-phase implementation plan. Architecture still useful, task status outdated. |
+
+## Related (Outside This Directory)
+
+| Document | Location |
+|---|---|
+| Website Builder PRD | `docs/01_prd/02-prd-website-builder.md` |
+| Section Component Guide | `docs/03_website-rendering/09-section-component-guide.md` |
+| Primary User Profile | `docs/01_prd/00-primary-user-profile.md` |
