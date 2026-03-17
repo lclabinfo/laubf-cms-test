@@ -25,7 +25,6 @@ Technical references for implementation.
 | [undo-redo-and-save-architecture.md](dev-notes/undo-redo-and-save-architecture.md) | Undo/redo + save system design. In-memory React state, 50-snapshot cap, auto-save 30s. |
 | [section-catalog-reference.md](dev-notes/section-catalog-reference.md) | Raw field inventory for all 41 section types + default values. |
 | [section-db-audit.md](dev-notes/section-db-audit.md) | DB connectivity per section — DAL functions, data sources. |
-| [admin-implementation.md](dev-notes/admin-implementation.md) | Historical: v1 CMS admin pages (all COMPLETE). API route/DAL reference. |
 
 ## Mental Model (`mental-model/`)
 
