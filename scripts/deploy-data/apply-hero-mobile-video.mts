@@ -47,7 +47,7 @@ try {
   // 2. Add to media library
   const { rowCount: inserted } = await client.query(`
     INSERT INTO "MediaAsset" (id, "churchId", filename, url, "mimeType", "fileSize", alt, folder, "createdAt", "updatedAt")
-    SELECT gen_random_uuid(), $1, 'compressed-hero-vid-mobile.webm', $2, 'video/webm', 0, 'Hero banner mobile video', 'website', now(), now()
+    SELECT gen_random_uuid(), $1, 'compressed-hero-vid-mobile.webm', $2, 'video/webm', 6027195, 'Hero banner mobile video', 'initial-setup', now(), now()
     WHERE NOT EXISTS (SELECT 1 FROM "MediaAsset" WHERE url = $2)
   `, [churchId, MOBILE_VIDEO_URL])
   console.log(`Media library: ${inserted ? 'added' : 'already exists'}`)
