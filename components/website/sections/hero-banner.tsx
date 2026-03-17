@@ -6,7 +6,6 @@ import CTAButton from "@/components/website/shared/cta-button"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
 
-const COMPRESSED_VIDEO = "https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/initial-setup/compressed-hero-vid.webm"
 const LG_BREAKPOINT = 1024
 
 interface HeroBannerContent {
@@ -15,6 +14,7 @@ interface HeroBannerContent {
   primaryButton?: { label: string; href: string; visible: boolean }
   secondaryButton?: { label: string; href: string; visible: boolean }
   backgroundImage: { src: string; alt: string; objectPosition?: string }
+  mobileVideo?: { src: string }
 }
 
 interface Props {
@@ -33,7 +33,7 @@ export default function HeroBannerSection({ content, enableAnimations }: Props) 
           content.backgroundImage.src.endsWith(".mp4") || content.backgroundImage.src.endsWith(".webm") ? (
             <HeroVideo
               desktopSrc={content.backgroundImage.src}
-              mobileSrc={COMPRESSED_VIDEO}
+              mobileSrc={content.mobileVideo?.src ?? content.backgroundImage.src}
               animate={animate}
             />
           ) : (
