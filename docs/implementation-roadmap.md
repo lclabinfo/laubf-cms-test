@@ -19,7 +19,7 @@ The project uses two phase numbering systems. This table shows how they map:
 | — | Phase B.2 | Section component migration (40/42 migrated) | **COMPLETE** |
 | Phase 8.1 | Phase B.3 | Section registry + page seeding | **COMPLETE** |
 | — | Phase C (v1) | Website builder admin UI (list-based editor) | **COMPLETE** |
-| — | Phase C (v2) | Full-screen website builder (canvas + DnD) | **IN PROGRESS** |
+| — | Phase C (v2) | Full-screen website builder (canvas + DnD) | **~85% COMPLETE** |
 | Phase 6.1 | — | Authentication | **COMPLETE** |
 | Phase 7.1 | Phase D | Multi-tenant middleware | **NOT STARTED** |
 | — | Phase E | Caching & performance | **NOT STARTED** |
@@ -100,9 +100,9 @@ The initial website builder admin UI with all core CRUD functionality:
 
 **Components**: Section picker dialog (7 categories), section editor dialog (display settings + JSON content).
 
-See `docs/00_dev-notes/website-admin-implementation.md` for the full implementation tracker.
+See `docs/04_builder/admin-implementation.md` for the full implementation tracker.
 
-### Website Phase C v2 (Full-Screen Builder): IN PROGRESS
+### Website Phase C v2 (Full-Screen Builder): ~85% COMPLETE
 
 The full-screen website builder replaces the v1 list-based editor with a canvas-based WYSIWYG experience:
 
@@ -123,7 +123,7 @@ The full-screen website builder replaces the v1 list-based editor with a canvas-
 
 **Status**: Phase 1 partially started (layout + entry page exist). Phases 2-9 not started.
 
-See `docs/00_dev-notes/website-builder-plan.md` for the master plan and `docs/00_dev-notes/website-builder-status.md` for task-level tracking.
+See `docs/04_builder/builder-plan.md` for the master plan and `docs/04_builder/builder-roadmap.md` for task-level tracking.
 
 ### Authentication: COMPLETE
 
@@ -160,12 +160,12 @@ Auth is implemented at `lib/auth/`. Session-based auth protects `/cms/*` routes 
 
 ---
 
-### 2. Full-Screen Website Builder (Phase C v2) — IN PROGRESS
+### 2. Full-Screen Website Builder (Phase C v2) — ~85% COMPLETE
 
 **Why next**: The v1 list-based editor is functional but basic. The full-screen builder provides the professional editing experience described in the PRD and Figma prototype.
 
 **Scope** (~10-15 days): 48 tasks across 9 phases.
-See `docs/00_dev-notes/website-builder-plan.md` for the master plan.
+See `docs/04_builder/builder-plan.md` for the master plan.
 
 **Key milestones**:
 - Phases 1-3 (P0): Layout shell + canvas + section picker = minimum functional builder
@@ -258,11 +258,10 @@ COMPLETED:
   Auth (Database Phase 6.1) .................. DONE
   Phase C v1: Website Builder Admin UI ....... DONE (list-based editor, all CRUD)
 
-IN PROGRESS:
-  Phase C v2: Full-Screen Builder ............ 10-15 days ← CURRENT
-    ├── Phases 1-3 (P0, layout+canvas+picker) ← NEXT
-    ├── Phases 4-5 (P0, pages+editors)
-    └── Phases 6-9 (P1, design+polish)
+~85% COMPLETE:
+  Phase C v2: Full-Screen Builder ............ ~85% done ← CURRENT
+    ├── Phases 1-5 (P0, layout+canvas+picker+pages+editors) ← DONE
+    └── Phases 6-9 (P1, design+polish) ← REMAINING
 
 REMAINING:
   Phase F (partial): Deploy LA UBF ........... 3-5 days
@@ -310,9 +309,9 @@ The key insight: **Phases D and E are growth infrastructure.** They add zero val
 | Topic | Document |
 |---|---|
 | Unified status, phase specs, AI prompts | `docs/00_dev-notes/development-status.md` |
-| Website builder master plan | `docs/00_dev-notes/website-builder-plan.md` |
-| Website builder task tracker | `docs/00_dev-notes/website-builder-status.md` |
-| Website builder v1 implementation | `docs/00_dev-notes/website-admin-implementation.md` |
+| Website builder master plan | `docs/04_builder/builder-plan.md` |
+| Website builder task tracker | `docs/04_builder/builder-roadmap.md` |
+| Website builder v1 implementation | `docs/04_builder/admin-implementation.md` |
 | Website builder PRD | `docs/01_prd/02-prd-website-builder.md` |
 | Hosting & domain setup | `docs/03_website-rendering/06-hosting-domain-strategy.md` |
 | Caching strategy | `docs/03_website-rendering/07-caching.md` |

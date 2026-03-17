@@ -51,15 +51,36 @@ function globalFilterFn(
   _columnId: string,
   filterValue: string
 ) {
-  const search = filterValue.toLowerCase()
-  const { firstName, lastName, preferredName, email, phone } = row.original
-  return (
+  const search = filterValue.toLowerCase().trim()
+  if (!search) return true
+  const { firstName, lastName, preferredName, email, phone, mobilePhone, groups } = row.original
+  const fullName = `${firstName} ${lastName}`.toLowerCase()
+
+  // Check if the full name or individual fields match the entire search string
+  if (
+    fullName.includes(search) ||
     firstName.toLowerCase().includes(search) ||
     lastName.toLowerCase().includes(search) ||
     (preferredName?.toLowerCase().includes(search) ?? false) ||
     (email?.toLowerCase().includes(search) ?? false) ||
-    (phone?.toLowerCase().includes(search) ?? false)
-  )
+    (phone?.toLowerCase().includes(search) ?? false) ||
+    (mobilePhone?.toLowerCase().includes(search) ?? false) ||
+    groups.some((g) => g.name.toLowerCase().includes(search))
+  ) {
+    return true
+  }
+
+  // Multi-word search: all words must match somewhere across fields
+  const words = search.split(/\s+/).filter(Boolean)
+  if (words.length > 1) {
+    const searchableText = [fullName, preferredName, email, phone, mobilePhone, ...groups.map((g) => g.name)]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+    return words.every((word) => searchableText.includes(word))
+  }
+
+  return false
 }
 
 // Hoist row model factories outside the component so they are stable references

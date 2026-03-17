@@ -28,8 +28,8 @@
 | Web B.1 | Route Group + Registry | COMPLETE | `(website)` route group, section registry (40 entries), ThemeProvider, FontLoader, SectionWrapper, catch-all page route, 6 initial sections + 7 shared components migrated |
 | Web B.2 | Section Migration | COMPLETE (40/42) | 40 real section components migrated (including CUSTOM_HTML and CUSTOM_EMBED added during migration). 2 placeholders remain: NAVBAR (handled by layout component), DAILY_BREAD_FEATURE (no source implementation exists in laubf-test) |
 | Web B.3 | Seed Data | COMPLETE | 14 pages with sections, Theme + ThemeCustomization, SiteSettings, Header + Footer menus with items |
-| Web C (v1) | Website Builder Admin (list-based) | COMPLETE | 20 API endpoints, 6 admin pages with full CRUD: pages manager, section editor (picker + JSON), theme customizer, navigation editor, domain manager, site settings. See `docs/00_dev-notes/website-admin-implementation.md` |
-| Web C (v2) | Full-Screen Builder (canvas-based) | IN PROGRESS | Builder layout + entry page exist at `app/cms/website/builder/`. 48 tasks across 9 phases. @dnd-kit, motion, sonner installed. See `docs/00_dev-notes/website-builder-plan.md` and `docs/00_dev-notes/website-builder-status.md` |
+| Web C (v1) | Website Builder Admin (list-based) | COMPLETE | 20 API endpoints, 6 admin pages with full CRUD: pages manager, section editor (picker + JSON), theme customizer, navigation editor, domain manager, site settings. See `docs/04_builder/admin-implementation.md` |
+| Web C (v2) | Full-Screen Builder (canvas-based) | ~85% COMPLETE | Builder layout + entry page exist at `app/cms/website/builder/`. 48 tasks across 9 phases. @dnd-kit, motion, sonner installed. See `docs/04_builder/builder-plan.md` and `docs/04_builder/builder-roadmap.md` |
 | Web D | Multi-Tenant Middleware | NOT STARTED | = DB 7.1. Requires Auth (DB 6.1) first |
 | Web E | Caching & Performance | NOT STARTED | `unstable_cache` wrappers, tag-based invalidation |
 | Web F | Production Deployment | NOT STARTED | = DB 9.1. Azure VM, Caddy, Cloudflare, monitoring |
@@ -71,14 +71,14 @@ Based on dependency analysis and the current project state, here is the recommen
 
 ### 3. Website Builder Admin v1 -- COMPLETE
 **Phase**: Web C (v1)
-**Status**: All CRUD operations functional. 20 API endpoints, 6 admin pages. See `docs/00_dev-notes/website-admin-implementation.md`.
+**Status**: All CRUD operations functional. 20 API endpoints, 6 admin pages. See `docs/04_builder/admin-implementation.md`.
 
 ### 4. Full-Screen Website Builder v2 -- IN PROGRESS
 **Phase**: Web C (v2)
 **Why next**: The v1 list-based editor works but lacks the WYSIWYG canvas and structured section editors described in the PRD and Figma prototype. The full-screen builder provides the professional editing experience.
 **Effort**: 10-15 days (48 tasks across 9 phases)
 **Dependencies**: Web C v1 (COMPLETE), Auth (COMPLETE)
-**Tracking**: `docs/00_dev-notes/website-builder-plan.md` (master plan), `docs/00_dev-notes/website-builder-status.md` (task tracker)
+**Tracking**: `docs/04_builder/builder-plan.md` (master plan), `docs/04_builder/builder-roadmap.md` (task tracker)
 
 ### 5. Deploy LA UBF (Single-Tenant Production)
 **Phase**: Web F / DB 9.1
@@ -172,7 +172,7 @@ This section provides task breakdowns for all incomplete phases.
 ### Phase: Website Builder Admin v1 (Web C v1) -- COMPLETE
 
 **Status**: COMPLETE
-**Implementation tracker**: `docs/00_dev-notes/website-admin-implementation.md`
+**Implementation tracker**: `docs/04_builder/admin-implementation.md`
 
 All 20 API endpoints and 6 admin pages are functional. See the implementation tracker for the complete feature list.
 
@@ -185,8 +185,8 @@ All 20 API endpoints and 6 admin pages are functional. See the implementation tr
 **Dependencies**: Web C v1 (COMPLETE), Auth (COMPLETE)
 **Priority**: P0-P1
 
-**Master plan**: `docs/00_dev-notes/website-builder-plan.md`
-**Task tracker**: `docs/00_dev-notes/website-builder-status.md`
+**Master plan**: `docs/04_builder/builder-plan.md`
+**Task tracker**: `docs/04_builder/builder-roadmap.md`
 
 #### What Exists
 - Builder layout at `app/cms/website/builder/layout.tsx` (full-screen, auth check)

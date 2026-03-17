@@ -85,8 +85,21 @@ export function SpeakerSelect({ value, onChange }: SpeakerSelectProps) {
   const handleCreateOpen = () => {
     setOpen(false)
     setCreateOpen(true)
-    setNewFirstName("")
-    setNewLastName("")
+    // Prefill name fields from search text
+    const trimmed = search.trim()
+    if (trimmed) {
+      const parts = trimmed.split(/\s+/)
+      if (parts.length >= 2) {
+        setNewFirstName(parts[0])
+        setNewLastName(parts.slice(1).join(" "))
+      } else {
+        setNewFirstName(parts[0])
+        setNewLastName("")
+      }
+    } else {
+      setNewFirstName("")
+      setNewLastName("")
+    }
   }
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
@@ -156,17 +169,13 @@ export function SpeakerSelect({ value, onChange }: SpeakerSelectProps) {
                   </CommandItem>
                 ))}
               </CommandGroup>
-              {filtered.length === 0 && search.trim() && (
-                <>
-                  <CommandSeparator />
-                  <CommandGroup>
-                    <CommandItem onSelect={handleCreateOpen}>
-                      <Plus className="size-4" />
-                      Create new member...
-                    </CommandItem>
-                  </CommandGroup>
-                </>
-              )}
+              <CommandSeparator />
+              <CommandGroup>
+                <CommandItem onSelect={handleCreateOpen}>
+                  <Plus className="size-4" />
+                  Add New Member
+                </CommandItem>
+              </CommandGroup>
             </CommandList>
           </Command>
         </PopoverContent>

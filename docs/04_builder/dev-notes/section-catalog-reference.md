@@ -1,6 +1,9 @@
 # Section Catalog Reference
 
-> Generated 2026-02-25. Source of truth: `components/cms/website/builder/section-catalog.ts` and the editor files in `components/cms/website/builder/section-editors/`.
+> Generated 2026-02-25. Updated 2026-03-17.
+> Source of truth: `components/cms/website/builder/section-catalog.ts` and the editor files in `components/cms/website/builder/section-editors/`.
+>
+> **Note**: For the current editor gap analysis (what's exposed vs what should be exposed), see `section-editor-spec.md`. This document catalogs the raw field inventory per section type.
 
 ---
 

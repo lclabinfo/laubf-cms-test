@@ -8,7 +8,7 @@ import { unstable_cache } from 'next/cache'
  *
  * Returns all members (Person records) sorted by how frequently they appear
  * as messengers in messages. Cached indefinitely, invalidated via
- * revalidateTag('members', 'max') when members are created/updated.
+ * revalidateTag('members', { expire: 0 }) when members are created/updated.
  */
 export async function GET() {
   try {

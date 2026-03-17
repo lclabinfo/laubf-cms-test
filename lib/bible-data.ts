@@ -47,14 +47,19 @@ export const BOOK_ABBREVIATIONS: Record<string, string> = {
 }
 
 /**
- * Normalizes input: ~ → -, collapse spaces, normalize spacing around : and -.
+ * Normalizes input: ~ → -, collapse spaces, normalize spacing around : and -,
+ * insert space between numbered book prefix and name (e.g. "1Kings" → "1 Kings").
  */
 function normalizeInput(input: string): string {
   let s = input.trim()
+  // Strip trailing periods from book names (e.g. "1Samuel." → "1Samuel")
+  s = s.replace(/\.(\s)/, "$1")
   s = s.replace(/~/g, "-")
   s = s.replace(/\s+/g, " ")
   s = s.replace(/\s*:\s*/g, ":")
   s = s.replace(/(\d)\s*-\s*(\d)/g, "$1-$2")
+  // Insert space between numbered prefix and book name: "1Kings 3:1" → "1 Kings 3:1"
+  s = s.replace(/^(\d)([A-Za-z])/, "$1 $2")
   return s
 }
 
@@ -314,13 +319,22 @@ function clampReference(ref: BibleReference): BibleReference | null {
 }
 
 export function findBook(query: string): string | null {
-  const q = query.toLowerCase().replace(/\./g, "")
+  // Clean: strip trailing periods, collapse whitespace
+  let q = query.toLowerCase().replace(/\./g, "").trim()
 
   // Exact match
   const exact = BIBLE_BOOKS.find(b => b.toLowerCase() === q)
   if (exact) return exact
 
-  // Starts-with match
+  // Normalize missing space in numbered books: "1kings" → "1 kings", "2corinthians" → "2 corinthians"
+  const numberedMatch = q.match(/^(\d)\s*([a-z].*)$/)
+  if (numberedMatch) {
+    q = `${numberedMatch[1]} ${numberedMatch[2]}`
+    const exactAfterSpace = BIBLE_BOOKS.find(b => b.toLowerCase() === q)
+    if (exactAfterSpace) return exactAfterSpace
+  }
+
+  // Starts-with match (handles "psalm" → "Psalms", "hebrew" → "Hebrews", etc.)
   const starts = BIBLE_BOOKS.find(b => b.toLowerCase().startsWith(q))
   if (starts) return starts
 

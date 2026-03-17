@@ -41,6 +41,40 @@ export type PersonFilters = {
   householdId?: string
 }
 
+function buildSearchFilter(search: string): Prisma.PersonWhereInput {
+  const trimmed = search.trim()
+  if (!trimmed) return {}
+
+  const singleTermConditions: Prisma.PersonWhereInput[] = [
+    { firstName: { contains: trimmed, mode: 'insensitive' } },
+    { lastName: { contains: trimmed, mode: 'insensitive' } },
+    { preferredName: { contains: trimmed, mode: 'insensitive' } },
+    { email: { contains: trimmed, mode: 'insensitive' } },
+    { phone: { contains: trimmed, mode: 'insensitive' } },
+    { mobilePhone: { contains: trimmed, mode: 'insensitive' } },
+    { roleAssignments: { some: { role: { name: { contains: trimmed, mode: 'insensitive' } } } } },
+  ]
+
+  const words = trimmed.split(/\s+/).filter(Boolean)
+
+  if (words.length > 1) {
+    // Multi-word: match all words across firstName + lastName (e.g., "David Lim")
+    const crossFieldCondition: Prisma.PersonWhereInput = {
+      AND: words.map((word) => ({
+        OR: [
+          { firstName: { contains: word, mode: 'insensitive' as const } },
+          { lastName: { contains: word, mode: 'insensitive' as const } },
+          { preferredName: { contains: word, mode: 'insensitive' as const } },
+        ],
+      })),
+    }
+
+    return { OR: [...singleTermConditions, crossFieldCondition] }
+  }
+
+  return { OR: singleTermConditions }
+}
+
 export async function getPeople(
   churchId: string,
   filters?: PersonFilters & PaginationParams,
@@ -56,15 +90,7 @@ export async function getPeople(
     ...(filters?.householdId && {
       householdMemberships: { some: { householdId: filters.householdId } },
     }),
-    ...(filters?.search && {
-      OR: [
-        { firstName: { contains: filters.search, mode: 'insensitive' as const } },
-        { lastName: { contains: filters.search, mode: 'insensitive' as const } },
-        { preferredName: { contains: filters.search, mode: 'insensitive' as const } },
-        { email: { contains: filters.search, mode: 'insensitive' as const } },
-        { phone: { contains: filters.search, mode: 'insensitive' as const } },
-      ],
-    }),
+    ...(filters?.search && buildSearchFilter(filters.search)),
   }
 
   const [data, total] = await Promise.all([

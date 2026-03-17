@@ -91,12 +91,12 @@ All static sections are **WORKING** — they read from the `content` JSON stored
 | CUSTOM_EMBED | custom-embed.tsx | Iframe embed |
 | RECURRING_SCHEDULE | recurring-schedule.tsx | Schedule grid |
 
-### Placeholder Sections
+### Non-Section Components
 
-| Section Type | Reason |
+| Section Type | Status |
 |---|---|
-| NAVBAR | Handled by layout, not rendered as section |
-| DAILY_BREAD_FEATURE | Fully implemented (was listed as placeholder, now real) |
+| NAVBAR | Handled by layout, not a per-page section. Intentional placeholder in registry. |
+| DAILY_BREAD_FEATURE | Fully implemented RSC with reader mode UI, audio player, scroll tracking. |
 
 ## Issues Found & Fixed
 

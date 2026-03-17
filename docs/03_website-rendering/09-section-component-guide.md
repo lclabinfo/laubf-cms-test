@@ -472,8 +472,8 @@ Components should be migrated in the following order based on page importance:
 | `laubf-test/src/app/globals.css` | EXISTS | Typography utility classes referenced by sections |
 | `docs/database/03-website-schema.md` | EXISTS | SectionType enum, JSONB examples, page templates |
 | `docs/website-rendering/01-architecture.md` | EXISTS | Static vs dynamic section architecture |
-| `components/website/sections/` | PARTIAL | Target directory — 6 sections migrated + placeholders for rest |
-| `components/website/sections/registry.tsx` | EXISTS | Maps all 40 SectionType enum values to components (6 real, 34 placeholders) |
+| `components/website/sections/` | COMPLETE | Target directory — 40/42 sections migrated (2 intentional placeholders: NAVBAR, DAILY_BREAD_FEATURE) |
+| `components/website/sections/registry.tsx` | EXISTS | Maps all 42 SectionType enum values to components (40 real, 2 placeholders) |
 | `components/website/sections/section-wrapper.tsx` | EXISTS | SectionWrapper with colorScheme, paddingY, containerWidth, visible |
 | `components/website/sections/hero-banner.tsx` | EXISTS | Migrated HeroBanner section |
 | `components/website/sections/media-text.tsx` | EXISTS | Migrated MediaText section |

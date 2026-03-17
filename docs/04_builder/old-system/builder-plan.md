@@ -633,22 +633,22 @@ Update this section as work progresses. Mark tasks with:
 - `[~]` In progress
 - `[!]` Blocked
 
-### Phase Status Summary
+### Phase Status Summary (Updated March 17, 2026)
 
 | Phase | Status | Completed | Total | Notes |
 |---|---|---|---|---|
-| Phase 1: Layout & Navigation Shell | In progress | 0 | 8 | Tasks 1.1 and 1.2 partially done (files exist) |
-| Phase 2: Canvas & Section Rendering | Not started | 0 | 7 | @dnd-kit installed |
-| Phase 3: Section Picker Modal | Not started | 0 | 5 | Can reuse section-picker-dialog.tsx categories |
-| Phase 4: Pages & Menu Drawer | Not started | 0 | 7 | |
-| Phase 5: Section Editors | Not started | 0 | 4 | Can reuse section-editor-dialog.tsx |
-| Phase 6: Design Panel | Not started | 0 | 3 | |
-| Phase 7: Data Backup & Seed | Not started | 0 | 3 | Independent of other phases |
-| Phase 8: CMS Admin Integration | Not started | 0 | 5 | |
-| Phase 9: Polish & Edge Cases | Not started | 0 | 6 | |
-| **Total** | | **0** | **48** | |
+| Phase 1: Layout & Navigation Shell | Complete | 8 | 8 | All builder layout, sidebar, drawer, topbar, routing done |
+| Phase 2: Canvas & Section Rendering | Complete | 7 | 7 | DnD, device preview, section selection, sortable sections all working |
+| Phase 3: Section Picker Modal | Complete | 5 | 5 | Categorized, searchable, 40+ types with previews |
+| Phase 4: Pages & Menu Drawer | Complete | 7 | 7 | Page tree, add/duplicate/delete, page settings modal |
+| Phase 5: Section Editors | Mostly Complete | 3 | 4 | 14 editor files, 28/41 correct. 13 need gap fixes (see `section-editor-spec.md`) |
+| Phase 6: Design Panel | Not started | 0 | 3 | Stub exists ("coming soon"). Deferred to Phase 2 of roadmap. |
+| Phase 7: Data Backup & Seed | Complete | 3 | 3 | Seed data includes all pages, sections, menus, theme |
+| Phase 8: CMS Admin Integration | Complete | 5 | 5 | Pages list opens builder, old editor has banner, cross-links exist |
+| Phase 9: Polish & Edge Cases | Mostly Complete | 5 | 6 | Unsaved warning, toasts, keyboard shortcuts, undo/redo all work. Some UX bugs remain (see `builder-ux-issues.md`). |
+| **Total** | | **~43** | **48** | ~85% complete |
 
-**Detailed task tracker**: See `docs/00_dev-notes/website-builder-status.md`
+**Forward-looking plan**: See `builder-roadmap.md` for what's next.
 
 ---
 

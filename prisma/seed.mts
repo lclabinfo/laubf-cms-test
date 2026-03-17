@@ -1025,10 +1025,10 @@ async function main() {
         fontScript: '"strude", cursive',
         // Custom fonts
         customFonts: [
-          { family: 'Helvetica Neue', url: '/fonts/helvetica-neue/HelveticaNeueRoman.otf', weight: '400', format: 'opentype' },
-          { family: 'Helvetica Neue', url: '/fonts/helvetica-neue/HelveticaNeueMedium.otf', weight: '500', format: 'opentype' },
-          { family: 'Helvetica Neue', url: '/fonts/helvetica-neue/HelveticaNeueBold.otf', weight: '700', format: 'opentype' },
-          { family: 'strude', url: '/fonts/strude/strude.ttf', weight: '400', format: 'truetype' },
+          { family: 'Helvetica Neue', url: 'https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/fonts/helvetica-neue/HelveticaNeueRoman.otf', weight: '400', format: 'opentype' },
+          { family: 'Helvetica Neue', url: 'https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/fonts/helvetica-neue/HelveticaNeueMedium.otf', weight: '500', format: 'opentype' },
+          { family: 'Helvetica Neue', url: 'https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/fonts/helvetica-neue/HelveticaNeueBold.otf', weight: '700', format: 'opentype' },
+          { family: 'strude', url: 'https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/fonts/strude/strude.ttf', weight: '400', format: 'truetype' },
         ],
         // Google fonts
         googleFonts: [
