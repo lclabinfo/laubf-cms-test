@@ -173,35 +173,32 @@ The `maxWidth` constraint does affect:
 - **Responsive typography**: `text-h1` (which changes from 32px to 48px at `lg:`) -- always uses the large variant.
 - **Responsive padding**: `py-24 lg:py-30` from `SectionContainer` -- always uses the `lg:` variant.
 
-### Why Not Use Iframes?
+### Decision: Iframe-Based Canvas (March 18, 2026)
 
-An `<iframe>` with `width: 375px` would give accurate viewport-based media queries. However:
-- **Architecture change**: The builder canvas would need to be a separate route rendered inside an iframe. This breaks the single-React-tree model, making drag-and-drop, selection state, and keyboard shortcuts significantly harder.
-- **Performance**: Each iframe is a full browser context with its own DOM, styles, and scripts.
-- **Communication**: Builder shell and canvas would need `postMessage` for all interactions.
-- This is a valid long-term approach but not appropriate for the current phase.
+**Status: DECIDED — implementing as Phase 1 Day 1 blocker.**
 
-### Why Not Use CSS Container Queries?
+An `<iframe>` sized to the target device width gives correct viewport-based media queries with zero changes to section components. This is the industry standard approach (Framer, Webflow, Squarespace, WordPress Gutenberg).
 
-CSS `@container` queries respond to the container's width, not the viewport. We could:
-1. Make the canvas container a CSS containment context (`container-type: inline-size`)
-2. Replace all `@media` / Tailwind responsive prefixes with `@container` queries
+**Implementation plan:**
+1. Create lightweight preview route (`app/cms/website/builder/preview/[pageId]/`) — renders sections with theme, no builder chrome
+2. Replace inline rendering in `builder-canvas.tsx` with `<iframe src={previewRoute}>` sized to `deviceWidths[deviceMode]`
+3. Bidirectional `postMessage` protocol for section updates, selection, clicks, and height sync
+4. Overlay layer on top of iframe for selection borders, hover states, and DnD handles
+5. Navbar preview moves into iframe; link clicks intercepted via postMessage
 
-However:
-- **All 40+ section components** use Tailwind responsive prefixes (`sm:`, `md:`, `lg:`). Rewriting them all is extremely invasive.
-- **Global CSS utilities** (typography scale, container variants) use `@media (width >= ...)` rules.
-- **Third-party components** (Framer Motion, Radix UI) may use viewport queries internally.
-- This approach would also break the live website unless we use container queries everywhere, which would require the live site's `<main>` to also be a container context.
+**Tradeoffs accepted:**
+- Cross-frame communication adds complexity (postMessage protocol)
+- DnD needs overlay-based approach (drag handles in parent, not in iframe)
+- DevTools debugging crosses frame boundaries
+- Initial load slightly heavier (iframe loads its own bundle)
 
-### Current Status
+**Why not CSS Container Queries:**
+- Would require rewriting responsive utilities in all 40+ section components
+- Global CSS utilities use `@media` rules
+- Would also affect the live website unless fully committed
+- Massive effort, high regression risk
 
-The builder provides a "width-constrained" preview that is **accurate for layout flow** (how content reflows at narrow widths) but **not accurate for responsive breakpoint behavior** (which elements show/hide, which grid columns are used). This is documented as a known limitation.
-
-### Future Options
-
-1. **Iframe-based canvas** (recommended long-term): Render a real website page inside an iframe at the target width. Use `postMessage` for builder-canvas communication. This is how most production website builders (Webflow, Wix, Framer) work.
-2. **Hybrid approach**: Use the current direct-rendering for desktop mode and iframe rendering for mobile/tablet preview. This limits the iframe complexity to preview-only mode.
-3. **CSS Container Queries migration**: If the industry standardizes on container queries for component libraries, migrate section components gradually. Tailwind CSS v4 has experimental `@container` support.
+See `docs/04_builder/worklog/builder-responsive-rendering-bug.md` for the full analysis, implementation sketch, and sequencing impact.
 
 ---
 
@@ -328,8 +325,8 @@ Both contexts have identical font availability because they use the same RSC.
 | Theme CSS variables | **Full** | Same computation, same `data-website` scope |
 | Custom CSS injection | **Full** | Same `<style>` tag approach |
 | Font loading | **Full** | Same `FontLoader` RSC |
-| Desktop layout preview | **High** | Width-constrained but full parity |
-| Tablet/mobile preview | **Partial** | Width correct, but viewport-based media queries don't trigger |
+| Desktop layout preview | **Partial** | Width-constrained but viewport media queries fire incorrectly when sidebars narrow the canvas. **Fix: iframe migration (in progress)** |
+| Tablet/mobile preview | **Broken** | Viewport still 1440px+ — all breakpoints fire, showing desktop layout in narrow container. **Fix: iframe migration (in progress)** |
 | Navbar rendering | **Partial** | Same component but forced `position: relative` |
 | Footer rendering | **None** | Intentionally excluded from builder |
 | Scroll animations | **None** | Intentionally disabled in builder |

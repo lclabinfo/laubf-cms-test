@@ -104,23 +104,70 @@ Editor field onChange
 
 ## Day 1 Tasks
 
-### Task 0: Infrastructure Refactors (DO FIRST)
+### Task 0: Iframe Canvas Migration (DO FIRST — BLOCKS EVERYTHING)
 
-These must happen before any editor work — they make everything else faster and prevent more tech debt.
+**The builder canvas has a systemic responsive rendering bug.** All 40+ section components use Tailwind responsive utilities (`sm:`, `md:`, `lg:`) which are CSS `@media` queries — they respond to **viewport width**, not container width. In the builder, sidebars eat ~700px of space, but the viewport is still 1440px+, so `lg:` breakpoints fire regardless. Mobile/tablet preview modes are completely broken (sections show desktop layout in a 375px container).
 
-**0a. Extract shared editor primitives**
+**Fix: Render the canvas in an `<iframe>` sized to the target device width.** This is the industry standard (Framer, Webflow, Squarespace). The iframe's viewport IS the device width, so all media queries work correctly — zero changes to any section component.
+
+> Full analysis: `docs/04_builder/worklog/builder-responsive-rendering-bug.md`
+
+**0-iframe-a. Create preview route**
+- Create `app/cms/website/builder/preview/[pageId]/route.tsx` (or `page.tsx`)
+- Lightweight HTML page that renders sections with website theme, fonts, and `[data-website]` scope
+- No builder chrome (no topbar, sidebars, drawers)
+- Include a client component (`builder-preview-client.tsx`) that listens for `postMessage` from the parent
+
+**0-iframe-b. Define postMessage protocol**
+- Parent → iframe messages:
+  - `UPDATE_SECTIONS` — full sections array (sent on every edit for live preview)
+  - `UPDATE_THEME` — theme tokens object
+  - `SELECT_SECTION` — highlight a section by ID
+  - `SCROLL_TO_SECTION` — scroll iframe to a section
+- Iframe → parent messages:
+  - `SECTION_CLICKED` — user clicked a section (parent opens editor)
+  - `SECTION_DOUBLE_CLICKED` — user double-clicked (parent opens editor)
+  - `CONTENT_HEIGHT` — iframe document height (for auto-sizing)
+  - `READY` — iframe loaded and listening
+
+**0-iframe-c. Replace inline rendering with iframe in BuilderCanvas**
+- Replace the current `<div data-website>` + `BuilderSectionRenderer` loop with `<iframe>`
+- Set iframe width to `deviceWidths[deviceMode]` (100% / 768px / 375px)
+- Auto-size iframe height from `CONTENT_HEIGHT` messages
+- Send `UPDATE_SECTIONS` on every section state change
+- Send `SELECT_SECTION` when `selectedSectionId` changes
+
+**0-iframe-d. Selection + interaction overlay**
+- Render a transparent overlay div on top of the iframe for selection borders and hover states
+- Map click coordinates on overlay to section positions reported by iframe
+- Keep DnD handles in the parent (overlay-based, not inside iframe)
+- During drag: `pointer-events: none` on iframe
+
+**0-iframe-e. Migrate navbar preview into iframe**
+- Move `WebsiteNavbar` rendering into the preview route
+- Navbar click interception via `postMessage` (`NAVBAR_LINK_CLICKED`)
+
+**End state: Canvas renders sections in an iframe with correct responsive behavior at all device widths. Selection, DnD, and editing all work through the postMessage bridge.**
+
+---
+
+### Task 0.5: Infrastructure Refactors (DO AFTER IFRAME)
+
+These make the editor work faster and prevent more tech debt.
+
+**0.5a. Extract shared editor primitives**
 - Create `components/cms/website/builder/section-editors/shared.tsx`
 - Move from 5 editor files: `ImagePickerField`, `ButtonConfig`, `CardItemEditor`, `AddCardButton`
 - All 5 copies are identical (~45 lines each). Extract once, import everywhere.
 - `ImagePickerField` uses the shared `MediaPickerDialog` from `components/cms/media/media-picker-dialog.tsx` — no functionality change needed, just deduplication.
 - Files to update after extraction: `hero-editor.tsx`, `content-editor.tsx`, `cards-editor.tsx`, `ministry-editor.tsx`, `photo-gallery-editor.tsx`
 
-**0b. Fix right sidebar scrolling**
+**0.5b. Fix right sidebar scrolling**
 - File: `components/cms/website/builder/builder-right-drawer.tsx`
 - Issue: Editor content overflows and is inaccessible on sections with many fields
 - Fix: Ensure drawer container has `h-full overflow-hidden flex flex-col`, ScrollArea has `flex-1 min-h-0`, header has `shrink-0`
 
-**0c. Dirty section tracking + selective save**
+**0.5c. Dirty section tracking + selective save**
 - File: `components/cms/website/builder/builder-shell.tsx`
 - Add `dirtySectionIds: Set<string>` state
 - On section edit: `setDirtySectionIds(prev => new Set(prev).add(sectionId))`
@@ -129,7 +176,7 @@ These must happen before any editor work — they make everything else faster an
 - Clear dirty set after successful save
 - This is critical for concurrent editing safety — see `docs/04_builder/mental-model/concurrent-editing-strategy.md`
 
-**0d. Refactor editor routing to flat registry** (optional, time permitting)
+**0.5d. Refactor editor routing to flat registry** (optional, time permitting)
 - File: `components/cms/website/builder/section-editors/index.tsx`
 - Replace category-based array-includes + switch routing with flat `Record<SectionType, EditorComponent>` map
 - Makes adding new editors a 1-line change instead of 2-file change

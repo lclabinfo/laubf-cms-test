@@ -1,8 +1,8 @@
 # Website Builder — Roadmap
 
 > **Owner**: David Lim
-> **Updated**: March 17, 2026
-> **Status**: Builder shell ~85% complete. 28/41 section editors are already correct. 13 need changes. Navigation, hardcoded URLs, save architecture, and UX bugs are the other main gaps.
+> **Updated**: March 18, 2026
+> **Status**: Builder shell ~85% complete. 28/41 section editors are already correct. 13 need changes. **Critical blocker identified**: canvas responsive rendering is broken due to viewport media queries vs container width mismatch — iframe migration required before section work. Navigation, hardcoded URLs, save architecture, and UX bugs are the other main gaps.
 
 ---
 
@@ -33,7 +33,7 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 - **28/41 section editors fully correct** (verified March 17 — see `section-catalog/section-editor-gap-analysis.md`)
 - Page tree with add/duplicate/delete pages + page settings
 - Auto-save (30s), undo/redo (Cmd+Z), unsaved changes warning
-- Device preview (desktop/tablet/mobile)
+- Device preview (desktop/tablet/mobile) — **responsive breakpoints broken, iframe migration in progress**
 - 20 API endpoints for all website entities
 - Theme manager, site settings, domain manager pages
 
@@ -43,6 +43,7 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 
 | Issue | Priority |
 |-------|----------|
+| **Canvas responsive rendering broken** — sections use viewport media queries but canvas is ~640px wide after sidebars; mobile/tablet previews show desktop layout. Fix: iframe isolation. See `worklog/builder-responsive-rendering-bug.md` | **P0 BLOCKER** |
 | Save sends ALL sections (N+2 requests) — no dirty tracking, breaks concurrent editing | P0 |
 | 13 section editors missing fields that the component renders (see `section-catalog/section-editor-gap-analysis.md`) | P0 |
 | 4 hardcoded URLs in section components (hero video, mask image, watermark, footer logo) | P0 |
@@ -66,16 +67,41 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 
 ## Phase 1: Make Every Section Editable (This Week)
 
-> **Target: March 18–21 (Tue–Fri)**
+> **Target: March 18–24 (Tue–Mon, ~5 working days)**
+> **Updated March 18**: Added iframe canvas migration as Day 1 blocker. Shifted all other work by 1 day.
 > Every section's editor must expose all its rendered fields, save correctly, and render on the public site.
 > **Key input**: `section-catalog/section-editor-gap-analysis.md` — reviewed and annotated by David before implementation.
 
-### Day 1 — Tuesday: Infrastructure + Save Architecture + Navigation
+### Day 1 — Tuesday: Iframe Canvas Migration (CRITICAL BLOCKER)
 
-**Infrastructure refactors** (do these FIRST — they make Days 2-3 go faster)
-- [ ] Extract shared editor primitives to `section-editors/shared.tsx`: `ImagePickerField`, `ButtonConfig`, `CardItemEditor`, `AddCardButton` — eliminates ~500 lines of duplication across 5 editor files
-- [ ] Fix right sidebar scrolling — ensure drawer content area is scrollable (`flex-1 min-h-0` on ScrollArea). Blocks all editor work if not fixed.
-- [ ] Refactor editor routing to flat registry: replace category-based array checks in `section-editors/index.tsx` with a direct `SectionType → EditorComponent` map (1-line change to add new editors instead of 2-file change)
+> **Why this is first:** The canvas renders sections using real website components, but CSS media queries respond to viewport width (1440px+), not the canvas container (~640px after sidebars). Every responsive breakpoint fires incorrectly. Mobile/tablet previews are completely broken. No visual verification of sections is reliable until this is fixed. See `worklog/builder-responsive-rendering-bug.md` for full analysis.
+
+**Iframe canvas migration** (renders sections in an iframe for correct responsive behavior)
+- [ ] Create lightweight preview route: `app/cms/website/builder/preview/[pageId]/`
+- [ ] Create `builder-preview-client.tsx` — client component inside iframe, listens for `postMessage`
+- [ ] Define bidirectional postMessage protocol (UPDATE_SECTIONS, SELECT_SECTION, SECTION_CLICKED, CONTENT_HEIGHT, etc.)
+- [ ] Replace inline section rendering in `builder-canvas.tsx` with `<iframe>` sized to `deviceWidths[deviceMode]`
+- [ ] Implement selection + interaction overlay on top of iframe
+- [ ] Migrate navbar preview into iframe, intercept clicks via postMessage
+- [ ] Adapt DnD to work with overlay handles (pointer-events: none on iframe during drag)
+- [ ] Verify: desktop, tablet (768px), mobile (375px) all show correct responsive layouts
+
+**Infrastructure refactors** (do after iframe, before editor work)
+- [ ] Extract shared editor primitives to `section-editors/shared.tsx`
+- [ ] Fix right sidebar scrolling
+- [ ] Dirty section tracking + selective save
+- [ ] Refactor editor routing to flat registry (optional, time permitting)
+
+**Section editor audit & review**
+- [ ] David reviews `section-catalog/section-editor-gap-analysis.md` — confirm/reject each "Should Be Editable" recommendation
+- [ ] Mark any fields David wants to add/remove/change from the spec
+- [ ] Finalize the list of 13 sections that need editor changes
+
+**End of day: Canvas renders sections in iframe with correct responsive behavior. Infrastructure refactors done. Editor spec finalized.**
+
+---
+
+### Day 2 — Wednesday: Save Architecture + Navigation + Hardcoded URLs
 
 **Save architecture upgrade** (dirty tracking + selective save)
 - [ ] Add `dirtySectionIds: Set<string>` state to BuilderShell
@@ -84,11 +110,6 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 - [ ] Add separate `reorderDirty` flag for section reorder
 - [ ] Clear dirty set after successful save
 - [ ] Verify `router.refresh()` still reloads fresh data after selective save
-
-**Section editor audit & review**
-- [ ] David reviews `section-catalog/section-editor-gap-analysis.md` — confirm/reject each "Should Be Editable" recommendation
-- [ ] Mark any fields David wants to add/remove/change from the spec
-- [ ] Finalize the list of 13 sections that need editor changes
 
 **Navigation fix**
 - [ ] Audit nav sidebar against the actual public website — fix broken links, wrong hierarchy, missing items
@@ -107,11 +128,11 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 - [ ] FEATURE_BREAKDOWN — read watermark from content with fallback, or remove
 - [ ] FOOTER — read logo from content or site settings
 
-**End of day: Save architecture upgraded. Shared primitives extracted. Navigation working. Hardcoded URLs fixed. Editor spec finalized.**
+**End of day: Save architecture upgraded. Navigation working. Hardcoded URLs fixed.**
 
 ---
 
-### Day 2 — Wednesday: Section Editor Fixes (13 sections)
+### Day 3 — Thursday: Section Editor Fixes (13 sections)
 
 **Hero + Content editors** (4 sections need changes)
 - [ ] HERO_BANNER — add video URL field to editor
@@ -140,7 +161,7 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 
 ---
 
-### Day 3 — Thursday: Verification + Color System
+### Day 4 — Friday: Verification + Color System
 
 **Section-by-section verification** (all 41 sections)
 - [ ] For each section type: open editor → verify all fields save → check canvas renders → check public site
@@ -159,7 +180,7 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 
 ---
 
-### Day 4 — Friday: Presence System + Theme Compliance + UX Polish
+### Day 5 — Monday (Week 2): Presence System + Theme Compliance + UX Polish
 
 **Presence awareness system** (concurrent editing — see `mental-model/concurrent-editing-strategy.md`)
 - [ ] Create `BuilderPresence` model in Prisma schema (pageId, userId, userName, lastSeen, churchId)
