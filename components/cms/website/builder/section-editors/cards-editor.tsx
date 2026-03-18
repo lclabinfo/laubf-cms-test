@@ -1,14 +1,21 @@
 "use client"
 
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { Trash2, Plus, ImageIcon } from "lucide-react"
+import { Trash2 } from "lucide-react"
 import type { SectionType } from "@/lib/db/types"
-import { ImagePickerField, type GenericCard, CardItemEditor, AddCardButton } from "./shared"
+import {
+  EditorInput,
+  EditorTextarea,
+  EditorField,
+  EditorToggle,
+  TwoColumnGrid,
+  ImagePickerField,
+  CardItemEditor,
+  AddCardButton,
+  AddressField,
+  type GenericCard,
+} from "./shared"
 
 interface CardsEditorProps {
   sectionType: SectionType
@@ -34,8 +41,7 @@ export function ActionCardGridEditor({
   const ctaButton = (content.ctaButton as {
     label: string
     href: string
-    visible?: boolean
-  }) ?? { label: "", href: "", visible: true }
+  }) ?? null
   const cards = (content.cards as GenericCard[]) ?? []
 
   function updateCard(index: number, card: GenericCard) {
@@ -67,120 +73,93 @@ export function ActionCardGridEditor({
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Heading</Label>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Line 1</Label>
-          <Input
-            value={heading.line1}
-            onChange={(e) =>
-              onChange({
-                ...content,
-                heading: { ...heading, line1: e.target.value },
-              })
-            }
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            Line 2 (italic)
-          </Label>
-          <Input
-            value={heading.line2}
-            onChange={(e) =>
-              onChange({
-                ...content,
-                heading: { ...heading, line2: e.target.value },
-              })
-            }
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Line 3</Label>
-          <Input
-            value={heading.line3}
-            onChange={(e) =>
-              onChange({
-                ...content,
-                heading: { ...heading, line3: e.target.value },
-              })
-            }
-          />
-        </div>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Subheading</Label>
-        <Input
-          value={subheading}
-          onChange={(e) =>
-            onChange({ ...content, subheading: e.target.value })
-          }
-        />
-      </div>
-
-      <div className="space-y-3 rounded-lg border p-4">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">CTA Button</Label>
-          <Switch
-            checked={ctaButton.visible !== false}
-            onCheckedChange={(v) =>
-              onChange({
-                ...content,
-                ctaButton: { ...ctaButton, visible: v },
-              })
-            }
-          />
-        </div>
-        {ctaButton.visible !== false && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">
-                CTA Button Label
-              </Label>
-              <Input
-                value={ctaButton.label}
-                onChange={(e) =>
-                  onChange({
-                    ...content,
-                    ctaButton: { ...ctaButton, label: e.target.value },
-                  })
-                }
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">
-                CTA Button Link
-              </Label>
-              <Input
-                value={ctaButton.href}
-                onChange={(e) =>
-                  onChange({
-                    ...content,
-                    ctaButton: { ...ctaButton, href: e.target.value },
-                  })
-                }
-              />
-            </div>
+        <EditorField label="Heading" labelSize="sm">
+          <div className="space-y-3">
+            <EditorInput
+              label="Line 1"
+              value={heading.line1}
+              onChange={(v) =>
+                onChange({
+                  ...content,
+                  heading: { ...heading, line1: v },
+                })
+              }
+            />
+            <EditorInput
+              label="Line 2 (italic)"
+              value={heading.line2}
+              onChange={(v) =>
+                onChange({
+                  ...content,
+                  heading: { ...heading, line2: v },
+                })
+              }
+            />
+            <EditorInput
+              label="Line 3"
+              value={heading.line3}
+              onChange={(v) =>
+                onChange({
+                  ...content,
+                  heading: { ...heading, line3: v },
+                })
+              }
+            />
           </div>
-        )}
+        </EditorField>
       </div>
+
+      <EditorInput
+        label="Subheading"
+        labelSize="sm"
+        value={subheading}
+        onChange={(v) => onChange({ ...content, subheading: v })}
+      />
+
+      {ctaButton !== null && (
+        <TwoColumnGrid>
+          <EditorInput
+            label="CTA Button Label"
+            value={ctaButton.label}
+            onChange={(v) =>
+              onChange({
+                ...content,
+                ctaButton: { ...ctaButton, label: v },
+              })
+            }
+          />
+          <EditorInput
+            label="CTA Button Link"
+            value={ctaButton.href}
+            onChange={(v) =>
+              onChange({
+                ...content,
+                ctaButton: { ...ctaButton, href: v },
+              })
+            }
+          />
+        </TwoColumnGrid>
+      )}
 
       <Separator />
 
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Cards</Label>
-        {cards.map((card, i) => (
-          <CardItemEditor
-            key={card.id ?? i}
-            index={i}
-            card={card}
-            onChange={(c) => updateCard(i, c)}
-            onRemove={() => removeCard(i)}
-            showImage
-            showLink
-          />
-        ))}
-        <AddCardButton label="Add Card" onClick={addCard} />
+        <EditorField label="Cards" labelSize="sm">
+          <div className="space-y-3">
+            {cards.map((card, i) => (
+              <CardItemEditor
+                key={card.id ?? i}
+                index={i}
+                card={card}
+                onChange={(c) => updateCard(i, c)}
+                onRemove={() => removeCard(i)}
+                showImage
+                showLink
+              />
+            ))}
+            <AddCardButton label="Add Card" onClick={addCard} />
+          </div>
+        </EditorField>
       </div>
     </div>
   )
@@ -188,7 +167,7 @@ export function ActionCardGridEditor({
 
 // --- Highlight Cards Editor ---
 
-export function HighlightCardsEditor({
+function HighlightCardsEditor({
   content,
   onChange,
 }: {
@@ -202,48 +181,36 @@ export function HighlightCardsEditor({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) => onChange({ ...content, heading: e.target.value })}
-        />
-      </div>
+      <EditorInput
+        label="Heading"
+        labelSize="sm"
+        value={heading}
+        onChange={(v) => onChange({ ...content, heading: v })}
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Subheading</Label>
-        <Input
-          value={subheading}
-          onChange={(e) =>
-            onChange({ ...content, subheading: e.target.value })
-          }
-        />
-      </div>
+      <EditorInput
+        label="Subheading"
+        labelSize="sm"
+        value={subheading}
+        onChange={(v) => onChange({ ...content, subheading: v })}
+      />
 
       <Separator />
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">CTA Label</Label>
-          <Input
-            value={ctaLabel}
-            onChange={(e) =>
-              onChange({ ...content, ctaLabel: e.target.value })
-            }
-            placeholder="View All"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">CTA Link</Label>
-          <Input
-            value={ctaHref}
-            onChange={(e) =>
-              onChange({ ...content, ctaHref: e.target.value })
-            }
-            placeholder="/events"
-          />
-        </div>
-      </div>
+      <TwoColumnGrid>
+        <EditorInput
+          label="CTA Label"
+          value={ctaLabel}
+          onChange={(v) => onChange({ ...content, ctaLabel: v })}
+          placeholder="View All"
+        />
+        <EditorInput
+          label="CTA Link"
+          value={ctaHref}
+          onChange={(v) => onChange({ ...content, ctaHref: v })}
+          placeholder="/events"
+        />
+      </TwoColumnGrid>
 
       <p className="text-xs text-muted-foreground">
         Featured events are configured in the JSON content. The event cards
@@ -306,108 +273,83 @@ export function PathwayCardEditor({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) => onChange({ ...content, heading: e.target.value })}
-        />
-      </div>
+      <EditorInput
+        label="Heading"
+        labelSize="sm"
+        value={heading}
+        onChange={(v) => onChange({ ...content, heading: v })}
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Description</Label>
-        <Textarea
-          value={description}
-          onChange={(e) =>
-            onChange({ ...content, description: e.target.value })
-          }
-          className="min-h-[80px]"
-        />
-      </div>
+      <EditorTextarea
+        label="Description"
+        labelSize="sm"
+        value={description}
+        onChange={(v) => onChange({ ...content, description: v })}
+        rows={4}
+      />
 
       <Separator />
 
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Pathway Cards</Label>
-        {cards.map((card, i) => (
-          <div
-            key={i}
-            className="rounded-lg border p-4 space-y-3 relative"
-          >
-            <div className="flex items-start justify-between">
-              <span className="text-xs font-medium text-muted-foreground">
-                Card {i + 1}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                onClick={() => removeCard(i)}
+        <EditorField label="Pathway Cards" labelSize="sm">
+          <div className="space-y-3">
+            {cards.map((card, i) => (
+              <div
+                key={i}
+                className="rounded-lg border p-4 space-y-3 relative"
               >
-                <Trash2 className="size-3.5" />
-              </Button>
-            </div>
+                <div className="flex items-start justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Card {i + 1}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => removeCard(i)}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">
-                  Icon Key
-                </Label>
-                <Input
-                  value={card.icon}
-                  onChange={(e) => updateCard(i, "icon", e.target.value)}
-                  placeholder="book-open"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Title</Label>
-                <Input
-                  value={card.title}
-                  onChange={(e) => updateCard(i, "title", e.target.value)}
-                />
-              </div>
-            </div>
+                <TwoColumnGrid>
+                  <EditorInput
+                    label="Icon Key"
+                    value={card.icon}
+                    onChange={(v) => updateCard(i, "icon", v)}
+                    placeholder="book-open"
+                  />
+                  <EditorInput
+                    label="Title"
+                    value={card.title}
+                    onChange={(v) => updateCard(i, "title", v)}
+                  />
+                </TwoColumnGrid>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">
-                Description
-              </Label>
-              <Textarea
-                value={card.description}
-                onChange={(e) =>
-                  updateCard(i, "description", e.target.value)
-                }
-                className="min-h-[60px]"
-              />
-            </div>
+                <EditorTextarea
+                  label="Description"
+                  value={card.description}
+                  onChange={(v) => updateCard(i, "description", v)}
+                  rows={3}
+                />
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">
-                  Button Label
-                </Label>
-                <Input
-                  value={card.buttonLabel}
-                  onChange={(e) =>
-                    updateCard(i, "buttonLabel", e.target.value)
-                  }
-                />
+                <TwoColumnGrid>
+                  <EditorInput
+                    label="Button Label"
+                    value={card.buttonLabel}
+                    onChange={(v) => updateCard(i, "buttonLabel", v)}
+                  />
+                  <EditorInput
+                    label="Button Link"
+                    value={card.buttonHref}
+                    onChange={(v) => updateCard(i, "buttonHref", v)}
+                  />
+                </TwoColumnGrid>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">
-                  Button Link
-                </Label>
-                <Input
-                  value={card.buttonHref}
-                  onChange={(e) =>
-                    updateCard(i, "buttonHref", e.target.value)
-                  }
-                />
-              </div>
-            </div>
+            ))}
+            <AddCardButton label="Add Pathway Card" onClick={addCard} />
           </div>
-        ))}
-        <AddCardButton label="Add Pathway Card" onClick={addCard} />
+        </EditorField>
       </div>
     </div>
   )
@@ -458,174 +400,90 @@ export function PillarsEditor({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Overline</Label>
-        <Input
-          value={overline}
-          onChange={(e) => onChange({ ...content, overline: e.target.value })}
-        />
-      </div>
+      <EditorInput
+        label="Overline"
+        labelSize="sm"
+        value={overline}
+        onChange={(v) => onChange({ ...content, overline: v })}
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) => onChange({ ...content, heading: e.target.value })}
-        />
-      </div>
+      <EditorInput
+        label="Heading"
+        labelSize="sm"
+        value={heading}
+        onChange={(v) => onChange({ ...content, heading: v })}
+      />
 
       <Separator />
 
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Pillar Items</Label>
-        {items.map((item, i) => (
-          <div
-            key={i}
-            className="rounded-lg border p-4 space-y-3 relative"
-          >
-            <div className="flex items-start justify-between">
-              <span className="text-xs font-medium text-muted-foreground">
-                Pillar {i + 1}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                onClick={() => removeItem(i)}
+        <EditorField label="Pillar Items" labelSize="sm">
+          <div className="space-y-3">
+            {items.map((item, i) => (
+              <div
+                key={i}
+                className="rounded-lg border p-4 space-y-3 relative"
               >
-                <Trash2 className="size-3.5" />
-              </Button>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Title</Label>
-              <Input
-                value={item.title}
-                onChange={(e) => updateItem(i, "title", e.target.value)}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">
-                Description
-              </Label>
-              <Textarea
-                value={item.description}
-                onChange={(e) =>
-                  updateItem(i, "description", e.target.value)
-                }
-                className="min-h-[80px]"
-              />
-            </div>
-
-            {item.button && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">
-                    Button Label
-                  </Label>
-                  <Input
-                    value={item.button.label}
-                    onChange={(e) =>
-                      updateItem(i, "button", {
-                        ...item.button,
-                        label: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground">
-                    Button Link
-                  </Label>
-                  <Input
-                    value={item.button.href}
-                    onChange={(e) =>
-                      updateItem(i, "button", {
-                        ...item.button,
-                        href: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-              </div>
-            )}
-
-            <Separator />
-
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs font-medium text-muted-foreground">
-                  Images ({item.images?.length ?? 0}/3)
-                </Label>
-                {(item.images?.length ?? 0) < 3 && (
+                <div className="flex items-start justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Pillar {i + 1}
+                  </span>
                   <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      const updatedImages = [...(item.images ?? []), { src: "", alt: "" }]
-                      updateItem(i, "images", updatedImages)
-                    }}
+                    variant="ghost"
+                    size="icon"
+                    className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => removeItem(i)}
                   >
-                    <Plus className="size-3.5 mr-1.5" />
-                    Add Image
+                    <Trash2 className="size-3.5" />
                   </Button>
-                )}
-              </div>
-              {(item.images ?? []).map((img, imgIdx) => (
-                <div
-                  key={imgIdx}
-                  className="rounded-md border p-3 space-y-2"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <ImageIcon className="size-3.5" />
-                      <span className="text-xs font-medium">Image {imgIdx + 1}</span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => {
-                        const updatedImages = item.images.filter((_, ii) => ii !== imgIdx)
-                        updateItem(i, "images", updatedImages)
-                      }}
-                    >
-                      <Trash2 className="size-3" />
-                    </Button>
-                  </div>
-                  <ImagePickerField
-                    label="Image URL"
-                    value={img.src}
-                    onChange={(url) => {
-                      const updatedImages = [...item.images]
-                      updatedImages[imgIdx] = { ...updatedImages[imgIdx], src: url }
-                      updateItem(i, "images", updatedImages)
-                    }}
-                  />
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Alt Text</Label>
-                    <Input
-                      value={img.alt}
-                      onChange={(e) => {
-                        const updatedImages = [...item.images]
-                        updatedImages[imgIdx] = { ...updatedImages[imgIdx], alt: e.target.value }
-                        updateItem(i, "images", updatedImages)
-                      }}
-                      placeholder="Describe this image"
-                    />
-                  </div>
                 </div>
-              ))}
-              {(item.images?.length ?? 0) === 0 && (
-                <p className="text-xs text-muted-foreground text-center py-2">
-                  No images added yet. Click &quot;Add Image&quot; above.
+
+                <EditorInput
+                  label="Title"
+                  value={item.title}
+                  onChange={(v) => updateItem(i, "title", v)}
+                />
+
+                <EditorTextarea
+                  label="Description"
+                  value={item.description}
+                  onChange={(v) => updateItem(i, "description", v)}
+                  rows={4}
+                />
+
+                {item.button && (
+                  <TwoColumnGrid>
+                    <EditorInput
+                      label="Button Label"
+                      value={item.button.label}
+                      onChange={(v) =>
+                        updateItem(i, "button", {
+                          ...item.button,
+                          label: v,
+                        })
+                      }
+                    />
+                    <EditorInput
+                      label="Button Link"
+                      value={item.button.href}
+                      onChange={(v) =>
+                        updateItem(i, "button", {
+                          ...item.button,
+                          href: v,
+                        })
+                      }
+                    />
+                  </TwoColumnGrid>
+                )}
+
+                <p className="text-xs text-muted-foreground">
+                  Images for this pillar are configured in the JSON content.
                 </p>
-              )}
-            </div>
+              </div>
+            ))}
+            <AddCardButton label="Add Pillar" onClick={addItem} />
           </div>
-        ))}
-        <AddCardButton label="Add Pillar" onClick={addItem} />
+        </EditorField>
       </div>
     </div>
   )
@@ -649,125 +507,68 @@ export function FeatureBreakdownEditor({
     visible: boolean
   }) ?? { label: "", href: "", visible: false }
 
-  function updateLine(index: number, value: string) {
-    const updated = [...acronymLines]
-    updated[index] = value
-    onChange({ ...content, acronymLines: updated })
-  }
-
-  function addLine() {
-    onChange({ ...content, acronymLines: [...acronymLines, ""] })
-  }
-
-  function removeLine(index: number) {
-    onChange({
-      ...content,
-      acronymLines: acronymLines.filter((_, i) => i !== index),
-    })
-  }
-
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) => onChange({ ...content, heading: e.target.value })}
-        />
-      </div>
+      <EditorInput
+        label="Heading"
+        labelSize="sm"
+        value={heading}
+        onChange={(v) => onChange({ ...content, heading: v })}
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Description</Label>
-        <Textarea
-          value={description}
-          onChange={(e) =>
-            onChange({ ...content, description: e.target.value })
-          }
-          className="min-h-[100px]"
-        />
-      </div>
+      <EditorTextarea
+        label="Description"
+        labelSize="sm"
+        value={description}
+        onChange={(v) => onChange({ ...content, description: v })}
+        rows={5}
+      />
 
       <Separator />
 
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">
-            Acronym Lines (first letter highlighted)
-          </Label>
-          <button
-            type="button"
-            onClick={addLine}
-            className="text-xs font-medium text-primary hover:underline"
-          >
-            + Add Line
-          </button>
-        </div>
-        {acronymLines.map((line, i) => (
-          <div key={i} className="flex gap-2">
-            <Input
-              value={line}
-              onChange={(e) => updateLine(i, e.target.value)}
-              placeholder={`Line ${i + 1}`}
-              className="flex-1"
-            />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-9 text-muted-foreground hover:text-destructive"
-              onClick={() => removeLine(i)}
-            >
-              <Trash2 className="size-3.5" />
-            </Button>
-          </div>
-        ))}
-      </div>
+      <AddressField
+        label="Acronym Lines (first letter highlighted)"
+        value={acronymLines}
+        onChange={(lines) => onChange({ ...content, acronymLines: lines })}
+        placeholder="Line"
+      />
 
       <Separator />
 
       <div className="space-y-3 rounded-lg border p-4">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">CTA Button</Label>
-          <Switch
-            checked={button.visible}
-            onCheckedChange={(v) =>
-              onChange({
-                ...content,
-                button: { ...button, visible: v },
-              })
-            }
-          />
-        </div>
+        <EditorToggle
+          label="CTA Button"
+          checked={button.visible}
+          onCheckedChange={(v) =>
+            onChange({
+              ...content,
+              button: { ...button, visible: v },
+            })
+          }
+        />
         {button.visible && (
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">
-                Button Text
-              </Label>
-              <Input
-                value={button.label}
-                onChange={(e) =>
-                  onChange({
-                    ...content,
-                    button: { ...button, label: e.target.value },
-                  })
-                }
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">
-                Button Link
-              </Label>
-              <Input
-                value={button.href}
-                onChange={(e) =>
-                  onChange({
-                    ...content,
-                    button: { ...button, href: e.target.value },
-                  })
-                }
-              />
-            </div>
-          </div>
+          <TwoColumnGrid>
+            <EditorInput
+              label="Button Text"
+              value={button.label}
+              onChange={(v) =>
+                onChange({
+                  ...content,
+                  button: { ...button, label: v },
+                })
+              }
+            />
+            <EditorInput
+              label="Button Link"
+              value={button.href}
+              onChange={(v) =>
+                onChange({
+                  ...content,
+                  button: { ...button, href: v },
+                })
+              }
+            />
+          </TwoColumnGrid>
         )}
       </div>
     </div>
@@ -795,46 +596,36 @@ export function NewcomerEditor({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) => onChange({ ...content, heading: e.target.value })}
-          placeholder="New Here?"
-        />
-      </div>
+      <EditorInput
+        label="Heading"
+        labelSize="sm"
+        value={heading}
+        onChange={(v) => onChange({ ...content, heading: v })}
+        placeholder="New Here?"
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Description</Label>
-        <Textarea
-          value={description}
-          onChange={(e) =>
-            onChange({ ...content, description: e.target.value })
-          }
-          className="min-h-[100px]"
-        />
-      </div>
+      <EditorTextarea
+        label="Description"
+        labelSize="sm"
+        value={description}
+        onChange={(v) => onChange({ ...content, description: v })}
+        rows={5}
+      />
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium">Button Label</Label>
-          <Input
-            value={buttonLabel}
-            onChange={(e) =>
-              onChange({ ...content, buttonLabel: e.target.value })
-            }
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-sm font-medium">Button Link</Label>
-          <Input
-            value={buttonHref}
-            onChange={(e) =>
-              onChange({ ...content, buttonHref: e.target.value })
-            }
-          />
-        </div>
-      </div>
+      <TwoColumnGrid>
+        <EditorInput
+          label="Button Label"
+          labelSize="sm"
+          value={buttonLabel}
+          onChange={(v) => onChange({ ...content, buttonLabel: v })}
+        />
+        <EditorInput
+          label="Button Link"
+          labelSize="sm"
+          value={buttonHref}
+          onChange={(v) => onChange({ ...content, buttonHref: v })}
+        />
+      </TwoColumnGrid>
 
       <Separator />
 

@@ -1,20 +1,16 @@
 "use client"
 
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Button } from "@/components/ui/button"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Plus, Trash2 } from "lucide-react"
 import type { SectionType } from "@/lib/db/types"
-import { ImagePickerField, ButtonConfig } from "./shared"
+import {
+  EditorField,
+  EditorInput,
+  EditorTextarea,
+  EditorButtonGroup,
+  TwoColumnGrid,
+  ImagePickerField,
+  ButtonConfig,
+} from "./shared"
 
 interface HeroEditorProps {
   sectionType: SectionType
@@ -51,66 +47,53 @@ export function HeroBannerEditor({
     alt: string
     objectPosition?: string
   }) ?? { src: "", alt: "" }
-  const bgVideo = (content.backgroundVideo as {
-    src: string
-    mobileSrc?: string
-  }) ?? { src: "", mobileSrc: "" }
 
   return (
     <div className="space-y-6">
       {/* Heading */}
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Heading</Label>
-        <div className="space-y-2">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Line 1</Label>
-            <Input
+        <EditorField label="Heading" labelSize="sm">
+          <div className="space-y-2">
+            <EditorInput
+              label="Line 1"
               value={heading.line1}
-              onChange={(e) =>
+              onChange={(v) =>
                 onChange({
                   ...content,
-                  heading: { ...heading, line1: e.target.value },
+                  heading: { ...heading, line1: v },
                 })
               }
               placeholder="Welcome to"
             />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              Line 2 (accent)
-            </Label>
-            <Input
+            <EditorInput
+              label="Line 2 (accent)"
               value={heading.line2}
-              onChange={(e) =>
+              onChange={(v) =>
                 onChange({
                   ...content,
-                  heading: { ...heading, line2: e.target.value },
+                  heading: { ...heading, line2: v },
                 })
               }
               placeholder="Our Church"
             />
           </div>
-        </div>
+        </EditorField>
       </div>
 
       {/* Subheading */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Subheading</Label>
-        <Textarea
-          value={subheading}
-          onChange={(e) =>
-            onChange({ ...content, subheading: e.target.value })
-          }
-          placeholder="A brief description..."
-          className="min-h-[80px]"
-        />
-      </div>
+      <EditorTextarea
+        label="Subheading"
+        labelSize="sm"
+        value={subheading}
+        onChange={(v) => onChange({ ...content, subheading: v })}
+        placeholder="A brief description..."
+        rows={4}
+      />
 
       <Separator />
 
       {/* Background Image */}
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Background Image</Label>
         <ImagePickerField
           label="Image"
           value={bgImage.src}
@@ -121,96 +104,55 @@ export function HeroBannerEditor({
             })
           }
         />
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Alt Text</Label>
-            <Input
-              value={bgImage.alt}
-              onChange={(e) =>
-                onChange({
-                  ...content,
-                  backgroundImage: { ...bgImage, alt: e.target.value },
-                })
-              }
-              placeholder="Hero background"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              Object Position
-            </Label>
-            <Input
-              value={bgImage.objectPosition ?? ""}
-              onChange={(e) =>
-                onChange({
-                  ...content,
-                  backgroundImage: {
-                    ...bgImage,
-                    objectPosition: e.target.value,
-                  },
-                })
-              }
-              placeholder="center center"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Background Video */}
-      <div className="space-y-3">
-        <Label className="text-sm font-medium">Background Video</Label>
-        <p className="text-xs text-muted-foreground">
-          When a video URL is set, it plays as the background instead of the image.
-        </p>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            Video URL (desktop)
-          </Label>
-          <Input
-            value={bgVideo.src}
-            onChange={(e) =>
+        <TwoColumnGrid>
+          <EditorInput
+            label="Alt Text"
+            value={bgImage.alt}
+            onChange={(v) =>
               onChange({
                 ...content,
-                backgroundVideo: { ...bgVideo, src: e.target.value },
+                backgroundImage: { ...bgImage, alt: v },
               })
             }
-            placeholder="https://example.com/hero-video.mp4"
+            placeholder="Hero background"
           />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            Mobile Video URL (optional)
-          </Label>
-          <Input
-            value={bgVideo.mobileSrc ?? ""}
-            onChange={(e) =>
+          <EditorInput
+            label="Object Position"
+            value={bgImage.objectPosition ?? ""}
+            onChange={(v) =>
               onChange({
                 ...content,
-                backgroundVideo: { ...bgVideo, mobileSrc: e.target.value },
+                backgroundImage: {
+                  ...bgImage,
+                  objectPosition: v,
+                },
               })
             }
-            placeholder="https://example.com/hero-video-mobile.mp4"
+            placeholder="center center"
           />
-        </div>
+        </TwoColumnGrid>
       </div>
 
       <Separator />
 
       {/* Buttons */}
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Buttons</Label>
-        <ButtonConfig
-          id="hero-primary"
-          label="Primary Button"
-          buttonData={primaryButton}
-          onChange={(b) => onChange({ ...content, primaryButton: b })}
-        />
-        <ButtonConfig
-          id="hero-secondary"
-          label="Secondary Button"
-          buttonData={secondaryButton}
-          onChange={(b) => onChange({ ...content, secondaryButton: b })}
-        />
+        <EditorField label="Buttons" labelSize="sm">
+          <div className="space-y-3">
+            <ButtonConfig
+              id="hero-primary"
+              label="Primary Button"
+              buttonData={primaryButton}
+              onChange={(b) => onChange({ ...content, primaryButton: b })}
+            />
+            <ButtonConfig
+              id="hero-secondary"
+              label="Secondary Button"
+              buttonData={secondaryButton}
+              onChange={(b) => onChange({ ...content, secondaryButton: b })}
+            />
+          </div>
+        </EditorField>
       </div>
     </div>
   )
@@ -240,44 +182,41 @@ export function PageHeroEditor({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Overline</Label>
-        <Input
-          value={overline}
-          onChange={(e) =>
-            onChange({ ...content, overline: e.target.value })
-          }
-          placeholder="Church Name"
-        />
-      </div>
+      <EditorInput
+        label="Overline"
+        labelSize="sm"
+        value={overline}
+        onChange={(v) => onChange({ ...content, overline: v })}
+        placeholder="Church Name"
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) =>
-            onChange({ ...content, heading: e.target.value })
-          }
-          placeholder="Welcome"
-        />
-      </div>
+      <EditorInput
+        label="Heading"
+        labelSize="sm"
+        value={heading}
+        onChange={(v) => onChange({ ...content, heading: v })}
+        placeholder="Welcome"
+      />
 
       <Separator />
 
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Buttons</Label>
-        <ButtonConfig
-          id="page-hero-primary"
-          label="Primary Button"
-          buttonData={primaryButton}
-          onChange={(b) => onChange({ ...content, primaryButton: b })}
-        />
-        <ButtonConfig
-          id="page-hero-secondary"
-          label="Secondary Button"
-          buttonData={secondaryButton}
-          onChange={(b) => onChange({ ...content, secondaryButton: b })}
-        />
+        <EditorField label="Buttons" labelSize="sm">
+          <div className="space-y-3">
+            <ButtonConfig
+              id="page-hero-primary"
+              label="Primary Button"
+              buttonData={primaryButton}
+              onChange={(b) => onChange({ ...content, primaryButton: b })}
+            />
+            <ButtonConfig
+              id="page-hero-secondary"
+              label="Secondary Button"
+              buttonData={secondaryButton}
+              onChange={(b) => onChange({ ...content, secondaryButton: b })}
+            />
+          </div>
+        </EditorField>
       </div>
 
       <p className="text-xs text-muted-foreground">
@@ -311,83 +250,60 @@ export function TextImageHeroEditor({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Overline</Label>
-        <Input
-          value={overline}
-          onChange={(e) =>
-            onChange({ ...content, overline: e.target.value })
-          }
-          placeholder="About Us"
-        />
-      </div>
+      <EditorInput
+        label="Overline"
+        labelSize="sm"
+        value={overline}
+        onChange={(v) => onChange({ ...content, overline: v })}
+        placeholder="About Us"
+      />
 
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Heading</Label>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Line 1</Label>
-          <Input
-            value={headingLine1}
-            onChange={(e) =>
-              onChange({ ...content, headingLine1: e.target.value })
-            }
-            placeholder="Our Story"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            Accent Line (optional)
-          </Label>
-          <Input
-            value={headingAccent}
-            onChange={(e) =>
-              onChange({ ...content, headingAccent: e.target.value })
-            }
-            placeholder="Since 1985"
-          />
-        </div>
+        <EditorField label="Heading" labelSize="sm">
+          <div className="space-y-2">
+            <EditorInput
+              label="Line 1"
+              value={headingLine1}
+              onChange={(v) => onChange({ ...content, headingLine1: v })}
+              placeholder="Our Story"
+            />
+            <EditorInput
+              label="Accent Line (optional)"
+              value={headingAccent}
+              onChange={(v) => onChange({ ...content, headingAccent: v })}
+              placeholder="Since 1985"
+            />
+          </div>
+        </EditorField>
       </div>
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Description</Label>
-        <Textarea
-          value={description}
-          onChange={(e) =>
-            onChange({ ...content, description: e.target.value })
-          }
-          placeholder="Tell visitors about this page..."
-          className="min-h-[100px]"
-        />
-      </div>
+      <EditorTextarea
+        label="Description"
+        labelSize="sm"
+        value={description}
+        onChange={(v) => onChange({ ...content, description: v })}
+        placeholder="Tell visitors about this page..."
+        rows={5}
+      />
 
       <Separator />
 
       {/* Text Alignment */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Text Alignment</Label>
-        <div className="flex gap-2">
-          {(["left", "center", "right"] as const).map((align) => (
-            <button
-              key={align}
-              type="button"
-              onClick={() => onChange({ ...content, textAlign: align })}
-              className={`rounded-md border px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-                textAlign === align
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background hover:bg-accent"
-              }`}
-            >
-              {align}
-            </button>
-          ))}
-        </div>
-      </div>
+      <EditorButtonGroup
+        label="Text Alignment"
+        value={textAlign}
+        onChange={(v) => onChange({ ...content, textAlign: v })}
+        options={[
+          { value: "left", label: "Left" },
+          { value: "center", label: "Center" },
+          { value: "right", label: "Right" },
+        ]}
+      />
 
       <Separator />
 
       {/* Image */}
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Hero Image</Label>
         <ImagePickerField
           label="Image"
           value={image.src}
@@ -395,36 +311,30 @@ export function TextImageHeroEditor({
             onChange({ ...content, image: { ...image, src: v } })
           }
         />
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Alt Text</Label>
-            <Input
-              value={image.alt}
-              onChange={(e) =>
-                onChange({
-                  ...content,
-                  image: { ...image, alt: e.target.value },
-                })
-              }
-              placeholder="Hero image"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              Object Position
-            </Label>
-            <Input
-              value={image.objectPosition ?? ""}
-              onChange={(e) =>
-                onChange({
-                  ...content,
-                  image: { ...image, objectPosition: e.target.value },
-                })
-              }
-              placeholder="center center"
-            />
-          </div>
-        </div>
+        <TwoColumnGrid>
+          <EditorInput
+            label="Alt Text"
+            value={image.alt}
+            onChange={(v) =>
+              onChange({
+                ...content,
+                image: { ...image, alt: v },
+              })
+            }
+            placeholder="Hero image"
+          />
+          <EditorInput
+            label="Object Position"
+            value={image.objectPosition ?? ""}
+            onChange={(v) =>
+              onChange({
+                ...content,
+                image: { ...image, objectPosition: v },
+              })
+            }
+            placeholder="center center"
+          />
+        </TwoColumnGrid>
       </div>
     </div>
   )
@@ -444,41 +354,26 @@ export function EventsHeroEditor({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) =>
-            onChange({ ...content, heading: e.target.value })
-          }
-          placeholder="Events"
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Subtitle</Label>
-        <Textarea
-          value={subtitle}
-          onChange={(e) =>
-            onChange({ ...content, subtitle: e.target.value })
-          }
-          placeholder="Browse upcoming events..."
-          className="min-h-[80px]"
-        />
-      </div>
+      <EditorInput
+        label="Heading"
+        labelSize="sm"
+        value={heading}
+        onChange={(v) => onChange({ ...content, heading: v })}
+        placeholder="Events"
+      />
+      <EditorTextarea
+        label="Subtitle"
+        labelSize="sm"
+        value={subtitle}
+        onChange={(v) => onChange({ ...content, subtitle: v })}
+        placeholder="Browse upcoming events..."
+        rows={4}
+      />
     </div>
   )
 }
 
 // --- Ministry Hero Editor ---
-
-const SOCIAL_PLATFORM_OPTIONS = [
-  { value: "email", label: "Email" },
-  { value: "instagram", label: "Instagram" },
-  { value: "facebook", label: "Facebook" },
-  { value: "youtube", label: "YouTube" },
-  { value: "website", label: "Website" },
-  { value: "twitter", label: "Twitter" },
-] as const
 
 export function MinistryHeroEditor({
   content,
@@ -496,78 +391,40 @@ export function MinistryHeroEditor({
     href: string
     visible: boolean
   }) ?? { label: "", href: "", visible: false }
-  const socialLinks = (content.socialLinks as { platform: string; href: string }[]) ?? []
   const heroImage = (content.heroImage as {
     src: string
     alt: string
     objectPosition?: string
   }) ?? { src: "", alt: "" }
 
-  const addSocialLink = () => {
-    onChange({
-      ...content,
-      socialLinks: [...socialLinks, { platform: "website", href: "" }],
-    })
-  }
-
-  const removeSocialLink = (index: number) => {
-    onChange({
-      ...content,
-      socialLinks: socialLinks.filter((_, i) => i !== index),
-    })
-  }
-
-  const updateSocialLink = (index: number, field: "platform" | "href", value: string) => {
-    const updated = socialLinks.map((link, i) =>
-      i === index ? { ...link, [field]: value } : link
-    )
-    onChange({ ...content, socialLinks: updated })
-  }
-
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Overline</Label>
-        <Input
-          value={overline}
-          onChange={(e) =>
-            onChange({ ...content, overline: e.target.value })
-          }
-          placeholder="Ministry name"
-        />
-      </div>
+      <EditorInput
+        label="Overline"
+        labelSize="sm"
+        value={overline}
+        onChange={(v) => onChange({ ...content, overline: v })}
+        placeholder="Ministry name"
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading</Label>
-        <Textarea
-          value={heading}
-          onChange={(e) =>
-            onChange({ ...content, heading: e.target.value })
-          }
-          placeholder="Ministry heading (use newlines for line breaks)"
-          className="min-h-[80px]"
-        />
-      </div>
+      <EditorTextarea
+        label="Heading"
+        labelSize="sm"
+        value={heading}
+        onChange={(v) => onChange({ ...content, heading: v })}
+        placeholder="Ministry heading (use newlines for line breaks)"
+        rows={4}
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading Style</Label>
-        <div className="flex gap-2">
-          {(["display", "sans"] as const).map((style) => (
-            <button
-              key={style}
-              type="button"
-              onClick={() => onChange({ ...content, headingStyle: style })}
-              className={`rounded-md border px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-                headingStyle === style
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background hover:bg-accent"
-              }`}
-            >
-              {style}
-            </button>
-          ))}
-        </div>
-      </div>
+      <EditorButtonGroup
+        label="Heading Style"
+        value={headingStyle}
+        onChange={(v) => onChange({ ...content, headingStyle: v })}
+        options={[
+          { value: "display", label: "Display" },
+          { value: "sans", label: "Sans" },
+        ]}
+      />
 
       <Separator />
 
@@ -581,7 +438,6 @@ export function MinistryHeroEditor({
       <Separator />
 
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Hero Image</Label>
         <ImagePickerField
           label="Image"
           value={heroImage.src}
@@ -589,119 +445,39 @@ export function MinistryHeroEditor({
             onChange({ ...content, heroImage: { ...heroImage, src: v } })
           }
         />
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Alt Text</Label>
-            <Input
-              value={heroImage.alt}
-              onChange={(e) =>
-                onChange({
-                  ...content,
-                  heroImage: { ...heroImage, alt: e.target.value },
-                })
-              }
-              placeholder="Ministry banner"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              Object Position
-            </Label>
-            <Input
-              value={heroImage.objectPosition ?? ""}
-              onChange={(e) =>
-                onChange({
-                  ...content,
-                  heroImage: {
-                    ...heroImage,
-                    objectPosition: e.target.value,
-                  },
-                })
-              }
-              placeholder="center center"
-            />
-          </div>
-        </div>
+        <TwoColumnGrid>
+          <EditorInput
+            label="Alt Text"
+            value={heroImage.alt}
+            onChange={(v) =>
+              onChange({
+                ...content,
+                heroImage: { ...heroImage, alt: v },
+              })
+            }
+            placeholder="Ministry banner"
+          />
+          <EditorInput
+            label="Object Position"
+            value={heroImage.objectPosition ?? ""}
+            onChange={(v) =>
+              onChange({
+                ...content,
+                heroImage: {
+                  ...heroImage,
+                  objectPosition: v,
+                },
+              })
+            }
+            placeholder="center center"
+          />
+        </TwoColumnGrid>
       </div>
 
-      <Separator />
-
-      {/* Social Links */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">
-            Social Links ({socialLinks.length})
-          </Label>
-          <Button variant="outline" size="sm" onClick={addSocialLink}>
-            <Plus className="size-3.5 mr-1.5" />
-            Add Link
-          </Button>
-        </div>
-
-        {socialLinks.map((link, i) => (
-          <div
-            key={i}
-            className="rounded-lg border p-4 space-y-3 relative group"
-          >
-            <div className="flex items-start justify-between">
-              <span className="text-xs font-medium text-muted-foreground">
-                Link {i + 1}
-              </span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                onClick={() => removeSocialLink(i)}
-              >
-                <Trash2 className="size-3.5" />
-              </Button>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Platform</Label>
-              <Select
-                value={link.platform}
-                onValueChange={(v) => updateSocialLink(i, "platform", v)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SOCIAL_PLATFORM_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">URL</Label>
-              <Input
-                value={link.href}
-                onChange={(e) => updateSocialLink(i, "href", e.target.value)}
-                placeholder={
-                  link.platform === "email"
-                    ? "mailto:info@example.com"
-                    : "https://..."
-                }
-              />
-            </div>
-          </div>
-        ))}
-
-        {socialLinks.length === 0 && (
-          <div className="rounded-lg border border-dashed p-4 text-center">
-            <p className="text-xs text-muted-foreground">
-              No social links added yet.
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Click &quot;Add Link&quot; to add a social media link.
-            </p>
-          </div>
-        )}
-      </div>
+      <p className="text-xs text-muted-foreground">
+        Social links are configured in the JSON content. A dedicated social
+        links editor is planned for a future update.
+      </p>
     </div>
   )
 }

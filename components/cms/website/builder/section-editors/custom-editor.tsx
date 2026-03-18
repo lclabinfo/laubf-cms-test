@@ -1,11 +1,13 @@
 "use client"
 
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { AlertTriangle } from "lucide-react"
 import type { SectionType } from "@/lib/db/types"
+import {
+  EditorInput,
+  EditorTextarea,
+  EditorButtonGroup,
+} from "./shared"
 
 interface CustomEditorProps {
   sectionType: SectionType
@@ -39,16 +41,14 @@ export function CustomHtmlEditor({
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">HTML Content</Label>
-        <Textarea
-          value={html}
-          onChange={(e) => onChange({ ...content, html: e.target.value })}
-          placeholder="<div>Your custom HTML here</div>"
-          className="font-mono text-xs min-h-[300px] resize-y"
-          spellCheck={false}
-        />
-      </div>
+      <EditorTextarea
+        label="HTML Content"
+        value={html}
+        onChange={(val) => onChange({ ...content, html: val })}
+        placeholder="<div>Your custom HTML here</div>"
+        className="font-mono text-xs min-h-[300px] resize-y"
+        spellCheck={false}
+      />
     </div>
   )
 }
@@ -68,64 +68,42 @@ export function CustomEmbedEditor({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Embed URL</Label>
-        <Input
-          value={embedUrl}
-          onChange={(e) =>
-            onChange({ ...content, embedUrl: e.target.value })
-          }
-          placeholder="https://www.youtube.com/embed/..."
-        />
-        <p className="text-xs text-muted-foreground">
-          The URL will be loaded inside an iframe. Use embed-friendly URLs
-          (e.g., YouTube embed URLs, Google Maps embed).
-        </p>
-      </div>
+      <EditorInput
+        label="Embed URL"
+        value={embedUrl}
+        onChange={(val) => onChange({ ...content, embedUrl: val })}
+        placeholder="https://www.youtube.com/embed/..."
+        description="The URL will be loaded inside an iframe. Use embed-friendly URLs (e.g., YouTube embed URLs, Google Maps embed)."
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Title</Label>
-        <Input
-          value={title}
-          onChange={(e) =>
-            onChange({ ...content, title: e.target.value })
-          }
-          placeholder="Embedded content"
-        />
-        <p className="text-xs text-muted-foreground">
-          Accessibility title for the iframe element.
-        </p>
-      </div>
+      <EditorInput
+        label="Title"
+        value={title}
+        onChange={(val) => onChange({ ...content, title: val })}
+        placeholder="Embedded content"
+        description="Accessibility title for the iframe element."
+      />
 
       <Separator />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Aspect Ratio</Label>
-        <div className="flex gap-2">
-          {["16/9", "4/3", "1/1", "9/16"].map((ratio) => (
-            <button
-              key={ratio}
-              type="button"
-              onClick={() => onChange({ ...content, aspectRatio: ratio })}
-              className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-                aspectRatio === ratio
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background hover:bg-accent"
-              }`}
-            >
-              {ratio}
-            </button>
-          ))}
-        </div>
-        <Input
-          value={aspectRatio}
-          onChange={(e) =>
-            onChange({ ...content, aspectRatio: e.target.value })
-          }
-          placeholder="16/9"
-          className="mt-2"
-        />
-      </div>
+      <EditorButtonGroup
+        label="Aspect Ratio"
+        value={aspectRatio}
+        onChange={(val) => onChange({ ...content, aspectRatio: val })}
+        options={[
+          { value: "16/9", label: "16/9" },
+          { value: "4/3", label: "4/3" },
+          { value: "1/1", label: "1/1" },
+          { value: "9/16", label: "9/16" },
+        ]}
+      />
+      <EditorInput
+        label="Custom Ratio"
+        value={aspectRatio}
+        onChange={(val) => onChange({ ...content, aspectRatio: val })}
+        placeholder="16/9"
+        labelSize="xs"
+      />
     </div>
   )
 }
