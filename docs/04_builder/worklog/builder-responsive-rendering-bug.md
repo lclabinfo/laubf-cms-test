@@ -349,9 +349,54 @@ Merge:   Protocol (clean)
 - DnD stays inside iframe (preserves existing SortableSection + @dnd-kit logic)
 - Selection chrome stays inside iframe (no coordinate mapping needed)
 - Navbar click interception works via postMessage
-- ResizeObserver reports height for iframe auto-sizing
 - `READY` → `INIT_DATA` handshake ensures no messages lost before iframe loads
 
-#### Pending: Code Review
-- Review pass needed for correctness, security, and edge cases
-- Parallel editor component team has zero file conflicts (they touch editor files, not canvas/shell)
+### March 18, 2026 — Code Review + Bug Fixes
+
+**3-agent code review identified 3 bugs + 6 improvements. All fixed.**
+
+#### Bugs Fixed
+| Bug | Fix |
+|-----|-----|
+| Security: `useIframeMessages` accepted messages when `iframeRef.current` was null | Changed `&&` to `\|\|` guard — now rejects all messages when ref is null |
+| Missing preview layout isolation — builder `overflow-hidden` wrapped iframe | Route group `(editor)/` isolates builder chrome from preview (see `iframe-layout-isolation-fix.md`) |
+| `resolvedData` lost on `UPDATE_SECTIONS` | INIT_DATA and UPDATE_SECTIONS handlers merge incoming sections with existing resolvedData |
+
+#### Improvements Applied
+| Improvement | Description |
+|-------------|-------------|
+| NavbarData deduplicated | Canonical definition in `types.ts`, re-exported from `iframe-protocol.ts` and `builder-shell.tsx` |
+| ResizeObserver throttled | RAF-based throttle prevents excessive CONTENT_HEIGHT messages |
+| Loading timeout + retry | 10s timeout shows error state with retry button if iframe fails to load |
+| Toolbar placement in iframe | `sortable-section.tsx` falls back to `document.documentElement` when no scroll parent found |
+| Redundant round-trips eliminated | Skip-ref pattern prevents echo messages after iframe-originated reorder/click/deselect |
+| Dead INIT_DATA fields removed | Slimmed protocol — theme, CSS, navbar, churchId, pageSlug provided by server component |
+
+### March 18, 2026 — Layout Isolation + Scroll Fix
+
+**Two critical rendering issues fixed.**
+
+#### Issue 1: Builder layout wrapping iframe content
+The builder layout's `h-screen overflow-hidden` was wrapping the preview route due to Next.js layout nesting. Fixed via route group: `(editor)/layout.tsx` has builder chrome, outer `layout.tsx` has auth only. Preview route no longer inherits builder chrome. See `iframe-layout-isolation-fix.md` for full analysis.
+
+#### Issue 2: Iframe scroll not working
+Auto-sizing the iframe to full content height caused a scroll event capture trap — the expanded iframe consumed wheel events but had nothing to scroll, while the parent container needed to scroll but never received events. Fixed by removing auto-sizing: iframe fills available space via flex layout and scrolls internally (the industry standard pattern used by Webflow, Squarespace, etc.).
+
+#### Issue 3: Device mode not applying (desktop showed mobile width)
+The device container had `mx-auto` (for centering) but no `width`. In a flex-col layout, `mx-auto` overrides the default stretch alignment, causing the container to shrink to the iframe's intrinsic width (~300px). Fixed by adding `w-full` to the device container.
+
+#### Final File Structure
+```
+app/cms/website/builder/
+  layout.tsx                    ← auth ONLY
+  (editor)/
+    layout.tsx                  ← builder chrome (h-screen, overflow-hidden, Toaster)
+    [pageId]/page.tsx           ← builder editor
+    page.tsx                    ← entry redirect
+  preview/
+    layout.tsx                  ← minimal (CMS style resets, hide Agentation)
+    [pageId]/page.tsx           ← iframe preview
+```
+
+#### Status: COMPLETE
+Iframe canvas migration is fully functional. All device modes (desktop/tablet/mobile) render correctly with proper responsive breakpoints. Scrolling works. Video autoplay works. DnD, selection, and editing all work through the postMessage bridge.

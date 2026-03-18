@@ -177,7 +177,7 @@ export function BuilderCanvas({
     <div className="flex-1 flex flex-col bg-muted/30 overflow-hidden p-4 min-h-0">
       {/* Device preview container — fills available space, iframe scrolls internally */}
       <div
-        className="mx-auto bg-white transition-all duration-300 ease-in-out shadow-sm border relative flex-1 min-h-0 flex flex-col"
+        className="mx-auto w-full bg-white transition-all duration-300 ease-in-out shadow-sm border relative flex-1 min-h-0 flex flex-col"
         style={{ maxWidth: deviceWidths[deviceMode] }}
       >
         {/* Loading / error indicator */}

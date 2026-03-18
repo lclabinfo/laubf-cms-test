@@ -364,17 +364,13 @@ All content is `Record<string, unknown>`. Each editor manually casts fields with
 
 ## 7. Recommendations
 
-### R0: Iframe canvas migration (Critical priority, medium-high effort) — PHASE 1 DAY 1 BLOCKER
+### R0: Iframe canvas migration — IMPLEMENTED March 18
 
-**Status: DECIDED, implementing March 18.**
+**Status: COMPLETE.**
 
-The canvas renders sections inline using real website components, but CSS media queries respond to viewport width (1440px+), not the canvas container (~640px after sidebars). This makes responsive behavior wrong in desktop mode and completely broken in tablet/mobile preview modes.
+Canvas now renders sections in an `<iframe>` sized to the target device width. Media queries respond to iframe viewport, not parent viewport. Route group `(editor)/` isolates builder chrome from preview. Iframe scrolls internally (industry standard pattern). Type-safe postMessage protocol with 14 message types.
 
-**Fix:** Render the canvas in an `<iframe>` sized to the target device width. This is the industry standard (Framer, Webflow, Squarespace). The iframe's viewport IS the device width, so all media queries work correctly — zero changes to section components.
-
-**Key changes:** `builder-canvas.tsx` replaces inline rendering with `<iframe>`, new preview route at `app/cms/website/builder/preview/[pageId]/`, new `builder-preview-client.tsx` for postMessage communication, overlay-based selection and DnD.
-
-See `docs/04_builder/worklog/builder-responsive-rendering-bug.md` for full analysis.
+See `docs/04_builder/worklog/builder-responsive-rendering-bug.md` and `docs/04_builder/worklog/iframe-layout-isolation-fix.md`.
 
 ### R1: Extract shared editor primitives (High priority, low effort)
 

@@ -6,12 +6,24 @@ All documentation for the website builder lives in this directory. The builder i
 
 ---
 
-## Active Documents (Root)
+## Start Here
 
 | Document | Purpose |
 |---|---|
 | **[builder-roadmap.md](builder-roadmap.md)** | What to build next. Weekly targets, phases. Start here. |
-| **[section-editor-gap-analysis.md](section-catalog/section-editor-gap-analysis.md)** | Field-by-field gap analysis: what each editor exposes vs. what it should. David reviews before implementing. |
+| **[dev-guide-day1.md](dev-guide-day1.md)** | Day 1 working reference — key files, task details, patterns, DOs/DON'Ts. Load as Claude Code context. |
+
+---
+
+## Section Catalog (`section-catalog/`)
+
+The section type system — what exists, what's editable, and where it's headed.
+
+| Document | Purpose |
+|---|---|
+| [section-catalog-reference.md](section-catalog/section-catalog-reference.md) | Raw field inventory for all 41 section types — every field, type, default value, editor mapping. |
+| [section-editor-gap-analysis.md](section-catalog/section-editor-gap-analysis.md) | Field-by-field gap analysis: what each editor exposes vs. what it should. |
+| [section-design-recommendation.md](section-catalog/section-design-recommendation.md) | Product recommendation: consolidate 41 → 24 types with variants (Shopify-style). |
 
 ## Dev Notes (`dev-notes/`)
 
@@ -19,31 +31,43 @@ Technical references for implementation.
 
 | Document | Purpose |
 |---|---|
-| [dev-guide-day1.md](dev-guide-day1.md) | Day 1 working reference — key files, task details, patterns, DOs/DON'Ts. Load as Claude Code context. |
 | [builder-system-architecture.md](dev-notes/builder-system-architecture.md) | Full system analysis — data flow, state management, section lifecycle, pain points, optimization recs. |
 | [builder-rendering.md](dev-notes/builder-rendering.md) | Builder canvas vs. live website rendering pipeline, known gaps, z-index scheme. |
 | [undo-redo-and-save-architecture.md](dev-notes/undo-redo-and-save-architecture.md) | Undo/redo + save system design. In-memory React state, 50-snapshot cap, auto-save 30s. |
-| [section-catalog-reference.md](dev-notes/section-catalog-reference.md) | Raw field inventory for all 41 section types + default values. |
 | [section-db-audit.md](dev-notes/section-db-audit.md) | DB connectivity per section — DAL functions, data sources. |
+| [README.md](dev-notes/README.md) | Quick overview of how the builder works — architecture diagram, key files, "when to use each doc." |
 
 ## Mental Model (`mental-model/`)
+
+Product design decisions and strategy.
 
 | Document | Purpose |
 |---|---|
 | [builder-review.md](mental-model/builder-review.md) | Product design critique — editing approach decision (drawer-first), Shopify comparison, section audit. |
-| [concurrent-editing-strategy.md](mental-model/concurrent-editing-strategy.md) | How the builder handles multiple users editing simultaneously. Presence awareness + dirty section tracking + silent last-write-wins. Decision rationale, edge cases, implementation plan. |
+| [concurrent-editing-strategy.md](mental-model/concurrent-editing-strategy.md) | How the builder handles multiple users editing simultaneously. Presence + dirty tracking + last-write-wins. |
+
+## Worklog (`worklog/`)
+
+Investigation notes and bug analysis.
+
+| Document | Purpose |
+|---|---|
+| [builder-responsive-rendering-bug.md](worklog/builder-responsive-rendering-bug.md) | Canvas responsive rendering bug analysis — viewport media queries vs container width. Iframe migration plan. |
 
 ## Backlogs (`backlogs/`)
 
 | Document | Purpose |
 |---|---|
-| [builder-ux-issues.md](backlogs/builder-ux-issues.md) | 8 UX bugs to fix (drag preview, selection border, picker positioning, etc.) |
+| [builder-ux-issues.md](backlogs/builder-ux-issues.md) | UX bugs to fix (drag preview, selection border, picker positioning, etc.) |
 
-## Soon to Archive (`soon-to-archive/`)
+## Archive (`old-system/`)
 
 | Document | Purpose |
 |---|---|
-| [builder-plan.md](soon-to-archive/builder-plan.md) | Original 9-phase implementation plan. Architecture still useful, task status outdated. |
+| [builder-plan.md](old-system/builder-plan.md) | Original 9-phase implementation plan. Architecture still useful, task status outdated. |
+| [editor-component-system-plan.md](old-system/editor-component-system-plan.md) | Early editor component system design. Superseded by current implementation. |
+
+---
 
 ## Related (Outside This Directory)
 

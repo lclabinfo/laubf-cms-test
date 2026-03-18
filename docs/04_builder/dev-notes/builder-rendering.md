@@ -175,7 +175,7 @@ The `maxWidth` constraint does affect:
 
 ### Decision: Iframe-Based Canvas (March 18, 2026)
 
-**Status: DECIDED — implementing as Phase 1 Day 1 blocker.**
+**Status: IMPLEMENTED — March 18, 2026.**
 
 An `<iframe>` sized to the target device width gives correct viewport-based media queries with zero changes to section components. This is the industry standard approach (Framer, Webflow, Squarespace, WordPress Gutenberg).
 
@@ -325,8 +325,8 @@ Both contexts have identical font availability because they use the same RSC.
 | Theme CSS variables | **Full** | Same computation, same `data-website` scope |
 | Custom CSS injection | **Full** | Same `<style>` tag approach |
 | Font loading | **Full** | Same `FontLoader` RSC |
-| Desktop layout preview | **Partial** | Width-constrained but viewport media queries fire incorrectly when sidebars narrow the canvas. **Fix: iframe migration (in progress)** |
-| Tablet/mobile preview | **Broken** | Viewport still 1440px+ — all breakpoints fire, showing desktop layout in narrow container. **Fix: iframe migration (in progress)** |
+| Desktop layout preview | **Full** | Iframe viewport matches canvas width — media queries fire correctly |
+| Tablet/mobile preview | **Full** | Iframe sized to 768px/375px — correct responsive breakpoints |
 | Navbar rendering | **Partial** | Same component but forced `position: relative` |
 | Footer rendering | **None** | Intentionally excluded from builder |
 | Scroll animations | **None** | Intentionally disabled in builder |

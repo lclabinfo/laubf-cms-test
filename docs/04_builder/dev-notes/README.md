@@ -114,7 +114,7 @@ All 41 types are organized into 8 categories. Each has: a catalog entry (icon, d
 | Layout | 3 | `footer-editor.tsx`, `custom-editor.tsx` | FOOTER, CUSTOM_HTML, CUSTOM_EMBED |
 | Other | 2 | `schedule-editor.tsx`, `photo-gallery-editor.tsx` | RECURRING_SCHEDULE, PHOTO_GALLERY |
 
-**Deep dive**: [section-catalog-reference.md](section-catalog-reference.md) — every field, type, default value, and editor mapping for all 41 sections.
+**Deep dive**: [section-catalog-reference.md](../section-catalog/section-catalog-reference.md) — every field, type, default value, and editor mapping for all 41 sections.
 
 ---
 
@@ -124,7 +124,7 @@ All 41 types are organized into 8 categories. Each has: a catalog entry (icon, d
 |---|---|
 | Understand how the whole builder works end-to-end | This README (you're here) |
 | Add a field to an existing section editor | [builder-system-architecture.md](builder-system-architecture.md) Section 4 (Editor Pattern) |
-| Know what fields a specific section has | [section-catalog-reference.md](section-catalog-reference.md) |
+| Know what fields a specific section has | [section-catalog-reference.md](../section-catalog/section-catalog-reference.md) |
 | Debug why a section looks different in builder vs live site | [builder-rendering.md](builder-rendering.md) |
 | Understand how undo/redo or save works | [undo-redo-and-save-architecture.md](undo-redo-and-save-architecture.md) |
 | Know where a section's data comes from (DB vs JSONB) | [section-db-audit.md](section-db-audit.md) |
