@@ -53,7 +53,7 @@ The full-screen builder follows the Figma prototype and is modeled after Shopify
 All builder documentation is consolidated at `docs/04_builder/`:
 - **Roadmap**: `docs/04_builder/builder-roadmap.md` — what to build next
 - **Architecture**: `docs/04_builder/builder-plan.md` — component hierarchy, state management, API integration
-- **Editor spec**: `docs/04_builder/section-editor-spec.md` — field-by-field gap analysis
+- **Editor spec**: `docs/04_builder/section-catalog/section-editor-gap-analysis.md` — field-by-field gap analysis
 - **Full index**: `docs/04_builder/README.md`
 
 ### Priority Legend

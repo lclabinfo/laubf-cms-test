@@ -190,15 +190,16 @@ The current system only has undo/redo. Revision history could be added later as 
 
 ### When you'd need to evolve
 
-| Scenario | Solution | Needs Redis? |
-|---|---|---|
-| **Collaborative editing** (2+ users on same page) | Operational transforms (OT) or CRDTs | Yes, or a WebSocket server |
-| **Revision history** ("restore to v3") | `PageVersion` table, store snapshots on each save | No, just PostgreSQL |
-| **Offline editing** | Service worker + IndexedDB for pending changes | No |
-| **Very large pages** (500+ sections) | Diff-based history instead of full snapshots | No |
-| **Cross-device resume** ("continue on phone") | Persist draft state to DB or Redis | Possibly |
+| Scenario | Solution | Needs Redis? | Status |
+|---|---|---|---|
+| **Concurrent editing** (2+ users on same page) | Presence awareness + dirty section tracking + silent last-write-wins | No | **PLANNED — Phase 1** |
+| **Real-time collaboration** (live cursors, co-editing) | Operational transforms (OT) or CRDTs + WebSockets | Yes | Deferred — not needed for 1-3 admin teams |
+| **Revision history** ("restore to v3") | `PageVersion` table, store snapshots on each save | No, just PostgreSQL | Deferred |
+| **Offline editing** | Service worker + IndexedDB for pending changes | No | Deferred |
+| **Very large pages** (500+ sections) | Diff-based history instead of full snapshots | No | Deferred |
+| **Cross-device resume** ("continue on phone") | Persist draft state to DB or Redis | Possibly | Deferred |
 
-**Bottom line: Redis is not needed for the current or near-term product scope.** The first scalability upgrade would likely be a `PageVersion` table for revision history — which is pure PostgreSQL, no Redis required.
+**Bottom line: Redis is not needed for the current or near-term product scope.** Concurrent editing is handled via dirty section tracking + presence awareness (pure PostgreSQL). The first future scalability upgrade would likely be a `PageVersion` table for revision history.
 
 ---
 
@@ -225,3 +226,70 @@ interface BuilderSnapshot {
 ```
 
 Each snapshot is a **full clone** of the state, not a diff. This is simple and fast for the current scale (typical page has 5–15 sections). If pages grow to hundreds of sections, switching to a diff/patch model (e.g., `immer` patches) would reduce memory usage.
+
+---
+
+## Concurrent Editing & Save Safety
+
+> Full design rationale: See `docs/04_builder/mental-model/concurrent-editing-strategy.md`
+
+### The Problem with the Current Save Flow
+
+The current save sends **ALL sections** on every save (N+2 requests: 1 page PATCH + 1 reorder PUT + N section PATCHes). This means if two users edit different sections on the same page, whoever saves last silently overwrites the other's changes — even on sections they didn't touch.
+
+### The Fix: Dirty Section Tracking + Selective Save
+
+Instead of saving all sections, the builder tracks which sections the user actually modified via a `dirtySectionIds: Set<string>` in BuilderShell. On save, only dirty sections are PATCHed.
+
+**What this changes in the save flow:**
+
+```
+BEFORE (current):
+1. PATCH /pages/{slug}                    → page metadata
+2. PUT   /pages/{slug}/sections           → reorder (all section IDs)
+3. PATCH /pages/{slug}/sections/{id} × N  → ALL sections via Promise.all
+
+AFTER (with dirty tracking):
+1. PATCH /pages/{slug}                    → page metadata (if title/publish changed)
+2. PUT   /pages/{slug}/sections           → reorder (if order changed)
+3. PATCH /pages/{slug}/sections/{id} × K  → only DIRTY sections via Promise.all
+                                             (K = number of changed sections, typically 1-3)
+```
+
+**What triggers dirty:**
+- Content edit → section ID added to dirty set
+- Display settings change (color scheme, padding, etc.) → section ID added to dirty set
+- New section added → auto-dirty (needs initial save to persist content)
+- Section deleted → immediate DELETE call (not tracked in dirty set)
+- Section reorder → separate `reorderDirty` flag (page-level operation)
+
+**On save completion:** `dirtySectionIds` is cleared. `router.refresh()` reloads fresh data from DB (picks up any changes from other users on non-dirty sections).
+
+**On undo/redo:** The dirty set is NOT affected by undo/redo. If the user undoes a change, the section remains dirty (its content differs from what's in the DB). This is correct — the user may want to save the undone state.
+
+### Concurrent Editing Strategy
+
+The builder uses a **three-layer approach** to handle multiple users editing the same page:
+
+1. **Presence awareness**: A heartbeat-based system shows a banner ("David is editing this website — your changes may be lost") when another user has the page open. The banner is live — it disappears when the other user leaves.
+
+2. **Dirty section tracking**: Only changed sections are saved. Two users editing different sections on the same page will never conflict — their saves don't overlap.
+
+3. **Silent last-write-wins**: For the rare case where both users edit the same section, whoever saves last wins. No merge UI, no conflict modals. The user was warned via the presence banner, and design changes are trivially re-editable.
+
+### Interaction with Undo/Redo
+
+The undo/redo stack is purely local and unaffected by concurrent editing:
+- Undo operates on the user's local state timeline — it doesn't know about other users' changes
+- After save + `router.refresh()`, the builder reloads fresh data from DB, but the undo stack retains the user's local history
+- If another user's save overwrites a section, the current user's undo stack still contains their version — they can undo, re-edit, and save again
+
+### Why Not Optimistic Locking with Conflict Modals?
+
+We evaluated and rejected per-section conflict modals ("Keep mine / Use theirs / View diff") because:
+- Church admins don't understand merge conflicts
+- JSONB content (nested objects, image URLs, card arrays) is not meaningfully diffable in a UI
+- Multiple conflict dialogs after a single save (e.g., editing 8 sections, 3 conflicts) is terrible UX
+- Silent last-write-wins with presence awareness is simpler and more effective for our user profile
+
+See `docs/04_builder/mental-model/concurrent-editing-strategy.md` for the full decision analysis.

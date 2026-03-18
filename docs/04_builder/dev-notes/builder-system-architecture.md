@@ -328,12 +328,13 @@ API routes call `revalidatePath('/website/...')` after mutations, busting Next.j
 
 **Files affected**: `hero-editor.tsx` (lines 22-116), `content-editor.tsx` (lines 16-118), `cards-editor.tsx` (lines 22-67)
 
-### 6.2 N+2 save requests
+### 6.2 N+2 save requests → PLANNED FIX: Dirty section tracking
 
-Every save sends ALL sections, not just changed ones. For a page with 15 sections, that is 17 HTTP requests. This could be optimized by:
-- Tracking which sections are dirty
-- Only sending changed sections
-- Or: implementing a bulk PATCH endpoint that accepts all sections in one request
+Every save sends ALL sections, not just changed ones. For a page with 15 sections, that is 17 HTTP requests.
+
+**Decided fix (Phase 1):** Track dirty sections via `dirtySectionIds: Set<string>` in BuilderShell. On save, only PATCH sections in the dirty set. This reduces N+2 to K+2 where K = number of changed sections (typically 1-3).
+
+This also enables **concurrent editing safety** — two users editing different sections on the same page will never conflict because their saves don't overlap. See `docs/04_builder/mental-model/concurrent-editing-strategy.md` for the full design.
 
 ### 6.3 No content validation
 
@@ -408,9 +409,17 @@ const SECTION_EDITORS: Partial<Record<SectionType, React.ComponentType<EditorPro
 
 This makes adding a new section editor a 1-line change (add to the map) instead of modifying two files.
 
-### R4: Track dirty sections for optimized save (Medium priority, medium effort)
+### R4: Track dirty sections for optimized save (High priority, medium effort) — PROMOTED TO PHASE 1
 
 Maintain a `Set<string>` of section IDs that have been modified since last save. On save, only PATCH those sections. This reduces N+2 requests to K+2 where K = number of changed sections (typically 1-2).
+
+**Update (March 17):** This is now a Phase 1 priority, not just a performance optimization. Dirty tracking is the foundation of the concurrent editing strategy — it structurally prevents conflicts when two users edit different sections on the same page. See `docs/04_builder/mental-model/concurrent-editing-strategy.md`.
+
+### R7: Presence awareness for concurrent editing (High priority, medium effort) — PHASE 1
+
+Add a heartbeat-based presence system so users see who else is editing the same page. A banner ("David is editing this website — your changes may be lost") warns users before they start editing. The banner is live — it disappears when the other user leaves (heartbeat expires after 60s of inactivity).
+
+Combined with dirty section tracking (R4) and silent last-write-wins, this provides a complete concurrent editing strategy without complex merge UI. See `docs/04_builder/mental-model/concurrent-editing-strategy.md` for the full design and decision rationale.
 
 ### R5: Consider debouncing editor changes (Low priority, low effort)
 

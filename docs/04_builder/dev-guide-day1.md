@@ -104,6 +104,36 @@ Editor field onChange
 
 ## Day 1 Tasks
 
+### Task 0: Infrastructure Refactors (DO FIRST)
+
+These must happen before any editor work — they make everything else faster and prevent more tech debt.
+
+**0a. Extract shared editor primitives**
+- Create `components/cms/website/builder/section-editors/shared.tsx`
+- Move from 5 editor files: `ImagePickerField`, `ButtonConfig`, `CardItemEditor`, `AddCardButton`
+- All 5 copies are identical (~45 lines each). Extract once, import everywhere.
+- `ImagePickerField` uses the shared `MediaPickerDialog` from `components/cms/media/media-picker-dialog.tsx` — no functionality change needed, just deduplication.
+- Files to update after extraction: `hero-editor.tsx`, `content-editor.tsx`, `cards-editor.tsx`, `ministry-editor.tsx`, `photo-gallery-editor.tsx`
+
+**0b. Fix right sidebar scrolling**
+- File: `components/cms/website/builder/builder-right-drawer.tsx`
+- Issue: Editor content overflows and is inaccessible on sections with many fields
+- Fix: Ensure drawer container has `h-full overflow-hidden flex flex-col`, ScrollArea has `flex-1 min-h-0`, header has `shrink-0`
+
+**0c. Dirty section tracking + selective save**
+- File: `components/cms/website/builder/builder-shell.tsx`
+- Add `dirtySectionIds: Set<string>` state
+- On section edit: `setDirtySectionIds(prev => new Set(prev).add(sectionId))`
+- On save: only PATCH sections in dirty set (not all N)
+- Add `reorderDirty: boolean` for section reorder (page-level operation)
+- Clear dirty set after successful save
+- This is critical for concurrent editing safety — see `docs/04_builder/mental-model/concurrent-editing-strategy.md`
+
+**0d. Refactor editor routing to flat registry** (optional, time permitting)
+- File: `components/cms/website/builder/section-editors/index.tsx`
+- Replace category-based array-includes + switch routing with flat `Record<SectionType, EditorComponent>` map
+- Makes adding new editors a 1-line change instead of 2-file change
+
 ### Task 1: Fix Hardcoded URLs (4 components)
 
 These are website section components (NOT editor files). Each has a hardcoded URL that must be read from `content` instead.
@@ -165,7 +195,7 @@ These are website section components (NOT editor files). Each has a hardcoded UR
 
 ### Task 4: Section Editor Spec Review
 
-**File**: `docs/04_builder/section-editor-spec.md`
+**File**: `docs/04_builder/section-catalog/section-editor-gap-analysis.md`
 
 This doc maps every section's editor fields (current vs should-be). David needs to review and annotate decisions for the 13 sections that need changes. The doc is organized by section category with tables showing:
 - Currently Exposed fields

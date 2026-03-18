@@ -641,7 +641,7 @@ Update this section as work progresses. Mark tasks with:
 | Phase 2: Canvas & Section Rendering | Complete | 7 | 7 | DnD, device preview, section selection, sortable sections all working |
 | Phase 3: Section Picker Modal | Complete | 5 | 5 | Categorized, searchable, 40+ types with previews |
 | Phase 4: Pages & Menu Drawer | Complete | 7 | 7 | Page tree, add/duplicate/delete, page settings modal |
-| Phase 5: Section Editors | Mostly Complete | 3 | 4 | 14 editor files, 28/41 correct. 13 need gap fixes (see `section-editor-spec.md`) |
+| Phase 5: Section Editors | Mostly Complete | 3 | 4 | 14 editor files, 28/41 correct. 13 need gap fixes (see `section-catalog/section-editor-gap-analysis.md`) |
 | Phase 6: Design Panel | Not started | 0 | 3 | Stub exists ("coming soon"). Deferred to Phase 2 of roadmap. |
 | Phase 7: Data Backup & Seed | Complete | 3 | 3 | Seed data includes all pages, sections, menus, theme |
 | Phase 8: CMS Admin Integration | Complete | 5 | 5 | Pages list opens builder, old editor has banner, cross-links exist |

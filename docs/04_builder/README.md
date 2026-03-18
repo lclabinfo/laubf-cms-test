@@ -11,7 +11,7 @@ All documentation for the website builder lives in this directory. The builder i
 | Document | Purpose |
 |---|---|
 | **[builder-roadmap.md](builder-roadmap.md)** | What to build next. Weekly targets, phases. Start here. |
-| **[section-editor-spec.md](section-editor-spec.md)** | Field-by-field gap analysis: what each editor exposes vs. what it should. David reviews before implementing. |
+| **[section-editor-gap-analysis.md](section-catalog/section-editor-gap-analysis.md)** | Field-by-field gap analysis: what each editor exposes vs. what it should. David reviews before implementing. |
 
 ## Dev Notes (`dev-notes/`)
 
@@ -19,7 +19,7 @@ Technical references for implementation.
 
 | Document | Purpose |
 |---|---|
-| [dev-guide-day1.md](dev-notes/dev-guide-day1.md) | Day 1 working reference — key files, task details, patterns, DOs/DON'Ts. Load as Claude Code context. |
+| [dev-guide-day1.md](dev-guide-day1.md) | Day 1 working reference — key files, task details, patterns, DOs/DON'Ts. Load as Claude Code context. |
 | [builder-system-architecture.md](dev-notes/builder-system-architecture.md) | Full system analysis — data flow, state management, section lifecycle, pain points, optimization recs. |
 | [builder-rendering.md](dev-notes/builder-rendering.md) | Builder canvas vs. live website rendering pipeline, known gaps, z-index scheme. |
 | [undo-redo-and-save-architecture.md](dev-notes/undo-redo-and-save-architecture.md) | Undo/redo + save system design. In-memory React state, 50-snapshot cap, auto-save 30s. |
@@ -31,6 +31,7 @@ Technical references for implementation.
 | Document | Purpose |
 |---|---|
 | [builder-review.md](mental-model/builder-review.md) | Product design critique — editing approach decision (drawer-first), Shopify comparison, section audit. |
+| [concurrent-editing-strategy.md](mental-model/concurrent-editing-strategy.md) | How the builder handles multiple users editing simultaneously. Presence awareness + dirty section tracking + silent last-write-wins. Decision rationale, edge cases, implementation plan. |
 
 ## Backlogs (`backlogs/`)
 
