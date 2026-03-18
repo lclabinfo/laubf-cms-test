@@ -18,6 +18,7 @@ import {
   CTABannerEditor,
   AboutDescriptionEditor,
   StatementEditor,
+  SpotlightMediaEditor,
 } from "./content-editor"
 
 // Cards editors
@@ -96,6 +97,7 @@ const SECTION_EDITORS: Partial<Record<SectionType, SubEditorComponent>> = {
   CTA_BANNER: CTABannerEditor,
   ABOUT_DESCRIPTION: AboutDescriptionEditor,
   STATEMENT: StatementEditor,
+  SPOTLIGHT_MEDIA: SpotlightMediaEditor,
 
   // Cards sections
   ACTION_CARD_GRID: ActionCardGridEditor,
@@ -141,7 +143,6 @@ const DATA_SECTION_TYPES: Set<SectionType> = new Set([
   "QUICK_LINKS",
   "DAILY_BREAD_FEATURE",
   "HIGHLIGHT_CARDS",
-  "SPOTLIGHT_MEDIA",
 ])
 
 /**

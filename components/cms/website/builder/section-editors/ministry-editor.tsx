@@ -8,7 +8,6 @@ import type { SectionType } from "@/lib/db/types"
 import {
   EditorInput,
   EditorTextarea,
-  EditorField,
   TwoColumnGrid,
   ImagePickerField,
   AddressField,
@@ -484,12 +483,6 @@ export function MeetTeamEditor({
     bio: string
     image: string | null
   }[]) ?? []
-
-  function updateMember(index: number, field: string, value: unknown) {
-    const updated = [...members]
-    updated[index] = { ...updated[index], [field]: value }
-    onChange({ ...content, members: updated })
-  }
 
   return (
     <div className="space-y-6">
