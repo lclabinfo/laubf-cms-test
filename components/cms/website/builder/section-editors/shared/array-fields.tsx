@@ -1,9 +1,23 @@
 "use client"
 
+import { useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Plus, Trash2, GripVertical, ChevronUp, ChevronDown } from "lucide-react"
+
+/** Generate stable keys for array items to prevent React reconciliation issues on reorder. */
+let _nextId = 0
+function nextStableId() {
+  return `af-${++_nextId}`
+}
 
 // --- ArrayField ---
 
@@ -38,6 +52,16 @@ export function ArrayField<T>({
   reorderable = false,
   maxItems,
 }: ArrayFieldProps<T>) {
+  // Stable keys: generate one ID per item slot, preserved across re-renders
+  const keysRef = useRef<string[]>([])
+  while (keysRef.current.length < items.length) {
+    keysRef.current.push(nextStableId())
+  }
+  // Trim if items were removed
+  if (keysRef.current.length > items.length) {
+    keysRef.current = keysRef.current.slice(0, items.length)
+  }
+
   function updateItem(index: number, updated: T) {
     const next = [...items]
     next[index] = updated
@@ -45,6 +69,7 @@ export function ArrayField<T>({
   }
 
   function removeItem(index: number) {
+    keysRef.current.splice(index, 1)
     onItemsChange(items.filter((_, i) => i !== index))
   }
 
@@ -53,10 +78,16 @@ export function ArrayField<T>({
     const next = [...items]
     const [moved] = next.splice(fromIndex, 1)
     next.splice(toIndex, 0, moved)
+    // Move keys in sync
+    const nextKeys = [...keysRef.current]
+    const [movedKey] = nextKeys.splice(fromIndex, 1)
+    nextKeys.splice(toIndex, 0, movedKey)
+    keysRef.current = nextKeys
     onItemsChange(next)
   }
 
   function addItem() {
+    keysRef.current.push(nextStableId())
     onItemsChange([...items, createItem()])
   }
 
@@ -81,7 +112,7 @@ export function ArrayField<T>({
 
       {items.map((item, i) => (
         <div
-          key={i}
+          key={keysRef.current[i]}
           className="rounded-lg border p-4 space-y-3 relative group"
         >
           <div className="flex items-start justify-between">
@@ -166,7 +197,7 @@ export interface SocialLinksFieldProps {
 export function SocialLinksField({
   value,
   onChange,
-  platforms: _platforms = DEFAULT_PLATFORMS,
+  platforms = DEFAULT_PLATFORMS,
 }: SocialLinksFieldProps) {
   function updateLink(index: number, field: string, val: string) {
     const updated = [...value]
@@ -196,13 +227,23 @@ export function SocialLinksField({
 
       {value.map((link, i) => (
         <div key={i} className="flex items-end gap-2">
-          <div className="w-32 space-y-1.5">
+          <div className="w-36 space-y-1.5">
             <Label className="text-xs text-muted-foreground">Platform</Label>
-            <Input
+            <Select
               value={link.platform}
-              onChange={(e) => updateLink(i, "platform", e.target.value)}
-              placeholder="instagram"
-            />
+              onValueChange={(v) => updateLink(i, "platform", v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select..." />
+              </SelectTrigger>
+              <SelectContent>
+                {platforms.map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {p.charAt(0).toUpperCase() + p.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex-1 space-y-1.5">
             <Label className="text-xs text-muted-foreground">URL</Label>

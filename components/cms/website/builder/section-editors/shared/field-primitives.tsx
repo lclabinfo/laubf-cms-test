@@ -122,7 +122,8 @@ export function EditorTextarea({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         spellCheck={spellCheck}
-        className={className ?? (rows ? `min-h-[${rows * 20}px]` : "min-h-[80px]")}
+        className={className ?? "min-h-[80px]"}
+        style={!className && rows ? { minHeight: `${rows * 20}px` } : undefined}
       />
     </EditorField>
   )
