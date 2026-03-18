@@ -1,18 +1,59 @@
 "use client"
 
 import type { SectionType } from "@/lib/db/types"
-import { HeroEditor } from "./hero-editor"
-import { ContentEditor } from "./content-editor"
-import { CardsEditor } from "./cards-editor"
+
+// Hero editors
+import {
+  HeroBannerEditor,
+  PageHeroEditor,
+  TextImageHeroEditor,
+  EventsHeroEditor,
+  MinistryHeroEditor,
+} from "./hero-editor"
+
+// Content editors
+import {
+  MediaTextEditor,
+  QuoteBannerEditor,
+  CTABannerEditor,
+  AboutDescriptionEditor,
+  StatementEditor,
+} from "./content-editor"
+
+// Cards editors
+import {
+  ActionCardGridEditor,
+  FeatureBreakdownEditor,
+  PathwayCardEditor,
+  PillarsEditor,
+  NewcomerEditor,
+} from "./cards-editor"
+
+// Data-driven section editors
 import { DataSectionEditor } from "./data-section-editor"
+
+// Ministry editors
+import {
+  MinistryIntroEditor,
+  MinistryScheduleEditor,
+  CampusCardGridEditor,
+  MeetTeamEditor,
+  LocationDetailEditor,
+  DirectoryListEditor,
+} from "./ministry-editor"
+
+// Custom editors
+import { CustomHtmlEditor, CustomEmbedEditor } from "./custom-editor"
+
+// Standalone editors
 import { FAQEditor } from "./faq-editor"
 import { TimelineEditor } from "./timeline-editor"
 import { FormEditor } from "./form-editor"
-import { CustomEditor } from "./custom-editor"
-import { MinistryEditor } from "./ministry-editor"
 import { FooterEditor } from "./footer-editor"
 import { PhotoGalleryEditor } from "./photo-gallery-editor"
 import { ScheduleEditor } from "./schedule-editor"
+
+// Fallback
 import { JsonEditor } from "./json-editor"
 
 /**
@@ -26,37 +67,69 @@ export interface SectionEditorProps {
   onChange: (content: Record<string, unknown>) => void
 }
 
-// Hero section types
-const HERO_TYPES: SectionType[] = [
-  "HERO_BANNER",
-  "PAGE_HERO",
-  "TEXT_IMAGE_HERO",
-  "EVENTS_HERO",
-  "MINISTRY_HERO",
-]
+/**
+ * Props for sub-editors that don't need sectionType.
+ * Most sub-editors only need content + onChange.
+ */
+type SubEditorProps = {
+  content: Record<string, unknown>
+  onChange: (content: Record<string, unknown>) => void
+}
 
-// Content section types (with dedicated sub-editors in content-editor.tsx)
-const CONTENT_TYPES: SectionType[] = [
-  "MEDIA_TEXT",
-  "QUOTE_BANNER",
-  "CTA_BANNER",
-  "ABOUT_DESCRIPTION",
-  "STATEMENT",
-  "SPOTLIGHT_MEDIA",
-]
+type SubEditorComponent = React.ComponentType<SubEditorProps>
 
-// Cards section types
-const CARDS_TYPES: SectionType[] = [
-  "ACTION_CARD_GRID",
-  "HIGHLIGHT_CARDS",
-  "FEATURE_BREAKDOWN",
-  "PATHWAY_CARD",
-  "PILLARS",
-  "NEWCOMER",
-]
+/**
+ * Flat registry mapping each SectionType to its editor component.
+ * To add a new section editor, add one entry here — no other file changes needed.
+ */
+const SECTION_EDITORS: Partial<Record<SectionType, SubEditorComponent>> = {
+  // Hero sections
+  HERO_BANNER: HeroBannerEditor,
+  PAGE_HERO: PageHeroEditor,
+  TEXT_IMAGE_HERO: TextImageHeroEditor,
+  EVENTS_HERO: EventsHeroEditor,
+  MINISTRY_HERO: MinistryHeroEditor,
 
-// Data-driven section types (content fetched from CMS database)
-const DATA_TYPES: SectionType[] = [
+  // Content sections
+  MEDIA_TEXT: MediaTextEditor,
+  QUOTE_BANNER: QuoteBannerEditor,
+  CTA_BANNER: CTABannerEditor,
+  ABOUT_DESCRIPTION: AboutDescriptionEditor,
+  STATEMENT: StatementEditor,
+
+  // Cards sections
+  ACTION_CARD_GRID: ActionCardGridEditor,
+  FEATURE_BREAKDOWN: FeatureBreakdownEditor,
+  PATHWAY_CARD: PathwayCardEditor,
+  PILLARS: PillarsEditor,
+  NEWCOMER: NewcomerEditor,
+
+  // Ministry sections
+  MINISTRY_INTRO: MinistryIntroEditor,
+  MINISTRY_SCHEDULE: MinistryScheduleEditor,
+  CAMPUS_CARD_GRID: CampusCardGridEditor,
+  MEET_TEAM: MeetTeamEditor,
+  LOCATION_DETAIL: LocationDetailEditor,
+  DIRECTORY_LIST: DirectoryListEditor,
+
+  // Custom sections
+  CUSTOM_HTML: CustomHtmlEditor,
+  CUSTOM_EMBED: CustomEmbedEditor,
+
+  // Standalone sections
+  FAQ_SECTION: FAQEditor,
+  TIMELINE_SECTION: TimelineEditor,
+  FORM_SECTION: FormEditor,
+  FOOTER: FooterEditor,
+  PHOTO_GALLERY: PhotoGalleryEditor,
+  RECURRING_SCHEDULE: ScheduleEditor,
+}
+
+/**
+ * Data-driven section types that use the DataSectionEditor wrapper
+ * (adds DataSourceBanner + footer note around the inner editor).
+ */
+const DATA_SECTION_TYPES: Set<SectionType> = new Set([
   "ALL_MESSAGES",
   "ALL_EVENTS",
   "ALL_BIBLE_STUDIES",
@@ -67,20 +140,9 @@ const DATA_TYPES: SectionType[] = [
   "MEDIA_GRID",
   "QUICK_LINKS",
   "DAILY_BREAD_FEATURE",
-]
-
-// Ministry section types
-const MINISTRY_TYPES: SectionType[] = [
-  "MINISTRY_INTRO",
-  "MINISTRY_SCHEDULE",
-  "CAMPUS_CARD_GRID",
-  "MEET_TEAM",
-  "LOCATION_DETAIL",
-  "DIRECTORY_LIST",
-]
-
-// Custom section types
-const CUSTOM_TYPES: SectionType[] = ["CUSTOM_HTML", "CUSTOM_EMBED"]
+  "HIGHLIGHT_CARDS",
+  "SPOTLIGHT_MEDIA",
+])
 
 /**
  * Renders the appropriate section editor for a given section type.
@@ -92,41 +154,8 @@ export function SectionContentEditor({
   content,
   onChange,
 }: SectionEditorProps) {
-  // Heroes
-  if (HERO_TYPES.includes(sectionType)) {
-    return (
-      <HeroEditor
-        sectionType={sectionType}
-        content={content}
-        onChange={onChange}
-      />
-    )
-  }
-
-  // Content
-  if (CONTENT_TYPES.includes(sectionType)) {
-    return (
-      <ContentEditor
-        sectionType={sectionType}
-        content={content}
-        onChange={onChange}
-      />
-    )
-  }
-
-  // Cards
-  if (CARDS_TYPES.includes(sectionType)) {
-    return (
-      <CardsEditor
-        sectionType={sectionType}
-        content={content}
-        onChange={onChange}
-      />
-    )
-  }
-
-  // Data-driven
-  if (DATA_TYPES.includes(sectionType)) {
+  // Data-driven sections use the DataSectionEditor wrapper
+  if (DATA_SECTION_TYPES.has(sectionType)) {
     return (
       <DataSectionEditor
         sectionType={sectionType}
@@ -136,56 +165,10 @@ export function SectionContentEditor({
     )
   }
 
-  // Ministry
-  if (MINISTRY_TYPES.includes(sectionType)) {
-    return (
-      <MinistryEditor
-        sectionType={sectionType}
-        content={content}
-        onChange={onChange}
-      />
-    )
-  }
-
-  // FAQ
-  if (sectionType === "FAQ_SECTION") {
-    return <FAQEditor content={content} onChange={onChange} />
-  }
-
-  // Timeline
-  if (sectionType === "TIMELINE_SECTION") {
-    return <TimelineEditor content={content} onChange={onChange} />
-  }
-
-  // Contact Form
-  if (sectionType === "FORM_SECTION") {
-    return <FormEditor content={content} onChange={onChange} />
-  }
-
-  // Footer
-  if (sectionType === "FOOTER") {
-    return <FooterEditor content={content} onChange={onChange} />
-  }
-
-  // Photo Gallery
-  if (sectionType === "PHOTO_GALLERY") {
-    return <PhotoGalleryEditor content={content} onChange={onChange} />
-  }
-
-  // Recurring Schedule (static, not data-driven)
-  if (sectionType === "RECURRING_SCHEDULE") {
-    return <ScheduleEditor content={content} onChange={onChange} />
-  }
-
-  // Custom HTML / Embed
-  if (CUSTOM_TYPES.includes(sectionType)) {
-    return (
-      <CustomEditor
-        sectionType={sectionType}
-        content={content}
-        onChange={onChange}
-      />
-    )
+  // Look up the editor in the flat registry
+  const Editor = SECTION_EDITORS[sectionType]
+  if (Editor) {
+    return <Editor content={content} onChange={onChange} />
   }
 
   // Fallback: raw JSON editor
@@ -197,18 +180,5 @@ export function SectionContentEditor({
  * structured editor (not just the JSON fallback).
  */
 export function hasStructuredEditor(sectionType: SectionType): boolean {
-  return (
-    HERO_TYPES.includes(sectionType) ||
-    CONTENT_TYPES.includes(sectionType) ||
-    CARDS_TYPES.includes(sectionType) ||
-    DATA_TYPES.includes(sectionType) ||
-    MINISTRY_TYPES.includes(sectionType) ||
-    CUSTOM_TYPES.includes(sectionType) ||
-    sectionType === "FAQ_SECTION" ||
-    sectionType === "TIMELINE_SECTION" ||
-    sectionType === "FORM_SECTION" ||
-    sectionType === "FOOTER" ||
-    sectionType === "PHOTO_GALLERY" ||
-    sectionType === "RECURRING_SCHEDULE"
-  )
+  return sectionType in SECTION_EDITORS || DATA_SECTION_TYPES.has(sectionType)
 }

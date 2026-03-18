@@ -1,64 +1,14 @@
 "use client"
 
-import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
+import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { ImageIcon, X } from "lucide-react"
+import { Plus, Trash2, GripVertical, ImageIcon, Database } from "lucide-react"
 import type { SectionType } from "@/lib/db/types"
-import { MediaPickerDialog } from "@/components/cms/media/media-picker-dialog"
-
-// --- Image Picker Field (reusable) ---
-
-function ImagePickerField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (url: string) => void
-}) {
-  const [pickerOpen, setPickerOpen] = useState(false)
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-sm font-medium">{label}</Label>
-      {value ? (
-        <div className="relative group rounded-md border overflow-hidden h-20">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt="" className="size-full object-cover" />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setPickerOpen(true)}>
-              Replace
-            </Button>
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => onChange("")}>
-              <X className="size-3" />
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full justify-start gap-2 text-muted-foreground font-normal"
-          onClick={() => setPickerOpen(true)}
-        >
-          <ImageIcon className="size-3.5" />
-          Choose image...
-        </Button>
-      )}
-      <MediaPickerDialog
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        folder="Website"
-        onSelect={(url) => onChange(url)}
-      />
-    </div>
-  )
-}
+import { ImagePickerField, ButtonConfig } from "./shared"
 
 interface ContentEditorProps {
   sectionType: SectionType
@@ -66,60 +16,9 @@ interface ContentEditorProps {
   onChange: (content: Record<string, unknown>) => void
 }
 
-// --- Helper subcomponents ---
-
-function ButtonConfig({
-  id,
-  label,
-  buttonData,
-  onChange,
-}: {
-  id: string
-  label: string
-  buttonData: { label: string; href: string; visible: boolean }
-  onChange: (data: { label: string; href: string; visible: boolean }) => void
-}) {
-  return (
-    <div className="space-y-3 rounded-lg border p-4">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">{label}</Label>
-        <Switch
-          id={`${id}-visible`}
-          checked={buttonData.visible}
-          onCheckedChange={(v) => onChange({ ...buttonData, visible: v })}
-        />
-      </div>
-      {buttonData.visible && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Button Text</Label>
-            <Input
-              value={buttonData.label}
-              onChange={(e) =>
-                onChange({ ...buttonData, label: e.target.value })
-              }
-              placeholder="Learn More"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Link URL</Label>
-            <Input
-              value={buttonData.href}
-              onChange={(e) =>
-                onChange({ ...buttonData, href: e.target.value })
-              }
-              placeholder="/about"
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
 // --- Media Text Editor ---
 
-function MediaTextEditor({
+export function MediaTextEditor({
   content,
   onChange,
 }: {
@@ -134,6 +33,39 @@ function MediaTextEditor({
     href: string
     visible: boolean
   }) ?? { label: "", href: "", visible: false }
+  const images = (content.images as {
+    src: string
+    alt: string
+    objectPosition?: string
+  }[]) ?? []
+
+  function updateImage(index: number, field: string, value: string) {
+    const updated = [...images]
+    updated[index] = { ...updated[index], [field]: value }
+    onChange({ ...content, images: updated })
+  }
+
+  function removeImage(index: number) {
+    onChange({
+      ...content,
+      images: images.filter((_, i) => i !== index),
+    })
+  }
+
+  function addImage() {
+    onChange({
+      ...content,
+      images: [...images, { src: "", alt: "" }],
+    })
+  }
+
+  function moveImage(fromIndex: number, toIndex: number) {
+    if (toIndex < 0 || toIndex >= images.length) return
+    const updated = [...images]
+    const [moved] = updated.splice(fromIndex, 1)
+    updated.splice(toIndex, 0, moved)
+    onChange({ ...content, images: updated })
+  }
 
   return (
     <div className="space-y-6">
@@ -174,17 +106,118 @@ function MediaTextEditor({
         onChange={(b) => onChange({ ...content, button: b })}
       />
 
-      <p className="text-xs text-muted-foreground">
-        Rotating images are configured in the JSON content. An image gallery
-        editor is planned for a future update.
-      </p>
+      <Separator />
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">
+            Images ({images.length})
+          </Label>
+          <Button variant="outline" size="sm" onClick={addImage}>
+            <Plus className="size-3.5 mr-1.5" />
+            Add Image
+          </Button>
+        </div>
+
+        {images.map((image, i) => (
+          <div
+            key={i}
+            className="rounded-lg border p-4 space-y-3 relative group"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <GripVertical className="size-4" />
+                <ImageIcon className="size-3.5" />
+                <span className="text-xs font-medium">Image {i + 1}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 text-muted-foreground"
+                  onClick={() => moveImage(i, i - 1)}
+                  disabled={i === 0}
+                  title="Move up"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M18 15l-6-6-6 6"/>
+                  </svg>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 text-muted-foreground"
+                  onClick={() => moveImage(i, i + 1)}
+                  disabled={i === images.length - 1}
+                  title="Move down"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M6 9l6 6 6-6"/>
+                  </svg>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                  onClick={() => removeImage(i)}
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </div>
+            </div>
+
+            <ImagePickerField
+              label="Image"
+              value={image.src}
+              onChange={(url) => updateImage(i, "src", url)}
+            />
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  Alt Text
+                </Label>
+                <Input
+                  value={image.alt}
+                  onChange={(e) => updateImage(i, "alt", e.target.value)}
+                  placeholder="Photo description"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  Object Position
+                </Label>
+                <Input
+                  value={image.objectPosition ?? ""}
+                  onChange={(e) =>
+                    updateImage(i, "objectPosition", e.target.value)
+                  }
+                  placeholder="center center"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {images.length === 0 && (
+          <div className="rounded-lg border-2 border-dashed p-8 text-center">
+            <ImageIcon className="mx-auto mb-3 size-8 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">
+              No images added yet.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Click &quot;Add Image&quot; to build the rotating carousel.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
 // --- Quote Banner Editor ---
 
-function QuoteBannerEditor({
+export function QuoteBannerEditor({
   content,
   onChange,
 }: {
@@ -256,7 +289,7 @@ function QuoteBannerEditor({
 
 // --- CTA Banner Editor ---
 
-function CTABannerEditor({
+export function CTABannerEditor({
   content,
   onChange,
 }: {
@@ -349,7 +382,7 @@ function CTABannerEditor({
 
 // --- About Description Editor ---
 
-function AboutDescriptionEditor({
+export function AboutDescriptionEditor({
   content,
   onChange,
 }: {
@@ -424,7 +457,7 @@ function AboutDescriptionEditor({
 
 // --- Statement Editor ---
 
-function StatementEditor({
+export function StatementEditor({
   content,
   onChange,
 }: {
@@ -551,7 +584,7 @@ function StatementEditor({
 
 // --- Spotlight Media Editor ---
 
-function SpotlightMediaEditor({
+export function SpotlightMediaEditor({
   content,
   onChange,
 }: {
@@ -559,29 +592,23 @@ function SpotlightMediaEditor({
   onChange: (c: Record<string, unknown>) => void
 }) {
   const sectionHeading = (content.sectionHeading as string) ?? ""
-  const sermon = (content.sermon as {
-    slug?: string
-    title: string
-    speaker: string
-    date: string
-    series?: string
-    thumbnailUrl?: string | null
-    videoUrl?: string
-  }) ?? {
-    title: "",
-    speaker: "",
-    date: "",
-  }
-
-  function updateSermon(field: string, value: string) {
-    onChange({
-      ...content,
-      sermon: { ...sermon, [field]: value },
-    })
-  }
 
   return (
     <div className="space-y-6">
+      <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
+        <Database className="mt-0.5 size-4 shrink-0 text-blue-600 dark:text-blue-400" />
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
+            Data-Driven Section
+          </p>
+          <p className="text-xs text-blue-700 dark:text-blue-300">
+            Content is auto-populated from the latest published message in your
+            CMS. The sermon title, speaker, date, series, thumbnail, and video
+            are all pulled automatically.
+          </p>
+        </div>
+      </div>
+
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">Section Heading</Label>
         <Input
@@ -593,75 +620,11 @@ function SpotlightMediaEditor({
         />
       </div>
 
-      <Separator />
-
-      <div className="space-y-3">
-        <Label className="text-sm font-medium">Featured Sermon</Label>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Title</Label>
-          <Input
-            value={sermon.title}
-            onChange={(e) => updateSermon("title", e.target.value)}
-            placeholder="Sermon title"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Speaker</Label>
-            <Input
-              value={sermon.speaker}
-              onChange={(e) => updateSermon("speaker", e.target.value)}
-              placeholder="Speaker name"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Date</Label>
-            <Input
-              value={sermon.date}
-              onChange={(e) => updateSermon("date", e.target.value)}
-              placeholder="January 1, 2026"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Series</Label>
-            <Input
-              value={sermon.series ?? ""}
-              onChange={(e) => updateSermon("series", e.target.value)}
-              placeholder="Series name"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Slug</Label>
-            <Input
-              value={sermon.slug ?? ""}
-              onChange={(e) => updateSermon("slug", e.target.value)}
-              placeholder="sermon-slug"
-            />
-          </div>
-        </div>
-
-        <ImagePickerField
-          label="Thumbnail"
-          value={sermon.thumbnailUrl ?? ""}
-          onChange={(url) => updateSermon("thumbnailUrl", url)}
-        />
-
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            Video URL
-          </Label>
-          <Input
-            value={sermon.videoUrl ?? ""}
-            onChange={(e) => updateSermon("videoUrl", e.target.value)}
-            placeholder="https://..."
-          />
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground">
+        To change the featured message content, edit it in the CMS Messages
+        module. The most recently published message will appear here
+        automatically.
+      </p>
     </div>
   )
 }

@@ -1,59 +1,11 @@
 "use client"
 
-import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Plus, Trash2, GripVertical, ImageIcon, X } from "lucide-react"
-import { MediaPickerDialog } from "@/components/cms/media/media-picker-dialog"
-
-function ImagePickerField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (url: string) => void
-}) {
-  const [pickerOpen, setPickerOpen] = useState(false)
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {value ? (
-        <div className="relative group rounded-md border overflow-hidden h-20">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt="" className="size-full object-cover" />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setPickerOpen(true)}>
-              Replace
-            </Button>
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => onChange("")}>
-              <X className="size-3" />
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full justify-start gap-2 text-muted-foreground font-normal"
-          onClick={() => setPickerOpen(true)}
-        >
-          <ImageIcon className="size-3.5" />
-          Choose image...
-        </Button>
-      )}
-      <MediaPickerDialog
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        folder="Website"
-        onSelect={(url) => onChange(url)}
-      />
-    </div>
-  )
-}
+import { Plus, Trash2, GripVertical, ImageIcon } from "lucide-react"
+import { ImagePickerField } from "./shared"
 
 interface PhotoGalleryEditorProps {
   content: Record<string, unknown>

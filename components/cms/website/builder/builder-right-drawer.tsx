@@ -231,7 +231,7 @@ export function BuilderRightDrawer({
           </div>
 
           {/* Scrollable content */}
-          <ScrollArea className="flex-1 min-h-0">
+          <ScrollArea className="flex-1 min-h-0 overflow-hidden">
             <div className="p-4">
               {showNavbar && navbarSettings && (
                 <NavbarEditor

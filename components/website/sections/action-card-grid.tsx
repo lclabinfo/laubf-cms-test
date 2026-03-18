@@ -18,7 +18,7 @@ interface ImageCardData {
 interface ActionCardGridContent {
   heading: { line1: string; line2: string; line3: string }
   subheading: string
-  ctaButton?: { label: string; href: string }
+  ctaButton?: { label: string; href: string; visible?: boolean }
   cards: ImageCardData[]
 }
 
@@ -48,7 +48,7 @@ export default function ActionCardGridSection({ content, enableAnimations, color
             <span>{content.heading.line3}</span>
           </h2>
           <p className="text-h4 text-black-2">{content.subheading}</p>
-          {content.ctaButton && (
+          {content.ctaButton && content.ctaButton.visible !== false && (
             <CTAButton
               label={content.ctaButton.label}
               href={content.ctaButton.href}

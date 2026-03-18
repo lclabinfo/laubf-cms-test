@@ -1,15 +1,14 @@
 "use client"
 
-import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { Plus, Trash2, GripVertical, ImageIcon, X } from "lucide-react"
+import { Trash2, Plus, ImageIcon } from "lucide-react"
 import type { SectionType } from "@/lib/db/types"
-import { MediaPickerDialog } from "@/components/cms/media/media-picker-dialog"
+import { ImagePickerField, type GenericCard, CardItemEditor, AddCardButton } from "./shared"
 
 interface CardsEditorProps {
   sectionType: SectionType
@@ -17,167 +16,9 @@ interface CardsEditorProps {
   onChange: (content: Record<string, unknown>) => void
 }
 
-// --- Image Picker Field (reusable) ---
-
-function ImagePickerField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (url: string) => void
-}) {
-  const [pickerOpen, setPickerOpen] = useState(false)
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {value ? (
-        <div className="relative group rounded-md border overflow-hidden h-20">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt="" className="size-full object-cover" />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setPickerOpen(true)}>
-              Replace
-            </Button>
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => onChange("")}>
-              <X className="size-3" />
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full justify-start gap-2 text-muted-foreground font-normal"
-          onClick={() => setPickerOpen(true)}
-        >
-          <ImageIcon className="size-3.5" />
-          Choose image...
-        </Button>
-      )}
-      <MediaPickerDialog
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        folder="Website"
-        onSelect={(url) => onChange(url)}
-      />
-    </div>
-  )
-}
-
-// --- Generic Card Item ---
-
-interface GenericCard {
-  id?: string
-  title: string
-  description: string
-  imageUrl?: string
-  href?: string
-  [key: string]: unknown
-}
-
-function CardItemEditor({
-  index,
-  card,
-  onChange,
-  onRemove,
-  showImage,
-  showLink,
-  extraFields,
-}: {
-  index: number
-  card: GenericCard
-  onChange: (card: GenericCard) => void
-  onRemove: () => void
-  showImage?: boolean
-  showLink?: boolean
-  extraFields?: React.ReactNode
-}) {
-  return (
-    <div className="rounded-lg border p-4 space-y-3 relative group">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <GripVertical className="size-4" />
-          <span className="text-xs font-medium">Card {index + 1}</span>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-          onClick={onRemove}
-        >
-          <Trash2 className="size-3.5" />
-        </Button>
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Title</Label>
-        <Input
-          value={card.title}
-          onChange={(e) => onChange({ ...card, title: e.target.value })}
-          placeholder="Card title"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">Description</Label>
-        <Textarea
-          value={card.description}
-          onChange={(e) =>
-            onChange({ ...card, description: e.target.value })
-          }
-          placeholder="Card description"
-          className="min-h-[60px]"
-        />
-      </div>
-
-      {showImage && (
-        <ImagePickerField
-          label="Image"
-          value={card.imageUrl ?? ""}
-          onChange={(url) => onChange({ ...card, imageUrl: url })}
-        />
-      )}
-
-      {showLink && (
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Link URL</Label>
-          <Input
-            value={card.href ?? ""}
-            onChange={(e) => onChange({ ...card, href: e.target.value })}
-            placeholder="/page"
-          />
-        </div>
-      )}
-
-      {extraFields}
-    </div>
-  )
-}
-
-function AddCardButton({
-  label,
-  onClick,
-}: {
-  label: string
-  onClick: () => void
-}) {
-  return (
-    <Button
-      variant="outline"
-      className="w-full border-dashed"
-      onClick={onClick}
-    >
-      <Plus className="size-4 mr-2" />
-      {label}
-    </Button>
-  )
-}
-
 // --- Action Card Grid Editor ---
 
-function ActionCardGridEditor({
+export function ActionCardGridEditor({
   content,
   onChange,
 }: {
@@ -193,7 +34,8 @@ function ActionCardGridEditor({
   const ctaButton = (content.ctaButton as {
     label: string
     href: string
-  }) ?? null
+    visible?: boolean
+  }) ?? { label: "", href: "", visible: true }
   const cards = (content.cards as GenericCard[]) ?? []
 
   function updateCard(index: number, card: GenericCard) {
@@ -276,38 +118,52 @@ function ActionCardGridEditor({
         />
       </div>
 
-      {ctaButton !== null && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              CTA Button Label
-            </Label>
-            <Input
-              value={ctaButton.label}
-              onChange={(e) =>
-                onChange({
-                  ...content,
-                  ctaButton: { ...ctaButton, label: e.target.value },
-                })
-              }
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              CTA Button Link
-            </Label>
-            <Input
-              value={ctaButton.href}
-              onChange={(e) =>
-                onChange({
-                  ...content,
-                  ctaButton: { ...ctaButton, href: e.target.value },
-                })
-              }
-            />
-          </div>
+      <div className="space-y-3 rounded-lg border p-4">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">CTA Button</Label>
+          <Switch
+            checked={ctaButton.visible !== false}
+            onCheckedChange={(v) =>
+              onChange({
+                ...content,
+                ctaButton: { ...ctaButton, visible: v },
+              })
+            }
+          />
         </div>
-      )}
+        {ctaButton.visible !== false && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
+                CTA Button Label
+              </Label>
+              <Input
+                value={ctaButton.label}
+                onChange={(e) =>
+                  onChange({
+                    ...content,
+                    ctaButton: { ...ctaButton, label: e.target.value },
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
+                CTA Button Link
+              </Label>
+              <Input
+                value={ctaButton.href}
+                onChange={(e) =>
+                  onChange({
+                    ...content,
+                    ctaButton: { ...ctaButton, href: e.target.value },
+                  })
+                }
+              />
+            </div>
+          </div>
+        )}
+      </div>
 
       <Separator />
 
@@ -332,7 +188,7 @@ function ActionCardGridEditor({
 
 // --- Highlight Cards Editor ---
 
-function HighlightCardsEditor({
+export function HighlightCardsEditor({
   content,
   onChange,
 }: {
@@ -399,7 +255,7 @@ function HighlightCardsEditor({
 
 // --- Pathway Card Editor ---
 
-function PathwayCardEditor({
+export function PathwayCardEditor({
   content,
   onChange,
 }: {
@@ -559,7 +415,7 @@ function PathwayCardEditor({
 
 // --- Pillars Editor ---
 
-function PillarsEditor({
+export function PillarsEditor({
   content,
   onChange,
 }: {
@@ -695,9 +551,78 @@ function PillarsEditor({
               </div>
             )}
 
-            <p className="text-xs text-muted-foreground">
-              Images for this pillar are configured in the JSON content.
-            </p>
+            <Separator />
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-medium text-muted-foreground">
+                  Images ({item.images?.length ?? 0}/3)
+                </Label>
+                {(item.images?.length ?? 0) < 3 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const updatedImages = [...(item.images ?? []), { src: "", alt: "" }]
+                      updateItem(i, "images", updatedImages)
+                    }}
+                  >
+                    <Plus className="size-3.5 mr-1.5" />
+                    Add Image
+                  </Button>
+                )}
+              </div>
+              {(item.images ?? []).map((img, imgIdx) => (
+                <div
+                  key={imgIdx}
+                  className="rounded-md border p-3 space-y-2"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                      <ImageIcon className="size-3.5" />
+                      <span className="text-xs font-medium">Image {imgIdx + 1}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="size-6 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => {
+                        const updatedImages = item.images.filter((_, ii) => ii !== imgIdx)
+                        updateItem(i, "images", updatedImages)
+                      }}
+                    >
+                      <Trash2 className="size-3" />
+                    </Button>
+                  </div>
+                  <ImagePickerField
+                    label="Image URL"
+                    value={img.src}
+                    onChange={(url) => {
+                      const updatedImages = [...item.images]
+                      updatedImages[imgIdx] = { ...updatedImages[imgIdx], src: url }
+                      updateItem(i, "images", updatedImages)
+                    }}
+                  />
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Alt Text</Label>
+                    <Input
+                      value={img.alt}
+                      onChange={(e) => {
+                        const updatedImages = [...item.images]
+                        updatedImages[imgIdx] = { ...updatedImages[imgIdx], alt: e.target.value }
+                        updateItem(i, "images", updatedImages)
+                      }}
+                      placeholder="Describe this image"
+                    />
+                  </div>
+                </div>
+              ))}
+              {(item.images?.length ?? 0) === 0 && (
+                <p className="text-xs text-muted-foreground text-center py-2">
+                  No images added yet. Click &quot;Add Image&quot; above.
+                </p>
+              )}
+            </div>
           </div>
         ))}
         <AddCardButton label="Add Pillar" onClick={addItem} />
@@ -708,7 +633,7 @@ function PillarsEditor({
 
 // --- Feature Breakdown Editor ---
 
-function FeatureBreakdownEditor({
+export function FeatureBreakdownEditor({
   content,
   onChange,
 }: {
@@ -851,7 +776,7 @@ function FeatureBreakdownEditor({
 
 // --- Newcomer Editor ---
 
-function NewcomerEditor({
+export function NewcomerEditor({
   content,
   onChange,
 }: {

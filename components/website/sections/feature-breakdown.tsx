@@ -11,6 +11,7 @@ interface FeatureBreakdownContent {
   acronymLines: string[]
   description: string
   button: { label: string; href: string; visible: boolean }
+  watermarkUrl?: string
 }
 
 interface Props {
@@ -28,16 +29,18 @@ export default function FeatureBreakdownSection({ content, enableAnimations, col
   return (
     <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth} bgOverride="bg-brand-2" className="relative overflow-hidden !py-14 lg:!py-30">
       {/* Background watermark logo */}
-      <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-[0.08] pointer-events-none">
-        <Image
-          src="https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/initial-setup/laubf-logo-blue.svg"
-          alt=""
-          width={400}
-          height={400}
-          className="object-contain"
-          aria-hidden="true"
-        />
-      </div>
+      {content.watermarkUrl && (
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-[0.08] pointer-events-none">
+          <Image
+            src={content.watermarkUrl}
+            alt=""
+            width={400}
+            height={400}
+            className="object-contain"
+            aria-hidden="true"
+          />
+        </div>
+      )}
 
       <div className="relative z-10 flex flex-col gap-4 lg:gap-0 mx-auto w-full">
         {/* Heading */}

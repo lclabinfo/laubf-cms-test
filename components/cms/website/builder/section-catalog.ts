@@ -59,6 +59,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
       primaryButton: { label: "Learn More", href: "/about", visible: true },
       secondaryButton: { label: "Visit Us", href: "/visit", visible: true },
       backgroundImage: { src: "", alt: "Hero background" },
+      backgroundVideo: { src: "", mobileSrc: "" },
     },
   },
   {
@@ -258,6 +259,8 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
       heading: "What We Believe",
       leadIn: "Our Vision",
       showIcon: false,
+      maskImageUrl:
+        "https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/initial-setup/compressed-cross.png",
       paragraphs: [
         { text: "Add your first statement or value here.", isBold: false },
         { text: "Add your second statement or value here.", isBold: false },
@@ -279,7 +282,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
     defaultContent: {
       heading: { line1: "Get", line2: "Involved", line3: "Today" },
       subheading: "Explore the ways you can connect and grow.",
-      ctaButton: { label: "See All", href: "#" },
+      ctaButton: { label: "See All", href: "#", visible: true },
       cards: [],
     },
   },
@@ -319,6 +322,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
       acronymLines: ["Faith", "Unity", "Love"],
       description: "Describe your organization's core values or features here.",
       button: { label: "Learn More", href: "#", visible: true },
+      watermarkUrl: "https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/initial-setup/laubf-logo-blue.svg",
     },
   },
   {
@@ -359,7 +363,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
         {
           title: "First Pillar",
           description: "Describe this pillar or value.",
-          images: [],
+          images: [{ src: "", alt: "" }],
           button: { label: "Learn More", href: "#" },
         },
       ],
@@ -533,6 +537,10 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
     defaultContent: {
       heading: "Meeting Times",
       description: "Join us at our regular meeting times.",
+      timeValue: "",
+      address: [],
+      directionsUrl: "",
+      image: null,
       scheduleEntries: [
         { day: "Sunday", time: "10:00 AM", location: "Main Building" },
       ],
@@ -555,6 +563,8 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
       description: "We have multiple locations to serve you.",
       campuses: [],
       decorativeImages: [],
+      ctaHeading: "",
+      ctaButton: { label: "", href: "" },
     },
   },
   {
@@ -703,6 +713,7 @@ export const SECTION_CATALOG: SectionCatalogItem[] = [
     category: "layout",
     isDataDriven: false,
     defaultContent: {
+      logoUrl: "",
       description: "A brief description of your church or organization.",
       socialLinks: [],
       columns: [

@@ -90,6 +90,11 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const [isSaving, setIsSaving] = useState(false)
   const [pages, setPages] = useState<PageSummary[]>(allPages)
 
+  // Granular dirty tracking — controls which parts of the save are actually sent
+  const [dirtySectionIds, setDirtySectionIds] = useState<Set<string>>(new Set())
+  const [reorderDirty, setReorderDirty] = useState(false)
+  const [pageDirty, setPageDirty] = useState(false)
+
   // Save button visual state: idle -> saving -> saved -> idle
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle")
 
@@ -142,6 +147,10 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
       setSections(snapshot.sections)
       setPageData((prev) => ({ ...prev, title: snapshot.pageTitle }))
       setIsDirty(true)
+      // After undo, any section could differ from the DB — mark all dirty
+      setDirtySectionIds(new Set(snapshot.sections.map((s) => s.id)))
+      setReorderDirty(true)
+      setPageDirty(true)
     }
   }, [history, sections, pageData.title])
 
@@ -151,6 +160,10 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
       setSections(snapshot.sections)
       setPageData((prev) => ({ ...prev, title: snapshot.pageTitle }))
       setIsDirty(true)
+      // After redo, any section could differ from the DB — mark all dirty
+      setDirtySectionIds(new Set(snapshot.sections.map((s) => s.id)))
+      setReorderDirty(true)
+      setPageDirty(true)
     }
   }, [history, sections, pageData.title])
 
@@ -169,6 +182,9 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     setSelectedSectionId(null)
     setEditingSectionId(null)
     setIsDirty(false)
+    setDirtySectionIds(new Set())
+    setReorderDirty(false)
+    setPageDirty(false)
     setSaveState("idle")
     history.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -221,64 +237,80 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   // -------------------------------------------------------------------------
 
   const handleSave = useCallback(async () => {
+    // If nothing is dirty, skip the save entirely
+    if (!pageDirty && !reorderDirty && dirtySectionIds.size === 0) {
+      setIsDirty(false)
+      return
+    }
+
     setIsSaving(true)
     setSaveState("saving")
     try {
-      // Save page metadata
-      const pageRes = await fetch(`/api/v1/pages/${pagePathId(pageData)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: pageData.title,
-          isPublished: pageData.isPublished,
-        }),
-      })
-      if (!pageRes.ok) throw new Error("Failed to save page metadata")
-
-      // Reorder sections
-      const sectionIds = sections.map((s) => s.id)
-      const reorderRes = await fetch(`/api/v1/pages/${pagePathId(pageData)}/sections`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sectionIds }),
-      })
-      if (!reorderRes.ok) throw new Error("Failed to reorder sections")
-
-      // Save each section's content and display settings
-      const sectionSaves = sections.map((s) =>
-        fetch(`/api/v1/pages/${pagePathId(pageData)}/sections/${s.id}`, {
+      // 1. Save page metadata — only if page-level fields changed
+      if (pageDirty) {
+        const pageRes = await fetch(`/api/v1/pages/${pagePathId(pageData)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            content: s.content,
-            colorScheme: s.colorScheme,
-            paddingY: s.paddingY,
-            containerWidth: s.containerWidth,
-            enableAnimations: s.enableAnimations,
-            visible: s.visible,
-            label: s.label,
+            title: pageData.title,
+            isPublished: pageData.isPublished,
           }),
-        }),
-      )
-      const results = await Promise.all(sectionSaves)
-
-      // Check each section result individually
-      const failedNames: string[] = []
-      results.forEach((res, i) => {
-        if (!res.ok) {
-          const s = sections[i]
-          failedNames.push(s.label || s.sectionType)
-        }
-      })
-
-      if (failedNames.length > 0) {
-        setSaveState("idle")
-        toast.error(
-          `Failed to save ${failedNames.length} section(s): ${failedNames.join(", ")}`,
-        )
-        return
+        })
+        if (!pageRes.ok) throw new Error("Failed to save page metadata")
       }
 
+      // 2. Reorder sections — only if order changed
+      if (reorderDirty) {
+        const sectionIds = sections.map((s) => s.id)
+        const reorderRes = await fetch(`/api/v1/pages/${pagePathId(pageData)}/sections`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sectionIds }),
+        })
+        if (!reorderRes.ok) throw new Error("Failed to reorder sections")
+      }
+
+      // 3. Save only dirty sections' content and display settings
+      const dirtySections = sections.filter((s) => dirtySectionIds.has(s.id))
+      if (dirtySections.length > 0) {
+        const sectionSaves = dirtySections.map((s) =>
+          fetch(`/api/v1/pages/${pagePathId(pageData)}/sections/${s.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              content: s.content,
+              colorScheme: s.colorScheme,
+              paddingY: s.paddingY,
+              containerWidth: s.containerWidth,
+              enableAnimations: s.enableAnimations,
+              visible: s.visible,
+              label: s.label,
+            }),
+          }),
+        )
+        const results = await Promise.all(sectionSaves)
+
+        // Check each section result individually
+        const failedNames: string[] = []
+        results.forEach((res, i) => {
+          if (!res.ok) {
+            const s = dirtySections[i]
+            failedNames.push(s.label || s.sectionType)
+          }
+        })
+
+        if (failedNames.length > 0) {
+          setSaveState("idle")
+          toast.error(
+            `Failed to save ${failedNames.length} section(s): ${failedNames.join(", ")}`,
+          )
+          return
+        }
+      }
+
+      setDirtySectionIds(new Set())
+      setReorderDirty(false)
+      setPageDirty(false)
       setIsDirty(false)
       setSaveState("saved")
       router.refresh()
@@ -295,7 +327,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     } finally {
       setIsSaving(false)
     }
-  }, [pageData, sections, router])
+  }, [pageData, sections, router, pageDirty, reorderDirty, dirtySectionIds])
 
   // Use a ref to always have the latest handleSave without re-subscribing the effect
   const handleSaveRef = useRef(handleSave)
@@ -446,6 +478,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         })
         setSelectedSectionId(newSection.id)
         setEditingSectionId(newSection.id)
+        setDirtySectionIds((prev) => new Set(prev).add(newSection.id))
+        setReorderDirty(true)
         setIsDirty(true)
         toast.success("Section added")
       } catch (err) {
@@ -488,6 +522,13 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         if (editingSectionId === sectionId) {
           setEditingSectionId(null)
         }
+        // Remove deleted section from dirty set (it's already deleted via API)
+        setDirtySectionIds((prev) => {
+          const next = new Set(prev)
+          next.delete(sectionId)
+          return next
+        })
+        setReorderDirty(true)
         setIsDirty(true)
         toast.success("Section deleted")
       } catch (err) {
@@ -506,6 +547,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const handleReorderSections = useCallback((reordered: BuilderSection[]) => {
     pushSnapshot()
     setSections(reordered)
+    setReorderDirty(true)
     setIsDirty(true)
   }, [pushSnapshot])
 
@@ -587,6 +629,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
             : s,
         ),
       )
+      setDirtySectionIds((prev) => new Set(prev).add(editingSectionId))
       setIsDirty(true)
     },
     [editingSectionId, pushSnapshot],
@@ -621,6 +664,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const handleTitleChange = useCallback((title: string) => {
     pushSnapshot()
     setPageData((prev) => ({ ...prev, title }))
+    setPageDirty(true)
     setIsDirty(true)
   }, [pushSnapshot])
 

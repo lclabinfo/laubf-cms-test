@@ -1,15 +1,20 @@
 "use client"
 
-import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { ImageIcon, X } from "lucide-react"
-import { MediaPickerDialog } from "@/components/cms/media/media-picker-dialog"
+import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Plus, Trash2 } from "lucide-react"
 import type { SectionType } from "@/lib/db/types"
+import { ImagePickerField, ButtonConfig } from "./shared"
 
 interface HeroEditorProps {
   sectionType: SectionType
@@ -17,107 +22,9 @@ interface HeroEditorProps {
   onChange: (content: Record<string, unknown>) => void
 }
 
-// --- Helper subcomponents ---
-
-function ButtonConfig({
-  id,
-  label,
-  buttonData,
-  onChange,
-}: {
-  id: string
-  label: string
-  buttonData: { label: string; href: string; visible: boolean }
-  onChange: (data: { label: string; href: string; visible: boolean }) => void
-}) {
-  return (
-    <div className="space-y-3 rounded-lg border p-4">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">{label}</Label>
-        <Switch
-          id={`${id}-visible`}
-          checked={buttonData.visible}
-          onCheckedChange={(v) => onChange({ ...buttonData, visible: v })}
-        />
-      </div>
-      {buttonData.visible && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Button Text</Label>
-            <Input
-              value={buttonData.label}
-              onChange={(e) =>
-                onChange({ ...buttonData, label: e.target.value })
-              }
-              placeholder="Learn More"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Link URL</Label>
-            <Input
-              value={buttonData.href}
-              onChange={(e) =>
-                onChange({ ...buttonData, href: e.target.value })
-              }
-              placeholder="/about"
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function ImagePickerField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (url: string) => void
-}) {
-  const [pickerOpen, setPickerOpen] = useState(false)
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {value ? (
-        <div className="relative group rounded-md border overflow-hidden h-20">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt="" className="size-full object-cover" />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setPickerOpen(true)}>
-              Replace
-            </Button>
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => onChange("")}>
-              <X className="size-3" />
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full justify-start gap-2 text-muted-foreground font-normal"
-          onClick={() => setPickerOpen(true)}
-        >
-          <ImageIcon className="size-3.5" />
-          Choose image...
-        </Button>
-      )}
-      <MediaPickerDialog
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        folder="Website"
-        onSelect={(url) => onChange(url)}
-      />
-    </div>
-  )
-}
-
 // --- Hero Banner Editor ---
 
-function HeroBannerEditor({
+export function HeroBannerEditor({
   content,
   onChange,
 }: {
@@ -144,6 +51,10 @@ function HeroBannerEditor({
     alt: string
     objectPosition?: string
   }) ?? { src: "", alt: "" }
+  const bgVideo = (content.backgroundVideo as {
+    src: string
+    mobileSrc?: string
+  }) ?? { src: "", mobileSrc: "" }
 
   return (
     <div className="space-y-6">
@@ -245,6 +156,44 @@ function HeroBannerEditor({
         </div>
       </div>
 
+      {/* Background Video */}
+      <div className="space-y-3">
+        <Label className="text-sm font-medium">Background Video</Label>
+        <p className="text-xs text-muted-foreground">
+          When a video URL is set, it plays as the background instead of the image.
+        </p>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            Video URL (desktop)
+          </Label>
+          <Input
+            value={bgVideo.src}
+            onChange={(e) =>
+              onChange({
+                ...content,
+                backgroundVideo: { ...bgVideo, src: e.target.value },
+              })
+            }
+            placeholder="https://example.com/hero-video.mp4"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            Mobile Video URL (optional)
+          </Label>
+          <Input
+            value={bgVideo.mobileSrc ?? ""}
+            onChange={(e) =>
+              onChange({
+                ...content,
+                backgroundVideo: { ...bgVideo, mobileSrc: e.target.value },
+              })
+            }
+            placeholder="https://example.com/hero-video-mobile.mp4"
+          />
+        </div>
+      </div>
+
       <Separator />
 
       {/* Buttons */}
@@ -269,7 +218,7 @@ function HeroBannerEditor({
 
 // --- Page Hero Editor ---
 
-function PageHeroEditor({
+export function PageHeroEditor({
   content,
   onChange,
 }: {
@@ -341,7 +290,7 @@ function PageHeroEditor({
 
 // --- Text Image Hero Editor ---
 
-function TextImageHeroEditor({
+export function TextImageHeroEditor({
   content,
   onChange,
 }: {
@@ -483,7 +432,7 @@ function TextImageHeroEditor({
 
 // --- Events Hero Editor ---
 
-function EventsHeroEditor({
+export function EventsHeroEditor({
   content,
   onChange,
 }: {
@@ -522,7 +471,16 @@ function EventsHeroEditor({
 
 // --- Ministry Hero Editor ---
 
-function MinistryHeroEditor({
+const SOCIAL_PLATFORM_OPTIONS = [
+  { value: "email", label: "Email" },
+  { value: "instagram", label: "Instagram" },
+  { value: "facebook", label: "Facebook" },
+  { value: "youtube", label: "YouTube" },
+  { value: "website", label: "Website" },
+  { value: "twitter", label: "Twitter" },
+] as const
+
+export function MinistryHeroEditor({
   content,
   onChange,
 }: {
@@ -538,11 +496,33 @@ function MinistryHeroEditor({
     href: string
     visible: boolean
   }) ?? { label: "", href: "", visible: false }
+  const socialLinks = (content.socialLinks as { platform: string; href: string }[]) ?? []
   const heroImage = (content.heroImage as {
     src: string
     alt: string
     objectPosition?: string
   }) ?? { src: "", alt: "" }
+
+  const addSocialLink = () => {
+    onChange({
+      ...content,
+      socialLinks: [...socialLinks, { platform: "website", href: "" }],
+    })
+  }
+
+  const removeSocialLink = (index: number) => {
+    onChange({
+      ...content,
+      socialLinks: socialLinks.filter((_, i) => i !== index),
+    })
+  }
+
+  const updateSocialLink = (index: number, field: "platform" | "href", value: string) => {
+    const updated = socialLinks.map((link, i) =>
+      i === index ? { ...link, [field]: value } : link
+    )
+    onChange({ ...content, socialLinks: updated })
+  }
 
   return (
     <div className="space-y-6">
@@ -644,10 +624,84 @@ function MinistryHeroEditor({
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Social links are configured in the JSON content. A dedicated social
-        links editor is planned for a future update.
-      </p>
+      <Separator />
+
+      {/* Social Links */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">
+            Social Links ({socialLinks.length})
+          </Label>
+          <Button variant="outline" size="sm" onClick={addSocialLink}>
+            <Plus className="size-3.5 mr-1.5" />
+            Add Link
+          </Button>
+        </div>
+
+        {socialLinks.map((link, i) => (
+          <div
+            key={i}
+            className="rounded-lg border p-4 space-y-3 relative group"
+          >
+            <div className="flex items-start justify-between">
+              <span className="text-xs font-medium text-muted-foreground">
+                Link {i + 1}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                onClick={() => removeSocialLink(i)}
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Platform</Label>
+              <Select
+                value={link.platform}
+                onValueChange={(v) => updateSocialLink(i, "platform", v)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SOCIAL_PLATFORM_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">URL</Label>
+              <Input
+                value={link.href}
+                onChange={(e) => updateSocialLink(i, "href", e.target.value)}
+                placeholder={
+                  link.platform === "email"
+                    ? "mailto:info@example.com"
+                    : "https://..."
+                }
+              />
+            </div>
+          </div>
+        ))}
+
+        {socialLinks.length === 0 && (
+          <div className="rounded-lg border border-dashed p-4 text-center">
+            <p className="text-xs text-muted-foreground">
+              No social links added yet.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Click &quot;Add Link&quot; to add a social media link.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

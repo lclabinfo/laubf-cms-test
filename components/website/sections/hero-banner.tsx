@@ -14,6 +14,8 @@ interface HeroBannerContent {
   primaryButton?: { label: string; href: string; visible: boolean }
   secondaryButton?: { label: string; href: string; visible: boolean }
   backgroundImage: { src: string; alt: string; objectPosition?: string }
+  backgroundVideo?: { src: string; mobileSrc?: string }
+  /** @deprecated Use backgroundVideo.mobileSrc instead */
   mobileVideo?: { src: string }
 }
 
@@ -29,7 +31,13 @@ export default function HeroBannerSection({ content, enableAnimations }: Props) 
     <SectionThemeContext.Provider value="dark">
       <section id="hero-section" className="relative flex min-h-screen items-end overflow-hidden bg-black-1 -mt-[76px]">
         {/* Background media */}
-        {content.backgroundImage?.src ? (
+        {content.backgroundVideo?.src ? (
+          <HeroVideo
+            desktopSrc={content.backgroundVideo.src}
+            mobileSrc={content.backgroundVideo.mobileSrc ?? content.mobileVideo?.src ?? content.backgroundVideo.src}
+            animate={animate}
+          />
+        ) : content.backgroundImage?.src ? (
           content.backgroundImage.src.endsWith(".mp4") || content.backgroundImage.src.endsWith(".webm") ? (
             <HeroVideo
               desktopSrc={content.backgroundImage.src}

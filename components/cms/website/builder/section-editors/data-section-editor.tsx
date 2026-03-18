@@ -2,6 +2,7 @@
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
@@ -11,7 +12,7 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { Database } from "lucide-react"
+import { Database, Plus, Trash2 } from "lucide-react"
 import type { SectionType } from "@/lib/db/types"
 
 interface DataSectionEditorProps {
@@ -35,7 +36,7 @@ const DATA_SOURCE_LABELS: Partial<Record<SectionType, string>> = {
   HIGHLIGHT_CARDS: "Featured events from the CMS Events module",
 }
 
-function DataSourceBanner({ sectionType }: { sectionType: SectionType }) {
+export function DataSourceBanner({ sectionType }: { sectionType: SectionType }) {
   const description =
     DATA_SOURCE_LABELS[sectionType] ?? "Data loaded from the CMS database"
 
@@ -57,7 +58,7 @@ function DataSourceBanner({ sectionType }: { sectionType: SectionType }) {
 
 // --- Simple heading-only sections (ALL_MESSAGES, ALL_EVENTS, ALL_BIBLE_STUDIES, ALL_VIDEOS) ---
 
-function SimpleDataEditor({
+export function SimpleDataEditor({
   content,
   onChange,
   ctaLabelPlaceholder,
@@ -117,7 +118,7 @@ function SimpleDataEditor({
 
 // --- Upcoming Events ---
 
-function UpcomingEventsEditor({
+export function UpcomingEventsEditor({
   content,
   onChange,
 }: {
@@ -194,7 +195,7 @@ function UpcomingEventsEditor({
 
 // --- Event Calendar ---
 
-function EventCalendarEditor({
+export function EventCalendarEditor({
   content,
   onChange,
 }: {
@@ -202,6 +203,34 @@ function EventCalendarEditor({
   onChange: (c: Record<string, unknown>) => void
 }) {
   const heading = (content.heading as string) ?? ""
+  const ctaButtons = (content.ctaButtons as {
+    label: string
+    href: string
+    icon?: boolean
+  }[]) ?? []
+
+  function updateCtaButton(index: number, field: string, value: unknown) {
+    const updated = [...ctaButtons]
+    updated[index] = { ...updated[index], [field]: value }
+    onChange({ ...content, ctaButtons: updated })
+  }
+
+  function removeCtaButton(index: number) {
+    onChange({
+      ...content,
+      ctaButtons: ctaButtons.filter((_, i) => i !== index),
+    })
+  }
+
+  function addCtaButton() {
+    onChange({
+      ...content,
+      ctaButtons: [
+        ...ctaButtons,
+        { label: "Button", href: "#", icon: false },
+      ],
+    })
+  }
 
   return (
     <>
@@ -214,16 +243,72 @@ function EventCalendarEditor({
         />
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        CTA buttons for the calendar header are configured in the JSON content.
-      </p>
+      <Separator />
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">
+            CTA Buttons ({ctaButtons.length})
+          </Label>
+          <Button variant="outline" size="sm" onClick={addCtaButton}>
+            <Plus className="size-3.5 mr-1.5" />
+            Add Button
+          </Button>
+        </div>
+
+        {ctaButtons.map((btn, i) => (
+          <div key={i} className="flex items-end gap-2">
+            <div className="flex-1 space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Label</Label>
+              <Input
+                value={btn.label}
+                onChange={(e) => updateCtaButton(i, "label", e.target.value)}
+                placeholder="View All Events"
+              />
+            </div>
+            <div className="flex-1 space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Link</Label>
+              <Input
+                value={btn.href}
+                onChange={(e) => updateCtaButton(i, "href", e.target.value)}
+                placeholder="/events"
+              />
+            </div>
+            <div className="flex items-center gap-2 pb-0.5">
+              <Switch
+                checked={btn.icon ?? false}
+                onCheckedChange={(checked) =>
+                  updateCtaButton(i, "icon", checked)
+                }
+              />
+              <Label className="text-xs text-muted-foreground whitespace-nowrap">
+                Icon
+              </Label>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-9 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+              onClick={() => removeCtaButton(i)}
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </div>
+        ))}
+
+        {ctaButtons.length === 0 && (
+          <div className="rounded-lg border-2 border-dashed p-6 text-center text-sm text-muted-foreground">
+            No CTA buttons yet. Click &quot;Add Button&quot; to start.
+          </div>
+        )}
+      </div>
     </>
   )
 }
 
 // --- Recurring Meetings ---
 
-function RecurringMeetingsEditor({
+export function RecurringMeetingsEditor({
   content,
   onChange,
 }: {
@@ -286,7 +371,7 @@ function RecurringMeetingsEditor({
 
 // --- Quick Links ---
 
-function QuickLinksEditor({
+export function QuickLinksEditor({
   content,
   onChange,
 }: {
@@ -321,7 +406,7 @@ function QuickLinksEditor({
 
 // --- Daily Bread ---
 
-function DailyBreadEditor({
+export function DailyBreadEditor({
   content,
   onChange,
 }: {
@@ -344,7 +429,7 @@ function DailyBreadEditor({
 
 // --- Highlight Cards (Featured Events) ---
 
-function HighlightCardsEditor({
+export function DataHighlightCardsEditor({
   content,
   onChange,
 }: {
@@ -538,7 +623,7 @@ export function DataSectionEditor({
       <DataSourceBanner sectionType={sectionType} />
 
       {sectionType === "HIGHLIGHT_CARDS" && (
-        <HighlightCardsEditor content={content} onChange={onChange} />
+        <DataHighlightCardsEditor content={content} onChange={onChange} />
       )}
 
       {sectionType === "UPCOMING_EVENTS" && (

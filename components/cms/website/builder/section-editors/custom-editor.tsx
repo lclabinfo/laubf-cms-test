@@ -15,7 +15,7 @@ interface CustomEditorProps {
 
 // --- Custom HTML Editor ---
 
-function CustomHtmlEditor({
+export function CustomHtmlEditor({
   content,
   onChange,
 }: {
@@ -55,7 +55,7 @@ function CustomHtmlEditor({
 
 // --- Custom Embed Editor ---
 
-function CustomEmbedEditor({
+export function CustomEmbedEditor({
   content,
   onChange,
 }: {

@@ -5,7 +5,21 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Plus, Trash2, GripVertical } from "lucide-react"
+import { ImagePickerField } from "./shared"
+
+const SOCIAL_PLATFORM_OPTIONS = [
+  { value: "instagram", label: "Instagram" },
+  { value: "facebook", label: "Facebook" },
+  { value: "youtube", label: "YouTube" },
+] as const
 
 interface FooterEditorProps {
   content: Record<string, unknown>
@@ -13,6 +27,7 @@ interface FooterEditorProps {
 }
 
 export function FooterEditor({ content, onChange }: FooterEditorProps) {
+  const logoUrl = (content.logoUrl as string) ?? ""
   const description = (content.description as string) ?? ""
   const socialLinks = (content.socialLinks as {
     platform: string
@@ -128,6 +143,17 @@ export function FooterEditor({ content, onChange }: FooterEditorProps) {
 
   return (
     <div className="space-y-6">
+      <div className="space-y-3">
+        <Label className="text-sm font-medium">Logo</Label>
+        <ImagePickerField
+          label="Logo Image"
+          value={logoUrl}
+          onChange={(url) => onChange({ ...content, logoUrl: url })}
+        />
+      </div>
+
+      <Separator />
+
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">Description</Label>
         <Textarea
@@ -156,13 +182,23 @@ export function FooterEditor({ content, onChange }: FooterEditorProps) {
 
         {socialLinks.map((link, i) => (
           <div key={i} className="flex items-end gap-2">
-            <div className="w-32 space-y-1.5">
+            <div className="w-36 space-y-1.5">
               <Label className="text-xs text-muted-foreground">Platform</Label>
-              <Input
+              <Select
                 value={link.platform}
-                onChange={(e) => updateSocialLink(i, "platform", e.target.value)}
-                placeholder="instagram"
-              />
+                onValueChange={(val) => updateSocialLink(i, "platform", val)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {SOCIAL_PLATFORM_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex-1 space-y-1.5">
               <Label className="text-xs text-muted-foreground">URL</Label>

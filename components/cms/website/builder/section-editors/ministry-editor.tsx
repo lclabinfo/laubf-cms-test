@@ -1,14 +1,13 @@
 "use client"
 
-import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
-import { Plus, Trash2, GripVertical, ImageIcon, X } from "lucide-react"
-import { MediaPickerDialog } from "@/components/cms/media/media-picker-dialog"
+import { Plus, Trash2, GripVertical } from "lucide-react"
 import type { SectionType } from "@/lib/db/types"
+import { ImagePickerField } from "./shared"
 
 interface MinistryEditorProps {
   sectionType: SectionType
@@ -16,58 +15,9 @@ interface MinistryEditorProps {
   onChange: (content: Record<string, unknown>) => void
 }
 
-// --- Helper subcomponents ---
-
-function ImagePickerField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (url: string) => void
-}) {
-  const [pickerOpen, setPickerOpen] = useState(false)
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {value ? (
-        <div className="relative group rounded-md border overflow-hidden h-20">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt="" className="size-full object-cover" />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setPickerOpen(true)}>
-              Replace
-            </Button>
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => onChange("")}>
-              <X className="size-3" />
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full justify-start gap-2 text-muted-foreground font-normal"
-          onClick={() => setPickerOpen(true)}
-        >
-          <ImageIcon className="size-3.5" />
-          Choose image...
-        </Button>
-      )}
-      <MediaPickerDialog
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        folder="Website"
-        onSelect={(url) => onChange(url)}
-      />
-    </div>
-  )
-}
-
 // --- Ministry Intro Editor ---
 
-function MinistryIntroEditor({
+export function MinistryIntroEditor({
   content,
   onChange,
 }: {
@@ -174,7 +124,7 @@ function MinistryIntroEditor({
 
 // --- Ministry Schedule Editor ---
 
-function MinistryScheduleEditor({
+export function MinistryScheduleEditor({
   content,
   onChange,
 }: {
@@ -183,6 +133,14 @@ function MinistryScheduleEditor({
 }) {
   const heading = (content.heading as string) ?? ""
   const description = (content.description as string) ?? ""
+  const timeValue = (content.timeValue as string) ?? ""
+  const address = (content.address as string[]) ?? []
+  const directionsUrl = (content.directionsUrl as string) ?? ""
+  const image = (content.image as {
+    src: string
+    alt: string
+    objectPosition?: string
+  }) ?? null
   const scheduleEntries = (content.scheduleEntries as {
     day: string
     time: string
@@ -240,6 +198,23 @@ function MinistryScheduleEditor({
     })
   }
 
+  function updateAddress(index: number, value: string) {
+    const updated = [...address]
+    updated[index] = value
+    onChange({ ...content, address: updated })
+  }
+
+  function addAddressLine() {
+    onChange({ ...content, address: [...address, ""] })
+  }
+
+  function removeAddressLine(index: number) {
+    onChange({
+      ...content,
+      address: address.filter((_, i) => i !== index),
+    })
+  }
+
   return (
     <div className="space-y-6">
       <div className="space-y-1.5">
@@ -261,6 +236,124 @@ function MinistryScheduleEditor({
           placeholder="Join us at our regular meeting times."
           className="min-h-[80px]"
         />
+      </div>
+
+      <Separator />
+
+      {/* Time + Address (children variant) */}
+      <div className="space-y-3">
+        <Label className="text-sm font-medium">Time &amp; Location</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Time</Label>
+          <Input
+            value={timeValue}
+            onChange={(e) =>
+              onChange({ ...content, timeValue: e.target.value })
+            }
+            placeholder="Sundays at 11:00 AM"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs text-muted-foreground">
+              Address Lines
+            </Label>
+            <button
+              type="button"
+              onClick={addAddressLine}
+              className="text-xs font-medium text-primary hover:underline"
+            >
+              + Add Line
+            </button>
+          </div>
+          {address.map((line, i) => (
+            <div key={i} className="flex gap-2">
+              <Input
+                value={line}
+                onChange={(e) => updateAddress(i, e.target.value)}
+                placeholder={`Address line ${i + 1}`}
+                className="flex-1"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-9 text-muted-foreground hover:text-destructive"
+                onClick={() => removeAddressLine(i)}
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            Directions URL
+          </Label>
+          <Input
+            value={directionsUrl}
+            onChange={(e) =>
+              onChange({ ...content, directionsUrl: e.target.value })
+            }
+            placeholder="https://maps.google.com/..."
+          />
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Image (children variant) */}
+      <div className="space-y-3">
+        <Label className="text-sm font-medium">Image (optional)</Label>
+        <ImagePickerField
+          label="Image"
+          value={image?.src ?? ""}
+          onChange={(url) =>
+            onChange({
+              ...content,
+              image: url
+                ? {
+                    src: url,
+                    alt: image?.alt ?? "",
+                    objectPosition: image?.objectPosition,
+                  }
+                : null,
+            })
+          }
+        />
+        {image && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Alt Text</Label>
+              <Input
+                value={image.alt}
+                onChange={(e) =>
+                  onChange({
+                    ...content,
+                    image: { ...image, alt: e.target.value },
+                  })
+                }
+                placeholder="Ministry image"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">
+                Object Position
+              </Label>
+              <Input
+                value={image.objectPosition ?? ""}
+                onChange={(e) =>
+                  onChange({
+                    ...content,
+                    image: { ...image, objectPosition: e.target.value },
+                  })
+                }
+                placeholder="center center"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <Separator />
@@ -401,7 +494,7 @@ function MinistryScheduleEditor({
 
 // --- Campus Card Grid Editor ---
 
-function CampusCardGridEditor({
+export function CampusCardGridEditor({
   content,
   onChange,
 }: {
@@ -411,6 +504,11 @@ function CampusCardGridEditor({
   const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const description = (content.description as string) ?? ""
+  const ctaHeading = (content.ctaHeading as string) ?? ""
+  const ctaButton = (content.ctaButton as {
+    label: string
+    href: string
+  }) ?? { label: "", href: "" }
   const campuses = (content.campuses as {
     name: string
     href: string
@@ -536,6 +634,56 @@ function CampusCardGridEditor({
         )}
       </div>
 
+      <Separator />
+
+      <div className="space-y-3">
+        <Label className="text-sm font-medium">Bottom CTA</Label>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            CTA Heading
+          </Label>
+          <Input
+            value={ctaHeading}
+            onChange={(e) =>
+              onChange({ ...content, ctaHeading: e.target.value })
+            }
+            placeholder="Want to learn more?"
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">
+              Button Label
+            </Label>
+            <Input
+              value={ctaButton.label}
+              onChange={(e) =>
+                onChange({
+                  ...content,
+                  ctaButton: { ...ctaButton, label: e.target.value },
+                })
+              }
+              placeholder="Contact Us"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">
+              Button Link
+            </Label>
+            <Input
+              value={ctaButton.href}
+              onChange={(e) =>
+                onChange({
+                  ...content,
+                  ctaButton: { ...ctaButton, href: e.target.value },
+                })
+              }
+              placeholder="/contact"
+            />
+          </div>
+        </div>
+      </div>
+
       <p className="text-xs text-muted-foreground">
         Decorative images are configured in the JSON content.
       </p>
@@ -545,7 +693,7 @@ function CampusCardGridEditor({
 
 // --- Meet Team Editor ---
 
-function MeetTeamEditor({
+export function MeetTeamEditor({
   content,
   onChange,
 }: {
@@ -700,22 +848,13 @@ function MeetTeamEditor({
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">
-                Photo URL (optional)
-              </Label>
-              <Input
-                value={member.image ?? ""}
-                onChange={(e) =>
-                  updateMember(
-                    i,
-                    "image",
-                    e.target.value || null,
-                  )
-                }
-                placeholder="https://..."
-              />
-            </div>
+            <ImagePickerField
+              label="Photo (optional)"
+              value={(typeof member.image === 'object' && member.image !== null ? (member.image as { src: string }).src : (member.image as string)) ?? ""}
+              onChange={(url) =>
+                updateMember(i, "image", url || null)
+              }
+            />
           </div>
         ))}
 
@@ -731,7 +870,7 @@ function MeetTeamEditor({
 
 // --- Location Detail Editor ---
 
-function LocationDetailEditor({
+export function LocationDetailEditor({
   content,
   onChange,
 }: {
@@ -745,6 +884,11 @@ function LocationDetailEditor({
   const address = (content.address as string[]) ?? []
   const directionsUrl = (content.directionsUrl as string) ?? ""
   const directionsLabel = (content.directionsLabel as string) ?? ""
+  const images = (content.images as {
+    src: string
+    alt: string
+    objectPosition?: string
+  }[]) ?? []
 
   function updateAddress(index: number, value: string) {
     const updated = [...address]
@@ -760,6 +904,26 @@ function LocationDetailEditor({
     onChange({
       ...content,
       address: address.filter((_, i) => i !== index),
+    })
+  }
+
+  function updateImage(index: number, field: string, value: string) {
+    const updated = [...images]
+    updated[index] = { ...updated[index], [field]: value }
+    onChange({ ...content, images: updated })
+  }
+
+  function addImage() {
+    onChange({
+      ...content,
+      images: [...images, { src: "", alt: "", objectPosition: "" }],
+    })
+  }
+
+  function removeImage(index: number) {
+    onChange({
+      ...content,
+      images: images.filter((_, i) => i !== index),
     })
   }
 
@@ -875,16 +1039,83 @@ function LocationDetailEditor({
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Location images are configured in the JSON content.
-      </p>
+      <Separator />
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">
+            Images ({images.length})
+          </Label>
+          <Button variant="outline" size="sm" onClick={addImage}>
+            <Plus className="size-3.5 mr-1.5" />
+            Add Image
+          </Button>
+        </div>
+
+        {images.map((img, i) => (
+          <div
+            key={i}
+            className="rounded-lg border p-4 space-y-3 relative group"
+          >
+            <div className="flex items-start justify-between">
+              <span className="text-xs font-medium text-muted-foreground">
+                Image {i + 1}
+              </span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                onClick={() => removeImage(i)}
+              >
+                <Trash2 className="size-3.5" />
+              </Button>
+            </div>
+
+            <ImagePickerField
+              label="Image"
+              value={img.src}
+              onChange={(url) => updateImage(i, "src", url)}
+            />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  Alt Text
+                </Label>
+                <Input
+                  value={img.alt}
+                  onChange={(e) => updateImage(i, "alt", e.target.value)}
+                  placeholder="Location image"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  Object Position
+                </Label>
+                <Input
+                  value={img.objectPosition ?? ""}
+                  onChange={(e) =>
+                    updateImage(i, "objectPosition", e.target.value)
+                  }
+                  placeholder="center center"
+                />
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {images.length === 0 && (
+          <div className="rounded-lg border-2 border-dashed p-6 text-center text-sm text-muted-foreground">
+            No images yet. Click &quot;Add Image&quot; to start.
+          </div>
+        )}
+      </div>
     </div>
   )
 }
 
 // --- Directory List Editor ---
 
-function DirectoryListEditor({
+export function DirectoryListEditor({
   content,
   onChange,
 }: {
