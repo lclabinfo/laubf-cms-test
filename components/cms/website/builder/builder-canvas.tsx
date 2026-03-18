@@ -43,7 +43,6 @@ export function BuilderCanvas({
 }: BuilderCanvasProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [iframeLoaded, setIframeLoaded] = useState(false)
-  const [iframeHeight, setIframeHeight] = useState<number | null>(null)
   const [iframeError, setIframeError] = useState(false)
   const [iframeKey, setIframeKey] = useState(0)
 
@@ -55,7 +54,6 @@ export function BuilderCanvas({
   // Reset iframe state when navigating to a different page
   useEffect(() => {
     setIframeLoaded(false)
-    setIframeHeight(null)
     setIframeError(false)
   }, [pageId])
 
@@ -125,10 +123,10 @@ export function BuilderCanvas({
     [onNavbarLinkClick],
   )
 
-  const handleContentHeight = useCallback(
-    (msg: { height: number }) => setIframeHeight(msg.height),
-    [],
-  )
+  // CONTENT_HEIGHT is received but not used for auto-sizing.
+  // The iframe scrolls internally (like Webflow/Squarespace) rather than
+  // expanding to full content height, because expanded iframes capture
+  // scroll events without propagating them to the parent.
 
   const handleDeselect = useCallback(
     () => {
@@ -147,7 +145,6 @@ export function BuilderCanvas({
     SECTIONS_REORDERED: handleSectionsReordered,
     NAVBAR_CLICKED: handleNavbarClicked,
     NAVBAR_LINK_CLICKED: handleNavbarLinkClicked,
-    CONTENT_HEIGHT: handleContentHeight,
     DESELECT: handleDeselect,
   })
 
@@ -177,14 +174,11 @@ export function BuilderCanvas({
   }, [isNavbarEditing, iframeLoaded])
 
   return (
-    <div className="flex-1 bg-muted/30 overflow-y-auto overflow-x-hidden p-4">
-      {/* Device preview container */}
+    <div className="flex-1 flex flex-col bg-muted/30 overflow-hidden p-4 min-h-0">
+      {/* Device preview container — fills available space, iframe scrolls internally */}
       <div
-        className="mx-auto bg-white transition-all duration-300 ease-in-out overflow-hidden shadow-sm border relative"
-        style={{
-          maxWidth: deviceWidths[deviceMode],
-          minHeight: "calc(100vh - 120px)",
-        }}
+        className="mx-auto bg-white transition-all duration-300 ease-in-out shadow-sm border relative flex-1 min-h-0 flex flex-col"
+        style={{ maxWidth: deviceWidths[deviceMode] }}
       >
         {/* Loading / error indicator */}
         {!iframeLoaded && (
@@ -214,11 +208,7 @@ export function BuilderCanvas({
           ref={iframeRef}
           src={`/cms/website/builder/preview/${pageId}`}
           allow="autoplay"
-          className="w-full border-0"
-          style={{
-            height: iframeHeight ? `${iframeHeight}px` : "calc(100vh - 120px)",
-            minHeight: "calc(100vh - 120px)",
-          }}
+          className="w-full flex-1 border-0 min-h-0"
           title="Website Preview"
         />
       </div>
