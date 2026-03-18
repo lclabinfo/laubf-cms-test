@@ -2,7 +2,6 @@
 
 import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
-import type { SectionType } from "@/lib/db/types"
 import {
   EditorField,
   EditorInput,
@@ -12,12 +11,6 @@ import {
   ImagePickerField,
   ButtonConfig,
 } from "./shared"
-
-interface ContentEditorProps {
-  sectionType: SectionType
-  content: Record<string, unknown>
-  onChange: (content: Record<string, unknown>) => void
-}
 
 // --- Media Text Editor ---
 
@@ -533,27 +526,3 @@ export function SpotlightMediaEditor({
   )
 }
 
-// --- Main export ---
-
-export function ContentEditor({
-  sectionType,
-  content,
-  onChange,
-}: ContentEditorProps) {
-  switch (sectionType) {
-    case "MEDIA_TEXT":
-      return <MediaTextEditor content={content} onChange={onChange} />
-    case "QUOTE_BANNER":
-      return <QuoteBannerEditor content={content} onChange={onChange} />
-    case "CTA_BANNER":
-      return <CTABannerEditor content={content} onChange={onChange} />
-    case "ABOUT_DESCRIPTION":
-      return <AboutDescriptionEditor content={content} onChange={onChange} />
-    case "STATEMENT":
-      return <StatementEditor content={content} onChange={onChange} />
-    case "SPOTLIGHT_MEDIA":
-      return <SpotlightMediaEditor content={content} onChange={onChange} />
-    default:
-      return null
-  }
-}

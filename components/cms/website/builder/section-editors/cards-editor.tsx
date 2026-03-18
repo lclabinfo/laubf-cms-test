@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Trash2 } from "lucide-react"
-import type { SectionType } from "@/lib/db/types"
 import {
   EditorInput,
   EditorTextarea,
@@ -16,12 +15,6 @@ import {
   AddressField,
   type GenericCard,
 } from "./shared"
-
-interface CardsEditorProps {
-  sectionType: SectionType
-  content: Record<string, unknown>
-  onChange: (content: Record<string, unknown>) => void
-}
 
 // --- Action Card Grid Editor ---
 
@@ -161,61 +154,6 @@ export function ActionCardGridEditor({
           </div>
         </EditorField>
       </div>
-    </div>
-  )
-}
-
-// --- Highlight Cards Editor ---
-
-function HighlightCardsEditor({
-  content,
-  onChange,
-}: {
-  content: Record<string, unknown>
-  onChange: (c: Record<string, unknown>) => void
-}) {
-  const heading = (content.heading as string) ?? ""
-  const subheading = (content.subheading as string) ?? ""
-  const ctaLabel = (content.ctaLabel as string) ?? ""
-  const ctaHref = (content.ctaHref as string) ?? ""
-
-  return (
-    <div className="space-y-6">
-      <EditorInput
-        label="Heading"
-        labelSize="sm"
-        value={heading}
-        onChange={(v) => onChange({ ...content, heading: v })}
-      />
-
-      <EditorInput
-        label="Subheading"
-        labelSize="sm"
-        value={subheading}
-        onChange={(v) => onChange({ ...content, subheading: v })}
-      />
-
-      <Separator />
-
-      <TwoColumnGrid>
-        <EditorInput
-          label="CTA Label"
-          value={ctaLabel}
-          onChange={(v) => onChange({ ...content, ctaLabel: v })}
-          placeholder="View All"
-        />
-        <EditorInput
-          label="CTA Link"
-          value={ctaHref}
-          onChange={(v) => onChange({ ...content, ctaHref: v })}
-          placeholder="/events"
-        />
-      </TwoColumnGrid>
-
-      <p className="text-xs text-muted-foreground">
-        Featured events are configured in the JSON content. The event cards
-        reference event data from the CMS.
-      </p>
     </div>
   )
 }
@@ -649,27 +587,3 @@ export function NewcomerEditor({
   )
 }
 
-// --- Main export ---
-
-export function CardsEditor({
-  sectionType,
-  content,
-  onChange,
-}: CardsEditorProps) {
-  switch (sectionType) {
-    case "ACTION_CARD_GRID":
-      return <ActionCardGridEditor content={content} onChange={onChange} />
-    case "HIGHLIGHT_CARDS":
-      return <HighlightCardsEditor content={content} onChange={onChange} />
-    case "PATHWAY_CARD":
-      return <PathwayCardEditor content={content} onChange={onChange} />
-    case "PILLARS":
-      return <PillarsEditor content={content} onChange={onChange} />
-    case "FEATURE_BREAKDOWN":
-      return <FeatureBreakdownEditor content={content} onChange={onChange} />
-    case "NEWCOMER":
-      return <NewcomerEditor content={content} onChange={onChange} />
-    default:
-      return null
-  }
-}

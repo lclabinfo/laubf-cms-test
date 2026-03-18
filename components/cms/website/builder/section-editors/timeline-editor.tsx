@@ -27,6 +27,7 @@ export function TimelineEditor({ content, onChange }: TimelineEditorProps) {
     <div className="space-y-6">
       <EditorInput
         label="Overline"
+        labelSize="sm"
         value={overline}
         onChange={(val) => onChange({ ...content, overline: val })}
         placeholder="Sunday Service"
@@ -34,6 +35,7 @@ export function TimelineEditor({ content, onChange }: TimelineEditorProps) {
 
       <EditorInput
         label="Heading"
+        labelSize="sm"
         value={heading}
         onChange={(val) => onChange({ ...content, heading: val })}
         placeholder="What to Expect"
@@ -41,6 +43,7 @@ export function TimelineEditor({ content, onChange }: TimelineEditorProps) {
 
       <EditorTextarea
         label="Description"
+        labelSize="sm"
         value={description}
         onChange={(val) => onChange({ ...content, description: val })}
         placeholder="Here is how our typical Sunday unfolds."

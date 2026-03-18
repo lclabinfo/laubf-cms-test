@@ -1,7 +1,6 @@
 "use client"
 
 import { Separator } from "@/components/ui/separator"
-import type { SectionType } from "@/lib/db/types"
 import {
   EditorField,
   EditorInput,
@@ -11,12 +10,6 @@ import {
   ImagePickerField,
   ButtonConfig,
 } from "./shared"
-
-interface HeroEditorProps {
-  sectionType: SectionType
-  content: Record<string, unknown>
-  onChange: (content: Record<string, unknown>) => void
-}
 
 // --- Hero Banner Editor ---
 
@@ -482,21 +475,3 @@ export function MinistryHeroEditor({
   )
 }
 
-// --- Main export ---
-
-export function HeroEditor({ sectionType, content, onChange }: HeroEditorProps) {
-  switch (sectionType) {
-    case "HERO_BANNER":
-      return <HeroBannerEditor content={content} onChange={onChange} />
-    case "PAGE_HERO":
-      return <PageHeroEditor content={content} onChange={onChange} />
-    case "TEXT_IMAGE_HERO":
-      return <TextImageHeroEditor content={content} onChange={onChange} />
-    case "EVENTS_HERO":
-      return <EventsHeroEditor content={content} onChange={onChange} />
-    case "MINISTRY_HERO":
-      return <MinistryHeroEditor content={content} onChange={onChange} />
-    default:
-      return null
-  }
-}

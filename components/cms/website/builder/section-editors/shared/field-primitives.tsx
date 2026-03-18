@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
@@ -230,22 +231,20 @@ export function EditorButtonGroup({
   const buttons = (
     <div className="flex gap-2">
       {options.map((opt) => (
-        <button
+        <Button
           key={opt.value}
           type="button"
+          variant="outline"
+          size={size === "sm" ? "sm" : "default"}
           onClick={() => onChange(opt.value)}
-          className={`rounded-md border font-medium transition-colors ${
-            size === "sm"
-              ? "px-2.5 py-1 text-xs"
-              : "px-3 py-1.5 text-xs"
-          } ${
+          className={`text-xs font-medium ${
             value === opt.value
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-border bg-background hover:bg-accent"
+              ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+              : ""
           }`}
         >
           {opt.label}
-        </button>
+        </Button>
       ))}
     </div>
   )

@@ -33,6 +33,7 @@ export function FormEditor({ content, onChange }: FormEditorProps) {
     <div className="space-y-6">
       <EditorInput
         label="Overline"
+        labelSize="sm"
         value={overline}
         onChange={(val) => onChange({ ...content, overline: val })}
         placeholder="Get In Touch"
@@ -40,6 +41,7 @@ export function FormEditor({ content, onChange }: FormEditorProps) {
 
       <EditorInput
         label="Heading"
+        labelSize="sm"
         value={heading}
         onChange={(val) => onChange({ ...content, heading: val })}
         placeholder="Contact Us"
@@ -47,6 +49,7 @@ export function FormEditor({ content, onChange }: FormEditorProps) {
 
       <EditorTextarea
         label="Description"
+        labelSize="sm"
         value={description}
         onChange={(val) => onChange({ ...content, description: val })}
         placeholder="Fill out the form below and we will get back to you."

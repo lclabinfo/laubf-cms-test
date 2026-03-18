@@ -29,6 +29,7 @@ export function PhotoGalleryEditor({
     <div className="space-y-6">
       <EditorInput
         label="Heading"
+        labelSize="sm"
         value={heading}
         onChange={(val) => onChange({ ...content, heading: val })}
         placeholder="Gallery"

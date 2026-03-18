@@ -31,6 +31,7 @@ export function ScheduleEditor({ content, onChange }: ScheduleEditorProps) {
     <div className="space-y-6">
       <EditorInput
         label="Heading"
+        labelSize="sm"
         value={heading}
         onChange={(val) => onChange({ ...content, heading: val })}
         placeholder="Weekly Schedule"
@@ -38,6 +39,7 @@ export function ScheduleEditor({ content, onChange }: ScheduleEditorProps) {
 
       <EditorTextarea
         label="Subtitle"
+        labelSize="sm"
         value={subtitle}
         onChange={(val) => onChange({ ...content, subtitle: val })}
         placeholder="Join us throughout the week."

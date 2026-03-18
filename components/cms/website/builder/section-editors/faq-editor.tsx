@@ -23,6 +23,7 @@ export function FAQEditor({ content, onChange }: FAQEditorProps) {
     <div className="space-y-6">
       <EditorInput
         label="Section Heading"
+        labelSize="sm"
         value={heading}
         onChange={(val) => onChange({ ...content, heading: val })}
         placeholder="Frequently Asked Questions"

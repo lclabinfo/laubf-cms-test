@@ -117,7 +117,7 @@ export function ArrayField<T>({
         >
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2 text-muted-foreground">
-              <GripVertical className="size-4" />
+              {reorderable && <GripVertical className="size-4" />}
               <span className="text-xs font-medium">
                 {label.replace(/s$/, "")} {i + 1}
               </span>

@@ -4,7 +4,6 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Plus, Trash2, GripVertical } from "lucide-react"
-import type { SectionType } from "@/lib/db/types"
 import {
   EditorInput,
   EditorTextarea,
@@ -13,12 +12,6 @@ import {
   AddressField,
   ArrayField,
 } from "./shared"
-
-interface MinistryEditorProps {
-  sectionType: SectionType
-  content: Record<string, unknown>
-  onChange: (content: Record<string, unknown>) => void
-}
 
 // --- Ministry Intro Editor ---
 
@@ -830,27 +823,3 @@ export function DirectoryListEditor({
   )
 }
 
-// --- Main export ---
-
-export function MinistryEditor({
-  sectionType,
-  content,
-  onChange,
-}: MinistryEditorProps) {
-  switch (sectionType) {
-    case "MINISTRY_INTRO":
-      return <MinistryIntroEditor content={content} onChange={onChange} />
-    case "MINISTRY_SCHEDULE":
-      return <MinistryScheduleEditor content={content} onChange={onChange} />
-    case "CAMPUS_CARD_GRID":
-      return <CampusCardGridEditor content={content} onChange={onChange} />
-    case "MEET_TEAM":
-      return <MeetTeamEditor content={content} onChange={onChange} />
-    case "LOCATION_DETAIL":
-      return <LocationDetailEditor content={content} onChange={onChange} />
-    case "DIRECTORY_LIST":
-      return <DirectoryListEditor content={content} onChange={onChange} />
-    default:
-      return null
-  }
-}

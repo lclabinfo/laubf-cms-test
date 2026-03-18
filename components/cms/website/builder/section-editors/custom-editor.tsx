@@ -2,18 +2,11 @@
 
 import { Separator } from "@/components/ui/separator"
 import { AlertTriangle } from "lucide-react"
-import type { SectionType } from "@/lib/db/types"
 import {
   EditorInput,
   EditorTextarea,
   EditorButtonGroup,
 } from "./shared"
-
-interface CustomEditorProps {
-  sectionType: SectionType
-  content: Record<string, unknown>
-  onChange: (content: Record<string, unknown>) => void
-}
 
 // --- Custom HTML Editor ---
 
@@ -108,19 +101,3 @@ export function CustomEmbedEditor({
   )
 }
 
-// --- Main export ---
-
-export function CustomEditor({
-  sectionType,
-  content,
-  onChange,
-}: CustomEditorProps) {
-  switch (sectionType) {
-    case "CUSTOM_HTML":
-      return <CustomHtmlEditor content={content} onChange={onChange} />
-    case "CUSTOM_EMBED":
-      return <CustomEmbedEditor content={content} onChange={onChange} />
-    default:
-      return null
-  }
-}

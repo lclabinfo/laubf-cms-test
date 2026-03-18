@@ -9,27 +9,13 @@ import {
   EditorSelect,
   TwoColumnGrid,
   DataDrivenBanner,
+  DATA_SOURCE_LABELS,
 } from "./shared"
 
 interface DataSectionEditorProps {
   sectionType: SectionType
   content: Record<string, unknown>
   onChange: (content: Record<string, unknown>) => void
-}
-
-const DATA_SOURCE_LABELS: Partial<Record<SectionType, string>> = {
-  ALL_MESSAGES: "Messages from the CMS Messages module",
-  ALL_EVENTS: "Events from the CMS Events module",
-  ALL_BIBLE_STUDIES: "Bible studies from the CMS Bible Studies module",
-  ALL_VIDEOS: "Videos from the CMS Media module",
-  UPCOMING_EVENTS: "Upcoming events from the CMS Events module",
-  EVENT_CALENDAR: "Events displayed in calendar format from the CMS Events module",
-  RECURRING_MEETINGS: "Recurring meeting times from the CMS Events module",
-  MEDIA_GRID: "Videos from the CMS Media module",
-  QUICK_LINKS: "Quick links populated from recurring meetings",
-  DAILY_BREAD_FEATURE: "Daily devotional content",
-  SPOTLIGHT_MEDIA: "Latest sermon from the CMS Messages module",
-  HIGHLIGHT_CARDS: "Featured events from the CMS Events module",
 }
 
 // --- Simple heading-only sections (ALL_MESSAGES, ALL_EVENTS, ALL_BIBLE_STUDIES, ALL_VIDEOS) ---

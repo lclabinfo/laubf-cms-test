@@ -3,7 +3,7 @@
 import { Database } from "lucide-react"
 import type { SectionType } from "@/lib/db/types"
 
-const DATA_SOURCE_LABELS: Partial<Record<SectionType, string>> = {
+export const DATA_SOURCE_LABELS: Partial<Record<SectionType, string>> = {
   ALL_MESSAGES: "Messages from the CMS Messages module",
   ALL_EVENTS: "Events from the CMS Events module",
   ALL_BIBLE_STUDIES: "Bible studies from the CMS Bible Studies module",

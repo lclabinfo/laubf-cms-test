@@ -47,6 +47,7 @@ export function FooterEditor({ content, onChange }: FooterEditorProps) {
     <div className="space-y-6">
       <EditorTextarea
         label="Description"
+        labelSize="sm"
         value={description}
         onChange={(val) => onChange({ ...content, description: val })}
         placeholder="A brief description of your church or organization."
