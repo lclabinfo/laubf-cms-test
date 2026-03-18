@@ -58,16 +58,9 @@ function pagePathId(page: { slug: string; id: string }): string {
   return page.slug || page.id
 }
 
-export interface NavbarData {
-  menu: unknown
-  logoUrl: string | null
-  logoAlt: string | null
-  siteName: string
-  ctaLabel: string
-  ctaHref: string
-  ctaVisible: boolean
-  memberLoginVisible: boolean
-}
+// NavbarData is defined in types.ts — re-exported for backward compat
+import type { NavbarData } from "./types"
+export type { NavbarData } from "./types"
 
 interface BuilderShellProps {
   page: BuilderPage
@@ -1052,12 +1045,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           onEditSection={handleEditSection}
           onReorderSections={handleReorderSections}
           deviceMode={deviceMode}
-          churchId={churchId}
-          pageSlug={pageData.slug}
           pageId={pageData.id}
-          websiteThemeTokens={websiteThemeTokens}
-          websiteCustomCss={websiteCustomCss}
-          navbarData={navbarData}
           onNavbarClick={handleNavbarClick}
           onNavbarLinkClick={handleNavbarLinkClick}
           isNavbarEditing={editingNavbar}

@@ -39,9 +39,8 @@ function useToolbarPlacement(
     const el = sectionRef.current
     if (!el || !isActive) return
 
-    // Find the scrollable ancestor (the builder canvas)
-    const scrollParent = el.closest("[class*='overflow-y']") as HTMLElement | null
-    if (!scrollParent) return
+    // Find the scrollable ancestor (the builder canvas, or document root inside iframe)
+    const scrollParent = (el.closest("[class*='overflow-y']") ?? document.documentElement) as HTMLElement
 
     function compute() {
       if (!el) return

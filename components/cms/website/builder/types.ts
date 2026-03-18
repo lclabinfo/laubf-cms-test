@@ -61,6 +61,21 @@ export interface NavTreeMenuItem {
   children: NavTreeMenuItem[]
 }
 
+// ---------------------------------------------------------------------------
+// Navbar data (shared between builder shell, iframe protocol, preview route)
+// ---------------------------------------------------------------------------
+
+export interface NavbarData {
+  menu: unknown
+  logoUrl: string | null
+  logoAlt: string | null
+  siteName: string
+  ctaLabel: string
+  ctaHref: string
+  ctaVisible: boolean
+  memberLoginVisible: boolean
+}
+
 export type NavTreeNodeKind = "page" | "folder" | "link"
 
 /** A node in the navigation-driven page tree. */
