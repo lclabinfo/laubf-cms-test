@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { getChurchId } from "@/lib/api/get-church-id"
 import { getPages, getHomepageForAdmin } from "@/lib/dal/pages"
-import { BuilderEmptyState } from "@/components/cms/website/builder/builder-empty-state"
+import { BuilderEmptyState } from "@/components/cms/website/builder/layout/builder-empty-state"
 
 export default async function BuilderEntryPage() {
   const churchId = await getChurchId()

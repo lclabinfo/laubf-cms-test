@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useIframeMessages, postToIframe } from "./iframe-protocol"
-import type { BuilderSection, DeviceMode } from "./types"
+import type { BuilderSection, DeviceMode } from "../types"
 
 interface BuilderCanvasProps {
   sections: BuilderSection[]

@@ -37,8 +37,8 @@ import {
   MapPin,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { PageSummary } from "./types"
-import { getCatalogItem } from "./section-catalog"
+import type { PageSummary } from "../types"
+import { getCatalogItem } from "../section-catalog"
 
 // ---------------------------------------------------------------------------
 // Types

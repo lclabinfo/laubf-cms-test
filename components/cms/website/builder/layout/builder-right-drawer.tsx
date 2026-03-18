@@ -13,16 +13,16 @@ import { sectionTypeLabels } from "@/components/cms/website/pages/section-picker
 import {
   SectionContentEditor,
   hasStructuredEditor,
-} from "./section-editors"
+} from "../section-editors"
 import {
   DisplaySettings,
   type DisplaySettingsData,
-} from "./section-editors/display-settings"
-import { JsonEditor } from "./section-editors/json-editor"
+} from "../section-editors/display-settings"
+import { JsonEditor } from "../section-editors/json-editor"
 import {
   NavbarEditor,
   type NavbarSettings,
-} from "./section-editors/navbar-editor"
+} from "../section-editors/navbar-editor"
 
 // Re-export these types for use in builder-shell
 export interface SectionEditorData {

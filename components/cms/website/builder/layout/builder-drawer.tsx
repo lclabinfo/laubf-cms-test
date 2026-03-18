@@ -3,7 +3,7 @@
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
-import type { BuilderTool } from "./types"
+import type { BuilderTool } from "../types"
 
 interface BuilderDrawerProps {
   activeTool: BuilderTool

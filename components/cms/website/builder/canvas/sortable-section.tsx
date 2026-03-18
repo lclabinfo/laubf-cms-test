@@ -6,7 +6,7 @@ import { CSS } from "@dnd-kit/utilities"
 import { cn } from "@/lib/utils"
 import { Edit3, Trash2, GripVertical } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { SectionAddTrigger } from "./section-add-trigger"
+import { SectionAddTrigger } from "../sections/section-add-trigger"
 
 interface SortableSectionProps {
   id: string

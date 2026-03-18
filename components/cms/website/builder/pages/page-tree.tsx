@@ -26,7 +26,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { PageSummary, NavTreeMenuItem, NavTreeNode } from "./types"
+import type { PageSummary, NavTreeMenuItem, NavTreeNode } from "../types"
 
 // ---------------------------------------------------------------------------
 // Types

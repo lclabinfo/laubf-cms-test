@@ -1,9 +1,9 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import type { BuilderSection, NavbarData } from "./types"
+import type { BuilderSection, NavbarData } from "../types"
 
-export type { NavbarData } from "./types"
+export type { NavbarData } from "../types"
 
 // ---------------------------------------------------------------------------
 // Message envelope

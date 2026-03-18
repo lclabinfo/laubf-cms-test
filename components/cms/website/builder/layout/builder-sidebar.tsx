@@ -8,7 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import type { BuilderTool } from "./types"
+import type { BuilderTool } from "../types"
 import type { PageType } from "@/lib/db/types"
 
 interface BuilderSidebarProps {

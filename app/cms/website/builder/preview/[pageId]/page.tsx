@@ -6,7 +6,7 @@ import { getThemeWithCustomization } from "@/lib/dal/theme"
 import { getMenuByLocation } from "@/lib/dal/menus"
 import { getSiteSettings } from "@/lib/dal/site-settings"
 import { FontLoader } from "@/components/website/font-loader"
-import { BuilderPreviewClient } from "@/components/cms/website/builder/builder-preview-client"
+import { BuilderPreviewClient } from "@/components/cms/website/builder/canvas/builder-preview-client"
 import type { SectionType } from "@/lib/db/types"
 import type { NavbarData } from "@/components/cms/website/builder/types"
 

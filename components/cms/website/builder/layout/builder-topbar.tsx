@@ -29,7 +29,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import type { DeviceMode, BuilderPage, PageSummary } from "./types"
+import type { DeviceMode, BuilderPage, PageSummary } from "../types"
 
 interface BuilderTopbarProps {
   page: BuilderPage

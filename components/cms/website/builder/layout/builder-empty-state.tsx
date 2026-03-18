@@ -34,7 +34,7 @@ import {
   LayoutTemplate,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { SECTION_CATALOG } from "./section-catalog"
+import { SECTION_CATALOG } from "../section-catalog"
 
 // ---------------------------------------------------------------------------
 // Template definitions

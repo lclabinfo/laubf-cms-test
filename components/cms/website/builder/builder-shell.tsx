@@ -4,22 +4,22 @@ import { useState, useCallback, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes"
 import { toast } from "sonner"
-import { BuilderTopbar } from "./builder-topbar"
-import { BuilderSidebar } from "./builder-sidebar"
-import { BuilderDrawer } from "./builder-drawer"
-import { BuilderCanvas } from "./builder-canvas"
-import { SectionPickerModal, type PickerMode } from "./section-picker-modal"
+import { BuilderTopbar } from "./layout/builder-topbar"
+import { BuilderSidebar } from "./layout/builder-sidebar"
+import { BuilderDrawer } from "./layout/builder-drawer"
+import { BuilderCanvas } from "./canvas/builder-canvas"
+import { SectionPickerModal, type PickerMode } from "./sections/section-picker-modal"
 import {
   BuilderRightDrawer,
   type SectionEditorData,
-} from "./builder-right-drawer"
+} from "./layout/builder-right-drawer"
 import {
   type NavbarSettings,
   defaultNavbarSettings,
 } from "./section-editors/navbar-editor"
-import { PageTree } from "./page-tree"
-import { PageSettingsModal, type PageSettingsData } from "./page-settings-modal"
-import { AddPageModal } from "./add-page-modal"
+import { PageTree } from "./pages/page-tree"
+import { PageSettingsModal, type PageSettingsData } from "./pages/page-settings-modal"
+import { AddPageModal } from "./pages/add-page-modal"
 import {
   AlertDialog,
   AlertDialogAction,

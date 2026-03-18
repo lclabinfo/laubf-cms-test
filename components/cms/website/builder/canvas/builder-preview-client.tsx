@@ -21,11 +21,11 @@ import {
 } from "@dnd-kit/sortable"
 import { cn } from "@/lib/utils"
 import { SortableSection } from "./sortable-section"
-import { SectionAddTrigger } from "./section-add-trigger"
+import { SectionAddTrigger } from "../sections/section-add-trigger"
 import { BuilderSectionRenderer } from "./builder-section-renderer"
 import { WebsiteNavbar } from "@/components/website/layout/website-navbar"
 import { useParentMessages, postToParent } from "./iframe-protocol"
-import type { BuilderSection, NavbarData } from "./types"
+import type { BuilderSection, NavbarData } from "../types"
 
 // ---------------------------------------------------------------------------
 // centerOnCursor modifier — centers the drag overlay on the cursor

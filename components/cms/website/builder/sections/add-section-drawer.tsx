@@ -16,7 +16,7 @@ import {
   SECTION_CATEGORIES,
   type SectionCatalogItem,
   type SectionCategory,
-} from "./section-catalog"
+} from "../section-catalog"
 import {
   Search,
   ChevronRight,
