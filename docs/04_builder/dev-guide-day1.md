@@ -27,11 +27,12 @@
 
 | **Task 2** — Navigation editor | `1a91e8a`, `4178ebf` | **COMPLETE.** Full tree-based navigation editor inside builder. Schema: `scheduleMeta` on MenuItem, navbar settings on SiteSettings (additive migration, zero data loss). API: child reorder endpoint, navbar settings GET/PATCH. Builder: NavigationEditor tree (1084 lines) with DnD, NavItemEditor forms (808 lines), sidebar tool, drawer/right-drawer integration. Public site: scheduleMeta in dropdown/mobile/FAB, navbar scroll/color/sticky from DB. Second-pass QA: 10 bugs fixed (security: item ownership verification + field allowlist; state: nav editor cleanup on section select + page nav; UI: solidColor wiring, ctaVisible default, immutable reorder, child delete confirm). |
 
+| **Task 3** — Undo/redo fix + verification | `68fa985` | **COMPLETE.** Root cause: `SectionEditorInline` had local `useState` for content/displaySettings that went stale on undo. Fix: converted to controlled component — content and displaySettings derived from `section` prop, no local state. Also reset `editingSnapshotPushedRef` after undo/redo so next edit pushes a new snapshot. Audit: 6 scenarios passed (edit+undo, undo+edit, display settings, DnD reorder, rapid typing, race conditions). See `worklog/undo-redo-drawer-sync.md`. |
+
 ### Not Started
 
 | Task | Priority | Notes |
 |---|---|---|
-| **Task 3** — Undo/redo verification | P1 | Needs manual testing. Code looks correct but untested after dirty tracking changes. |
 | TypeScript content interfaces | P1 | All editors still use `Record<string, unknown>` + manual casts. |
 
 ---
@@ -136,48 +137,27 @@
 Editor field onChange
   -> Editor's onChange(fullContentObject)
   -> SectionEditorInline.handleContentChange(newContent)
-  -> setContent(newContent)  [local state]
-  -> onChange({ content: newContent })  [prop callback]
+  -> onChange({ content: newContent })  [direct to parent — no local state]
   -> BuilderShell.handleSectionEditorChange(data)
   -> setSections(prev => prev.map(...))  [immutable update]
   -> setDirtySectionIds(prev => new Set(prev).add(sectionId))  [dirty tracking]
-  -> Canvas re-renders with new content
+  -> editingSection re-derived from sections  [single source of truth]
+  -> Drawer re-renders with new section prop  [controlled component]
+  -> Canvas re-renders with new content (iframe receives UPDATE_SECTIONS)
   -> isDirty = true (enables Save button, starts auto-save timer)
+
+NOTE: SectionEditorInline is a CONTROLLED component — content and display
+settings are derived from the section prop, not local state. This ensures
+undo/redo correctly propagates to both the drawer and the canvas.
 ```
 
 ---
 
 ## Remaining Tasks
 
-### Task 2: Navigation Fix
-
-**What's broken**: The page tree sidebar in the builder does not match the actual public website navigation. Quick Links are mixed in with navbar items.
-
-**Files to investigate**:
-- `components/cms/website/builder/page-tree.tsx` -- the page tree component in the left drawer
-- `components/cms/website/builder/builder-shell.tsx` -- navbar click handling, link-to-page resolution
-- `components/cms/website/builder/section-editors/navbar-editor.tsx` -- navbar settings (currently local-only, TODO: persist via API)
-- `lib/dal/menus.ts` -- menu data access
-- `app/api/v1/menus/` -- menu API routes
-
-**What needs to happen**:
-- Audit: Open the public website, note the actual nav structure. Open builder, compare with page tree.
-- Fix any mismatches between page tree and actual nav menu
-- Wire navbar editor changes to the menu API so they persist (currently `NavbarSettings` is local state only)
-- Separate Quick Links management from navigation
-
----
-
-### Task 3: Undo/Redo Verification
-
-**What to check**:
-- File: `components/cms/website/builder/use-builder-history.ts`
-- Current cap: `MAX_HISTORY = 50`
-- Open builder -> make edits (content, reorder, add/remove sections, display settings) -> Cmd+Z should undo each -> Cmd+Shift+Z should redo
-- Verify all edit types push snapshots
-- Verify dirty tracking interacts correctly with undo/redo (currently: undo/redo marks all sections dirty as a safe fallback)
-- Keyboard shortcuts skip when focus is in input/textarea/contenteditable
-- History resets on page navigation
+| Task | Priority | Notes |
+|---|---|---|
+| TypeScript content interfaces | P1 | All editors still use `Record<string, unknown>` + manual casts. |
 
 ---
 
@@ -199,6 +179,7 @@ Editor field onChange
 
 - **DON'T** modify `builder-section-renderer.tsx` unless adding a new section type -- it's a stable mapping layer
 - **DON'T** add state to editor components that should be in BuilderShell -- editors are stateless forms that emit via onChange
+- **DON'T** use `useState` for content or display settings in `SectionEditorInline` -- it's a controlled component. Content and display settings must be derived from the `section` prop to ensure undo/redo propagates correctly.
 - **DON'T** call API endpoints directly from editors -- all API calls go through BuilderShell handlers
 - **DON'T** use `useEffect` in editors to sync content -- the key-based remount pattern handles this
 - **DON'T** add debouncing to onChange without measuring -- the current instant-update gives good canvas feedback

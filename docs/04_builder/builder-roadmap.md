@@ -123,10 +123,13 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 - [x] Public site: scheduleMeta in dropdown/mobile/FAB, navbar settings wired from DB
 - [x] Security audit: item ownership verification, field allowlist, state conflict fixes
 
-**Undo/redo verification**
-- [ ] Verify undo/redo works reliably within a session (open → edit → save)
-- [ ] Ensure all edit types are captured (content, reorder, add/remove, display settings)
-- [ ] Verify dirty tracking interacts correctly with undo/redo (undone sections stay dirty)
+**Undo/redo verification** — **DONE** (`68fa985`)
+- [x] Verify undo/redo works reliably within a session (open → edit → save)
+- [x] Ensure all edit types are captured (content, reorder, add/remove, display settings)
+- [x] Verify dirty tracking interacts correctly with undo/redo (undone sections stay dirty)
+- [x] Fix: `SectionEditorInline` converted to controlled component (no local state) — drawer now syncs with canvas on undo/redo
+- [x] Fix: `editingSnapshotPushedRef` reset after undo/redo so next edit pushes new snapshot
+- [x] Audit: 6 scenarios verified (edit+undo, undo+edit+undo, display settings, DnD reorder, rapid typing, race conditions)
 
 **Fix hardcoded URLs** (4 components, code-only changes) — **ALL DONE** (`4b11296`)
 - [x] HERO_BANNER — reads from `content.backgroundVideo.src` with backward-compat fallback
