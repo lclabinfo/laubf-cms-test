@@ -75,7 +75,11 @@ export function usePresenceHeartbeat({
           intervalRef.current = null
         }
       } else {
-        // Resume: send immediately then restart interval
+        // Resume: clear any existing interval first to prevent duplicates
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current)
+          intervalRef.current = null
+        }
         sendHeartbeat()
         intervalRef.current = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS)
       }

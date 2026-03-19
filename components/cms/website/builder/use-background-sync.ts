@@ -34,6 +34,12 @@ export function useBackgroundSync({
   const onSyncRef = useRef(onSync)
   onSyncRef.current = onSync
 
+  // Keep fresh refs so the async poll() can re-check after await
+  const isDirtyRef = useRef(isDirty)
+  isDirtyRef.current = isDirty
+  const isSavingRef = useRef(isSaving)
+  isSavingRef.current = isSaving
+
   // Track the last fetched data to avoid unnecessary re-renders
   const lastHashRef = useRef<string>("")
 
@@ -85,6 +91,13 @@ export function useBackgroundSync({
           return
         }
         const { data } = await res.json()
+
+        // Re-check dirty/saving after await — the user may have started
+        // editing or saving between the fetch start and response arrival.
+        if (isDirtyRef.current || isSavingRef.current) {
+          scheduleNext()
+          return
+        }
 
         // Only sync if data actually changed
         const hash = JSON.stringify({

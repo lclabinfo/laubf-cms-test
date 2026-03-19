@@ -63,6 +63,7 @@ export type IframeToParentMessage =
   | { type: "CONTENT_HEIGHT"; height: number }
   | { type: "DESELECT" }
   | { type: "KEYBOARD_SHORTCUT"; shortcut: "undo" | "redo" | "save" }
+  | { type: "FOOTER_CLICKED" }
 
 // ---------------------------------------------------------------------------
 // Handler maps (used by listener hooks)

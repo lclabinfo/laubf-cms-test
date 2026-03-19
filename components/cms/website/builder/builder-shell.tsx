@@ -340,12 +340,42 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
 
         // Check each section result individually
         const failedNames: string[] = []
+        const deletedNames: string[] = []
         results.forEach((res, i) => {
           if (!res.ok) {
             const s = dirtySections[i]
-            failedNames.push(s.label || s.sectionType)
+            const name = s.label || s.sectionType
+            if (res.status === 404) {
+              deletedNames.push(name)
+            } else {
+              failedNames.push(name)
+            }
           }
         })
+
+        // Remove sections that were deleted by another user from local state
+        if (deletedNames.length > 0) {
+          const deletedIds = new Set(
+            dirtySections
+              .filter((_, i) => results[i].status === 404)
+              .map((s) => s.id),
+          )
+          setSections((prev) => prev.filter((s) => !deletedIds.has(s.id)))
+          setDirtySectionIds((prev) => {
+            const next = new Set(prev)
+            for (const id of deletedIds) next.delete(id)
+            return next
+          })
+          if (editingSectionId && deletedIds.has(editingSectionId)) {
+            setEditingSectionId(null)
+          }
+          if (selectedSectionId && deletedIds.has(selectedSectionId)) {
+            setSelectedSectionId(null)
+          }
+          toast.warning(
+            `${deletedNames.length} section(s) were deleted by another user: ${deletedNames.join(", ")}`,
+          )
+        }
 
         if (failedNames.length > 0) {
           setSaveState("idle")
@@ -387,16 +417,33 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           }))
 
           // Merge: use server version for all sections, but keep local version
-          // for sections we just saved (they're authoritative)
+          // for sections we just saved (they're authoritative).
+          // Also preserve any local-only sections added during the refetch window.
+          const freshIds = new Set(freshSections.map(s => s.id))
           setSections(prev => {
             const localMap = new Map(prev.map(s => [s.id, s]))
-            return freshSections.map(fs => {
+
+            const merged = freshSections.map(fs => {
               if (savedSectionIds.has(fs.id) && localMap.has(fs.id)) {
                 return localMap.get(fs.id)!
               }
               return fs
             })
+
+            // Append any local-only sections (added during save) that the
+            // server doesn't know about yet
+            for (const local of prev) {
+              if (!freshIds.has(local.id)) {
+                merged.push(local)
+              }
+            }
+
+            return merged
           })
+
+          // Clear selection/editing if the section was removed by another user
+          setSelectedSectionId(prev => (prev && !freshIds.has(prev) ? null : prev))
+          setEditingSectionId(prev => (prev && !freshIds.has(prev) ? null : prev))
 
           // Update page title if we didn't just save it
           if (!wasPageDirty) {
@@ -484,6 +531,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
       }
     })
 
+    const freshIds = new Set(freshSections.map(s => s.id))
+
     setSections(freshSections)
     setPageData(prev => ({ ...prev, title: freshPage.title as string }))
     pristineRef.current = JSON.stringify({
@@ -491,6 +540,10 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
       pageTitle: freshPage.title,
     })
     history.reset()
+
+    // Clear selection/editing if the section was removed by another user
+    setSelectedSectionId(prev => (prev && !freshIds.has(prev) ? null : prev))
+    setEditingSectionId(prev => (prev && !freshIds.has(prev) ? null : prev))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [history.reset])
 
@@ -595,7 +648,9 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const handlePickerSelect = useCallback(
     async (sectionType: SectionType, defaultContent: Record<string, unknown>) => {
       try {
-        const sortOrder = pickerInsertIndex + 1
+        // Clamp insert index to current sections length (sync may have changed sections)
+        const clampedIndex = Math.min(pickerInsertIndex, sections.length - 1)
+        const sortOrder = clampedIndex + 1
         const res = await fetch(`/api/v1/pages/${pagePathId(pageData)}/sections`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -629,7 +684,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         pushSnapshot()
         setSections((prev) => {
           const updated = [...prev]
-          updated.splice(pickerInsertIndex + 1, 0, newSection)
+          const safeIndex = Math.min(clampedIndex + 1, updated.length)
+          updated.splice(safeIndex, 0, newSection)
           return updated.map((s, i) => ({ ...s, sortOrder: i }))
         })
         setSelectedSectionId(newSection.id)
@@ -642,7 +698,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         toast.error("Failed to add section")
       }
     },
-    [pageData.slug, pageData.id, pickerInsertIndex, pushSnapshot],
+    [pageData.slug, pageData.id, pickerInsertIndex, sections.length, pushSnapshot],
   )
 
   /** Opens the confirmation dialog before deleting a section. */
@@ -1229,8 +1285,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
 
       {/* Presence warning banner */}
       {otherEditors.length > 0 && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 shrink-0">
-          <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
+        <div role="status" className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 shrink-0">
+          <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 shrink-0" aria-hidden="true" />
           <p className="text-amber-800 dark:text-amber-200 text-sm">
             {otherEditors.length === 1 ? (
               <>

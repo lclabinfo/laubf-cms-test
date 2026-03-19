@@ -20,6 +20,8 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable"
 import { cn } from "@/lib/utils"
+import { Edit3 } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { SortableSection } from "./sortable-section"
 import { SectionAddTrigger } from "../sections/section-add-trigger"
 import { BuilderSectionRenderer } from "./builder-section-renderer"

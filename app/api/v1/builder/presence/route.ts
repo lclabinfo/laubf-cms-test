@@ -10,8 +10,10 @@ export async function POST(request: NextRequest) {
     const authResult = await requireApiAuth('website.pages.edit')
     if (!authResult.authorized) return authResult.response
 
+    // requireApiAuth already validated the session; re-read only for the user name
+    // (not included in the auth result). Next-Auth caches per-request, so this is cheap.
     const session = await auth()
-    const userName = session?.user?.name ?? 'Unknown'
+    const userName = session?.user?.name || authResult.roleName || 'Unknown'
 
     const { pageId } = await request.json()
     if (!pageId) {
@@ -86,7 +88,7 @@ export async function GET(request: NextRequest) {
       select: { userId: true, userName: true, lastSeen: true },
     })
 
-    return NextResponse.json({ data: { editors } })
+    return NextResponse.json({ ok: true, editors })
   } catch (error) {
     console.error('GET /api/v1/builder/presence error:', error)
     return NextResponse.json(
