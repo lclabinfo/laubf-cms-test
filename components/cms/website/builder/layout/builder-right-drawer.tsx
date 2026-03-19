@@ -20,10 +20,6 @@ import {
 } from "../section-editors/display-settings"
 import { JsonEditor } from "../section-editors/json-editor"
 import {
-  NavbarEditor,
-  type NavbarSettings,
-} from "../section-editors/navbar-editor"
-import {
   NavItemEditor,
   NavSettingsForm,
   type NavEditorMenuItem,
@@ -49,16 +45,13 @@ interface BuilderRightDrawerProps {
   onClose: () => void
   onChange: (data: Partial<SectionEditorData>) => void
   onDelete: (sectionId: string) => void
-  /** Navbar editor mode (legacy — kept for backward compat) */
-  navbarSettings: NavbarSettings | null
-  onNavbarClose: () => void
-  onNavbarChange: (settings: NavbarSettings) => void
   /** Navigation item editing */
   editingNavItemId?: string | null
   editingNavSettings?: boolean
   menuItems?: MenuItemData[]
   menuId?: string | null
   pages?: PageSummary[]
+  /** @deprecated kept for call-site compat — unused in this component */
   churchId?: string
   initialNavbarSettings?: {
     scrollBehavior?: string
@@ -238,15 +231,12 @@ export function BuilderRightDrawer({
   onClose,
   onChange,
   onDelete,
-  navbarSettings,
-  onNavbarClose,
-  onNavbarChange,
   editingNavItemId,
   editingNavSettings,
   menuItems,
   menuId,
   pages,
-  churchId,
+  churchId: _churchId,
   initialNavbarSettings,
   onCloseNavItem,
   onNavItemUpdated,
@@ -260,19 +250,17 @@ export function BuilderRightDrawer({
 
   const showNavItem = editingNavItem !== null
   const showNavSettings = !!(editingNavSettings && !showNavItem)
-  const showSection = section !== null && !showNavItem && !showNavSettings && navbarSettings === null
-  const showNavbar = navbarSettings !== null && !showNavItem && !showNavSettings
-  const isOpen = showSection || showNavbar || showNavItem || showNavSettings
+  const showSection = section !== null && !showNavItem && !showNavSettings
+  const isOpen = showSection || showNavItem || showNavSettings
 
   const typeLabel = section
     ? sectionTypeLabels[section.sectionType] ?? section.sectionType
     : ""
 
   // NavItemEditor and NavSettingsForm render their own headers,
-  // so we only render the shared header for section and legacy navbar modes
-  const showSharedHeader = showSection || showNavbar
-  const title = showNavbar ? "Navbar" : `Edit ${typeLabel}`
-  const handleClose = showNavbar ? onNavbarClose : onClose
+  // so we only render the shared header for section editing
+  const showSharedHeader = showSection
+  const title = `Edit ${typeLabel}`
 
   return (
     <div
@@ -304,7 +292,7 @@ export function BuilderRightDrawer({
             />
           )}
 
-          {/* Shared header for section / legacy navbar */}
+          {/* Shared header for section editing */}
           {showSharedHeader && (
             <div className="h-14 border-b flex items-center justify-between px-4 bg-muted/30 shrink-0">
               <h3 className="font-semibold text-xs uppercase tracking-wider text-foreground truncate pr-2">
@@ -314,31 +302,23 @@ export function BuilderRightDrawer({
                 variant="ghost"
                 size="icon-xs"
                 className="rounded-full text-muted-foreground shrink-0"
-                onClick={handleClose}
+                onClick={onClose}
               >
                 <X className="size-3.5" />
               </Button>
             </div>
           )}
 
-          {/* Scrollable content for section / legacy navbar */}
-          {(showSection || showNavbar) && (
+          {/* Scrollable content for section editing */}
+          {showSection && section && (
             <ScrollArea className="flex-1 min-h-0 overflow-hidden">
               <div className="p-4">
-                {showNavbar && navbarSettings && (
-                  <NavbarEditor
-                    settings={navbarSettings}
-                    onChange={onNavbarChange}
-                  />
-                )}
-                {showSection && section && (
-                  <SectionEditorInline
-                    key={section.id}
-                    section={section}
-                    onChange={onChange}
-                    onDelete={onDelete}
-                  />
-                )}
+                <SectionEditorInline
+                  key={section.id}
+                  section={section}
+                  onChange={onChange}
+                  onDelete={onDelete}
+                />
               </div>
             </ScrollArea>
           )}

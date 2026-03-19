@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useEffect, useMemo } from "react"
+import { useState, useCallback, useEffect, useMemo, useRef } from "react"
 import {
   DndContext,
   closestCenter,
@@ -31,6 +31,8 @@ import {
   Plus,
   Star,
   Trash2,
+  X,
+  Check,
 } from "lucide-react"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -89,6 +91,8 @@ export interface NavigationEditorProps {
   ctaVisible: boolean
   onEditItem?: (itemId: string) => void
   onMenuChange?: () => void
+  /** Opens the NavSettingsForm in the right drawer to edit CTA fields */
+  onEditCTA?: () => void
 }
 
 // ---------------------------------------------------------------------------
@@ -159,8 +163,97 @@ function groupChildrenByLabel(children: MenuItemData[]): ChildGroup[] {
   return groups
 }
 
+// Prefix helpers for single-DndContext architecture
+const TOP_PREFIX = "top::"
+const CHILD_PREFIX = "child::"
+
+function toTopId(id: string) {
+  return `${TOP_PREFIX}${id}`
+}
+function toChildId(id: string) {
+  return `${CHILD_PREFIX}${id}`
+}
+function fromPrefixedId(prefixedId: string): { type: "top" | "child"; id: string } {
+  if (typeof prefixedId === "string" && prefixedId.startsWith(TOP_PREFIX)) {
+    return { type: "top", id: prefixedId.slice(TOP_PREFIX.length) }
+  }
+  if (typeof prefixedId === "string" && prefixedId.startsWith(CHILD_PREFIX)) {
+    return { type: "child", id: prefixedId.slice(CHILD_PREFIX.length) }
+  }
+  // Fallback — treat as top
+  return { type: "top", id: String(prefixedId) }
+}
+
 // ---------------------------------------------------------------------------
-// SortableNavItem
+// InlineAddInput — replaces window.prompt() with inline field
+// ---------------------------------------------------------------------------
+
+interface InlineAddInputProps {
+  placeholder: string
+  onSubmit: (value: string) => void
+  onCancel: () => void
+}
+
+function InlineAddInput({ placeholder, onSubmit, onCancel }: InlineAddInputProps) {
+  const [value, setValue] = useState("")
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    // Focus on mount
+    inputRef.current?.focus()
+  }, [])
+
+  const handleSubmit = () => {
+    const trimmed = value.trim()
+    if (trimmed) {
+      onSubmit(trimmed)
+    } else {
+      onCancel()
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-1 px-1 py-1">
+      <Input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder={placeholder}
+        className="h-6 text-xs flex-1 bg-muted/30 border-border/50"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handleSubmit()
+          if (e.key === "Escape") onCancel()
+        }}
+        onBlur={onCancel}
+      />
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-5 w-5 shrink-0 text-primary hover:text-primary"
+        onMouseDown={(e) => {
+          e.preventDefault()
+          handleSubmit()
+        }}
+      >
+        <Check className="size-3" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-5 w-5 shrink-0 text-muted-foreground hover:text-foreground"
+        onMouseDown={(e) => {
+          e.preventDefault()
+          onCancel()
+        }}
+      >
+        <X className="size-3" />
+      </Button>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// SortableNavItem (child items)
 // ---------------------------------------------------------------------------
 
 interface SortableNavItemProps {
@@ -170,6 +263,7 @@ interface SortableNavItemProps {
 }
 
 function SortableNavItem({ item, onEditItem, onDeleteItem }: SortableNavItemProps) {
+  const sortableId = toChildId(item.id)
   const {
     attributes,
     listeners,
@@ -177,7 +271,7 @@ function SortableNavItem({ item, onEditItem, onDeleteItem }: SortableNavItemProp
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id })
+  } = useSortable({ id: sortableId })
 
   const style = {
     transform: CSS.Translate.toString(transform),
@@ -193,7 +287,7 @@ function SortableNavItem({ item, onEditItem, onDeleteItem }: SortableNavItemProp
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group/item flex items-center gap-1.5 rounded-md px-1 py-1.5 transition-colors hover:bg-muted/50",
+        "group/item flex items-center gap-1 rounded-md px-1 py-1.5 transition-colors hover:bg-muted/50",
         isDragging && "opacity-50 bg-muted/30",
       )}
     >
@@ -329,10 +423,10 @@ function NavSectionHeader({ label, onRename, onDelete }: NavSectionHeaderProps) 
 }
 
 // ---------------------------------------------------------------------------
-// NavTopLevelItem
+// TopLevelItem (NOT a DndContext — just a row with useSortable)
 // ---------------------------------------------------------------------------
 
-interface NavTopLevelItemProps {
+interface TopLevelItemProps {
   item: MenuItemData
   menuId: string
   isExpanded: boolean
@@ -340,6 +434,7 @@ interface NavTopLevelItemProps {
   onEditItem?: (itemId: string) => void
   onDeleteItem: (itemId: string) => void
   onMenuChange?: () => void
+  allChildPrefixedIds: string[]
 }
 
 function SortableTopLevelItem({
@@ -350,7 +445,9 @@ function SortableTopLevelItem({
   onEditItem,
   onDeleteItem,
   onMenuChange,
-}: NavTopLevelItemProps) {
+  allChildPrefixedIds,
+}: TopLevelItemProps) {
+  const sortableId = toTopId(item.id)
   const {
     attributes,
     listeners,
@@ -358,7 +455,7 @@ function SortableTopLevelItem({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id })
+  } = useSortable({ id: sortableId })
 
   const style = {
     transform: CSS.Translate.toString(transform),
@@ -372,24 +469,19 @@ function SortableTopLevelItem({
   const badge = getTypeBadge(type)
   const groups = useMemo(() => groupChildrenByLabel(children), [children])
 
-  // Sensors for child DnD
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
+  // Inline add state for child items and sections
+  const [addingChildInGroup, setAddingChildInGroup] = useState<string | null | undefined>(undefined)
+  const [addingSection, setAddingSection] = useState(false)
 
   // Add child item to a specific section
   const handleAddChildItem = useCallback(
-    async (groupLabel: string | null) => {
-      const label = prompt("Item label:")
-      if (!label?.trim()) return
-
+    async (label: string, groupLabel: string | null) => {
       try {
         const res = await fetch(`/api/v1/menus/${menuId}/items`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            label: label.trim(),
+            label,
             parentId: item.id,
             groupLabel,
           }),
@@ -405,19 +497,15 @@ function SortableTopLevelItem({
   )
 
   // Add a new section (group)
-  const handleAddSection = useCallback(async () => {
-    const label = prompt("Section name:")
-    if (!label?.trim()) return
-
+  const handleAddSection = useCallback(async (sectionName: string) => {
     try {
-      // Create a placeholder item to establish the section
       const res = await fetch(`/api/v1/menus/${menuId}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           label: "New Item",
           parentId: item.id,
-          groupLabel: label.trim(),
+          groupLabel: sectionName,
         }),
       })
       if (!res.ok) throw new Error("Failed to add section")
@@ -479,64 +567,15 @@ function SortableTopLevelItem({
     [menuId, children, onMenuChange],
   )
 
-  // Child reorder within a parent
-  const handleChildDragEnd = useCallback(
-    async (event: DragEndEvent) => {
-      const { active, over } = event
-      if (!over || active.id === over.id) return
-
-      // Flatten all children IDs in current order
-      const allChildren = [...children].sort(
-        (a, b) => a.sortOrder - b.sortOrder,
-      )
-      const ids = allChildren.map((c) => c.id)
-      const oldIndex = ids.indexOf(active.id as string)
-      const newIndex = ids.indexOf(over.id as string)
-      if (oldIndex === -1 || newIndex === -1) return
-
-      // Reorder
-      const reordered = [...ids]
-      const [moved] = reordered.splice(oldIndex, 1)
-      reordered.splice(newIndex, 0, moved)
-
-      try {
-        const res = await fetch(
-          `/api/v1/menus/${menuId}/items/${item.id}/children`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ itemIds: reordered }),
-          },
-        )
-        if (!res.ok) throw new Error("Failed to reorder")
-        onMenuChange?.()
-      } catch {
-        toast.error("Failed to reorder items")
-      }
-    },
-    [menuId, item.id, children, onMenuChange],
-  )
-
-  const allChildIds = useMemo(
-    () =>
-      [...children]
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((c) => c.id),
-    [children],
-  )
-
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={cn(
-        "border-b border-border/50",
-        isDragging && "opacity-50",
-      )}
+      className={cn(isDragging && "opacity-50")}
     >
       {/* Top-level row */}
       <div className="group/top flex items-center gap-1.5 px-2 py-2.5 hover:bg-muted/30 transition-colors">
-        {/* Drag handle */}
+        {/* Drag handle — only element with DnD listeners */}
         <div
           {...attributes}
           {...listeners}
@@ -545,12 +584,15 @@ function SortableTopLevelItem({
           <GripVertical className="size-3.5" />
         </div>
 
-        {/* Expand/collapse */}
+        {/* Expand/collapse — NO DnD attributes here */}
         {hasChildren ? (
           <button
             type="button"
-            onClick={onToggleExpand}
-            className="shrink-0 p-0.5 rounded hover:bg-muted/60"
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleExpand()
+            }}
+            className="shrink-0 p-0.5 rounded hover:bg-muted/60 flex items-center justify-center"
           >
             {isExpanded ? (
               <ChevronDown className="size-3 text-muted-foreground" />
@@ -614,7 +656,7 @@ function SortableTopLevelItem({
         </div>
       </div>
 
-      {/* Expanded children */}
+      {/* Expanded children — no nested DndContext, uses parent's context */}
       {hasChildren && isExpanded && (
         <div className="pl-6 pb-2">
           {/* Landing page indicator for page+dropdown */}
@@ -628,61 +670,79 @@ function SortableTopLevelItem({
             </div>
           )}
 
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleChildDragEnd}
+          <SortableContext
+            items={allChildPrefixedIds}
+            strategy={verticalListSortingStrategy}
           >
-            <SortableContext
-              items={allChildIds}
-              strategy={verticalListSortingStrategy}
-            >
-              {groups.map((group, gi) => (
-                <div key={group.label ?? `group-${gi}`}>
-                  {/* Section header */}
-                  {group.label && (
-                    <NavSectionHeader
-                      label={group.label}
-                      onRename={(newLabel) =>
-                        handleRenameSection(group.label!, newLabel)
-                      }
-                      onDelete={() => handleDeleteSection(group.label!)}
-                    />
-                  )}
+            {groups.map((group, gi) => (
+              <div key={group.label ?? `group-${gi}`}>
+                {/* Section header */}
+                {group.label && (
+                  <NavSectionHeader
+                    label={group.label}
+                    onRename={(newLabel) =>
+                      handleRenameSection(group.label!, newLabel)
+                    }
+                    onDelete={() => handleDeleteSection(group.label!)}
+                  />
+                )}
 
-                  {/* Items in section */}
-                  {group.items.map((child) => (
-                    <SortableNavItem
-                      key={child.id}
-                      item={child}
-                      onEditItem={onEditItem}
-                      onDeleteItem={onDeleteItem}
-                    />
-                  ))}
+                {/* Items in section */}
+                {group.items.map((child) => (
+                  <SortableNavItem
+                    key={child.id}
+                    item={child}
+                    onEditItem={onEditItem}
+                    onDeleteItem={onDeleteItem}
+                  />
+                ))}
 
-                  {/* Add item to this section */}
+                {/* Add item to this section — inline input replaces prompt() */}
+                {addingChildInGroup === group.label ? (
+                  <InlineAddInput
+                    placeholder="Item label..."
+                    onSubmit={(label) => {
+                      setAddingChildInGroup(undefined)
+                      handleAddChildItem(label, group.label)
+                    }}
+                    onCancel={() => setAddingChildInGroup(undefined)}
+                  />
+                ) : (
                   <button
                     type="button"
-                    onClick={() => handleAddChildItem(group.label)}
+                    onClick={() => setAddingChildInGroup(group.label)}
                     className="flex items-center gap-1.5 px-1 py-1 text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors w-full"
                   >
                     <Plus className="size-3" />
                     Add item
                   </button>
-                </div>
-              ))}
-            </SortableContext>
-          </DndContext>
+                )}
+              </div>
+            ))}
+          </SortableContext>
 
-          {/* Add section */}
-          <button
-            type="button"
-            onClick={handleAddSection}
-            className="flex items-center gap-1.5 px-1 py-1.5 mt-1 text-[10px] text-primary/70 hover:text-primary transition-colors w-full border-t border-border/30 pt-2"
-          >
-            <Plus className="size-3" />
-            Add section
-          </button>
+          {/* Add section — inline input replaces prompt() */}
+          {addingSection ? (
+            <div className="border-t border-border/30 pt-2 mt-1">
+              <InlineAddInput
+                placeholder="Section name..."
+                onSubmit={(name) => {
+                  setAddingSection(false)
+                  handleAddSection(name)
+                }}
+                onCancel={() => setAddingSection(false)}
+              />
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setAddingSection(true)}
+              className="flex items-center gap-1.5 px-1 py-1.5 mt-1 text-[10px] text-primary/70 hover:text-primary transition-colors w-full border-t border-border/30 pt-2"
+            >
+              <Plus className="size-3" />
+              Add section
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -832,6 +892,7 @@ export function NavigationEditor({
   ctaVisible,
   onEditItem,
   onMenuChange,
+  onEditCTA,
 }: NavigationEditorProps) {
   // Local state for menu items
   const [items, setItems] = useState<MenuItemData[]>(menuItems)
@@ -850,6 +911,9 @@ export function NavigationEditor({
         .map((i) => i.id),
     )
   })
+
+  // Inline add state for top-level
+  const [addingTopLevel, setAddingTopLevel] = useState(false)
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -872,10 +936,22 @@ export function NavigationEditor({
     [items],
   )
 
-  const topLevelIds = useMemo(
-    () => topLevelItems.map((i) => i.id),
+  const topLevelPrefixedIds = useMemo(
+    () => topLevelItems.map((i) => toTopId(i.id)),
     [topLevelItems],
   )
+
+  // Build a map of parentId -> prefixed child IDs for SortableContexts
+  const childPrefixedIdsByParent = useMemo(() => {
+    const map: Record<string, string[]> = {}
+    for (const tlItem of topLevelItems) {
+      const children = tlItem.children ?? []
+      map[tlItem.id] = [...children]
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((c) => toChildId(c.id))
+    }
+    return map
+  }, [topLevelItems])
 
   // Collect all hrefs from all menu items (for hidden pages detection)
   const menuItemHrefs = useMemo(() => {
@@ -898,7 +974,7 @@ export function NavigationEditor({
     return hrefs
   }, [items])
 
-  // DnD sensors
+  // SINGLE DnD sensors for the entire tree
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -917,55 +993,119 @@ export function NavigationEditor({
     }
   }, [menuId, onMenuChange])
 
-  // Top-level reorder
-  const handleTopLevelDragEnd = useCallback(
+  // Find parent of a child item
+  const findParentOfChild = useCallback(
+    (childId: string): MenuItemData | undefined => {
+      return items.find(
+        (i) => i.parentId === null && i.children?.some((c) => c.id === childId),
+      )
+    },
+    [items],
+  )
+
+  // SINGLE onDragEnd handler — dispatches based on prefixed ID
+  const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
       const { active, over } = event
       if (!over || active.id === over.id) return
 
-      const oldIndex = topLevelIds.indexOf(active.id as string)
-      const newIndex = topLevelIds.indexOf(over.id as string)
-      if (oldIndex === -1 || newIndex === -1) return
+      const activeInfo = fromPrefixedId(active.id as string)
+      const overInfo = fromPrefixedId(over.id as string)
 
-      const reordered = [...topLevelIds]
-      const [moved] = reordered.splice(oldIndex, 1)
-      reordered.splice(newIndex, 0, moved)
+      // Top-level reorder
+      if (activeInfo.type === "top" && overInfo.type === "top") {
+        const ids = topLevelItems.map((i) => i.id)
+        const oldIndex = ids.indexOf(activeInfo.id)
+        const newIndex = ids.indexOf(overInfo.id)
+        if (oldIndex === -1 || newIndex === -1) return
 
-      // Optimistic update (immutable — create new objects, don't mutate)
-      setItems((prev) =>
-        prev.map((item) => {
-          if (item.parentId !== null) return item
-          const idx = reordered.indexOf(item.id)
-          return idx !== -1 ? { ...item, sortOrder: idx } : item
-        })
-      )
+        const reordered = [...ids]
+        const [moved] = reordered.splice(oldIndex, 1)
+        reordered.splice(newIndex, 0, moved)
 
-      try {
-        const res = await fetch(`/api/v1/menus/${menuId}/items`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ itemIds: reordered }),
-        })
-        if (!res.ok) throw new Error("Failed to reorder")
-        await refreshMenu()
-      } catch {
-        toast.error("Failed to reorder items")
-        await refreshMenu()
+        // Optimistic update
+        setItems((prev) =>
+          prev.map((item) => {
+            if (item.parentId !== null) return item
+            const idx = reordered.indexOf(item.id)
+            return idx !== -1 ? { ...item, sortOrder: idx } : item
+          }),
+        )
+
+        try {
+          const res = await fetch(`/api/v1/menus/${menuId}/items`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ itemIds: reordered }),
+          })
+          if (!res.ok) throw new Error("Failed to reorder")
+          await refreshMenu()
+        } catch {
+          toast.error("Failed to reorder items")
+          await refreshMenu()
+        }
+        return
       }
+
+      // Child reorder (both must be children, same parent)
+      if (activeInfo.type === "child" && overInfo.type === "child") {
+        const parent = findParentOfChild(activeInfo.id)
+        if (!parent) return
+
+        const allChildren = [...(parent.children ?? [])].sort(
+          (a, b) => a.sortOrder - b.sortOrder,
+        )
+        const ids = allChildren.map((c) => c.id)
+        const oldIndex = ids.indexOf(activeInfo.id)
+        const newIndex = ids.indexOf(overInfo.id)
+        if (oldIndex === -1 || newIndex === -1) return
+
+        const reordered = [...ids]
+        const [moved] = reordered.splice(oldIndex, 1)
+        reordered.splice(newIndex, 0, moved)
+
+        // Optimistic update for children
+        setItems((prev) =>
+          prev.map((item) => {
+            if (item.id !== parent.id) return item
+            const newChildren = (item.children ?? []).map((c) => {
+              const idx = reordered.indexOf(c.id)
+              return idx !== -1 ? { ...c, sortOrder: idx } : c
+            })
+            return { ...item, children: newChildren }
+          }),
+        )
+
+        try {
+          const res = await fetch(
+            `/api/v1/menus/${menuId}/items/${parent.id}/children`,
+            {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ itemIds: reordered }),
+            },
+          )
+          if (!res.ok) throw new Error("Failed to reorder")
+          await refreshMenu()
+        } catch {
+          toast.error("Failed to reorder items")
+          await refreshMenu()
+        }
+        return
+      }
+
+      // Cross-type drag (top->child or child->top) — ignore for now
     },
-    [menuId, topLevelIds, refreshMenu],
+    [menuId, topLevelItems, findParentOfChild, refreshMenu],
   )
 
-  // Add top-level item
-  const handleAddTopLevel = useCallback(async () => {
-    const label = prompt("Item label:")
-    if (!label?.trim()) return
-
+  // Add top-level item — inline input replaces prompt()
+  const handleAddTopLevel = useCallback(async (label: string) => {
     try {
       const res = await fetch(`/api/v1/menus/${menuId}/items`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: label.trim() }),
+        body: JSON.stringify({ label }),
       })
       if (!res.ok) throw new Error("Failed to add item")
       toast.success("Item added")
@@ -987,6 +1127,18 @@ export function NavigationEditor({
 
       if (!confirm(message)) return
 
+      // Optimistic removal
+      setItems((prev) => {
+        const filtered = prev.filter((i) => i.id !== itemId)
+        return filtered.map((i) => {
+          if (!i.children) return i
+          const newChildren = i.children.filter((c) => c.id !== itemId)
+          return newChildren.length !== i.children.length
+            ? { ...i, children: newChildren }
+            : i
+        })
+      })
+
       try {
         const res = await fetch(`/api/v1/menus/${menuId}/items/${itemId}`, {
           method: "DELETE",
@@ -996,6 +1148,7 @@ export function NavigationEditor({
         await refreshMenu()
       } catch {
         toast.error("Failed to delete item")
+        await refreshMenu()
       }
     },
     [menuId, items, refreshMenu],
@@ -1013,12 +1166,26 @@ export function NavigationEditor({
           variant="outline"
           size="sm"
           className="h-7 text-xs gap-1.5"
-          onClick={handleAddTopLevel}
+          onClick={() => setAddingTopLevel(true)}
         >
           <Plus className="size-3" />
           Add item
         </Button>
       </div>
+
+      {/* Inline add for top-level */}
+      {addingTopLevel && (
+        <div className="px-3 py-2 border-b border-border/30">
+          <InlineAddInput
+            placeholder="Item label..."
+            onSubmit={(label) => {
+              setAddingTopLevel(false)
+              handleAddTopLevel(label)
+            }}
+            onCancel={() => setAddingTopLevel(false)}
+          />
+        </div>
+      )}
 
       {/* Tree content */}
       <ScrollArea className="flex-1">
@@ -1035,10 +1202,10 @@ export function NavigationEditor({
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
-              onDragEnd={handleTopLevelDragEnd}
+              onDragEnd={handleDragEnd}
             >
               <SortableContext
-                items={topLevelIds}
+                items={topLevelPrefixedIds}
                 strategy={verticalListSortingStrategy}
               >
                 {topLevelItems.map((item) => (
@@ -1051,6 +1218,7 @@ export function NavigationEditor({
                     onEditItem={onEditItem}
                     onDeleteItem={handleDeleteItem}
                     onMenuChange={refreshMenu}
+                    allChildPrefixedIds={childPrefixedIdsByParent[item.id] ?? []}
                   />
                 ))}
               </SortableContext>
@@ -1062,10 +1230,7 @@ export function NavigationEditor({
             ctaLabel={ctaLabel}
             ctaHref={ctaHref}
             ctaVisible={ctaVisible}
-            onEditCTA={() => {
-              // CTA editing would open in the right drawer
-              // For now, this is a placeholder for Job C integration
-            }}
+            onEditCTA={onEditCTA}
           />
 
           {/* Hidden Pages Section */}

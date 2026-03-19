@@ -45,7 +45,8 @@ Browser request -> Next.js App Router
 
 | File | Purpose |
 |---|---|
-| `app/website/layout.tsx` | Website layout: theme, fonts, navbar, footer, QuickLinksFAB |
+| `lib/website/build-layout-props.ts` | Shared layout data builders: `buildNavbarProps()`, `buildFooterProps()`, `buildLayoutData()`, `buildThemeTokens()` |
+| `app/website/layout.tsx` | Website layout: calls `buildLayoutData()`, renders navbar, footer, QuickLinksFAB |
 | `app/website/[[...slug]]/page.tsx` | Catch-all page route: fetches page + sections, renders SectionRenderer per section |
 | `components/website/theme/theme-provider.tsx` | Async RSC: injects `--ws-*` CSS vars as inline styles on `<div data-website="">`, injects customCss via `<style>` tag |
 | `components/website/font-loader.tsx` | Async RSC: generates `<link>` for Google Fonts and `<style>` with `@font-face` for custom fonts |
@@ -134,7 +135,6 @@ Browser request -> Next.js App Router
 | **Responsive breakpoints** | Mobile/tablet previews do not trigger CSS media queries | HIGH | See Section 5 below |
 | **Navbar position** | Live site: `position: fixed`, transparent over hero. Builder: `position: relative` (forced via `[&_header]:!relative`) | LOW | Intentional for builder usability |
 | **Hero banner negative margin** | Live site: `mt-[-76px]` to slide behind navbar. Builder: neutralized via `[&>section]:!mt-0` | LOW | Intentional for builder usability |
-| **Footer** | Rendered in live site layout. Not shown in builder canvas | LOW | Intentional; footer is layout-level, not section-level |
 | **QuickLinksFAB** | Rendered in live site layout. Not shown in builder | LOW | Intentional |
 | **Server-only sections** | Live site: async RSCs that self-fetch. Builder: client counterparts with pre-resolved data | NONE | Equivalent output, just different fetching mechanism |
 
@@ -215,16 +215,15 @@ ThemeCustomization (DB)
   |      -> Injects as inline styles on <div data-website="">
   |      -> Injects customCss via <style> tag
   |
-  +--> [Builder] [pageId]/page.tsx (RSC)
+  +--> [Builder] buildThemeTokens(churchId) from lib/website/build-layout-props.ts
          -> Reads DB via getThemeWithCustomization()
-         -> Computes same --ws-* tokens (duplicated logic)
-         -> Passes as websiteThemeTokens prop to BuilderShell
-         -> Passes websiteCustomCss to BuilderShell
-         -> BuilderCanvas applies as inline styles on <div data-website="">
-         -> BuilderCanvas injects customCss via <style> tag
+         -> Returns { websiteThemeTokens, websiteCustomCss }
+         -> Used by both preview/[pageId]/page.tsx and (editor)/[pageId]/page.tsx
+         -> Preview: injects as inline styles on <div data-website="">
+         -> Editor: passes to BuilderShell -> BuilderCanvas
 ```
 
-The token computation logic is duplicated between `ThemeProvider` and `[pageId]/page.tsx`. Both produce identical `--ws-*` custom properties. A future refactor could extract this into a shared utility (e.g., `lib/website/build-theme-tokens.ts`).
+Theme token computation is centralized in `buildThemeTokens()` in `lib/website/build-layout-props.ts`. Both builder routes import and call this function. The public website still uses `ThemeProvider` (which does its own DB fetch) since it wraps the entire layout.
 
 **Note:** The `--ws-*` CSS variables are currently set but not consumed by any section component or CSS rule. The section components use Tailwind utility classes (`bg-black-1`, `text-white-1`) from the `themeTokens` object in `theme-tokens.tsx`, not CSS custom properties. The `--ws-*` variables are reserved for future use when sections begin supporting per-church color customization beyond the light/dark scheme.
 
@@ -327,6 +326,6 @@ Both contexts have identical font availability because they use the same RSC.
 | Font loading | **Full** | Same `FontLoader` RSC |
 | Desktop layout preview | **Full** | Iframe viewport matches canvas width — media queries fire correctly |
 | Tablet/mobile preview | **Full** | Iframe sized to 768px/375px — correct responsive breakpoints |
-| Navbar rendering | **Partial** | Same component but forced `position: relative` |
-| Footer rendering | **None** | Intentionally excluded from builder |
+| Navbar rendering | **Full** | Same component, all props from shared `buildNavbarProps()`. Forced `position: relative` for builder usability. |
+| Footer rendering | **Full** | Same `WebsiteFooter` component rendered in builder preview after sections |
 | Scroll animations | **None** | Intentionally disabled in builder |

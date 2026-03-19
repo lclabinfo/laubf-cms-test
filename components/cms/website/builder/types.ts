@@ -68,12 +68,18 @@ export interface NavTreeMenuItem {
 export interface NavbarData {
   menu: unknown
   logoUrl: string | null
+  logoDarkUrl: string | null
   logoAlt: string | null
   siteName: string
-  ctaLabel: string
-  ctaHref: string
+  ctaLabel: string | null
+  ctaHref: string | null
   ctaVisible: boolean
+  memberLoginLabel: string
+  memberLoginHref: string
   memberLoginVisible: boolean
+  scrollBehavior: string
+  solidColor: string
+  sticky: boolean
 }
 
 export type NavTreeNodeKind = "page" | "folder" | "link"
