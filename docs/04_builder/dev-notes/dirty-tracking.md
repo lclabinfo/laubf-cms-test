@@ -104,8 +104,7 @@ const pristineRef = useRef<string>(
 Updated when:
 - Component mounts (from `page` prop)
 - `page` prop changes (navigating to a different page in the builder)
-
-**Not updated on save.** After save, the user may continue to undo past the save point. If we updated pristineRef on save, undoing to the save point would clear dirty flags even though the user has older history entries they might want.
+- After save + background refetch (updated to match new server state)
 
 ### Comparison logic
 
@@ -146,8 +145,10 @@ handleSave():
      PATCH each dirty section with { content, colorScheme, paddingY,
        containerWidth, enableAnimations, visible, label }
      via Promise.all (parallel)
+     - 404 responses: section deleted by another user -> remove from local state, warn via toast
+     - Other failures: toast error, keep dirty flags
 
-  6. On success: clear all dirty flags, router.refresh()
+  6. On success: clear all dirty flags, post-save refetch + merge, reset history
   7. On failure: toast error, keep dirty flags (user can retry)
 ```
 
@@ -182,20 +183,60 @@ The timer resets on every state change (`sections`, `pageData.title`). This mean
 
 ---
 
+## Interaction with Background Sync
+
+The background sync system (`use-background-sync.ts`) polls the server every 15 seconds to pick up other users' changes. Dirty tracking and background sync coexist through careful gating:
+
+### When sync is suppressed
+
+Background sync **skips polling** when any of these are true:
+- `isDirty === true` -- the user has unsaved local changes; overwriting them would lose work
+- `isSaving === true` -- a save is in progress
+- Within 5 seconds after a save completes (`POST_SAVE_PAUSE_MS`) -- avoids racing with the post-save refetch
+- Tab is hidden (`document.visibilityState === "hidden"`)
+
+This means sync only runs when the user is **idle** (no unsaved changes, no active save). An idle user sees other users' changes appear within ~15 seconds.
+
+### Post-save merge vs. background sync
+
+Both mechanisms fetch fresh page data from the server, but they serve different purposes:
+
+| Mechanism | When it runs | Merge logic |
+|---|---|---|
+| **Post-save refetch** (in `handleSave`) | Immediately after a successful save | Keeps local versions for just-saved sections; uses server versions for everything else. Preserves local-only sections added during the save window. |
+| **Background sync** (in `useBackgroundSync`) | Every 15s when idle | Full replacement -- overwrites all local state with server data. Safe because `isDirty` gating ensures no unsaved changes exist. |
+
+### State reset after sync
+
+When background sync applies fresh data, it:
+1. Replaces all sections with server versions
+2. Updates the page title
+3. Updates `pristineRef` to match the new server state
+4. Resets the undo history (stale snapshots would reference obsolete state)
+
+This ensures that after a sync, the user starts from a clean slate matching the DB.
+
+### Content hashing
+
+Background sync uses a JSON hash of `{ sections, title }` to detect changes. If the server data matches the last-fetched hash, `onSync` is not called. This prevents unnecessary re-renders when no one else has made changes.
+
+---
+
 ## Code Reference
 
 | File | Lines | What |
 |---|---|---|
-| `builder-shell.tsx:94-96` | Dirty flag declarations | `dirtySectionIds`, `reorderDirty`, `pageDirty` |
-| `builder-shell.tsx:89` | Master dirty flag | `isDirty` |
-| `builder-shell.tsx:156-160` | Pristine ref | `pristineRef` initialization |
-| `builder-shell.tsx:167-215` | Undo/redo pristine comparison | Clears or sets dirty flags based on comparison |
-| `builder-shell.tsx:226-242` | Page reset effect | Clears all flags, updates pristineRef |
-| `builder-shell.tsx:280-370` | Save handler | Reads granular flags, sends selective API calls |
-| `builder-shell.tsx:651-692` | Section editor change handler | Sets `dirtySectionIds` and `isDirty` |
-| `builder-shell.tsx:601-605` | Section reorder handler | Sets `reorderDirty` |
-| `builder-shell.tsx:556-587` | Section delete handler | Removes from `dirtySectionIds`, sets `reorderDirty` |
-| `builder-shell.tsx:736-741` | Title change handler | Sets `pageDirty` |
+| `builder-shell.tsx:97-99` | Dirty flag declarations | `dirtySectionIds`, `reorderDirty`, `pageDirty` |
+| `builder-shell.tsx:92` | Master dirty flag | `isDirty` |
+| `builder-shell.tsx:162-164` | Pristine ref | `pristineRef` initialization |
+| `builder-shell.tsx:171-219` | Undo/redo pristine comparison | Clears or sets dirty flags based on comparison |
+| `builder-shell.tsx:230-246` | Page reset effect | Clears all flags, updates pristineRef |
+| `builder-shell.tsx:286-480` | Save handler | Reads granular flags, sends selective API calls, post-save merge |
+| `builder-shell.tsx:808+` | Section editor change handler | Sets `dirtySectionIds` and `isDirty` |
+| `builder-shell.tsx:758-762` | Section reorder handler | Sets `reorderDirty` |
+| `builder-shell.tsx:714-750` | Section delete handler | Removes from `dirtySectionIds`, sets `reorderDirty` |
+| `builder-shell.tsx:902-907` | Title change handler | Sets `pageDirty` |
+| `use-background-sync.ts` | Full file | Background polling with isDirty/isSaving gating |
 
 ---
 
@@ -204,4 +245,4 @@ The timer resets on every state change (`sections`, `pageData.title`). This mean
 | Document | Purpose |
 |---|---|
 | `docs/04_builder/dev-notes/undo-redo-and-save-architecture.md` | Full undo/redo system architecture |
-| `docs/04_builder/mental-model/concurrent-editing-strategy.md` | Why dirty tracking matters for concurrent editing |
+| `docs/04_builder/dev-notes/concurrent-editing-strategy.md` | Why dirty tracking matters for concurrent editing |
