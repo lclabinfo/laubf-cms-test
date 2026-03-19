@@ -198,6 +198,9 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     setPageData(page)
     setSelectedSectionId(null)
     setEditingSectionId(null)
+    setEditingNavbar(false)
+    setEditingNavItemId(null)
+    setEditingNavSettings(false)
     setIsDirty(false)
     setDirtySectionIds(new Set())
     setReorderDirty(false)
@@ -571,6 +574,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const handleEditSection = useCallback(
     (sectionId: string) => {
       setEditingNavbar(false)
+      setEditingNavItemId(null)
+      setEditingNavSettings(false)
       setEditingSectionId(sectionId)
       setSelectedSectionId(sectionId)
     },
@@ -1099,6 +1104,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           onSelectSection={(id) => {
             setSelectedSectionId(id)
             setEditingNavbar(false)
+            setEditingNavItemId(null)
+            setEditingNavSettings(false)
           }}
           onDeselectSection={() => {
             setSelectedSectionId(null)

@@ -931,19 +931,14 @@ export function NavigationEditor({
       const [moved] = reordered.splice(oldIndex, 1)
       reordered.splice(newIndex, 0, moved)
 
-      // Optimistic update
-      setItems((prev) => {
-        const updated = [...prev]
-        for (const item of updated) {
-          if (item.parentId === null) {
-            const idx = reordered.indexOf(item.id)
-            if (idx !== -1) {
-              item.sortOrder = idx
-            }
-          }
-        }
-        return updated
-      })
+      // Optimistic update (immutable — create new objects, don't mutate)
+      setItems((prev) =>
+        prev.map((item) => {
+          if (item.parentId !== null) return item
+          const idx = reordered.indexOf(item.id)
+          return idx !== -1 ? { ...item, sortOrder: idx } : item
+        })
+      )
 
       try {
         const res = await fetch(`/api/v1/menus/${menuId}/items`, {
@@ -984,7 +979,8 @@ export function NavigationEditor({
   const handleDeleteItem = useCallback(
     async (itemId: string) => {
       const item = items.find((i) => i.id === itemId)
-      const hasChildren = item?.children && item.children.length > 0
+        ?? items.flatMap((i) => i.children ?? []).find((c) => c.id === itemId)
+      const hasChildren = item && 'children' in item && Array.isArray(item.children) && item.children.length > 0
       const message = hasChildren
         ? `Delete "${item?.label}" and all its children?`
         : `Delete "${item?.label}"?`

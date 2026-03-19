@@ -106,8 +106,12 @@ export async function reorderMenuItems(
     where: { id: menuId, churchId },
   })
   if (!menu) throw new Error('Menu not found')
+  // Verify all items belong to this menu (prevents cross-tenant manipulation)
   const updates = itemIds.map((id, index) =>
-    prisma.menuItem.update({ where: { id }, data: { sortOrder: index } }),
+    prisma.menuItem.updateMany({
+      where: { id, menuId, parentId: null },
+      data: { sortOrder: index },
+    }),
   )
   return prisma.$transaction(updates)
 }
@@ -123,10 +127,10 @@ export async function reorderChildMenuItems(
   })
   if (!parent) throw new Error('Parent menu item not found')
 
-  // Update sortOrder for each child where parentId matches
+  // Verify all items belong to this parent (prevents cross-tenant manipulation)
   const updates = itemIds.map((id, index) =>
-    prisma.menuItem.update({
-      where: { id },
+    prisma.menuItem.updateMany({
+      where: { id, parentId, menuId: parent.menuId },
       data: { sortOrder: index },
     }),
   )

@@ -640,7 +640,7 @@ export function NavSettingsForm({
   )
   const [sticky, setSticky] = useState(initialSettings?.sticky ?? true)
   const [ctaVisible, setCtaVisible] = useState(
-    initialSettings?.ctaVisible ?? true,
+    initialSettings?.ctaVisible ?? false,
   )
   const [ctaLabel, setCtaLabel] = useState(initialSettings?.ctaLabel ?? "")
   const [ctaHref, setCtaHref] = useState(initialSettings?.ctaHref ?? "")

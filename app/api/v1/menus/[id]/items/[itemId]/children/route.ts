@@ -15,7 +15,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     const { itemId } = await params
     const body = await request.json()
 
-    if (!body.itemIds || !Array.isArray(body.itemIds)) {
+    if (!body.itemIds || !Array.isArray(body.itemIds) || body.itemIds.length === 0) {
       return NextResponse.json(
         { success: false, error: { code: 'VALIDATION_ERROR', message: 'itemIds array is required' } },
         { status: 400 },

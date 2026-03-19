@@ -15,7 +15,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const { itemId } = await params
     const body = await request.json()
 
-    const updated = await updateMenuItem(churchId, itemId, body)
+    // Allowlist updatable fields to prevent mass-assignment
+    const allowedFields = [
+      'label', 'href', 'description', 'iconName', 'openInNewTab',
+      'isExternal', 'parentId', 'groupLabel', 'featuredImage',
+      'featuredTitle', 'featuredDescription', 'featuredHref',
+      'sortOrder', 'isVisible', 'scheduleMeta',
+    ] as const
+    const sanitized: Record<string, unknown> = {}
+    for (const key of allowedFields) {
+      if (key in body) sanitized[key] = body[key]
+    }
+
+    const updated = await updateMenuItem(churchId, itemId, sanitized)
 
     // Revalidate website layout (menus affect navbar/footer)
     revalidatePath('/website', 'layout')

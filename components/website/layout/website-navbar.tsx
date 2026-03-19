@@ -348,7 +348,11 @@ export function WebsiteNavbar({
           "left-0 right-0 z-50 transition-all duration-300 ease-smooth overflow-y-visible",
           sticky ? "sticky top-0" : "relative",
           isScrolled
-            ? "bg-white-1 border-b border-white-2-5 shadow-[0px_12px_20px_0px_rgba(0,0,0,0.03)]"
+            ? solidColor === "dark"
+              ? "bg-black-1 border-b border-white-2-5/10 shadow-[0px_12px_20px_0px_rgba(0,0,0,0.1)]"
+              : solidColor === "primary"
+                ? "bg-brand-1 border-b border-brand-2/20 shadow-[0px_12px_20px_0px_rgba(0,0,0,0.05)]"
+                : "bg-white-1 border-b border-white-2-5 shadow-[0px_12px_20px_0px_rgba(0,0,0,0.03)]"
             : "",
         )}
       >
