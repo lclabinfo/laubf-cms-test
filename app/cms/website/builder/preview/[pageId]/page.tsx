@@ -2,9 +2,7 @@ import { notFound } from "next/navigation"
 import { getChurchId } from "@/lib/api/get-church-id"
 import { getPageById } from "@/lib/dal/pages"
 import { resolveSectionData } from "@/lib/website/resolve-section-data"
-import { getThemeWithCustomization } from "@/lib/dal/theme"
-import { getMenuByLocation } from "@/lib/dal/menus"
-import { getSiteSettings } from "@/lib/dal/site-settings"
+import { buildNavbarProps, buildFooterProps, buildThemeTokens } from "@/lib/website/build-layout-props"
 import { FontLoader } from "@/components/website/font-loader"
 import { BuilderPreviewClient } from "@/components/cms/website/builder/canvas/builder-preview-client"
 import type { SectionType } from "@/lib/db/types"
@@ -48,45 +46,39 @@ export default async function BuilderPreviewPage({ params }: PreviewPageProps) {
     }),
   )
 
-  // Fetch navbar data, theme, and site settings in parallel
-  const [siteSettings, headerMenu, themeData] = await Promise.all([
-    getSiteSettings(churchId),
-    getMenuByLocation(churchId, "HEADER"),
-    getThemeWithCustomization(churchId),
+  // Fetch navbar, footer, and theme data in parallel using shared builders
+  const [navbarResult, themeResult] = await Promise.all([
+    buildNavbarProps(churchId),
+    buildThemeTokens(churchId),
   ])
+
+  const { navbarProps, siteSettings } = navbarResult
+  const { websiteThemeTokens, websiteCustomCss } = themeResult
+
+  // Fetch footer data (reuse siteSettings from navbar call)
+  const footerResult = await buildFooterProps(churchId, siteSettings)
 
   // Serialize navbar data for client component
   const navbarData: NavbarData = {
-    menu: headerMenu ? JSON.parse(JSON.stringify(headerMenu)) : null,
-    logoUrl: siteSettings?.logoUrl ?? null,
-    logoAlt: siteSettings?.logoAlt ?? null,
-    siteName: siteSettings?.siteName ?? "Church",
-    ctaLabel: "I\u2019m new",
-    ctaHref: "/website/im-new",
-    ctaVisible: true,
-    memberLoginVisible: siteSettings?.enableMemberLogin ?? false,
+    menu: navbarProps.menu ? JSON.parse(JSON.stringify(navbarProps.menu)) : null,
+    logoUrl: navbarProps.logoUrl,
+    logoDarkUrl: navbarProps.logoDarkUrl,
+    logoAlt: navbarProps.logoAlt,
+    siteName: navbarProps.siteName,
+    ctaLabel: navbarProps.ctaLabel,
+    ctaHref: navbarProps.ctaHref,
+    ctaVisible: navbarProps.ctaVisible,
+    memberLoginLabel: navbarProps.memberLoginLabel,
+    memberLoginHref: navbarProps.memberLoginHref,
+    memberLoginVisible: navbarProps.memberLoginVisible,
+    scrollBehavior: navbarProps.scrollBehavior,
+    solidColor: navbarProps.solidColor,
+    sticky: navbarProps.sticky,
   }
 
-  // Build website theme tokens (same logic as the main builder page)
-  const defaultTokens = (themeData?.theme?.defaultTokens ?? {}) as Record<string, string>
-  const websiteThemeTokens: Record<string, string> = {
-    "--ws-color-primary": themeData?.primaryColor || defaultTokens["--color-primary"] || "#1a1a2e",
-    "--ws-color-secondary": themeData?.secondaryColor || defaultTokens["--color-secondary"] || "#16213e",
-    "--ws-color-background": themeData?.backgroundColor || defaultTokens["--color-background"] || "#ffffff",
-    "--ws-color-text": themeData?.textColor || defaultTokens["--color-text"] || "#1a1a1a",
-    "--ws-color-heading": themeData?.headingColor || defaultTokens["--color-heading"] || "#0a0a0a",
-    "--ws-font-size-base": `${themeData?.baseFontSize || 16}px`,
-    "--ws-border-radius": themeData?.borderRadius || defaultTokens["--border-radius"] || "0.5rem",
-  }
-  if (themeData?.bodyFont) {
-    websiteThemeTokens["--ws-font-body"] = `"${themeData.bodyFont}", ui-sans-serif, system-ui, sans-serif`
-  }
-  if (themeData?.headingFont) {
-    websiteThemeTokens["--ws-font-heading"] = `"${themeData.headingFont}", ui-serif, Georgia, serif`
-  }
-
-  // Extract custom CSS for injection
-  const websiteCustomCss = themeData?.customCss || ""
+  // Serialize footer data for client component (crosses server→client boundary)
+  const footerMenu = footerResult.menu ? JSON.parse(JSON.stringify(footerResult.menu)) : null
+  const footerSiteSettings = JSON.parse(JSON.stringify(footerResult.siteSettings))
 
   return (
     <>
@@ -111,6 +103,8 @@ export default async function BuilderPreviewPage({ params }: PreviewPageProps) {
           churchId={churchId}
           pageSlug={page.slug}
           navbarData={navbarData}
+          footerMenu={footerMenu}
+          footerSiteSettings={footerSiteSettings}
         />
       </div>
     </>

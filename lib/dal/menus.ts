@@ -91,8 +91,18 @@ export async function deleteMenuItem(churchId: string, id: string) {
     where: { id, menu: { churchId } },
   })
   if (!item) throw new Error('Menu item not found')
-  // Delete children first, then parent
-  await prisma.menuItem.deleteMany({ where: { parentId: id } })
+  // Recursively delete all descendants, then the item itself
+  async function deleteDescendants(parentId: string) {
+    const children = await prisma.menuItem.findMany({
+      where: { parentId },
+      select: { id: true },
+    })
+    for (const child of children) {
+      await deleteDescendants(child.id)
+    }
+    await prisma.menuItem.deleteMany({ where: { parentId } })
+  }
+  await deleteDescendants(id)
   return prisma.menuItem.delete({ where: { id } })
 }
 

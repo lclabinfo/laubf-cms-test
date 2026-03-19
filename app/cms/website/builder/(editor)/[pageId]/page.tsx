@@ -2,9 +2,7 @@ import { notFound } from "next/navigation"
 import { getChurchId } from "@/lib/api/get-church-id"
 import { getPageById, getPages } from "@/lib/dal/pages"
 import { resolveSectionData } from "@/lib/website/resolve-section-data"
-import { getThemeWithCustomization } from "@/lib/dal/theme"
-import { getMenuByLocation } from "@/lib/dal/menus"
-import { getSiteSettings, getNavbarSettings } from "@/lib/dal/site-settings"
+import { buildNavbarProps, buildThemeTokens } from "@/lib/website/build-layout-props"
 import { FontLoader } from "@/components/website/font-loader"
 import { BuilderShell } from "@/components/cms/website/builder/builder-shell"
 import type { SectionType } from "@/lib/db/types"
@@ -51,46 +49,28 @@ export default async function BuilderPage({ params }: BuilderPageProps) {
     }),
   )
 
-  // Fetch navbar data for canvas preview
-  const [siteSettings, headerMenu, themeData, navbarSettings] = await Promise.all([
-    getSiteSettings(churchId),
-    getMenuByLocation(churchId, 'HEADER'),
-    getThemeWithCustomization(churchId),
-    getNavbarSettings(churchId),
-  ])
+  // Fetch navbar + theme data via shared layout builders
+  const [{ navbarProps, headerMenu, siteSettings }, { websiteThemeTokens, websiteCustomCss }] =
+    await Promise.all([
+      buildNavbarProps(churchId),
+      buildThemeTokens(churchId),
+    ])
 
-  // Serialize navbar data for client components
+  // Serialize navbar data for client components (deep-clone menu to cross server→client boundary)
   const navbarData = {
+    ...navbarProps,
     menu: headerMenu ? JSON.parse(JSON.stringify(headerMenu)) : null,
-    logoUrl: siteSettings?.logoUrl ?? null,
-    logoAlt: siteSettings?.logoAlt ?? null,
-    siteName: siteSettings?.siteName ?? 'Church',
-    ctaLabel: "I\u2019m new",
-    ctaHref: "/website/im-new",
-    ctaVisible: true,
-    memberLoginVisible: siteSettings?.enableMemberLogin ?? false,
   }
 
-  // Build website theme tokens for canvas-scoped injection (not wrapping the whole builder)
-  const defaultTokens = (themeData?.theme?.defaultTokens ?? {}) as Record<string, string>
-  const websiteThemeTokens: Record<string, string> = {
-    '--ws-color-primary': themeData?.primaryColor || defaultTokens['--color-primary'] || '#1a1a2e',
-    '--ws-color-secondary': themeData?.secondaryColor || defaultTokens['--color-secondary'] || '#16213e',
-    '--ws-color-background': themeData?.backgroundColor || defaultTokens['--color-background'] || '#ffffff',
-    '--ws-color-text': themeData?.textColor || defaultTokens['--color-text'] || '#1a1a1a',
-    '--ws-color-heading': themeData?.headingColor || defaultTokens['--color-heading'] || '#0a0a0a',
-    '--ws-font-size-base': `${themeData?.baseFontSize || 16}px`,
-    '--ws-border-radius': themeData?.borderRadius || defaultTokens['--border-radius'] || '0.5rem',
+  // Derive navbar settings from siteSettings (avoids redundant DB call)
+  const navbarSettings = {
+    scrollBehavior: siteSettings?.navScrollBehavior ?? 'transparent-to-solid',
+    solidColor: siteSettings?.navSolidColor ?? 'white',
+    sticky: siteSettings?.navSticky ?? true,
+    ctaLabel: siteSettings?.navCtaLabel ?? '',
+    ctaHref: siteSettings?.navCtaHref ?? '',
+    ctaVisible: siteSettings?.navCtaVisible ?? false,
   }
-  if (themeData?.bodyFont) {
-    websiteThemeTokens['--ws-font-body'] = `"${themeData.bodyFont}", ui-sans-serif, system-ui, sans-serif`
-  }
-  if (themeData?.headingFont) {
-    websiteThemeTokens['--ws-font-heading'] = `"${themeData.headingFont}", ui-serif, Georgia, serif`
-  }
-
-  // Extract custom CSS for canvas-scoped injection (mirrors ThemeProvider behavior)
-  const websiteCustomCss = themeData?.customCss || ''
 
   // Serialize page data for the client component
   const serializedPage = {

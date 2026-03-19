@@ -41,6 +41,10 @@ export type ParentToIframeMessage =
       type: "UPDATE_NAVBAR"
       isNavbarEditing: boolean
     }
+  | {
+      /** Tells the iframe to reload itself (e.g. after nav menu changes). */
+      type: "RELOAD_PAGE"
+    }
 
 // ---------------------------------------------------------------------------
 // Iframe → Parent messages
@@ -58,6 +62,7 @@ export type IframeToParentMessage =
   | { type: "NAVBAR_LINK_CLICKED"; href: string }
   | { type: "CONTENT_HEIGHT"; height: number }
   | { type: "DESELECT" }
+  | { type: "KEYBOARD_SHORTCUT"; shortcut: "undo" | "redo" | "save" }
 
 // ---------------------------------------------------------------------------
 // Handler maps (used by listener hooks)
