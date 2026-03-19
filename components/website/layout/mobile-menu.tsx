@@ -207,7 +207,14 @@ export default function MobileMenu({
                                     strokeWidth={1.5}
                                   />
                                 )}
-                                {child.label}
+                                <div className="flex flex-col min-w-0 flex-1">
+                                  <span>{child.label}</span>
+                                  {child.scheduleMeta && (
+                                    <span className="text-[11px] font-normal leading-none text-black-3 tracking-[-0.03em] mt-0.5">
+                                      {child.scheduleMeta}
+                                    </span>
+                                  )}
+                                </div>
                                 {(child.isExternal || child.openInNewTab) && (
                                   <SquareArrowOutUpRight
                                     className="size-3.5 text-black-3 ml-auto shrink-0"

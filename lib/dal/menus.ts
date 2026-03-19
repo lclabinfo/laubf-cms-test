@@ -111,3 +111,24 @@ export async function reorderMenuItems(
   )
   return prisma.$transaction(updates)
 }
+
+export async function reorderChildMenuItems(
+  churchId: string,
+  parentId: string,
+  itemIds: string[],
+) {
+  // Verify parent belongs to a menu owned by this church
+  const parent = await prisma.menuItem.findFirst({
+    where: { id: parentId, menu: { churchId } },
+  })
+  if (!parent) throw new Error('Parent menu item not found')
+
+  // Update sortOrder for each child where parentId matches
+  const updates = itemIds.map((id, index) =>
+    prisma.menuItem.update({
+      where: { id },
+      data: { sortOrder: index },
+    }),
+  )
+  return prisma.$transaction(updates)
+}

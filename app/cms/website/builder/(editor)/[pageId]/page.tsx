@@ -4,7 +4,7 @@ import { getPageById, getPages } from "@/lib/dal/pages"
 import { resolveSectionData } from "@/lib/website/resolve-section-data"
 import { getThemeWithCustomization } from "@/lib/dal/theme"
 import { getMenuByLocation } from "@/lib/dal/menus"
-import { getSiteSettings } from "@/lib/dal/site-settings"
+import { getSiteSettings, getNavbarSettings } from "@/lib/dal/site-settings"
 import { FontLoader } from "@/components/website/font-loader"
 import { BuilderShell } from "@/components/cms/website/builder/builder-shell"
 import type { SectionType } from "@/lib/db/types"
@@ -52,10 +52,11 @@ export default async function BuilderPage({ params }: BuilderPageProps) {
   )
 
   // Fetch navbar data for canvas preview
-  const [siteSettings, headerMenu, themeData] = await Promise.all([
+  const [siteSettings, headerMenu, themeData, navbarSettings] = await Promise.all([
     getSiteSettings(churchId),
     getMenuByLocation(churchId, 'HEADER'),
     getThemeWithCustomization(churchId),
+    getNavbarSettings(churchId),
   ])
 
   // Serialize navbar data for client components
@@ -144,6 +145,11 @@ export default async function BuilderPage({ params }: BuilderPageProps) {
     ? serializeMenuItems(headerMenu.items as RawMenuItem[])
     : []
 
+  // Serialize full menu items for NavigationEditor (includes all fields)
+  const headerMenuItemsFull = headerMenu?.items
+    ? JSON.parse(JSON.stringify(headerMenu.items))
+    : []
+
   return (
     <>
       <FontLoader churchId={churchId} />
@@ -155,6 +161,9 @@ export default async function BuilderPage({ params }: BuilderPageProps) {
         websiteCustomCss={websiteCustomCss}
         navbarData={navbarData}
         headerMenuItems={headerMenuItems}
+        headerMenuId={headerMenu?.id ?? null}
+        headerMenuItemsFull={headerMenuItemsFull}
+        navbarSettings={navbarSettings}
       />
     </>
   )

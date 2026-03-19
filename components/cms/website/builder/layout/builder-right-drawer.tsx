@@ -23,6 +23,13 @@ import {
   NavbarEditor,
   type NavbarSettings,
 } from "../section-editors/navbar-editor"
+import {
+  NavItemEditor,
+  NavSettingsForm,
+  type NavEditorMenuItem,
+} from "../navigation-item-editor"
+import type { MenuItemData } from "../navigation/navigation-editor"
+import type { PageSummary } from "../types"
 
 // Re-export these types for use in builder-shell
 export interface SectionEditorData {
@@ -42,10 +49,29 @@ interface BuilderRightDrawerProps {
   onClose: () => void
   onChange: (data: Partial<SectionEditorData>) => void
   onDelete: (sectionId: string) => void
-  /** Navbar editor mode */
+  /** Navbar editor mode (legacy — kept for backward compat) */
   navbarSettings: NavbarSettings | null
   onNavbarClose: () => void
   onNavbarChange: (settings: NavbarSettings) => void
+  /** Navigation item editing */
+  editingNavItemId?: string | null
+  editingNavSettings?: boolean
+  menuItems?: MenuItemData[]
+  menuId?: string | null
+  pages?: PageSummary[]
+  churchId?: string
+  initialNavbarSettings?: {
+    scrollBehavior?: string
+    solidColor?: string
+    sticky?: boolean
+    ctaLabel?: string
+    ctaHref?: string
+    ctaVisible?: boolean
+  }
+  onCloseNavItem?: () => void
+  onNavItemUpdated?: () => void
+  onNavSettingsClose?: () => void
+  onNavSettingsUpdated?: () => void
 }
 
 /**
@@ -186,6 +212,32 @@ function SectionEditorInline({
  * Right-side drawer for inline section editing.
  * Slides in from the right, 320px wide.
  */
+/** Find a menu item by ID across nested children. */
+function findMenuItemById(items: MenuItemData[], id: string): MenuItemData | null {
+  for (const item of items) {
+    if (item.id === id) return item
+    if (item.children) {
+      const found = findMenuItemById(item.children, id)
+      if (found) return found
+    }
+  }
+  return null
+}
+
+/** Infer the NavItemType for the NavItemEditor from a MenuItemData. */
+function inferNavItemType(item: MenuItemData): import("../navigation-item-editor").NavItemType {
+  if (item.parentId === null) {
+    const hasChildren = (item.children?.length ?? 0) > 0
+    if (item.href && hasChildren) return "top-level-page"
+    if (!item.href && hasChildren) return "top-level-folder"
+    if (item.href) return "page" // top-level single link
+    return "top-level-folder"
+  }
+  if (item.featuredTitle && item.sortOrder >= 99) return "featured"
+  if (item.isExternal) return "external-link"
+  return "page"
+}
+
 export function BuilderRightDrawer({
   section,
   onClose,
@@ -194,15 +246,36 @@ export function BuilderRightDrawer({
   navbarSettings,
   onNavbarClose,
   onNavbarChange,
+  editingNavItemId,
+  editingNavSettings,
+  menuItems,
+  menuId,
+  pages,
+  churchId,
+  initialNavbarSettings,
+  onCloseNavItem,
+  onNavItemUpdated,
+  onNavSettingsClose,
+  onNavSettingsUpdated,
 }: BuilderRightDrawerProps) {
-  const showSection = section !== null && navbarSettings === null
-  const showNavbar = navbarSettings !== null
-  const isOpen = showSection || showNavbar
+  // Resolve the nav item being edited
+  const editingNavItem = editingNavItemId && menuItems
+    ? findMenuItemById(menuItems, editingNavItemId)
+    : null
+
+  const showNavItem = editingNavItem !== null
+  const showNavSettings = !!(editingNavSettings && !showNavItem)
+  const showSection = section !== null && !showNavItem && !showNavSettings && navbarSettings === null
+  const showNavbar = navbarSettings !== null && !showNavItem && !showNavSettings
+  const isOpen = showSection || showNavbar || showNavItem || showNavSettings
 
   const typeLabel = section
     ? sectionTypeLabels[section.sectionType] ?? section.sectionType
     : ""
 
+  // NavItemEditor and NavSettingsForm render their own headers,
+  // so we only render the shared header for section and legacy navbar modes
+  const showSharedHeader = showSection || showNavbar
   const title = showNavbar ? "Navbar" : `Edit ${typeLabel}`
   const handleClose = showNavbar ? onNavbarClose : onClose
 
@@ -215,40 +288,65 @@ export function BuilderRightDrawer({
     >
       {isOpen && (
         <>
-          {/* Header */}
-          <div className="h-14 border-b flex items-center justify-between px-4 bg-muted/30 shrink-0">
-            <h3 className="font-semibold text-xs uppercase tracking-wider text-foreground truncate pr-2">
-              {title}
-            </h3>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="rounded-full text-muted-foreground shrink-0"
-              onClick={handleClose}
-            >
-              <X className="size-3.5" />
-            </Button>
-          </div>
+          {/* Nav Item Editor (has its own header) */}
+          {showNavItem && editingNavItem && menuId && pages && (
+            <NavItemEditor
+              item={editingNavItem as NavEditorMenuItem}
+              itemType={inferNavItemType(editingNavItem)}
+              pages={pages}
+              menuId={menuId}
+              onClose={onCloseNavItem ?? (() => {})}
+              onItemUpdated={onNavItemUpdated ?? (() => {})}
+            />
+          )}
 
-          {/* Scrollable content */}
-          <ScrollArea className="flex-1 min-h-0 overflow-hidden">
-            <div className="p-4">
-              {showNavbar && navbarSettings && (
-                <NavbarEditor
-                  settings={navbarSettings}
-                  onChange={onNavbarChange}
-                />
-              )}
-              {showSection && section && (
-                <SectionEditorInline
-                  key={section.id}
-                  section={section}
-                  onChange={onChange}
-                  onDelete={onDelete}
-                />
-              )}
+          {/* Nav Settings Form (has its own header) */}
+          {showNavSettings && (
+            <NavSettingsForm
+              initialSettings={initialNavbarSettings}
+              onClose={onNavSettingsClose ?? (() => {})}
+              onSettingsUpdated={onNavSettingsUpdated}
+            />
+          )}
+
+          {/* Shared header for section / legacy navbar */}
+          {showSharedHeader && (
+            <div className="h-14 border-b flex items-center justify-between px-4 bg-muted/30 shrink-0">
+              <h3 className="font-semibold text-xs uppercase tracking-wider text-foreground truncate pr-2">
+                {title}
+              </h3>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="rounded-full text-muted-foreground shrink-0"
+                onClick={handleClose}
+              >
+                <X className="size-3.5" />
+              </Button>
             </div>
-          </ScrollArea>
+          )}
+
+          {/* Scrollable content for section / legacy navbar */}
+          {(showSection || showNavbar) && (
+            <ScrollArea className="flex-1 min-h-0 overflow-hidden">
+              <div className="p-4">
+                {showNavbar && navbarSettings && (
+                  <NavbarEditor
+                    settings={navbarSettings}
+                    onChange={onNavbarChange}
+                  />
+                )}
+                {showSection && section && (
+                  <SectionEditorInline
+                    key={section.id}
+                    section={section}
+                    onChange={onChange}
+                    onDelete={onDelete}
+                  />
+                )}
+              </div>
+            </ScrollArea>
+          )}
         </>
       )}
     </div>

@@ -1,6 +1,6 @@
 "use client"
 
-import { Plus, FileText, Palette, Image as ImageIcon, Lock } from "lucide-react"
+import { Plus, FileText, Palette, Image as ImageIcon, Lock, Navigation } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   Tooltip,
@@ -32,6 +32,7 @@ const tools: {
     disabledMessage: "Custom sections cannot be added to this system template.",
   },
   { id: "pages", icon: FileText, label: "Pages & Menu" },
+  { id: "navigation", icon: Navigation, label: "Navigation" },
   { id: "design", icon: Palette, label: "Design" },
   { id: "media", icon: ImageIcon, label: "Media" },
 ]

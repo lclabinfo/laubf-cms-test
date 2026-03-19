@@ -13,10 +13,7 @@ import {
   BuilderRightDrawer,
   type SectionEditorData,
 } from "./layout/builder-right-drawer"
-import {
-  type NavbarSettings,
-  defaultNavbarSettings,
-} from "./section-editors/navbar-editor"
+import { NavigationEditor, type MenuItemData } from "./navigation/navigation-editor"
 import { PageTree } from "./pages/page-tree"
 import { PageSettingsModal, type PageSettingsData } from "./pages/page-settings-modal"
 import { AddPageModal } from "./pages/add-page-modal"
@@ -70,9 +67,19 @@ interface BuilderShellProps {
   websiteCustomCss?: string
   navbarData?: NavbarData
   headerMenuItems?: NavTreeMenuItem[]
+  headerMenuId?: string | null
+  headerMenuItemsFull?: MenuItemData[]
+  navbarSettings?: {
+    scrollBehavior?: string
+    solidColor?: string
+    sticky?: boolean
+    ctaLabel?: string
+    ctaHref?: string
+    ctaVisible?: boolean
+  }
 }
 
-export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, websiteCustomCss, navbarData, headerMenuItems }: BuilderShellProps) {
+export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, websiteCustomCss, navbarData, headerMenuItems, headerMenuId: initialHeaderMenuId, headerMenuItemsFull: initialHeaderMenuItemsFull, navbarSettings: initialNavbarSettings }: BuilderShellProps) {
   const router = useRouter()
   const [activeTool, setActiveTool] = useState<BuilderTool>(null)
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
@@ -112,11 +119,28 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   // Right drawer editing: track which section is being edited
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null)
 
-  // Navbar editor
+  // Navigation editor state
   const [editingNavbar, setEditingNavbar] = useState(false)
-  const [navbarSettings, setNavbarSettings] = useState<NavbarSettings>(
-    defaultNavbarSettings,
-  )
+  const [editingNavItemId, setEditingNavItemId] = useState<string | null>(null)
+  const [editingNavSettings, setEditingNavSettings] = useState(false)
+  const [headerMenuId] = useState<string | null>(initialHeaderMenuId ?? null)
+  const [menuItems, setMenuItems] = useState<MenuItemData[]>(initialHeaderMenuItemsFull ?? [])
+
+  // Refresh menu data from the API after nav changes
+  const refreshMenu = useCallback(async () => {
+    if (!headerMenuId) return
+    try {
+      const res = await fetch(`/api/v1/menus/${headerMenuId}/items`)
+      if (res.ok) {
+        const { data } = await res.json()
+        setMenuItems(data.items ?? [])
+      }
+    } catch {
+      // Silently fail — the navigation editor has its own error handling
+    }
+    // Also refresh the iframe preview to reflect updated navbar
+    router.refresh()
+  }, [headerMenuId, router])
 
   // Page modals
   const [pageSettingsOpen, setPageSettingsOpen] = useState(false)
@@ -349,7 +373,11 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        if (editingNavbar) {
+        if (editingNavItemId) {
+          setEditingNavItemId(null)
+        } else if (editingNavSettings) {
+          setEditingNavSettings(false)
+        } else if (editingNavbar) {
           setEditingNavbar(false)
         } else if (editingSectionId) {
           setEditingSectionId(null)
@@ -385,7 +413,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [selectedSectionId, activeTool, editingSectionId, editingNavbar])
+  }, [selectedSectionId, activeTool, editingSectionId, editingNavbar, editingNavItemId, editingNavSettings])
 
   // -------------------------------------------------------------------------
   // Publish toggle
@@ -621,26 +649,42 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   )
 
   // -------------------------------------------------------------------------
-  // Navbar editing
+  // Navbar / Navigation editing
   // -------------------------------------------------------------------------
 
   const handleNavbarClick = useCallback(() => {
-    // Close any section editor and open navbar editor
+    // Close any section editor and open navbar settings
     setEditingSectionId(null)
+    setEditingNavItemId(null)
+    setEditingNavSettings(true)
     setEditingNavbar(true)
   }, [])
 
   const handleNavbarClose = useCallback(() => {
     setEditingNavbar(false)
+    setEditingNavSettings(false)
   }, [])
 
-  const handleNavbarSettingsChange = useCallback(
-    (settings: NavbarSettings) => {
-      setNavbarSettings(settings)
-      // TODO: persist navbar settings via API when site-settings supports it
-    },
-    [],
-  )
+  const handleEditNavItem = useCallback((itemId: string) => {
+    setEditingSectionId(null)
+    setEditingNavSettings(false)
+    setEditingNavItemId(itemId)
+  }, [])
+
+  const handleCloseNavItemEditor = useCallback(() => {
+    setEditingNavItemId(null)
+  }, [])
+
+  const handleNavItemUpdated = useCallback(() => {
+    setEditingNavItemId(null)
+    refreshMenu()
+  }, [refreshMenu])
+
+  const handleNavSettingsUpdated = useCallback(() => {
+    setEditingNavSettings(false)
+    setEditingNavbar(false)
+    router.refresh()
+  }, [router])
 
   // -------------------------------------------------------------------------
   // Page title
@@ -947,11 +991,13 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const drawerTitle =
     activeTool === "pages"
       ? "Site Pages"
-      : activeTool === "design"
-        ? "Design"
-        : activeTool === "media"
-          ? "Media"
-          : ""
+      : activeTool === "navigation"
+        ? "Navigation"
+        : activeTool === "design"
+          ? "Design"
+          : activeTool === "media"
+            ? "Media"
+            : ""
 
   // -------------------------------------------------------------------------
   // Render drawer content based on active tool
@@ -971,6 +1017,24 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
             onDuplicatePage={handleDuplicatePage}
             headerMenuItems={headerMenuItems}
           />
+        )
+      case "navigation":
+        return headerMenuId ? (
+          <NavigationEditor
+            churchId={churchId}
+            menuId={headerMenuId}
+            menuItems={menuItems}
+            pages={pages}
+            ctaLabel={initialNavbarSettings?.ctaLabel ?? null}
+            ctaHref={initialNavbarSettings?.ctaHref ?? null}
+            ctaVisible={initialNavbarSettings?.ctaVisible ?? false}
+            onEditItem={handleEditNavItem}
+            onMenuChange={refreshMenu}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+            <p>No header menu found. Create one in the Navigation settings.</p>
+          </div>
         )
       case "design":
         return (
@@ -1023,6 +1087,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           activeTool={activeTool}
           title={drawerTitle}
           onClose={() => setActiveTool(null)}
+          hideHeader={activeTool === "navigation"}
         >
           {renderDrawerContent()}
         </BuilderDrawer>
@@ -1051,15 +1116,26 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           isNavbarEditing={editingNavbar}
         />
 
-        {/* Right Drawer (320px, animated) — inline section / navbar editor */}
+        {/* Right Drawer (320px, animated) — inline section / navbar / nav item editor */}
         <BuilderRightDrawer
-          section={editingSection}
+          section={editingNavItemId || editingNavSettings ? null : editingSection}
           onClose={handleCloseEditor}
           onChange={handleSectionEditorChange}
           onDelete={handleDeleteSection}
-          navbarSettings={editingNavbar ? navbarSettings : null}
+          navbarSettings={null}
           onNavbarClose={handleNavbarClose}
-          onNavbarChange={handleNavbarSettingsChange}
+          onNavbarChange={() => {}}
+          editingNavItemId={editingNavItemId}
+          editingNavSettings={editingNavSettings}
+          menuItems={menuItems}
+          menuId={headerMenuId}
+          pages={pages}
+          churchId={churchId}
+          initialNavbarSettings={initialNavbarSettings}
+          onCloseNavItem={handleCloseNavItemEditor}
+          onNavItemUpdated={handleNavItemUpdated}
+          onNavSettingsClose={handleNavbarClose}
+          onNavSettingsUpdated={handleNavSettingsUpdated}
         />
       </div>
 

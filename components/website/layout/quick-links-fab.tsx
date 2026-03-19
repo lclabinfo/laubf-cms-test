@@ -22,6 +22,7 @@ export interface QuickLink {
   href: string
   icon: string
   description?: string
+  scheduleMeta?: string
 }
 
 export interface QuickLinksFABProps {
@@ -153,6 +154,11 @@ export default function QuickLinksFAB({
                   {link.description && (
                     <span className="text-sm font-normal leading-none text-black-3 tracking-[-0.03em] line-clamp-1">
                       {link.description}
+                    </span>
+                  )}
+                  {link.scheduleMeta && (
+                    <span className="text-[11px] font-normal leading-none text-black-3 tracking-[-0.03em]">
+                      {link.scheduleMeta}
                     </span>
                   )}
                 </div>

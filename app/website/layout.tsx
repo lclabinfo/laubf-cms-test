@@ -62,6 +62,7 @@ function extractQuickLinks(headerMenu: Awaited<ReturnType<typeof getMenuByLocati
         href: c.href || '',
         icon: c.iconName || 'link',
         description: c.description || undefined,
+        scheduleMeta: c.scheduleMeta || undefined,
       }))
     }
   }
@@ -99,6 +100,9 @@ export default async function WebsiteLayout({
           memberLoginLabel="Member Login"
           memberLoginHref="/member-login"
           memberLoginVisible={siteSettings?.enableMemberLogin ?? false}
+          scrollBehavior={siteSettings?.navScrollBehavior ?? 'transparent-to-solid'}
+          solidColor={siteSettings?.navSolidColor ?? 'white'}
+          sticky={siteSettings?.navSticky ?? true}
         />
         <main>{children}</main>
         <QuickLinksFAB

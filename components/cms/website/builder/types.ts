@@ -1,6 +1,6 @@
 import type { SectionType, ColorScheme, PaddingSize, ContainerWidth, PageType, PageLayout } from "@/lib/db/types"
 
-export type BuilderTool = "add" | "pages" | "design" | "media" | null
+export type BuilderTool = "add" | "pages" | "navigation" | "design" | "media" | null
 
 export type DeviceMode = "desktop" | "tablet" | "mobile"
 

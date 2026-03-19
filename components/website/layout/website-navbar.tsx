@@ -36,6 +36,12 @@ interface WebsiteNavbarProps {
   memberLoginLabel?: string | null
   memberLoginHref?: string | null
   memberLoginVisible?: boolean
+  /** Scroll behavior: "transparent-to-solid" (default), "always-solid", or "always-transparent" */
+  scrollBehavior?: string | null
+  /** Background color when solid: "white" (default) or a custom color */
+  solidColor?: string | null
+  /** Whether the navbar is sticky (default true) */
+  sticky?: boolean
 }
 
 /* ── Scroll hook (hero-aware) ── */
@@ -268,8 +274,18 @@ export function WebsiteNavbar({
   memberLoginLabel = "Member Login",
   memberLoginHref = "/member-login",
   memberLoginVisible = false,
+  scrollBehavior = "transparent-to-solid",
+  solidColor,
+  sticky = true,
 }: WebsiteNavbarProps) {
-  const isScrolled = useNavbarScroll()
+  const scrolledFromHero = useNavbarScroll()
+  // Derive the effective "isScrolled" state based on the scroll behavior setting
+  const isScrolled =
+    scrollBehavior === "always-solid"
+      ? true
+      : scrollBehavior === "always-transparent"
+        ? false
+        : scrolledFromHero
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -329,7 +345,8 @@ export function WebsiteNavbar({
     <>
       <header
         className={cn(
-          "sticky top-0 left-0 right-0 z-50 transition-all duration-300 ease-smooth overflow-y-visible",
+          "left-0 right-0 z-50 transition-all duration-300 ease-smooth overflow-y-visible",
+          sticky ? "sticky top-0" : "relative",
           isScrolled
             ? "bg-white-1 border-b border-white-2-5 shadow-[0px_12px_20px_0px_rgba(0,0,0,0.03)]"
             : "",

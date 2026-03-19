@@ -23,6 +23,7 @@ export interface MenuChildItem {
   featuredTitle: string | null
   featuredDescription: string | null
   featuredHref: string | null
+  scheduleMeta: string | null
   sortOrder: number
   isVisible: boolean
 }
@@ -40,6 +41,7 @@ export interface MenuItemData {
   featuredTitle: string | null
   featuredDescription: string | null
   featuredHref: string | null
+  scheduleMeta: string | null
   sortOrder: number
   isVisible: boolean
   children: MenuChildItem[]
@@ -203,6 +205,16 @@ function SectionColumn({
                     )}
                   >
                     {child.description}
+                  </span>
+                )}
+                {child.scheduleMeta && (
+                  <span
+                    className={cn(
+                      "font-normal leading-none text-black-3 tracking-[-0.03em]",
+                      section.compact ? "text-[11px] mt-0.5" : "text-[12px] mt-1",
+                    )}
+                  >
+                    {child.scheduleMeta}
                   </span>
                 )}
               </div>

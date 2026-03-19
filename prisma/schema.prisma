@@ -1038,6 +1038,11 @@ model SiteSettings {
   navCtaHref     String?
   navCtaVisible  Boolean @default(false)
 
+  // Navbar behavior
+  navScrollBehavior  String?   @default("transparent-to-solid")
+  navSolidColor      String?   @default("white")
+  navSticky          Boolean   @default(true)
+
   // Custom code injection
   customHeadHtml  String? @db.Text
   customBodyHtml  String? @db.Text
@@ -1282,6 +1287,9 @@ model MenuItem {
   featuredTitle       String?
   featuredDescription String?
   featuredHref        String?
+
+  // Schedule metadata for external links (e.g. "Mon-Fri @ 6 AM")
+  scheduleMeta String?
 
   // Ordering
   sortOrder   Int      @default(0)

@@ -10,6 +10,8 @@ interface BuilderDrawerProps {
   title: string
   onClose: () => void
   children?: React.ReactNode
+  /** When true, the drawer header is hidden (useful when children render their own header). */
+  hideHeader?: boolean
 }
 
 export function BuilderDrawer({
@@ -17,6 +19,7 @@ export function BuilderDrawer({
   title,
   onClose,
   children,
+  hideHeader,
 }: BuilderDrawerProps) {
   return (
     <div
@@ -28,19 +31,21 @@ export function BuilderDrawer({
       {activeTool && (
         <>
           {/* Header */}
-          <div className="h-14 border-b flex items-center justify-between px-4 bg-muted/30 shrink-0">
-            <h3 className="font-semibold text-xs uppercase tracking-wider text-foreground">
-              {title}
-            </h3>
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              className="rounded-full text-muted-foreground"
-              onClick={onClose}
-            >
-              <X className="size-3.5" />
-            </Button>
-          </div>
+          {!hideHeader && (
+            <div className="h-14 border-b flex items-center justify-between px-4 bg-muted/30 shrink-0">
+              <h3 className="font-semibold text-xs uppercase tracking-wider text-foreground">
+                {title}
+              </h3>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                className="rounded-full text-muted-foreground"
+                onClick={onClose}
+              >
+                <X className="size-3.5" />
+              </Button>
+            </div>
+          )}
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden">
