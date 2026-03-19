@@ -168,6 +168,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
       setDirtySectionIds(new Set(snapshot.sections.map((s) => s.id)))
       setReorderDirty(true)
       setPageDirty(true)
+      // Reset so the next edit after undo pushes a new snapshot
+      editingSnapshotPushedRef.current = false
     }
   }, [history, sections, pageData.title])
 
@@ -181,6 +183,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
       setDirtySectionIds(new Set(snapshot.sections.map((s) => s.id)))
       setReorderDirty(true)
       setPageDirty(true)
+      // Reset so the next edit after redo pushes a new snapshot
+      editingSnapshotPushedRef.current = false
     }
   }, [history, sections, pageData.title])
 

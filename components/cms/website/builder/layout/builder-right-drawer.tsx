@@ -87,24 +87,20 @@ function SectionEditorInline({
   onChange: (data: Partial<SectionEditorData>) => void
   onDelete: (sectionId: string) => void
 }) {
-  const [content, setContent] = useState<Record<string, unknown>>(
-    () => section.content ?? {},
-  )
-  const [displaySettings, setDisplaySettings] = useState<DisplaySettingsData>(
-    () => ({
-      colorScheme: section.colorScheme,
-      paddingY: section.paddingY,
-      containerWidth: section.containerWidth,
-      enableAnimations: section.enableAnimations,
-      visible: section.visible,
-      label: section.label ?? "",
-    }),
-  )
+  // Derived from props — no local state. Ensures undo/redo propagates instantly.
+  const content = section.content ?? {}
+  const displaySettings: DisplaySettingsData = {
+    colorScheme: section.colorScheme,
+    paddingY: section.paddingY,
+    containerWidth: section.containerWidth,
+    enableAnimations: section.enableAnimations,
+    visible: section.visible,
+    label: section.label ?? "",
+  }
   const [showJson, setShowJson] = useState(false)
 
   const handleContentChange = useCallback(
     (newContent: Record<string, unknown>) => {
-      setContent(newContent)
       onChange({ content: newContent })
     },
     [onChange],
@@ -112,7 +108,6 @@ function SectionEditorInline({
 
   const handleDisplayChange = useCallback(
     (newSettings: DisplaySettingsData) => {
-      setDisplaySettings(newSettings)
       onChange({
         colorScheme: newSettings.colorScheme,
         paddingY: newSettings.paddingY,
