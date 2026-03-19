@@ -18,6 +18,11 @@ interface BuilderCanvasProps {
   onNavbarClick?: () => void
   onNavbarLinkClick?: (href: string) => void
   isNavbarEditing?: boolean
+  onUndo?: () => void
+  onRedo?: () => void
+  onSave?: () => void
+  /** Incrementing key that triggers an iframe RELOAD_PAGE message */
+  previewRefreshKey?: number
 }
 
 const deviceWidths: Record<DeviceMode, string> = {
@@ -40,6 +45,10 @@ export function BuilderCanvas({
   onNavbarClick,
   onNavbarLinkClick,
   isNavbarEditing,
+  onUndo,
+  onRedo,
+  onSave,
+  previewRefreshKey,
 }: BuilderCanvasProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const [iframeLoaded, setIframeLoaded] = useState(false)
@@ -146,6 +155,11 @@ export function BuilderCanvas({
     NAVBAR_CLICKED: handleNavbarClicked,
     NAVBAR_LINK_CLICKED: handleNavbarLinkClicked,
     DESELECT: handleDeselect,
+    KEYBOARD_SHORTCUT: (msg) => {
+      if (msg.shortcut === "undo") onUndo?.()
+      else if (msg.shortcut === "redo") onRedo?.()
+      else if (msg.shortcut === "save") onSave?.()
+    },
   })
 
   // -------------------------------------------------------------------------
@@ -172,6 +186,16 @@ export function BuilderCanvas({
     if (!iframeLoaded || !iframeRef.current) return
     postToIframe(iframeRef.current, { type: "UPDATE_NAVBAR", isNavbarEditing: isNavbarEditing ?? false })
   }, [isNavbarEditing, iframeLoaded])
+
+  // Reload the iframe preview when previewRefreshKey changes (e.g. after nav menu edits)
+  const prevRefreshKeyRef = useRef(previewRefreshKey)
+  useEffect(() => {
+    if (!iframeLoaded || !iframeRef.current) return
+    // Skip initial render — only reload on subsequent key changes
+    if (prevRefreshKeyRef.current === previewRefreshKey) return
+    prevRefreshKeyRef.current = previewRefreshKey
+    postToIframe(iframeRef.current, { type: "RELOAD_PAGE" })
+  }, [previewRefreshKey, iframeLoaded])
 
   return (
     <div className="flex-1 flex flex-col bg-muted/30 overflow-hidden p-4 min-h-0">

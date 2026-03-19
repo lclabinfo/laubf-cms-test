@@ -28,6 +28,9 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useBuilderHistory } from "./use-builder-history"
+import { useBackgroundSync } from "./use-background-sync"
+import { usePresenceHeartbeat } from "./use-presence-heartbeat"
+import { AlertTriangle } from "lucide-react"
 import type {
   BuilderTool,
   DeviceMode,
@@ -125,6 +128,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const [editingNavSettings, setEditingNavSettings] = useState(false)
   const [headerMenuId] = useState<string | null>(initialHeaderMenuId ?? null)
   const [menuItems, setMenuItems] = useState<MenuItemData[]>(initialHeaderMenuItemsFull ?? [])
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0)
 
   // Refresh menu data from the API after nav changes
   const refreshMenu = useCallback(async () => {
@@ -138,9 +142,9 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     } catch {
       // Silently fail — the navigation editor has its own error handling
     }
-    // Also refresh the iframe preview to reflect updated navbar
-    router.refresh()
-  }, [headerMenuId, router])
+    // Tell the iframe to reload so the navbar picks up the new menu data
+    setPreviewRefreshKey((k) => k + 1)
+  }, [headerMenuId])
 
   // Page modals
   const [pageSettingsOpen, setPageSettingsOpen] = useState(false)
@@ -153,6 +157,12 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
 
   const history = useBuilderHistory<BuilderSnapshot>()
 
+  // Pristine snapshot — the state as loaded from the DB (or after save).
+  // Used to detect when undo/redo returns to the initial state.
+  const pristineRef = useRef<string>(
+    JSON.stringify({ sections: page.sections, pageTitle: page.title })
+  )
+
   /** Push the current state as a snapshot before mutating. */
   const pushSnapshot = useCallback(() => {
     history.push({ sections, pageTitle: pageData.title })
@@ -163,13 +173,23 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     if (snapshot) {
       setSections(snapshot.sections)
       setPageData((prev) => ({ ...prev, title: snapshot.pageTitle }))
-      setIsDirty(true)
-      // After undo, any section could differ from the DB — mark all dirty
-      setDirtySectionIds(new Set(snapshot.sections.map((s) => s.id)))
-      setReorderDirty(true)
-      setPageDirty(true)
-      // Reset so the next edit after undo pushes a new snapshot
-      editingSnapshotPushedRef.current = false
+
+      // Check if undo restored us to the pristine (DB-loaded) state
+      const snapshotStr = JSON.stringify({ sections: snapshot.sections, pageTitle: snapshot.pageTitle })
+      if (snapshotStr === pristineRef.current) {
+        setIsDirty(false)
+        setDirtySectionIds(new Set())
+        setReorderDirty(false)
+        setPageDirty(false)
+      } else {
+        setIsDirty(true)
+        // After undo, any section could differ from the DB — mark all dirty
+        setDirtySectionIds(new Set(snapshot.sections.map((s) => s.id)))
+        setReorderDirty(true)
+        setPageDirty(true)
+      }
+      // Reset debounce so the next edit after undo gets its own snapshot
+      lastSnapshotTimeRef.current = 0
     }
   }, [history, sections, pageData.title])
 
@@ -178,13 +198,23 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     if (snapshot) {
       setSections(snapshot.sections)
       setPageData((prev) => ({ ...prev, title: snapshot.pageTitle }))
-      setIsDirty(true)
-      // After redo, any section could differ from the DB — mark all dirty
-      setDirtySectionIds(new Set(snapshot.sections.map((s) => s.id)))
-      setReorderDirty(true)
-      setPageDirty(true)
-      // Reset so the next edit after redo pushes a new snapshot
-      editingSnapshotPushedRef.current = false
+
+      // Check if redo restored us to the pristine (DB-loaded) state
+      const snapshotStr = JSON.stringify({ sections: snapshot.sections, pageTitle: snapshot.pageTitle })
+      if (snapshotStr === pristineRef.current) {
+        setIsDirty(false)
+        setDirtySectionIds(new Set())
+        setReorderDirty(false)
+        setPageDirty(false)
+      } else {
+        setIsDirty(true)
+        // After redo, any section could differ from the DB — mark all dirty
+        setDirtySectionIds(new Set(snapshot.sections.map((s) => s.id)))
+        setReorderDirty(true)
+        setPageDirty(true)
+      }
+      // Reset debounce so the next edit after redo gets its own snapshot
+      lastSnapshotTimeRef.current = 0
     }
   }, [history, sections, pageData.title])
 
@@ -210,6 +240,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     setReorderDirty(false)
     setPageDirty(false)
     setSaveState("idle")
+    pristineRef.current = JSON.stringify({ sections: page.sections, pageTitle: page.title })
     history.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page])
@@ -325,13 +356,67 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         }
       }
 
+      // Capture dirty state before clearing (needed for merge logic below)
+      const savedSectionIds = new Set(dirtySectionIds)
+      const wasPageDirty = pageDirty
+
       setDirtySectionIds(new Set())
       setReorderDirty(false)
       setPageDirty(false)
       setIsDirty(false)
       setSaveState("saved")
-      router.refresh()
       toast.success("Page saved")
+
+      // Silent background refetch to pick up other users' changes
+      try {
+        const freshRes = await fetch(`/api/v1/pages/${pagePathId(pageData)}`)
+        if (freshRes.ok) {
+          const { data: freshPage } = await freshRes.json()
+          const freshSections: BuilderSection[] = (freshPage.sections ?? []).map((s: Record<string, unknown>) => ({
+            id: s.id as string,
+            sectionType: s.sectionType as BuilderSection["sectionType"],
+            label: (s.label as string | null) ?? null,
+            sortOrder: s.sortOrder as number,
+            visible: s.visible as boolean,
+            colorScheme: s.colorScheme as BuilderSection["colorScheme"],
+            paddingY: s.paddingY as BuilderSection["paddingY"],
+            containerWidth: s.containerWidth as BuilderSection["containerWidth"],
+            enableAnimations: s.enableAnimations as boolean,
+            content: s.content as Record<string, unknown>,
+            resolvedData: s.resolvedData as Record<string, unknown> | undefined,
+          }))
+
+          // Merge: use server version for all sections, but keep local version
+          // for sections we just saved (they're authoritative)
+          setSections(prev => {
+            const localMap = new Map(prev.map(s => [s.id, s]))
+            return freshSections.map(fs => {
+              if (savedSectionIds.has(fs.id) && localMap.has(fs.id)) {
+                return localMap.get(fs.id)!
+              }
+              return fs
+            })
+          })
+
+          // Update page title if we didn't just save it
+          if (!wasPageDirty) {
+            setPageData(prev => ({ ...prev, title: freshPage.title }))
+          }
+
+          // Update pristine ref to match the new server state
+          pristineRef.current = JSON.stringify({
+            sections: freshSections,
+            pageTitle: freshPage.title,
+          })
+        }
+      } catch {
+        // Silent failure — user still has their saved state
+      }
+
+      // Reset undo history since the base state has changed
+      history.reset()
+
+      router.refresh()
 
       // Revert to idle after brief "Saved" display
       setTimeout(() => setSaveState("idle"), 2000)
@@ -344,7 +429,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     } finally {
       setIsSaving(false)
     }
-  }, [pageData, sections, router, pageDirty, reorderDirty, dirtySectionIds])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageData, sections, router, pageDirty, reorderDirty, dirtySectionIds, history.reset])
 
   // Use a ref to always have the latest handleSave without re-subscribing the effect
   const handleSaveRef = useRef(handleSave)
@@ -376,6 +462,48 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     }
   }, [isDirty, isSaving, sections, pageData.title])
 
+  // -------------------------------------------------------------------------
+  // Background sync — poll for other users' changes every 15s when idle
+  // -------------------------------------------------------------------------
+
+  const handleBackgroundSync = useCallback((freshPage: Record<string, unknown>) => {
+    const freshSections: BuilderSection[] = ((freshPage.sections as unknown[]) ?? []).map((s: unknown) => {
+      const sec = s as Record<string, unknown>
+      return {
+        id: sec.id as string,
+        sectionType: sec.sectionType as BuilderSection["sectionType"],
+        label: (sec.label as string | null) ?? null,
+        sortOrder: sec.sortOrder as number,
+        visible: sec.visible as boolean,
+        colorScheme: sec.colorScheme as BuilderSection["colorScheme"],
+        paddingY: sec.paddingY as BuilderSection["paddingY"],
+        containerWidth: sec.containerWidth as BuilderSection["containerWidth"],
+        enableAnimations: sec.enableAnimations as boolean,
+        content: sec.content as Record<string, unknown>,
+        resolvedData: sec.resolvedData as Record<string, unknown> | undefined,
+      }
+    })
+
+    setSections(freshSections)
+    setPageData(prev => ({ ...prev, title: freshPage.title as string }))
+    pristineRef.current = JSON.stringify({
+      sections: freshSections,
+      pageTitle: freshPage.title,
+    })
+    history.reset()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [history.reset])
+
+  useBackgroundSync({
+    pageSlug: pageData.slug,
+    pageId: pageData.id,
+    isDirty,
+    isSaving,
+    onSync: handleBackgroundSync,
+  })
+
+  const { otherEditors } = usePresenceHeartbeat({ pageId: pageData.id })
+
   // Handle keyboard shortcuts
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -401,13 +529,20 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
       }
       // Cmd/Ctrl+Z to undo, Cmd/Ctrl+Shift+Z to redo
       if ((e.metaKey || e.ctrlKey) && e.key === "z") {
-        // Don't intercept when focus is inside an input/textarea/contenteditable
+        // Only defer to native undo for text-like inputs where it makes sense
         const active = document.activeElement
-        if (
-          active instanceof HTMLInputElement ||
-          active instanceof HTMLTextAreaElement ||
-          (active instanceof HTMLElement && active.isContentEditable)
-        ) {
+        if (active instanceof HTMLTextAreaElement) {
+          return
+        }
+        if (active instanceof HTMLInputElement) {
+          const textTypes = new Set([
+            "text", "email", "url", "search", "tel", "password", "number",
+          ])
+          if (textTypes.has(active.type || "text")) {
+            return
+          }
+        }
+        if (active instanceof HTMLElement && active.isContentEditable) {
           return
         }
         e.preventDefault()
@@ -608,23 +743,23 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     }
   })()
 
-  // Track whether we've pushed a snapshot for the current editing "gesture"
-  const editingSnapshotPushedRef = useRef(false)
-
-  // Reset the flag when the editing section changes
-  useEffect(() => {
-    editingSnapshotPushedRef.current = false
-  }, [editingSectionId])
+  // Track when we last pushed a snapshot so rapid-fire changes (e.g. typing)
+  // are batched (~500ms), while discrete changes (padding, toggles) each get
+  // their own undo entry.
+  const lastSnapshotTimeRef = useRef(0)
 
   // Handle inline changes from the right drawer (updates local state immediately)
   const handleSectionEditorChange = useCallback(
     (data: Partial<SectionEditorData>) => {
       if (!editingSectionId) return
 
-      // Push a snapshot once per editing "session" (when editor opens and user starts changing)
-      if (!editingSnapshotPushedRef.current) {
+      // Push a snapshot before applying the change, debounced by 500ms so
+      // rapid keystrokes are batched but discrete property changes (padding,
+      // color scheme, visibility) each get their own undo entry.
+      const now = Date.now()
+      if (now - lastSnapshotTimeRef.current >= 500) {
         pushSnapshot()
-        editingSnapshotPushedRef.current = true
+        lastSnapshotTimeRef.current = now
       }
 
       setSections((prev) =>
@@ -674,6 +809,14 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     setEditingNavSettings(false)
   }, [])
 
+  /** Open the NavSettingsForm in the right drawer (triggered by CTA "Edit" button) */
+  const handleEditCTA = useCallback(() => {
+    setEditingSectionId(null)
+    setEditingNavItemId(null)
+    setEditingNavSettings(true)
+    setEditingNavbar(true)
+  }, [])
+
   const handleEditNavItem = useCallback((itemId: string) => {
     setEditingSectionId(null)
     setEditingNavSettings(false)
@@ -692,8 +835,9 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const handleNavSettingsUpdated = useCallback(() => {
     setEditingNavSettings(false)
     setEditingNavbar(false)
-    router.refresh()
-  }, [router])
+    // Reload the iframe so the navbar picks up updated settings (CTA, scroll behavior, etc.)
+    setPreviewRefreshKey((k) => k + 1)
+  }, [])
 
   // -------------------------------------------------------------------------
   // Page title
@@ -1039,6 +1183,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
             ctaVisible={initialNavbarSettings?.ctaVisible ?? false}
             onEditItem={handleEditNavItem}
             onMenuChange={refreshMenu}
+            onEditCTA={handleEditCTA}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
@@ -1081,6 +1226,35 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         isSaving={isSaving}
         saveState={saveState}
       />
+
+      {/* Presence warning banner */}
+      {otherEditors.length > 0 && (
+        <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 shrink-0">
+          <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <p className="text-amber-800 dark:text-amber-200 text-sm">
+            {otherEditors.length === 1 ? (
+              <>
+                <strong>{otherEditors[0].userName}</strong> is also editing this
+                page &mdash; your changes may overwrite theirs if you save now.
+              </>
+            ) : otherEditors.length === 2 ? (
+              <>
+                <strong>{otherEditors[0].userName}</strong> and{" "}
+                <strong>{otherEditors[1].userName}</strong> are also editing this
+                page &mdash; your changes may overwrite theirs if you save now.
+              </>
+            ) : (
+              <>
+                <strong>{otherEditors[0].userName}</strong>,{" "}
+                <strong>{otherEditors[1].userName}</strong>, and{" "}
+                {otherEditors.length - 2} other
+                {otherEditors.length - 2 > 1 ? "s" : ""} are also editing this
+                page &mdash; your changes may overwrite theirs if you save now.
+              </>
+            )}
+          </p>
+        </div>
+      )}
 
       {/* Main content area */}
       <div className="flex flex-1 overflow-hidden">
@@ -1125,6 +1299,10 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           onNavbarClick={handleNavbarClick}
           onNavbarLinkClick={handleNavbarLinkClick}
           isNavbarEditing={editingNavbar}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          onSave={handleSave}
+          previewRefreshKey={previewRefreshKey}
         />
 
         {/* Right Drawer (320px, animated) — inline section / navbar / nav item editor */}
@@ -1133,9 +1311,6 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           onClose={handleCloseEditor}
           onChange={handleSectionEditorChange}
           onDelete={handleDeleteSection}
-          navbarSettings={null}
-          onNavbarClose={handleNavbarClose}
-          onNavbarChange={() => {}}
           editingNavItemId={editingNavItemId}
           editingNavSettings={editingNavSettings}
           menuItems={menuItems}

@@ -194,7 +194,28 @@ export async function reorderPageSections(
   pageId: string,
   sectionIds: string[],
 ) {
-  const updates = sectionIds.map((id, index) =>
+  // Fetch the current sections for this page so we can reconcile with the
+  // (potentially stale) list the client sent.
+  const dbSections = await prisma.pageSection.findMany({
+    where: { pageId, churchId },
+    select: { id: true, sortOrder: true },
+    orderBy: { sortOrder: 'asc' },
+  })
+  const dbIdSet = new Set(dbSections.map((s) => s.id))
+
+  // 1. Keep only IDs that still exist in the DB (ignore stale/deleted ones)
+  const validClientIds = sectionIds.filter((id) => dbIdSet.has(id))
+
+  // 2. Append any DB sections the client didn't know about (added by another
+  //    user), preserving their existing relative order.
+  const clientIdSet = new Set(validClientIds)
+  const missingIds = dbSections
+    .filter((s) => !clientIdSet.has(s.id))
+    .map((s) => s.id)
+
+  const finalOrder = [...validClientIds, ...missingIds]
+
+  const updates = finalOrder.map((id, index) =>
     prisma.pageSection.update({
       where: { id, churchId },
       data: { sortOrder: index },
