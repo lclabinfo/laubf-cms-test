@@ -25,19 +25,14 @@
 | **Task 0** — Iframe canvas migration | `087da4c`, `b24501e` | **COMPLETE.** Sections render in an iframe for correct responsive breakpoints. Route group `(editor)/` isolates builder chrome from preview. Protocol: 14 message types, type-safe postMessage. Iframe scrolls internally (industry standard). Device modes (desktop/tablet/mobile) work correctly. Code review: 3 bugs fixed (security null-ref, layout isolation, resolvedData preservation), 6 improvements (NavbarData dedup, RAF throttle, loading timeout, toolbar fallback, skip-ref round-trips, dead field removal). See `worklog/builder-responsive-rendering-bug.md` and `worklog/iframe-layout-isolation-fix.md`. |
 | **Task 0.5b** — Right sidebar scrolling | *(prior commits)* | `builder-right-drawer.tsx` — proper flexbox pattern: `h-full flex flex-col overflow-hidden` + `flex-1 min-h-0` on ScrollArea. |
 
+| **Task 2** — Navigation editor | `1a91e8a`, `4178ebf` | **COMPLETE.** Full tree-based navigation editor inside builder. Schema: `scheduleMeta` on MenuItem, navbar settings on SiteSettings (additive migration, zero data loss). API: child reorder endpoint, navbar settings GET/PATCH. Builder: NavigationEditor tree (1084 lines) with DnD, NavItemEditor forms (808 lines), sidebar tool, drawer/right-drawer integration. Public site: scheduleMeta in dropdown/mobile/FAB, navbar scroll/color/sticky from DB. Second-pass QA: 10 bugs fixed (security: item ownership verification + field allowlist; state: nav editor cleanup on section select + page nav; UI: solidColor wiring, ctaVisible default, immutable reorder, child delete confirm). |
+
 ### Not Started
 
 | Task | Priority | Notes |
 |---|---|---|
-| **Task 2** — Navigation fix | P0 | Page tree doesn't match public website nav. Quick Links mixed in. Navbar editor changes don't persist. |
 | **Task 3** — Undo/redo verification | P1 | Needs manual testing. Code looks correct but untested after dirty tracking changes. |
 | TypeScript content interfaces | P1 | All editors still use `Record<string, unknown>` + manual casts. |
-
-### In Progress (Another Agent Team)
-
-| Task | Priority | Notes |
-|---|---|---|
-| **Task 0** — Iframe canvas migration (rendering bug fix) | **P0** | Being worked on by another agent team. Implementation exists but may have rendering issues being debugged. |
 
 ---
 

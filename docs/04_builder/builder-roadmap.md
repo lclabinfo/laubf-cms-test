@@ -114,11 +114,14 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 - [x] Clear dirty set after successful save
 - [x] Verify `router.refresh()` still reloads fresh data after selective save
 
-**Navigation fix**
-- [ ] Audit nav sidebar against the actual public website — fix broken links, wrong hierarchy, missing items
-- [ ] Wire navbar editor changes to API so they persist
-- [ ] Separate Quick Links from navigation — Quick Links (bottom-right FAB on the website) gets its own management, independent of the nav menu
-- [ ] Fix navbar link clicks to navigate to the corresponding builder page (Issue 7 from `backlogs/builder-ux-issues.md`)
+**Navigation fix** — **ALL DONE** (`1a91e8a`, `4178ebf`)
+- [x] Full tree-based NavigationEditor inside builder (1084-line component with DnD reordering)
+- [x] NavItemEditor forms for all item types (page, external link, featured, top-level, settings)
+- [x] Schema: `scheduleMeta` on MenuItem, navbar settings on SiteSettings (additive migration)
+- [x] API: child reorder endpoint, navbar settings GET/PATCH, field allowlist on PATCH
+- [x] Navbar settings persisted to DB (scroll behavior, solid color, sticky)
+- [x] Public site: scheduleMeta in dropdown/mobile/FAB, navbar settings wired from DB
+- [x] Security audit: item ownership verification, field allowlist, state conflict fixes
 
 **Undo/redo verification**
 - [ ] Verify undo/redo works reliably within a session (open → edit → save)
@@ -131,7 +134,7 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 - [x] FEATURE_BREAKDOWN — reads from `content.watermarkUrl`, hidden when empty
 - [x] FOOTER — reads from `content.logoUrl` with site settings fallback
 
-**End of day: Save architecture upgraded. ~~Navigation working.~~ Hardcoded URLs fixed.** (Save + hardcoded URLs done Mar 18. Navigation still TODO.)
+**End of day: Save architecture upgraded. Navigation complete. Hardcoded URLs fixed.** (All done Mar 18.)
 
 ---
 
