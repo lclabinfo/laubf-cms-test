@@ -92,6 +92,9 @@ model Church {
   roles                  Role[]
   accessRequests         AccessRequest[]
 
+  // Website Builder
+  builderPresences       BuilderPresence[]
+
   @@index([slug])
   @@index([status])
 }
@@ -1693,4 +1696,23 @@ enum AccessRequestStatus {
   APPROVED
   DENIED
   IGNORED
+}
+
+// ============================================================
+// 6. Builder Presence
+// ============================================================
+
+model BuilderPresence {
+  id        String   @id @default(uuid()) @db.Uuid
+  pageId    String   @db.Uuid
+  userId    String   @db.Uuid
+  userName  String
+  lastSeen  DateTime @updatedAt
+  churchId  String   @db.Uuid
+
+  church    Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, userId])
+  @@index([pageId])
+  @@index([churchId])
 }
