@@ -166,17 +166,17 @@ The entire BuilderShell re-renders on any state change. Since ALL state lives he
 
 Save is a **batch operation** triggered by Save button (or Cmd+S or auto-save timer):
 
-1. `handleSave()` called
-2. Three parallel-ish API calls:
-   a. `PATCH /api/v1/pages/{slug}` -- page metadata (title, isPublished)
-   b. `PUT /api/v1/pages/{slug}/sections` -- reorder (send all section IDs)
-   c. `PATCH /api/v1/pages/{slug}/sections/{id}` -- for EACH section (content, colorScheme, paddingY, containerWidth, enableAnimations, visible, label)
-3. All section PATCHes run via `Promise.all` (parallel)
-4. If any section save fails, toast shows which sections failed (by label or sectionType)
-5. On success: `isDirty = false`, `router.refresh()` (triggers server re-render for fresh data), toast "Page saved"
+1. `handleSave()` called — guards: early return if nothing dirty, skip if `isSaving`
+2. Selective API calls based on dirty flags:
+   a. `PATCH /api/v1/pages/{slug}` -- page metadata (only if `pageDirty`)
+   b. `PUT /api/v1/pages/{slug}/sections` -- reorder (only if `reorderDirty`). DAL reconciles stale IDs.
+   c. `PATCH /api/v1/pages/{slug}/sections/{id}` -- only for sections in `dirtySectionIds` (not all N)
+3. Dirty section PATCHes run via `Promise.all` (parallel)
+4. If any section returns 404 (deleted by another user), removes from local state + warning toast
+5. On success: clear all dirty flags, fetch fresh page data from API, merge server state (keeps local for just-saved sections, takes server for everything else), reset undo history, `router.refresh()`
 6. Auto-save: 30-second debounced timer (`AUTO_SAVE_DELAY_MS = 30_000`) resets on each state change
 
-**Note**: The save flow sends ALL sections on every save, not just changed ones. This is simple but generates N+2 HTTP requests per save (1 page + 1 reorder + N sections).
+**Performance**: Dirty tracking reduces save from N+2 to K+2 requests where K = changed sections (typically 1-3). See `dirty-tracking.md`.
 
 ### 3.4 Section Deletion
 
@@ -304,15 +304,15 @@ The builder routes by page ID (`/cms/website/builder/[pageId]`) but API routes u
 
 ### 5.3 Save flow detail
 
-The save function (lines 223-298 of builder-shell.tsx) makes **N+2 requests**:
+The save function (`handleSave` in builder-shell.tsx) makes **K+2 requests** where K = dirty sections:
 
-1. `PATCH /pages/{slug}` -- page title + isPublished
-2. `PUT /pages/{slug}/sections` -- section ID array for reorder
-3. `PATCH /pages/{slug}/sections/{id}` x N -- one per section, all in `Promise.all`
+1. `PATCH /pages/{slug}` -- page title (only if `pageDirty`)
+2. `PUT /pages/{slug}/sections` -- section ID array for reorder (only if `reorderDirty`). DAL reconciles stale IDs from concurrent users.
+3. `PATCH /pages/{slug}/sections/{id}` x K -- only dirty sections, all in `Promise.all`. 404s handled gracefully (section deleted by another user).
 
 Each section PATCH sends: `content`, `colorScheme`, `paddingY`, `containerWidth`, `enableAnimations`, `visible`, `label`.
 
-After save: `router.refresh()` triggers server component re-render (fresh data from DB).
+After save: fetch fresh page data from API, merge server state (keeps local for just-saved sections, takes server for others), reset undo history, then `router.refresh()`. See `dirty-tracking.md` for the full save flow.
 
 ### 5.4 Cache invalidation
 
@@ -328,13 +328,11 @@ API routes call `revalidatePath('/website/...')` after mutations, busting Next.j
 
 **Files affected**: `hero-editor.tsx` (lines 22-116), `content-editor.tsx` (lines 16-118), `cards-editor.tsx` (lines 22-67)
 
-### 6.2 N+2 save requests → PLANNED FIX: Dirty section tracking
+### 6.2 ~~N+2 save requests~~ → IMPLEMENTED: Dirty section tracking + selective save
 
-Every save sends ALL sections, not just changed ones. For a page with 15 sections, that is 17 HTTP requests.
+~~Every save sends ALL sections, not just changed ones.~~
 
-**Decided fix (Phase 1):** Track dirty sections via `dirtySectionIds: Set<string>` in BuilderShell. On save, only PATCH sections in the dirty set. This reduces N+2 to K+2 where K = number of changed sections (typically 1-3).
-
-This also enables **concurrent editing safety** — two users editing different sections on the same page will never conflict because their saves don't overlap. See `docs/04_builder/mental-model/concurrent-editing-strategy.md` for the full design.
+**Implemented (March 18-19):** Dirty tracking via `dirtySectionIds: Set<string>`, `reorderDirty`, `pageDirty` in BuilderShell. Only dirty sections are PATCHed on save (K+2 requests instead of N+2). Post-save refetch merges other users' changes. Background sync (15s) keeps idle users up to date. See `docs/04_builder/dev-notes/concurrent-editing-strategy.md` and `docs/04_builder/dev-notes/dirty-tracking.md`.
 
 ### 6.3 No content validation
 
@@ -344,17 +342,17 @@ Editors emit `Record<string, unknown>` with no schema validation. If an editor h
 
 Each field change in an editor spreads the entire content object and propagates up through `handleContentChange -> onChange -> handleSectionEditorChange -> setSections`. This works but creates unnecessary object allocations. A path-based update (e.g., `updateContent('heading.line1', value)`) would be more efficient for deeply nested content.
 
-### 6.5 SectionEditorInline local state sync
+### 6.5 ~~SectionEditorInline local state sync~~ — FIXED March 18
 
-`SectionEditorInline` (builder-right-drawer.tsx) initializes its own `content` and `displaySettings` state from the `section` prop. But since it's keyed by `section.id` and remounts on section switch, this is correct. However, if the section's content changes externally (e.g., undo) while the editor is open, the editor won't reflect the change because its local state was initialized on mount. The `key={section.id}` only remounts when the ID changes, not when content changes.
+~~`SectionEditorInline` had local state that didn't sync with external changes (undo).~~ **Fixed**: `SectionEditorInline` is now a fully controlled component — it reads `content` and display settings directly from the `section` prop passed by BuilderShell. No local state. Undo/redo, background sync, and post-save merge all reflect immediately in the editor.
 
 ### 6.6 Resolved data staleness
 
 Dynamic sections (events, messages) get their data resolved once on page load by the server component. If the user edits content fields that affect data resolution (e.g., changing `count` on HIGHLIGHT_CARDS from 3 to 6), the canvas won't show the updated data until the page is saved and reloaded. There's no mechanism to re-resolve data without a full page navigation.
 
-### 6.7 Category-based editor routing adds indirection
+### 6.7 ~~Category-based editor routing adds indirection~~ — FIXED March 18
 
-The editor routing in `index.tsx` uses array-includes checks to dispatch to category editors, which then use switch statements internally. This means adding a new section type requires changes in TWO files: add to the type array in `index.tsx` AND add a case in the category editor. A flat registry (type -> editor component) would be more direct.
+~~Required 2-file changes to add a section type.~~ **Fixed**: Flat registry in `section-editors/index.tsx` — one entry per type. Adding a new section editor is a 1-line change.
 
 ### 6.8 No TypeScript content typing
 
@@ -417,17 +415,13 @@ const SECTION_EDITORS: Partial<Record<SectionType, React.ComponentType<EditorPro
 
 This makes adding a new section editor a 1-line change (add to the map) instead of modifying two files.
 
-### R4: Track dirty sections for optimized save (High priority, medium effort) — PROMOTED TO PHASE 1
+### R4: Track dirty sections for optimized save — IMPLEMENTED March 18
 
-Maintain a `Set<string>` of section IDs that have been modified since last save. On save, only PATCH those sections. This reduces N+2 requests to K+2 where K = number of changed sections (typically 1-2).
+**Status: COMPLETE.** `dirtySectionIds: Set<string>`, `reorderDirty`, `pageDirty` flags in BuilderShell. Save only PATCHes dirty sections. Post-save refetch merges other users' changes. Background sync (15s) keeps idle users up to date. See `docs/04_builder/dev-notes/dirty-tracking.md`.
 
-**Update (March 17):** This is now a Phase 1 priority, not just a performance optimization. Dirty tracking is the foundation of the concurrent editing strategy — it structurally prevents conflicts when two users edit different sections on the same page. See `docs/04_builder/mental-model/concurrent-editing-strategy.md`.
+### R7: Presence awareness for concurrent editing — IMPLEMENTED March 19
 
-### R7: Presence awareness for concurrent editing (High priority, medium effort) — PHASE 1
-
-Add a heartbeat-based presence system so users see who else is editing the same page. A banner ("David is editing this website — your changes may be lost") warns users before they start editing. The banner is live — it disappears when the other user leaves (heartbeat expires after 60s of inactivity).
-
-Combined with dirty section tracking (R4) and silent last-write-wins, this provides a complete concurrent editing strategy without complex merge UI. See `docs/04_builder/mental-model/concurrent-editing-strategy.md` for the full design and decision rationale.
+**Status: COMPLETE.** `BuilderPresence` Prisma model + heartbeat API (`/api/v1/builder/presence`). `usePresenceHeartbeat` hook (30s). Amber warning banner: "X is also editing this page — your changes may overwrite theirs if you save now." `useBackgroundSync` hook (15s polling). Post-save refetch + merge. Resilient reorder DAL. 11 bugs found and fixed via QA audit. See `docs/04_builder/dev-notes/concurrent-editing-strategy.md`.
 
 ### R5: Consider debouncing editor changes (Low priority, low effort)
 

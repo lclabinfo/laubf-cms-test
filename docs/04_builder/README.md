@@ -1,6 +1,6 @@
 # Website Builder Documentation
 
-> **Last updated**: March 18, 2026
+> **Last updated**: March 19, 2026
 
 All documentation for the website builder lives in this directory. The builder is a full-screen Shopify-style editor at `app/cms/website/builder/` with a live canvas + right-panel drawer editing.
 
@@ -34,6 +34,8 @@ Technical references for implementation.
 | [builder-system-architecture.md](dev-notes/builder-system-architecture.md) | Full system analysis — data flow, state management, section lifecycle, pain points, optimization recs. |
 | [builder-rendering.md](dev-notes/builder-rendering.md) | Builder canvas vs. live website rendering pipeline, known gaps, z-index scheme. |
 | [undo-redo-and-save-architecture.md](dev-notes/undo-redo-and-save-architecture.md) | Undo/redo + save system design. In-memory React state, 50-snapshot cap, auto-save 30s. |
+| [concurrent-editing-strategy.md](dev-notes/concurrent-editing-strategy.md) | How the builder handles multiple users editing simultaneously. Presence + dirty tracking + background sync + last-write-wins. All 3 layers implemented March 19. |
+| [dirty-tracking.md](dev-notes/dirty-tracking.md) | Granular dirty tracking system — which flags exist, what sets/clears them, interaction with background sync. |
 | [section-db-audit.md](dev-notes/section-db-audit.md) | DB connectivity per section — DAL functions, data sources. |
 | [README.md](dev-notes/README.md) | Quick overview of how the builder works — architecture diagram, key files, "when to use each doc." |
 
@@ -44,7 +46,6 @@ Product design decisions and strategy.
 | Document | Purpose |
 |---|---|
 | [builder-review.md](mental-model/builder-review.md) | Product design critique — editing approach decision (drawer-first), Shopify comparison, section audit. |
-| [concurrent-editing-strategy.md](mental-model/concurrent-editing-strategy.md) | How the builder handles multiple users editing simultaneously. Presence + dirty tracking + last-write-wins. |
 
 ## Worklog (`worklog/`)
 

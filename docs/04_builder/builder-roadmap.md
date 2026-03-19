@@ -1,8 +1,8 @@
 # Website Builder — Roadmap
 
 > **Owner**: David Lim
-> **Updated**: March 18, 2026
-> **Status**: All 41 section editors complete. Shared component library extracted. Dirty tracking + selective save implemented. Iframe canvas migration implemented (being refined). **Remaining P0 blockers**: navigation fix, iframe rendering verification. See progress notes below.
+> **Updated**: March 19, 2026
+> **Status**: All 41 section editors complete. Shared component library extracted. Dirty tracking + selective save + concurrent editing (presence, background sync, post-save merge) all implemented. Iframe canvas migration complete. Navigation editor complete. Drag preview fixed. **No remaining P0 blockers.**
 
 ---
 
@@ -19,7 +19,7 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 
 **Editing approach (decided):** Right-panel drawer with form fields + live canvas preview (Shopify-style). The drawer is the correct UI for design-focused, infrequent editing. Inline canvas editing is deferred — high cost, low value given the CMS handles all recurring content. See `mental-model/builder-review.md` for the full analysis.
 
-**Concurrent editing (decided):** Presence awareness + dirty section tracking + silent last-write-wins. No merge UI, no conflict modals, no page locking. See `mental-model/concurrent-editing-strategy.md` for the full design.
+**Concurrent editing (implemented):** Presence awareness + dirty section tracking + silent last-write-wins + background sync. No merge UI, no conflict modals, no page locking. See `dev-notes/concurrent-editing-strategy.md` for the full design.
 
 ---
 
@@ -50,16 +50,16 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 | ~~Save sends ALL sections (N+2 requests) — no dirty tracking~~ | ~~P0~~ | **DONE** (Mar 18) — dirty tracking + selective save |
 | ~~13 section editors missing fields~~ | ~~P0~~ | **DONE** (Mar 18) — all 41 editors complete |
 | ~~4 hardcoded URLs in section components~~ | ~~P0~~ | **DONE** (Mar 18) — all read from content |
-| Navigation sidebar is broken — doesn't match the actual public website | P0 | NOT STARTED |
-| Quick Links mixed into navbar — should be managed separately | P0 | NOT STARTED |
+| ~~Navigation sidebar is broken — doesn't match the actual public website~~ | ~~P0~~ | **DONE** (Mar 18) — Full NavigationEditor with DnD, inline rename, CTA editing |
+| ~~Quick Links mixed into navbar — should be managed separately~~ | ~~P0~~ | **DONE** (Mar 18) — Quick Links are a separate section, not mixed into navbar |
 | ~~SPOTLIGHT_MEDIA editor shows manual fields that contradict data-driven pattern~~ | ~~P0~~ | **DONE** (Mar 18) — simplified to info banner |
 | ~~Right sidebar not scrollable~~ | ~~P0~~ | **DONE** (pre-Mar 18) — proper flex/overflow pattern in builder-right-drawer.tsx |
 | ~~Shared editor primitives duplicated across 5 files~~ | ~~P0~~ | **DONE** (Mar 18) — shared/ library with 15 components |
-| No presence awareness for concurrent editors | P1 | NOT STARTED |
+| ~~No presence awareness for concurrent editors~~ | ~~P1~~ | **DONE** (Mar 19) — Heartbeat presence + banner + background sync + post-save merge |
 | ~~Editor routing requires 2-file changes to add a section type~~ | ~~P1~~ | **DONE** (Mar 18) — flat registry, 1-line change |
 | All content typed as `Record<string, unknown>` — no compile-time safety | P1 | NOT STARTED |
 | Color scheme is binary light/dark — needs to be a palette system | P1 | NOT STARTED |
-| Drag preview shows label card instead of section visual | P1 | NOT STARTED |
+| ~~Drag preview shows label card instead of section visual~~ | ~~P1~~ | **DONE** (Mar 19) — Full section snapshot thumbnail at 0.25x scale |
 | Blue selection border clipped by overflow-hidden | P1 | NOT STARTED |
 | Section picker modal wrong positioning (centered instead of near trigger) | P1 | NOT STARTED |
 | Design panel is a stub ("coming soon") | P1 | NOT STARTED |
@@ -193,15 +193,19 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 
 ### Day 5 — Monday (Week 2): Presence System + Theme Compliance + UX Polish
 
-**Presence awareness system** (concurrent editing — see `mental-model/concurrent-editing-strategy.md`)
-- [ ] Create `BuilderPresence` model in Prisma schema (pageId, userId, userName, lastSeen, churchId)
-- [ ] Create heartbeat API: `POST /api/v1/builder/presence` (upsert presence record)
-- [ ] Create presence query API: `GET /api/v1/builder/presence?pageId=xxx` (active editors with lastSeen < 60s)
-- [ ] Add heartbeat interval (30s) in BuilderShell — start on mount, stop on unmount
-- [ ] Add presence polling (30s) — query for other active editors
-- [ ] Show banner when other editors present: "David is editing this website. Your changes may be lost if you edit now."
-- [ ] Hide banner when no other editors (heartbeat expired)
-- [ ] Clean up: clear presence record on `beforeunload` (best effort)
+**Presence awareness system** (concurrent editing — see `dev-notes/concurrent-editing-strategy.md`) — **ALL DONE** (Mar 19)
+- [x] Create `BuilderPresence` model in Prisma schema (pageId, userId, userName, lastSeen, churchId)
+- [x] Create heartbeat API: `POST /api/v1/builder/presence` (upsert + returns other editors)
+- [x] Create presence query API: `GET /api/v1/builder/presence?pageId=xxx` (active editors with lastSeen < 60s)
+- [x] Create cleanup API: `DELETE /api/v1/builder/presence` (explicit presence removal)
+- [x] Add heartbeat interval (30s) via `usePresenceHeartbeat` hook — start on mount, stop on unmount
+- [x] Show amber warning banner when other editors present: "X is also editing this page — your changes may overwrite theirs if you save now."
+- [x] Hide banner when no other editors (heartbeat expired)
+- [x] Clean up: DELETE with `keepalive: true` on unmount + 60s stale expiry as fallback
+- [x] Background sync: `useBackgroundSync` polls every 15s when idle, merges server state
+- [x] Post-save refetch: fetches fresh page data after save, merges with local state
+- [x] Resilient reorder: DAL reconciles stale section IDs (handles concurrent add/delete)
+- [x] QA audit: 11 bugs found and fixed across 6 parallel agents
 
 **Theme & palette compliance**
 - [ ] All sections respond to palette changes (not just old light/dark)
@@ -282,7 +286,7 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 | AI website generation | Requires Phase 1 + Phase 2 complete first. Target: after Phase 2. |
 | Section merging/consolidation | All 40 types are actively used. Low ROI. |
 | New section types | 40 is comprehensive for MVP |
-| Per-section conflict modals / merge UI | Church admins don't understand merge. Silent last-write-wins with presence awareness is better UX. See `mental-model/concurrent-editing-strategy.md`. |
+| Per-section conflict modals / merge UI | Church admins don't understand merge. Silent last-write-wins with presence awareness is better UX. See `dev-notes/concurrent-editing-strategy.md`. |
 
 ---
 
@@ -324,7 +328,7 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 
 **Editor gap analysis (current vs should-be):** See `section-catalog/section-editor-gap-analysis.md`.
 
-**Concurrent editing design:** See `mental-model/concurrent-editing-strategy.md`.
+**Concurrent editing design:** See `dev-notes/concurrent-editing-strategy.md`.
 
 **Save & undo/redo architecture:** See `dev-notes/undo-redo-and-save-architecture.md`.
 

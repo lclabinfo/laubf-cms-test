@@ -182,7 +182,7 @@ Everything from `dev-guide-day1.md` is complete:
 
 ### Task 5: Presence Awareness System
 
-> Priority: P1. Show when other admins are editing. See `mental-model/concurrent-editing-strategy.md`.
+> **IMPLEMENTED** (March 19). Heartbeat presence + banner + background sync + post-save merge. See `dev-notes/concurrent-editing-strategy.md`.
 
 **Database:**
 
