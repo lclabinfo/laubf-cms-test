@@ -424,8 +424,13 @@ const CAMPUSES: { slug: string; name: string; shortName?: string }[] = [
 async function main() {
   console.log('Clearing existing data...')
 
-  // Delete in reverse dependency order
-  // Builder + website tables first
+  // Delete in reverse dependency order (leaf tables first, root tables last)
+
+  // Auth & session tables
+  await prisma.session.deleteMany()
+  await prisma.account.deleteMany()
+
+  // Builder tables
   await prisma.builderPresence.deleteMany()
   await prisma.menuItem.deleteMany()
   await prisma.menu.deleteMany()
@@ -434,19 +439,44 @@ async function main() {
   await prisma.themeCustomization.deleteMany()
   await prisma.theme.deleteMany()
   await prisma.siteSettings.deleteMany()
+  await prisma.customDomain.deleteMany()
+
+  // People & membership tables (leaf → parent)
+  await prisma.personNote.deleteMany()
+  await prisma.communicationPreference.deleteMany()
+  await prisma.personRoleAssignment.deleteMany()
+  await prisma.customFieldValue.deleteMany()
+  await prisma.customFieldDefinition.deleteMany()
+  await prisma.householdMember.deleteMany()
+  await prisma.household.deleteMany()
+  await prisma.accessRequest.deleteMany()
+  await prisma.churchMember.deleteMany()
+  await prisma.person.deleteMany()
+  await prisma.user.deleteMany()
+  await prisma.personRoleDefinition.deleteMany()
+
   // CMS content tables
   await prisma.messageSeries.deleteMany()
   await prisma.bibleStudyAttachment.deleteMany()
+  await prisma.bibleVerse.deleteMany()
   await prisma.eventLink.deleteMany()
   await prisma.tag.deleteMany()
+  await prisma.contactSubmission.deleteMany()
+  await prisma.announcement.deleteMany()
   await prisma.message.deleteMany()
   await prisma.bibleStudy.deleteMany()
   await prisma.event.deleteMany()
   await prisma.video.deleteMany()
   await prisma.dailyBread.deleteMany()
+  await prisma.mediaAsset.deleteMany()
+  await prisma.mediaFolder.deleteMany()
   await prisma.series.deleteMany()
   await prisma.ministry.deleteMany()
   await prisma.campus.deleteMany()
+
+  // System tables
+  await prisma.auditLog.deleteMany()
+  await prisma.subscription.deleteMany()
   await prisma.role.deleteMany()
   await prisma.church.deleteMany()
 
@@ -495,21 +525,25 @@ async function main() {
   })
   const churchId = church.id
 
-  // ── 2. Create Speakers ────────────────────────────────────
+  // ── 2. Create Speakers (as Person records) ───────────────
   console.log('Creating speakers...')
   const speakerNames = new Set<string>()
   for (const m of MESSAGES) speakerNames.add(m.speaker)
 
   const speakerMap = new Map<string, string>() // name -> id
   for (const name of speakerNames) {
-    const speaker = await prisma.speaker.create({
+    const parts = name.trim().split(/\s+/)
+    const firstName = parts[0] || name
+    const lastName = parts.slice(1).join(' ') || ''
+    const person = await prisma.person.create({
       data: {
         churchId,
-        name,
+        firstName,
+        lastName,
         slug: slugify(name),
       },
     })
-    speakerMap.set(name, speaker.id)
+    speakerMap.set(name, person.id)
   }
   console.log(`  Created ${speakerMap.size} speakers`)
 
