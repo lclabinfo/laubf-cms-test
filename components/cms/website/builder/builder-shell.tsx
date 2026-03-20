@@ -266,10 +266,15 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const handleRedoRef = useRef(handleRedo)
   handleRedoRef.current = handleRedo
 
-  // Reset state when page prop changes (navigating to different page)
-  // Note: history.reset is a stable useCallback ref, so we don't include
-  // `history` in deps (its object identity changes on every render).
+  // Track which page ID we're on so we can distinguish actual page
+  // navigation from router.refresh() re-renders (which also change `page`).
+  const currentPageIdRef = useRef(page.id)
+
+  // Reset state only when navigating to a DIFFERENT page (not on refresh)
   useEffect(() => {
+    if (page.id === currentPageIdRef.current) return
+    currentPageIdRef.current = page.id
+
     setSections(page.sections)
     setPageData(page)
     setSelectedSectionId(null)
@@ -503,8 +508,9 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         // Silent failure — user still has their saved state
       }
 
-      // Reset undo history since the base state has changed
-      history.reset()
+      // Keep undo/redo history intact across saves so users can still
+      // undo after auto-save. The pristine ref was already updated above
+      // so dirty detection stays correct.
 
       router.refresh()
 
@@ -520,7 +526,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
       setIsSaving(false)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pageData, sections, router, pageDirty, reorderDirty, dirtySectionIds, history.reset])
+  }, [pageData, sections, router, pageDirty, reorderDirty, dirtySectionIds])
 
   // Use a ref to always have the latest handleSave without re-subscribing the effect
   const handleSaveRef = useRef(handleSave)
@@ -582,13 +588,13 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
       sections: freshSections,
       pageTitle: freshPage.title,
     })
-    history.reset()
+    // Don't reset undo/redo history — background sync shouldn't wipe user's undo stack
 
     // Clear selection/editing if the section was removed by another user
     setSelectedSectionId(prev => (prev && !freshIds.has(prev) ? null : prev))
     setEditingSectionId(prev => (prev && !freshIds.has(prev) ? null : prev))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [history.reset])
+  }, [])
 
   useBackgroundSync({
     pageSlug: pageData.slug,

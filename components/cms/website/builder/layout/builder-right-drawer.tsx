@@ -334,8 +334,8 @@ export function BuilderRightDrawer({
 
           {/* Scrollable content for section editing */}
           {showSection && section && (
-            <ScrollArea className="flex-1 min-h-0 overflow-hidden">
-              <div className="p-4">
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="p-4 min-w-0 overflow-hidden">
                 <SectionEditorInline
                   key={section.id}
                   section={section}

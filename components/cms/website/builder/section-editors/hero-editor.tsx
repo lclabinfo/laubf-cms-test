@@ -1,15 +1,118 @@
 "use client"
 
 import { Separator } from "@/components/ui/separator"
+import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
+import { ImageIcon } from "lucide-react"
 import {
   EditorField,
   EditorInput,
   EditorTextarea,
   EditorButtonGroup,
-  TwoColumnGrid,
   ImagePickerField,
+  ImageListField,
+  VideoPickerField,
   ButtonConfig,
 } from "./shared"
+
+// --- Layout Arrangement Picker (for split layout) ---
+
+const splitArrangements = [
+  {
+    value: "text-left",
+    label: "Text Left / Image Right",
+    renderThumb: () => (
+      <div className="flex h-full gap-1 p-1.5">
+        <div className="flex flex-1 flex-col justify-center gap-1 px-1">
+          <div className="h-1 w-3/4 rounded-full bg-current opacity-60" />
+          <div className="h-1 w-full rounded-full bg-current opacity-40" />
+          <div className="h-1 w-2/3 rounded-full bg-current opacity-40" />
+        </div>
+        <div className="flex flex-1 items-center justify-center rounded bg-current opacity-15">
+          <ImageIcon className="size-3.5 opacity-40" />
+        </div>
+      </div>
+    ),
+  },
+  {
+    value: "image-left",
+    label: "Image Left / Text Right",
+    renderThumb: () => (
+      <div className="flex h-full gap-1 p-1.5">
+        <div className="flex flex-1 items-center justify-center rounded bg-current opacity-15">
+          <ImageIcon className="size-3.5 opacity-40" />
+        </div>
+        <div className="flex flex-1 flex-col justify-center gap-1 px-1">
+          <div className="h-1 w-3/4 rounded-full bg-current opacity-60" />
+          <div className="h-1 w-full rounded-full bg-current opacity-40" />
+          <div className="h-1 w-2/3 rounded-full bg-current opacity-40" />
+        </div>
+      </div>
+    ),
+  },
+  {
+    value: "text-top",
+    label: "Text Top / Image Bottom",
+    renderThumb: () => (
+      <div className="flex h-full flex-col gap-1 p-1.5">
+        <div className="flex flex-1 flex-col justify-center gap-0.5 px-1">
+          <div className="h-1 w-3/4 rounded-full bg-current opacity-60" />
+          <div className="h-1 w-full rounded-full bg-current opacity-40" />
+        </div>
+        <div className="flex flex-1 items-center justify-center rounded bg-current opacity-15">
+          <ImageIcon className="size-3 opacity-40" />
+        </div>
+      </div>
+    ),
+  },
+  {
+    value: "image-top",
+    label: "Image Top / Text Bottom",
+    renderThumb: () => (
+      <div className="flex h-full flex-col gap-1 p-1.5">
+        <div className="flex flex-1 items-center justify-center rounded bg-current opacity-15">
+          <ImageIcon className="size-3 opacity-40" />
+        </div>
+        <div className="flex flex-1 flex-col justify-center gap-0.5 px-1">
+          <div className="h-1 w-3/4 rounded-full bg-current opacity-60" />
+          <div className="h-1 w-full rounded-full bg-current opacity-40" />
+        </div>
+      </div>
+    ),
+  },
+] as const
+
+function LayoutArrangementPicker({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (v: string) => void
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm font-medium">Arrangement</Label>
+      <div className="grid grid-cols-2 gap-2">
+        {splitArrangements.map((arr) => (
+          <button
+            key={arr.value}
+            type="button"
+            onClick={() => onChange(arr.value)}
+            className={cn(
+              "h-14 w-full rounded-md border-2 transition-colors text-foreground",
+              value === arr.value
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-muted-foreground/40 text-muted-foreground"
+            )}
+            title={arr.label}
+          >
+            {arr.renderThumb()}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 // --- Hero Banner Editor ---
 
@@ -40,9 +143,120 @@ export function HeroBannerEditor({
     alt: string
     objectPosition?: string
   }) ?? { src: "", alt: "" }
+  const bgVideo = (content.backgroundVideo as {
+    src: string
+    mobileSrc?: string
+  }) ?? { src: "", mobileSrc: "" }
+  const posterImage = (content.posterImage as {
+    src: string
+    alt: string
+  }) ?? { src: "", alt: "" }
+
+  // Helper to detect video file URLs
+  const isVideoSrc = (src: string) => /\.(mp4|webm|mov|ogg)(\?|$)/i.test(src)
+
+  // Multi-image support: read images array, fall back to single backgroundImage
+  // Filter out video files — those belong in the video section
+  const rawImages = (content.images as Array<{ src: string; alt: string }>) ??
+    (bgImage.src && !isVideoSrc(bgImage.src) ? [{ src: bgImage.src, alt: bgImage.alt }] : [])
+  const images = rawImages.filter((img) => !isVideoSrc(img.src))
+  const overline = (content.overline as string) ?? ""
+
+  // New layout fields with sensible defaults
+  const layout = (content.layout as string) || "fullwidth"
+  const splitArrangement =
+    (content.splitArrangement as string) || "text-left"
+  const textHAlign = (content.textHAlign as string) || "center"
+  const textVAlign = (content.textVAlign as string) || "middle"
+  const splitTextAlign = (content.textAlign as string) || "left"
+
+  // Infer media type from existing content
+  // Override saved "image" if the only media source is actually a video file
+  const savedMediaType = content.mediaType as string | undefined
+  const hasRealVideo = bgVideo.src || isVideoSrc(bgImage.src)
+  const hasRealImages = images.length > 0
+  const mediaType = savedMediaType
+    ? (savedMediaType === "image" && !hasRealImages && hasRealVideo ? "video" : savedMediaType)
+    : (hasRealVideo ? "video" : "image")
 
   return (
     <div className="space-y-6">
+      {/* Layout Variant */}
+      <EditorButtonGroup
+        label="Layout"
+        value={layout}
+        onChange={(v) => onChange({ ...content, layout: v })}
+        options={[
+          { value: "fullwidth", label: "Full Width" },
+          { value: "split", label: "Split" },
+        ]}
+        size="sm"
+      />
+
+      {/* Split: Arrangement picker */}
+      {layout === "split" && (
+        <LayoutArrangementPicker
+          value={splitArrangement}
+          onChange={(v) =>
+            onChange({ ...content, splitArrangement: v })
+          }
+        />
+      )}
+
+      {/* Fullwidth: Text Position */}
+      {layout === "fullwidth" && (
+        <>
+          <EditorButtonGroup
+            label="Horizontal Position"
+            value={textHAlign}
+            onChange={(v) => onChange({ ...content, textHAlign: v })}
+            options={[
+              { value: "left", label: "Left" },
+              { value: "center", label: "Center" },
+              { value: "right", label: "Right" },
+            ]}
+            size="sm"
+          />
+          <EditorButtonGroup
+            label="Vertical Position"
+            value={textVAlign}
+            onChange={(v) => onChange({ ...content, textVAlign: v })}
+            options={[
+              { value: "top", label: "Top" },
+              { value: "middle", label: "Middle" },
+              { value: "bottom", label: "Bottom" },
+            ]}
+            size="sm"
+          />
+        </>
+      )}
+
+      {/* Split: Text Alignment */}
+      {layout === "split" && (
+        <EditorButtonGroup
+          label="Text Alignment"
+          value={splitTextAlign}
+          onChange={(v) => onChange({ ...content, textAlign: v })}
+          options={[
+            { value: "left", label: "Left" },
+            { value: "center", label: "Center" },
+            { value: "right", label: "Right" },
+          ]}
+          size="sm"
+        />
+      )}
+
+      <Separator />
+
+      {/* Overline (shown for both layouts) */}
+      <EditorInput
+        label="Overline"
+        labelSize="sm"
+        value={overline}
+        onChange={(v) => onChange({ ...content, overline: v })}
+        placeholder="Optional overline text"
+      />
+
       {/* Heading */}
       <div className="space-y-3">
         <EditorField label="Heading" labelSize="sm">
@@ -85,46 +299,76 @@ export function HeroBannerEditor({
 
       <Separator />
 
-      {/* Background Image */}
-      <div className="space-y-3">
-        <ImagePickerField
-          label="Image"
-          value={bgImage.src}
-          onChange={(v) =>
-            onChange({
-              ...content,
-              backgroundImage: { ...bgImage, src: v },
-            })
-          }
-        />
-        <TwoColumnGrid>
-          <EditorInput
-            label="Alt Text"
-            value={bgImage.alt}
+      {/* Media Type selector */}
+      <EditorButtonGroup
+        label="Media Type"
+        value={mediaType}
+        onChange={(v) => onChange({ ...content, mediaType: v })}
+        options={[
+          { value: "image", label: "Image" },
+          { value: "video", label: "Video" },
+        ]}
+        size="sm"
+      />
+
+      {/* Image fields */}
+      {mediaType === "image" && (
+        <div className="space-y-3">
+          <ImageListField
+            label={layout === "split" ? "Images" : "Background Images"}
+            images={images}
+            onChange={(imgs) => {
+              // Write images array + backward-compat backgroundImage
+              const backgroundImage = imgs.length > 0
+                ? { ...bgImage, src: imgs[0].src, alt: imgs[0].alt }
+                : { src: "", alt: "" }
+              onChange({
+                ...content,
+                images: imgs,
+                backgroundImage,
+              })
+            }}
+            maxImages={10}
+          />
+        </div>
+      )}
+
+      {/* Video fields */}
+      {mediaType === "video" && (
+        <div className="space-y-3">
+          <VideoPickerField
+            label="Video URL"
+            value={bgVideo.src || (isVideoSrc(bgImage.src) ? bgImage.src : "")}
             onChange={(v) =>
               onChange({
                 ...content,
-                backgroundImage: { ...bgImage, alt: v },
+                backgroundVideo: { ...bgVideo, src: v },
+                // Clear the video from backgroundImage if it was stored there (legacy)
+                ...(isVideoSrc(bgImage.src) ? { backgroundImage: { ...bgImage, src: "" } } : {}),
               })
             }
-            placeholder="Hero background"
+            posterImage={posterImage.src}
+            onPosterChange={(v) =>
+              onChange({
+                ...content,
+                posterImage: { ...posterImage, src: v },
+              })
+            }
           />
           <EditorInput
-            label="Object Position"
-            value={bgImage.objectPosition ?? ""}
+            label="Mobile Video URL (optional)"
+            value={bgVideo.mobileSrc ?? ""}
             onChange={(v) =>
               onChange({
                 ...content,
-                backgroundImage: {
-                  ...bgImage,
-                  objectPosition: v,
-                },
+                backgroundVideo: { ...bgVideo, mobileSrc: v },
               })
             }
-            placeholder="center center"
+            placeholder="https://..."
+            type="url"
           />
-        </TwoColumnGrid>
-      </div>
+        </div>
+      )}
 
       <Separator />
 
@@ -304,30 +548,17 @@ export function TextImageHeroEditor({
             onChange({ ...content, image: { ...image, src: v } })
           }
         />
-        <TwoColumnGrid>
-          <EditorInput
-            label="Alt Text"
-            value={image.alt}
-            onChange={(v) =>
-              onChange({
-                ...content,
-                image: { ...image, alt: v },
-              })
-            }
-            placeholder="Hero image"
-          />
-          <EditorInput
-            label="Object Position"
-            value={image.objectPosition ?? ""}
-            onChange={(v) =>
-              onChange({
-                ...content,
-                image: { ...image, objectPosition: v },
-              })
-            }
-            placeholder="center center"
-          />
-        </TwoColumnGrid>
+        <EditorInput
+          label="Alt Text"
+          value={image.alt}
+          onChange={(v) =>
+            onChange({
+              ...content,
+              image: { ...image, alt: v },
+            })
+          }
+          placeholder="Hero image"
+        />
       </div>
     </div>
   )
@@ -438,33 +669,17 @@ export function MinistryHeroEditor({
             onChange({ ...content, heroImage: { ...heroImage, src: v } })
           }
         />
-        <TwoColumnGrid>
-          <EditorInput
-            label="Alt Text"
-            value={heroImage.alt}
-            onChange={(v) =>
-              onChange({
-                ...content,
-                heroImage: { ...heroImage, alt: v },
-              })
-            }
-            placeholder="Ministry banner"
-          />
-          <EditorInput
-            label="Object Position"
-            value={heroImage.objectPosition ?? ""}
-            onChange={(v) =>
-              onChange({
-                ...content,
-                heroImage: {
-                  ...heroImage,
-                  objectPosition: v,
-                },
-              })
-            }
-            placeholder="center center"
-          />
-        </TwoColumnGrid>
+        <EditorInput
+          label="Alt Text"
+          value={heroImage.alt}
+          onChange={(v) =>
+            onChange({
+              ...content,
+              heroImage: { ...heroImage, alt: v },
+            })
+          }
+          placeholder="Ministry banner"
+        />
       </div>
 
       <p className="text-xs text-muted-foreground">

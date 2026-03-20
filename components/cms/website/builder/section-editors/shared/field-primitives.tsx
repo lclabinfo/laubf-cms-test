@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import {
   Select,
   SelectContent,
@@ -230,22 +231,24 @@ export function EditorButtonGroup({
 }: EditorButtonGroupProps) {
   const buttons = (
     <div className="flex gap-2">
-      {options.map((opt) => (
-        <Button
-          key={opt.value}
-          type="button"
-          variant="outline"
-          size={size === "sm" ? "sm" : "default"}
-          onClick={() => onChange(opt.value)}
-          className={`text-xs font-medium ${
-            value === opt.value
-              ? "border-primary bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          {opt.label}
-        </Button>
-      ))}
+      {options.map((opt) => {
+        const isActive = value === opt.value
+        return (
+          <Button
+            key={opt.value}
+            type="button"
+            variant={isActive ? "default" : "outline"}
+            size={size === "sm" ? "sm" : "default"}
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              "text-xs font-medium",
+              !isActive && "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {opt.label}
+          </Button>
+        )
+      })}
     </div>
   )
 
