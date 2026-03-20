@@ -20,7 +20,7 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable"
 import { cn } from "@/lib/utils"
-import { Edit3 } from "lucide-react"
+import { Edit3, PanelTop, PanelBottom } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SortableSection } from "./sortable-section"
 import { SectionAddTrigger } from "../sections/section-add-trigger"
@@ -337,6 +337,18 @@ export function BuilderPreviewClient({
               sticky={navbarData.sticky}
             />
           </div>
+          {/* Edit navbar button — always visible, bottom-right of navbar */}
+          <button
+            type="button"
+            className="absolute bottom-2 right-4 z-[110] bg-[#1e1e1e] text-white rounded-md shadow-lg px-2.5 py-1.5 flex items-center gap-1.5 text-xs font-medium border border-white/10 hover:bg-[#2e2e2e] transition-colors cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation()
+              postToParent({ type: "NAVBAR_CLICKED" })
+            }}
+          >
+            <PanelTop className="size-3" />
+            Edit Navigation
+          </button>
         </div>
       )}
 
@@ -462,6 +474,18 @@ export function BuilderPreviewClient({
           )}
           onClick={handleFooterClick}
         >
+          {/* Edit footer button — always visible, top-right of footer */}
+          <button
+            type="button"
+            className="absolute top-4 right-4 z-[110] bg-[#1e1e1e] text-white rounded-md shadow-lg px-2.5 py-1.5 flex items-center gap-1.5 text-xs font-medium border border-white/10 hover:bg-[#2e2e2e] transition-colors cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation()
+              postToParent({ type: "FOOTER_CLICKED" })
+            }}
+          >
+            <PanelBottom className="size-3" />
+            Edit Footer
+          </button>
           <WebsiteFooter menu={footerMenu} siteSettings={footerSiteSettings} />
         </div>
       )}

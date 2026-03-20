@@ -39,9 +39,9 @@ This recommendation consolidates 41 types into **24 section types** across **6 c
 
 ### Category Restructure
 
-| Current (8 categories, 41 types) | Proposed (6 categories, 24 types) |
+| Current (8 categories, 41 types) | Proposed (6 categories, 25 types) |
 |---|---|
-| Heroes (5) | **Hero** (2) |
+| Heroes (5) | **Hero** (3) |
 | Content (8) | **Content** (6) |
 | Cards & Grids (6) | **Cards** (4) |
 | Lists & Data (8) | **Dynamic Content** (5) |
@@ -54,20 +54,31 @@ This recommendation consolidates 41 types into **24 section types** across **6 c
 
 ## Section Consolidations
 
-### A. Heroes: 5 → 2
+### A. Heroes: 5 → 3
 
-**The problem:** Five hero types that differ only in layout arrangement. A church admin shouldn't need to know the difference between `HERO_BANNER`, `PAGE_HERO`, `TEXT_IMAGE_HERO`, `EVENTS_HERO`, and `MINISTRY_HERO`. They want a big section at the top of their page.
+> **Updated 2026-03-19:** Adopted Webflow model — separate Hero (homepage) from Page Header (inner pages). See `competitor-naming-audit.md` for rationale.
 
-#### 1. **Hero** (merges HERO_BANNER, PAGE_HERO, TEXT_IMAGE_HERO, EVENTS_HERO)
+**The problem:** Five hero types that differ only in layout arrangement. A church admin shouldn't need to know the difference between `HERO_BANNER`, `PAGE_HERO`, `TEXT_IMAGE_HERO`, `EVENTS_HERO`, and `MINISTRY_HERO`.
 
-One hero section with a **Layout** setting:
+**The solution:** Three non-overlapping types based on *where* they're used, not *how* they look.
+
+#### 1. **Hero** (merges HERO_BANNER, TEXT_IMAGE_HERO)
+
+The dramatic, full-impact section for the **homepage** (or landing pages). Two layout variants with rich sub-options.
 
 | Layout Variant | Maps to Current | Visual |
 |---|---|---|
-| **Full-width background** | HERO_BANNER | Background image/video, centered text overlay |
-| **Centered** | PAGE_HERO | No background, centered heading + buttons |
-| **Split** | TEXT_IMAGE_HERO | Text on one side, image on the other |
-| **Simple** | EVENTS_HERO | Just heading + subtitle, minimal |
+| **Full-width background** | HERO_BANNER | Background media, text overlay |
+| **Split** | TEXT_IMAGE_HERO | Text block + media block arranged in one of 4 positions |
+
+**Split sub-layouts** (shown as 2x2 visual thumbnail grid in editor):
+
+| Arrangement | Description |
+|---|---|
+| Text Left / Image Right | Classic side-by-side, text leads |
+| Image Left / Text Right | Image leads, text follows |
+| Text Top / Image Bottom | Stacked, text above |
+| Image Top / Text Bottom | Stacked, image above |
 
 Editor fields (all variants):
 - Heading (text)
@@ -75,20 +86,55 @@ Editor fields (all variants):
 - Primary button (label + link + visible)
 - Secondary button (label + link + visible)
 
+**Layout controls:**
+- **Full-width text position** — two independent toggles:
+  - Horizontal: Left / Center / Right
+  - Vertical: Top / Middle / Bottom
+- **Split arrangement** — 2x2 visual thumbnail picker (see table above)
+- **Split text alignment** — Left / Center / Right toggle (within the text block)
+
+**Media type** (applies to both variants):
+- **Image** — single image via media library picker. If 2+ images added, automatically becomes a carousel (no separate "carousel" option needed — inferred from count, like Squarespace).
+- **Video** — URL input OR media library video picker. Shows thumbnail preview in editor.
+- Media library integration is required for both — no raw URL-only inputs for images.
+- Editor must show a live preview of the selected media (currently broken — fix required).
+
+**Color scheme** (section-level, applies to all sections):
+- Uses the existing `PageSection.colorScheme` field
+- Presets exposed in every section editor:
+  - Default (current dark overlay style)
+  - Light (white/light bg, dark text)
+  - Dark (dark bg, light text)
+  - Brand (primary color bg, contrast text)
+- Presets auto-apply to all text, buttons, and overlays within the section. Not hero-specific — this is a platform-level feature for all section types.
+
 Variant-specific fields (shown/hidden based on Layout selection):
-- **Full-width**: Background image picker, background video URL, overline
-- **Centered**: Overline
-- **Split**: Image picker, text alignment (L/C/R), overline, heading accent line
-- **Simple**: *(no extra fields)*
+- **Full-width**: Background media picker (image/video), overline
+- **Split**: Media picker (image/video), overline, heading accent line
 
-The editor shows/hides fields dynamically based on the layout toggle. User picks layout → sees only the fields that matter.
+#### 2. **Page Header** (merges PAGE_HERO, EVENTS_HERO)
 
-#### 2. **Ministry Hero** (keeps MINISTRY_HERO as-is)
+The utilitarian top section for **inner pages** (About, Events, Messages, etc.). Orients the visitor — "where am I?" — without the dramatic visual treatment of the Hero.
 
-This one stays separate because it has genuinely different content: social links, heading style toggle (display/sans), and it's only used on ministry hub pages. Merging it into the generic Hero would clutter the variant with ministry-specific fields that don't apply elsewhere.
+| Layout Variant | Maps to Current | Visual |
+|---|---|---|
+| **Centered** | PAGE_HERO | Centered heading + overline + buttons |
+| **Simple** | EVENTS_HERO | Just heading + subtitle, minimal |
+
+Editor fields:
+- Overline (text, optional)
+- Heading (text)
+- Subheading / description (textarea)
+- Primary button (label + link + visible)
+- Secondary button (label + link + visible)
+
+This is the most commonly used top-of-page section. Most inner pages will use it.
+
+#### 3. **Ministry Header** (keeps MINISTRY_HERO as-is)
+
+Specialized header for **ministry hub pages** only. Stays separate because it has genuinely different content: social links, heading style toggle (display/sans), and ministry-specific fields that don't apply elsewhere.
 
 - Add the social links array editor (currently JSON-only — per gap analysis)
-- Rename in picker to: **"Ministry Header"**
 
 ---
 
@@ -303,8 +349,9 @@ Tab toggle between HTML and URL mode. One section type, two input modes.
 What the admin sees when they click "Add Section":
 
 ```
-Hero (2)
-  ├── Hero                    → 4 layout variants
+Hero (3)
+  ├── Hero                    → full-width or split (homepage/landing)
+  ├── Page Header             → centered or simple (inner pages)
   └── Ministry Header         → ministry pages only
 
 Content (6)
@@ -342,7 +389,7 @@ Embed (1)
   └── Custom Embed             → HTML or iframe URL
 ```
 
-**Total: 24 types.** Down from 41. Every current rendering is preserved as a variant.
+**Total: 25 types.** Down from 41. Every current rendering is preserved as a variant.
 
 ---
 
@@ -429,44 +476,44 @@ Before implementation, these need your call:
 | # | Proposed Name | Current Type(s) | Category | Variant | Data-Driven |
 |---|---|---|---|---|---|
 | 1 | Hero | HERO_BANNER | Hero | Full-width background | No |
-| 1 | Hero | PAGE_HERO | Hero | Centered | No |
 | 1 | Hero | TEXT_IMAGE_HERO | Hero | Split | No |
-| 1 | Hero | EVENTS_HERO | Hero | Simple | No |
-| 2 | Ministry Header | MINISTRY_HERO | Hero | — | No |
-| 3 | Image & Text | MEDIA_TEXT | Content | — | No |
-| 4 | Quote | QUOTE_BANNER | Content | — | No |
-| 5 | Call to Action | CTA_BANNER | Content | — | No |
-| 6 | About | ABOUT_DESCRIPTION | Content | — | No |
-| 7 | Statement | STATEMENT | Content | — | No |
-| 8 | Photo Gallery | PHOTO_GALLERY | Content | — | No |
-| 9 | Card Grid | ACTION_CARD_GRID | Cards | Image cards | No |
-| 9 | Card Grid | PATHWAY_CARD | Cards | Icon cards | No |
-| 10 | Feature List | FEATURE_BREAKDOWN | Cards | — | No |
-| 11 | Alternating Content | PILLARS | Cards | — | No |
-| 12 | Welcome Banner | NEWCOMER | Cards | — | No |
-| 13 | Content Listing | ALL_MESSAGES | Dynamic Content | Messages | Yes |
-| 13 | Content Listing | ALL_EVENTS | Dynamic Content | Events | Yes |
-| 13 | Content Listing | ALL_BIBLE_STUDIES | Dynamic Content | Bible Studies | Yes |
-| 13 | Content Listing | ALL_VIDEOS | Dynamic Content | Videos | Yes |
-| 14 | Featured Content | SPOTLIGHT_MEDIA | Dynamic Content | Spotlight | Yes |
-| 14 | Featured Content | HIGHLIGHT_CARDS | Dynamic Content | Highlight cards | Yes |
-| 14 | Featured Content | MEDIA_GRID | Dynamic Content | Video grid | Yes |
-| 15 | Upcoming Events | UPCOMING_EVENTS | Dynamic Content | — | Yes |
-| 16 | Event Calendar | EVENT_CALENDAR | Dynamic Content | — | Yes |
-| 17 | Recurring Meetings | RECURRING_MEETINGS | Dynamic Content | List | Yes |
-| 17 | Recurring Meetings | QUICK_LINKS | Dynamic Content | Carousel | Yes |
-| 18 | Team | MEET_TEAM | People & Places | — | No |
-| 19 | Location | LOCATION_DETAIL | People & Places | Detail | No |
-| 19 | Location | MINISTRY_SCHEDULE | People & Places | Schedule | No |
-| 19 | Location | CAMPUS_CARD_GRID | People & Places | Card grid | No |
-| 19 | Location | RECURRING_SCHEDULE | People & Places | Weekly schedule | No |
-| 20 | Ministry Intro | MINISTRY_INTRO | People & Places | Single | No |
-| 20 | Ministry Intro | DIRECTORY_LIST | People & Places | Directory | No |
-| 21 | FAQ | FAQ_SECTION | Utility | — | No |
-| 22 | Timeline | TIMELINE_SECTION | Utility | — | No |
-| 23 | Contact Form | FORM_SECTION | Utility | — | No |
-| 24 | Custom Embed | CUSTOM_HTML | Embed | HTML mode | No |
-| 24 | Custom Embed | CUSTOM_EMBED | Embed | URL mode | No |
+| 2 | Page Header | PAGE_HERO | Hero | Centered | No |
+| 2 | Page Header | EVENTS_HERO | Hero | Simple | No |
+| 3 | Ministry Header | MINISTRY_HERO | Hero | — | No |
+| 4 | Image & Text | MEDIA_TEXT | Content | — | No |
+| 5 | Quote | QUOTE_BANNER | Content | — | No |
+| 6 | Call to Action | CTA_BANNER | Content | — | No |
+| 7 | About | ABOUT_DESCRIPTION | Content | — | No |
+| 8 | Statement | STATEMENT | Content | — | No |
+| 9 | Photo Gallery | PHOTO_GALLERY | Content | — | No |
+| 10 | Card Grid | ACTION_CARD_GRID | Cards | Image cards | No |
+| 10 | Card Grid | PATHWAY_CARD | Cards | Icon cards | No |
+| 11 | Feature List | FEATURE_BREAKDOWN | Cards | — | No |
+| 12 | Alternating Content | PILLARS | Cards | — | No |
+| 13 | Welcome Banner | NEWCOMER | Cards | — | No |
+| 14 | Content Listing | ALL_MESSAGES | Dynamic Content | Messages | Yes |
+| 14 | Content Listing | ALL_EVENTS | Dynamic Content | Events | Yes |
+| 14 | Content Listing | ALL_BIBLE_STUDIES | Dynamic Content | Bible Studies | Yes |
+| 14 | Content Listing | ALL_VIDEOS | Dynamic Content | Videos | Yes |
+| 15 | Featured Content | SPOTLIGHT_MEDIA | Dynamic Content | Spotlight | Yes |
+| 15 | Featured Content | HIGHLIGHT_CARDS | Dynamic Content | Highlight cards | Yes |
+| 15 | Featured Content | MEDIA_GRID | Dynamic Content | Video grid | Yes |
+| 16 | Upcoming Events | UPCOMING_EVENTS | Dynamic Content | — | Yes |
+| 17 | Event Calendar | EVENT_CALENDAR | Dynamic Content | — | Yes |
+| 18 | Recurring Meetings | RECURRING_MEETINGS | Dynamic Content | List | Yes |
+| 18 | Recurring Meetings | QUICK_LINKS | Dynamic Content | Carousel | Yes |
+| 19 | Team | MEET_TEAM | People & Places | — | No |
+| 20 | Location | LOCATION_DETAIL | People & Places | Detail | No |
+| 20 | Location | MINISTRY_SCHEDULE | People & Places | Schedule | No |
+| 20 | Location | CAMPUS_CARD_GRID | People & Places | Card grid | No |
+| 20 | Location | RECURRING_SCHEDULE | People & Places | Weekly schedule | No |
+| 21 | Ministry Intro | MINISTRY_INTRO | People & Places | Single | No |
+| 21 | Ministry Intro | DIRECTORY_LIST | People & Places | Directory | No |
+| 22 | FAQ | FAQ_SECTION | Utility | — | No |
+| 23 | Timeline | TIMELINE_SECTION | Utility | — | No |
+| 24 | Contact Form | FORM_SECTION | Utility | — | No |
+| 25 | Custom Embed | CUSTOM_HTML | Embed | HTML mode | No |
+| 25 | Custom Embed | CUSTOM_EMBED | Embed | URL mode | No |
 | — | *(site settings)* | FOOTER | — | — | No |
 | — | *(layout)* | NAVBAR | — | — | — |
 | — | *(hidden)* | DAILY_BREAD_FEATURE | — | — | Yes |

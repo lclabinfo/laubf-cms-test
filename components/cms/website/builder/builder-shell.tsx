@@ -1250,12 +1250,31 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   )
 
   const handlePageCreated = useCallback(
-    (newPage: PageSummary) => {
+    async (newPage: PageSummary) => {
       setPages((prev) => [...prev, newPage])
+
+      // Auto-create a MenuItem for the new page in the header menu
+      if (headerMenuId) {
+        try {
+          await fetch(`/api/v1/menus/${headerMenuId}/items`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              label: newPage.title,
+              href: `/${newPage.slug}`,
+            }),
+          })
+          await refreshMenu()
+        } catch {
+          // MenuItem creation failed — page still exists, just not in nav
+          console.error("Failed to auto-create menu item for new page")
+        }
+      }
+
       navigateAway(`/cms/website/builder/${newPage.id}`)
       toast.success("Page created")
     },
-    [navigateAway],
+    [navigateAway, headerMenuId, refreshMenu],
   )
 
   // -------------------------------------------------------------------------

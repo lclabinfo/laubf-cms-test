@@ -23,6 +23,7 @@ import {
   Copy,
   ExternalLink,
   EyeOff,
+  FilePlus,
   FileText,
   Folder,
   GripVertical,
@@ -290,6 +291,86 @@ function InlineAddInput({ placeholder, onSubmit, onCancel }: InlineAddInputProps
       >
         <X className="size-3.5" />
       </Button>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// ExternalLinkAddInput — two-field inline input for adding external links
+// ---------------------------------------------------------------------------
+
+interface ExternalLinkAddInputProps {
+  onSubmit: (label: string, url: string) => void
+  onCancel: () => void
+}
+
+function ExternalLinkAddInput({ onSubmit, onCancel }: ExternalLinkAddInputProps) {
+  const [label, setLabel] = useState("")
+  const [url, setUrl] = useState("")
+  const labelRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    labelRef.current?.focus()
+  }, [])
+
+  const handleSubmit = () => {
+    const trimmedLabel = label.trim()
+    const trimmedUrl = url.trim()
+    if (trimmedLabel && trimmedUrl) {
+      onSubmit(trimmedLabel, trimmedUrl)
+    } else if (!trimmedLabel && !trimmedUrl) {
+      onCancel()
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-1.5">
+        <Input
+          ref={labelRef}
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="Label..."
+          className="h-7 text-xs flex-1 bg-muted/30 border-border/50"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onCancel()
+          }}
+        />
+      </div>
+      <div className="flex items-center gap-1.5">
+        <Input
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://..."
+          className="h-7 text-xs flex-1 bg-muted/30 border-border/50"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSubmit()
+            if (e.key === "Escape") onCancel()
+          }}
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 shrink-0 text-primary hover:text-primary"
+          onMouseDown={(e) => {
+            e.preventDefault()
+            handleSubmit()
+          }}
+        >
+          <Check className="size-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+          onMouseDown={(e) => {
+            e.preventDefault()
+            onCancel()
+          }}
+        >
+          <X className="size-3.5" />
+        </Button>
+      </div>
     </div>
   )
 }
@@ -576,6 +657,10 @@ interface TopLevelItemProps {
   onDuplicatePage?: (pageId: string) => void
   /** Resolver function for child items */
   resolvePageId: (href: string | null) => string | null
+  /** Convert a page/page-dropdown item to a dropdown (removes href) */
+  onConvertToDropdown?: (item: MenuItemData) => void
+  /** Convert a folder-dropdown item to a page (opens editor) */
+  onConvertToPage?: (item: MenuItemData) => void
 }
 
 function SortableTopLevelItem({
@@ -595,6 +680,8 @@ function SortableTopLevelItem({
   onDeletePage,
   onDuplicatePage,
   resolvePageId,
+  onConvertToDropdown,
+  onConvertToPage,
 }: TopLevelItemProps) {
   const sortableId = toTopId(item.id)
   const {
@@ -828,6 +915,23 @@ function SortableTopLevelItem({
               <DropdownMenuItem onClick={() => onEditItem?.(item.id)}>
                 <Pencil className="size-3.5 mr-2" /> Edit Properties
               </DropdownMenuItem>
+              {/* Type conversion options */}
+              {type === "folder-dropdown" && onConvertToPage && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onConvertToPage(item)}>
+                    <FileText className="size-3.5 mr-2" /> Convert to Page
+                  </DropdownMenuItem>
+                </>
+              )}
+              {(type === "page" || type === "page-dropdown") && onConvertToDropdown && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => onConvertToDropdown(item)}>
+                    <ChevronDown className="size-3.5 mr-2" /> Convert to Dropdown
+                  </DropdownMenuItem>
+                </>
+              )}
               {/* Page management actions */}
               {isPageItem && pageSummary && (
                 <>
@@ -1214,6 +1318,7 @@ export function NavigationEditor({
 
   // Inline add state for top-level
   const [addingTopLevel, setAddingTopLevel] = useState(false)
+  const [addingExternalLink, setAddingExternalLink] = useState(false)
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
@@ -1265,10 +1370,13 @@ export function NavigationEditor({
     function collectHrefs(itemList: MenuItemData[]) {
       for (const item of itemList) {
         if (item.href && !item.isExternal) {
+          // Strip query params for matching (e.g. "/events?tab=event" → "/events")
+          const [pathPart] = item.href.split("?")
+          hrefs.add(pathPart)
           hrefs.add(item.href)
           // Also add without leading slash
-          if (item.href.startsWith("/")) {
-            hrefs.add(item.href.slice(1))
+          if (pathPart.startsWith("/")) {
+            hrefs.add(pathPart.slice(1))
           }
         }
         if (item.children) {
@@ -1421,6 +1529,43 @@ export function NavigationEditor({
     }
   }, [menuId, refreshMenu])
 
+  // Add external link — inline input creates a MenuItem with isExternal
+  const handleAddExternalLink = useCallback(async (label: string, url: string) => {
+    try {
+      const res = await fetch(`/api/v1/menus/${menuId}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label, href: url, isExternal: true, openInNewTab: true }),
+      })
+      if (!res.ok) throw new Error("Failed to add external link")
+      toast.success("External link added")
+      await refreshMenu()
+    } catch {
+      toast.error("Failed to add external link")
+    }
+  }, [menuId, refreshMenu])
+
+  // Convert item to dropdown (remove href)
+  const handleConvertToDropdown = useCallback(async (item: MenuItemData) => {
+    try {
+      const res = await fetch(`/api/v1/menus/${menuId}/items/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ href: null }),
+      })
+      if (!res.ok) throw new Error("Failed to convert to dropdown")
+      toast.success("Converted to dropdown")
+      await refreshMenu()
+    } catch {
+      toast.error("Failed to convert to dropdown")
+    }
+  }, [menuId, refreshMenu])
+
+  // Convert dropdown to page — open the editor so user can set URL
+  const handleConvertToPage = useCallback((item: MenuItemData) => {
+    onEditItem?.(item.id)
+  }, [onEditItem])
+
   // Delete item
   const handleDeleteItem = useCallback(
     async (itemId: string) => {
@@ -1465,45 +1610,60 @@ export function NavigationEditor({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header with Add Page + Add Menu Item buttons */}
-      <div className="flex flex-col gap-2 p-4 pb-3 border-b border-sidebar-border shrink-0">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">Pages & Navigation</h3>
-        </div>
-        <div className="flex items-center gap-2">
-          {onAddPage && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs gap-1.5 flex-1"
-              onClick={onAddPage}
-            >
+      {/* Header with single Add dropdown */}
+      <div className="flex items-center justify-between p-4 pb-3 border-b border-sidebar-border shrink-0">
+        <h3 className="text-sm font-semibold text-foreground">Pages & Navigation</h3>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5">
               <Plus className="size-3.5" />
-              Add Page
+              Add
             </Button>
-          )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 text-xs gap-1.5 flex-1"
-            onClick={() => setAddingTopLevel(true)}
-          >
-            <Plus className="size-3.5" />
-            Add Menu Item
-          </Button>
-        </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            <DropdownMenuItem onClick={() => onAddPage?.()}>
+              <FilePlus className="size-3.5 mr-2" />
+              New Page
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <div className="px-2 py-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Menu Items</span>
+            </div>
+            <DropdownMenuItem onClick={() => setAddingTopLevel(true)}>
+              <ChevronDown className="size-3.5 mr-2" />
+              Dropdown
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setAddingExternalLink(true)}>
+              <ExternalLink className="size-3.5 mr-2" />
+              External Link
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      {/* Inline add for top-level */}
+      {/* Inline add for top-level dropdown */}
       {addingTopLevel && (
         <div className="px-3 py-2 border-b border-sidebar-border">
           <InlineAddInput
-            placeholder="Item label..."
+            placeholder="Dropdown label..."
             onSubmit={(label) => {
               setAddingTopLevel(false)
               handleAddTopLevel(label)
             }}
             onCancel={() => setAddingTopLevel(false)}
+          />
+        </div>
+      )}
+
+      {/* Inline add for external link */}
+      {addingExternalLink && (
+        <div className="px-3 py-2 border-b border-sidebar-border">
+          <ExternalLinkAddInput
+            onSubmit={(label, url) => {
+              setAddingExternalLink(false)
+              handleAddExternalLink(label, url)
+            }}
+            onCancel={() => setAddingExternalLink(false)}
           />
         </div>
       )}
@@ -1557,6 +1717,8 @@ export function NavigationEditor({
                       onDeletePage={onDeletePage}
                       onDuplicatePage={onDuplicatePage}
                       resolvePageId={resolvePageId}
+                      onConvertToDropdown={handleConvertToDropdown}
+                      onConvertToPage={handleConvertToPage}
                     />
                   )
                 })}

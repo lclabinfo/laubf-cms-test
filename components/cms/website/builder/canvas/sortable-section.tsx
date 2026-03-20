@@ -28,6 +28,10 @@ interface SortableSectionProps {
  * - "bottom" → section top is scrolled above viewport, toolbar sits at bottom-right
  * - "sticky" → both top and bottom are off-screen (very tall section), toolbar
  *              is position:sticky within the viewport
+ *
+ * Uses the actual viewport bounds (0 → window.innerHeight) rather than a
+ * scroll parent's bounding rect, since inside the builder iframe the scroll
+ * container is the document itself.
  */
 function useToolbarPlacement(
   sectionRef: React.RefObject<HTMLDivElement | null>,
@@ -39,16 +43,15 @@ function useToolbarPlacement(
     const el = sectionRef.current
     if (!el || !isActive) return
 
-    // Find the scrollable ancestor (the builder canvas, or document root inside iframe)
-    const scrollParent = (el.closest("[class*='overflow-y']") ?? document.documentElement) as HTMLElement
-
     function compute() {
       if (!el) return
-      const sectionRect = el.getBoundingClientRect()
-      const containerRect = scrollParent!.getBoundingClientRect()
+      const rect = el.getBoundingClientRect()
+      const viewportHeight = window.innerHeight
 
-      const topVisible = sectionRect.top >= containerRect.top - 20
-      const bottomVisible = sectionRect.bottom <= containerRect.bottom + 20
+      // Is the section's top edge visible in the viewport?
+      const topVisible = rect.top >= -20
+      // Is the section's bottom edge visible in the viewport?
+      const bottomVisible = rect.bottom <= viewportHeight + 20
 
       if (topVisible) {
         setPlacement("top")
@@ -61,11 +64,12 @@ function useToolbarPlacement(
     }
 
     compute()
-    scrollParent.addEventListener("scroll", compute, { passive: true })
+    // Listen on both document scroll (iframe) and window resize
+    document.addEventListener("scroll", compute, { passive: true })
     window.addEventListener("resize", compute, { passive: true })
 
     return () => {
-      scrollParent.removeEventListener("scroll", compute)
+      document.removeEventListener("scroll", compute)
       window.removeEventListener("resize", compute)
     }
   }, [sectionRef, isActive])
@@ -193,10 +197,12 @@ export function SortableSection({
       {/* Add Section Triggers - Visible when selected */}
       {isSelected && !isDragging && (
         <>
-          {/* Top */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[80] pointer-events-auto">
-            <SectionAddTrigger onClick={onAddBefore} onClickWithRect={onAddBeforeWithRect} />
-          </div>
+          {/* Top — hidden on first section to avoid navbar overlap */}
+          {!isFirst && (
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[80] pointer-events-auto">
+              <SectionAddTrigger onClick={onAddBefore} onClickWithRect={onAddBeforeWithRect} />
+            </div>
+          )}
 
           {/* Bottom */}
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 z-[80] pointer-events-auto">
