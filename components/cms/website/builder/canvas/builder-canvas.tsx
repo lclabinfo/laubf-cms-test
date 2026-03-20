@@ -18,6 +18,8 @@ interface BuilderCanvasProps {
   onNavbarClick?: () => void
   onNavbarLinkClick?: (href: string) => void
   isNavbarEditing?: boolean
+  onFooterClick?: () => void
+  isFooterEditing?: boolean
   onUndo?: () => void
   onRedo?: () => void
   onSave?: () => void
@@ -45,6 +47,8 @@ export function BuilderCanvas({
   onNavbarClick,
   onNavbarLinkClick,
   isNavbarEditing,
+  onFooterClick,
+  isFooterEditing,
   onUndo,
   onRedo,
   onSave,
@@ -88,8 +92,9 @@ export function BuilderCanvas({
       sections,
       selectedSectionId,
       isNavbarEditing: isNavbarEditing ?? false,
+      isFooterEditing: isFooterEditing ?? false,
     })
-  }, [sections, selectedSectionId, isNavbarEditing])
+  }, [sections, selectedSectionId, isNavbarEditing, isFooterEditing])
 
   const handleSectionClicked = useCallback(
     (msg: { sectionId: string }) => {
@@ -132,6 +137,11 @@ export function BuilderCanvas({
     [onNavbarLinkClick],
   )
 
+  const handleFooterClicked = useCallback(
+    () => onFooterClick?.(),
+    [onFooterClick],
+  )
+
   // CONTENT_HEIGHT is received but not used for auto-sizing.
   // The iframe scrolls internally (like Webflow/Squarespace) rather than
   // expanding to full content height, because expanded iframes capture
@@ -154,6 +164,7 @@ export function BuilderCanvas({
     SECTIONS_REORDERED: handleSectionsReordered,
     NAVBAR_CLICKED: handleNavbarClicked,
     NAVBAR_LINK_CLICKED: handleNavbarLinkClicked,
+    FOOTER_CLICKED: handleFooterClicked,
     DESELECT: handleDeselect,
     KEYBOARD_SHORTCUT: (msg) => {
       if (msg.shortcut === "undo") onUndo?.()
@@ -186,6 +197,11 @@ export function BuilderCanvas({
     if (!iframeLoaded || !iframeRef.current) return
     postToIframe(iframeRef.current, { type: "UPDATE_NAVBAR", isNavbarEditing: isNavbarEditing ?? false })
   }, [isNavbarEditing, iframeLoaded])
+
+  useEffect(() => {
+    if (!iframeLoaded || !iframeRef.current) return
+    postToIframe(iframeRef.current, { type: "UPDATE_FOOTER", isFooterEditing: isFooterEditing ?? false })
+  }, [isFooterEditing, iframeLoaded])
 
   // Reload the iframe preview when previewRefreshKey changes (e.g. after nav menu edits)
   const prevRefreshKeyRef = useRef(previewRefreshKey)

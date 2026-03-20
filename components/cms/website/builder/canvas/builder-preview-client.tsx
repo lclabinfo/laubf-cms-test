@@ -108,6 +108,7 @@ export function BuilderPreviewClient({
     initialSelectedSectionId,
   )
   const [isNavbarEditing, setIsNavbarEditing] = useState(false)
+  const [isFooterEditing, setIsFooterEditing] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
 
   const rootRef = useRef<HTMLDivElement>(null)
@@ -128,6 +129,7 @@ export function BuilderPreviewClient({
       })
       setSelectedSectionId(msg.selectedSectionId)
       setIsNavbarEditing(msg.isNavbarEditing)
+      setIsFooterEditing(msg.isFooterEditing)
     },
     UPDATE_SECTIONS: (msg) =>
       setSections((prev) => {
@@ -139,6 +141,7 @@ export function BuilderPreviewClient({
       }),
     SELECT_SECTION: (msg) => setSelectedSectionId(msg.sectionId),
     UPDATE_NAVBAR: (msg) => setIsNavbarEditing(msg.isNavbarEditing),
+    UPDATE_FOOTER: (msg) => setIsFooterEditing(msg.isFooterEditing),
     RELOAD_PAGE: () => window.location.reload(),
   })
 
@@ -287,6 +290,13 @@ export function BuilderPreviewClient({
     postToParent({ type: "NAVBAR_CLICKED" })
   }, [])
 
+  // ── Footer click handler ──
+
+  const handleFooterClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    postToParent({ type: "FOOTER_CLICKED" })
+  }, [])
+
   // ── Derived values ──
 
   const activeDragSection = activeId
@@ -388,12 +398,14 @@ export function BuilderPreviewClient({
             </SortableSection>
           ))}
 
-          {/* Bottom add trigger */}
+          {/* Bottom add trigger — overlay at section/footer boundary (zero height, no whitespace) */}
           {sections.length > 0 && (
-            <div className="flex justify-center py-4">
-              <SectionAddTrigger
-                onClick={() => handleAddSection(sections.length - 1)}
-              />
+            <div className="relative h-0">
+              <div className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 z-[80] pointer-events-auto">
+                <SectionAddTrigger
+                  onClick={() => handleAddSection(sections.length - 1)}
+                />
+              </div>
             </div>
           )}
         </SortableContext>
@@ -438,9 +450,18 @@ export function BuilderPreviewClient({
         </DragOverlay>
       </DndContext>
 
-      {/* Website footer preview — view-only, links disabled */}
+      {/* Website footer preview — clickable to open footer editor, links disabled */}
       {footerMenu && footerSiteSettings && (
-        <div className="[&_a]:pointer-events-none">
+        <div
+          className={cn(
+            "relative cursor-pointer group/footer [&_a]:pointer-events-none",
+            isFooterEditing
+              ? "shadow-[inset_0_0_0_2px_rgb(37,99,235),0_0_0_4px_rgba(37,99,235,0.1)]"
+              : "shadow-none hover:shadow-[inset_0_0_0_2px_rgba(37,99,235,0.3)]",
+            "transition-all duration-200",
+          )}
+          onClick={handleFooterClick}
+        >
           <WebsiteFooter menu={footerMenu} siteSettings={footerSiteSettings} />
         </div>
       )}

@@ -28,6 +28,7 @@ export type ParentToIframeMessage =
       sections: BuilderSection[]
       selectedSectionId: string | null
       isNavbarEditing: boolean
+      isFooterEditing: boolean
     }
   | {
       type: "UPDATE_SECTIONS"
@@ -40,6 +41,10 @@ export type ParentToIframeMessage =
   | {
       type: "UPDATE_NAVBAR"
       isNavbarEditing: boolean
+    }
+  | {
+      type: "UPDATE_FOOTER"
+      isFooterEditing: boolean
     }
   | {
       /** Tells the iframe to reload itself (e.g. after nav menu changes). */
