@@ -24,6 +24,7 @@ import {
   NavSettingsForm,
   type NavEditorMenuItem,
 } from "../navigation-item-editor"
+import { FooterMenuEditor } from "../footer-menu-editor"
 import type { MenuItemData } from "../navigation/navigation-editor"
 import type { PageSummary } from "../types"
 
@@ -65,6 +66,12 @@ interface BuilderRightDrawerProps {
   onNavItemUpdated?: () => void
   onNavSettingsClose?: () => void
   onNavSettingsUpdated?: () => void
+  /** Footer editing */
+  editingFooter?: boolean
+  footerMenuId?: string | null
+  footerMenuItems?: MenuItemData[]
+  onFooterClose?: () => void
+  onFooterUpdated?: () => void
 }
 
 /**
@@ -242,6 +249,11 @@ export function BuilderRightDrawer({
   onNavItemUpdated,
   onNavSettingsClose,
   onNavSettingsUpdated,
+  editingFooter,
+  footerMenuId,
+  footerMenuItems,
+  onFooterClose,
+  onFooterUpdated,
 }: BuilderRightDrawerProps) {
   // Resolve the nav item being edited
   const editingNavItem = editingNavItemId && menuItems
@@ -250,8 +262,9 @@ export function BuilderRightDrawer({
 
   const showNavItem = editingNavItem !== null
   const showNavSettings = !!(editingNavSettings && !showNavItem)
-  const showSection = section !== null && !showNavItem && !showNavSettings
-  const isOpen = showSection || showNavItem || showNavSettings
+  const showFooter = !!(editingFooter && !showNavItem && !showNavSettings)
+  const showSection = section !== null && !showNavItem && !showNavSettings && !showFooter
+  const isOpen = showSection || showNavItem || showNavSettings || showFooter
 
   const typeLabel = section
     ? sectionTypeLabels[section.sectionType] ?? section.sectionType
@@ -289,6 +302,16 @@ export function BuilderRightDrawer({
               initialSettings={initialNavbarSettings}
               onClose={onNavSettingsClose ?? (() => {})}
               onSettingsUpdated={onNavSettingsUpdated}
+            />
+          )}
+
+          {/* Footer Menu Editor (has its own header) */}
+          {showFooter && footerMenuId && (
+            <FooterMenuEditor
+              menuId={footerMenuId}
+              items={footerMenuItems ?? []}
+              onClose={onFooterClose ?? (() => {})}
+              onUpdated={onFooterUpdated ?? (() => {})}
             />
           )}
 

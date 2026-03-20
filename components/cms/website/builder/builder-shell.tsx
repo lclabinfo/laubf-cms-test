@@ -14,7 +14,6 @@ import {
   type SectionEditorData,
 } from "./layout/builder-right-drawer"
 import { NavigationEditor, type MenuItemData } from "./navigation/navigation-editor"
-import { PageTree } from "./pages/page-tree"
 import { PageSettingsModal, type PageSettingsData } from "./pages/page-settings-modal"
 import { AddPageModal } from "./pages/add-page-modal"
 import {
@@ -30,14 +29,17 @@ import {
 import { useBuilderHistory } from "./use-builder-history"
 import { useBackgroundSync } from "./use-background-sync"
 import { usePresenceHeartbeat } from "./use-presence-heartbeat"
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle, Check, FileText, Plus } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import type {
   BuilderTool,
   DeviceMode,
   BuilderPage,
   BuilderSection,
   PageSummary,
-  NavTreeMenuItem,
+
 } from "./types"
 import type { SectionType } from "@/lib/db/types"
 
@@ -69,7 +71,6 @@ interface BuilderShellProps {
   websiteThemeTokens?: Record<string, string>
   websiteCustomCss?: string
   navbarData?: NavbarData
-  headerMenuItems?: NavTreeMenuItem[]
   headerMenuId?: string | null
   headerMenuItemsFull?: MenuItemData[]
   navbarSettings?: {
@@ -80,11 +81,31 @@ interface BuilderShellProps {
     ctaHref?: string
     ctaVisible?: boolean
   }
+  footerMenuId?: string | null
+  footerMenuItemsFull?: MenuItemData[]
 }
 
-export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, websiteCustomCss, navbarData, headerMenuItems, headerMenuId: initialHeaderMenuId, headerMenuItemsFull: initialHeaderMenuItemsFull, navbarSettings: initialNavbarSettings }: BuilderShellProps) {
+export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, websiteCustomCss, navbarData, headerMenuId: initialHeaderMenuId, headerMenuItemsFull: initialHeaderMenuItemsFull, navbarSettings: initialNavbarSettings, footerMenuId: initialFooterMenuId, footerMenuItemsFull: initialFooterMenuItemsFull }: BuilderShellProps) {
   const router = useRouter()
-  const [activeTool, setActiveTool] = useState<BuilderTool>(null)
+
+  // Persist activeTool in sessionStorage so it survives page navigations
+  const [activeTool, setActiveToolState] = useState<BuilderTool>(() => {
+    if (typeof window === "undefined") return null
+    const stored = sessionStorage.getItem("builder-active-tool")
+    if (stored === "navigation" || stored === "design" || stored === "media") {
+      return stored as BuilderTool
+    }
+    return null
+  })
+
+  const setActiveTool = useCallback((tool: BuilderTool) => {
+    setActiveToolState(tool)
+    if (tool) {
+      sessionStorage.setItem("builder-active-tool", tool)
+    } else {
+      sessionStorage.removeItem("builder-active-tool")
+    }
+  }, [])
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop")
   const [sections, setSections] = useState<BuilderSection[]>(page.sections)
@@ -130,6 +151,11 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const [menuItems, setMenuItems] = useState<MenuItemData[]>(initialHeaderMenuItemsFull ?? [])
   const [previewRefreshKey, setPreviewRefreshKey] = useState(0)
 
+  // Footer editor state
+  const [editingFooter, setEditingFooter] = useState(false)
+  const [footerMenuId] = useState<string | null>(initialFooterMenuId ?? null)
+  const [footerMenuItems, setFooterMenuItems] = useState<MenuItemData[]>(initialFooterMenuItemsFull ?? [])
+
   // Refresh menu data from the API after nav changes
   const refreshMenu = useCallback(async () => {
     if (!headerMenuId) return
@@ -145,6 +171,22 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     // Tell the iframe to reload so the navbar picks up the new menu data
     setPreviewRefreshKey((k) => k + 1)
   }, [headerMenuId])
+
+  // Refresh footer menu data from the API after footer edits
+  const refreshFooterMenu = useCallback(async () => {
+    if (!footerMenuId) return
+    try {
+      const res = await fetch(`/api/v1/menus/${footerMenuId}/items`)
+      if (res.ok) {
+        const { data } = await res.json()
+        setFooterMenuItems(data.items ?? [])
+      }
+    } catch {
+      // Silently fail — the footer editor has its own error handling
+    }
+    // Tell the iframe to reload so the footer picks up the new menu data
+    setPreviewRefreshKey((k) => k + 1)
+  }, [footerMenuId])
 
   // Page modals
   const [pageSettingsOpen, setPageSettingsOpen] = useState(false)
@@ -235,6 +277,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     setEditingNavbar(false)
     setEditingNavItemId(null)
     setEditingNavSettings(false)
+    setEditingFooter(false)
     setIsDirty(false)
     setDirtySectionIds(new Set())
     setReorderDirty(false)
@@ -267,9 +310,9 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         setPickerOpen(true)
         return
       }
-      setActiveTool((prev) => (prev === tool ? null : tool))
+      setActiveTool(activeTool === tool ? null : tool)
     },
-    [sections.length],
+    [sections.length, activeTool, setActiveTool],
   )
 
   // -------------------------------------------------------------------------
@@ -567,6 +610,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           setEditingNavSettings(false)
         } else if (editingNavbar) {
           setEditingNavbar(false)
+        } else if (editingFooter) {
+          setEditingFooter(false)
         } else if (editingSectionId) {
           setEditingSectionId(null)
         } else if (selectedSectionId) {
@@ -608,7 +653,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [selectedSectionId, activeTool, editingSectionId, editingNavbar, editingNavItemId, editingNavSettings])
+  }, [selectedSectionId, activeTool, editingSectionId, editingNavbar, editingNavItemId, editingNavSettings, editingFooter])
 
   // -------------------------------------------------------------------------
   // Publish toggle
@@ -771,6 +816,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
       setEditingNavbar(false)
       setEditingNavItemId(null)
       setEditingNavSettings(false)
+      setEditingFooter(false)
       setEditingSectionId(sectionId)
       setSelectedSectionId(sectionId)
     },
@@ -853,11 +899,12 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   // -------------------------------------------------------------------------
 
   const handleNavbarClick = useCallback(() => {
-    // Close any section editor and open navbar settings
+    // Close any section/footer editor and open navbar settings
     setEditingSectionId(null)
     setEditingNavItemId(null)
     setEditingNavSettings(true)
     setEditingNavbar(true)
+    setEditingFooter(false)
   }, [])
 
   const handleNavbarClose = useCallback(() => {
@@ -865,12 +912,30 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     setEditingNavSettings(false)
   }, [])
 
+  const handleFooterClick = useCallback(() => {
+    // Close any section/navbar editor and open footer editor
+    setEditingSectionId(null)
+    setEditingNavbar(false)
+    setEditingNavItemId(null)
+    setEditingNavSettings(false)
+    setEditingFooter(true)
+  }, [])
+
+  const handleFooterClose = useCallback(() => {
+    setEditingFooter(false)
+  }, [])
+
+  const handleFooterUpdated = useCallback(() => {
+    refreshFooterMenu()
+  }, [refreshFooterMenu])
+
   /** Open the NavSettingsForm in the right drawer (triggered by CTA "Edit" button) */
   const handleEditCTA = useCallback(() => {
     setEditingSectionId(null)
     setEditingNavItemId(null)
     setEditingNavSettings(true)
     setEditingNavbar(true)
+    setEditingFooter(false)
   }, [])
 
   const handleEditNavItem = useCallback((itemId: string) => {
@@ -1198,15 +1263,13 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   // -------------------------------------------------------------------------
 
   const drawerTitle =
-    activeTool === "pages"
-      ? "Site Pages"
-      : activeTool === "navigation"
-        ? "Navigation"
-        : activeTool === "design"
-          ? "Design"
-          : activeTool === "media"
-            ? "Media"
-            : ""
+    activeTool === "navigation"
+      ? "Pages & Navigation"
+      : activeTool === "design"
+        ? "Design"
+        : activeTool === "media"
+          ? "Media"
+          : ""
 
   // -------------------------------------------------------------------------
   // Render drawer content based on active tool
@@ -1214,19 +1277,6 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
 
   const renderDrawerContent = () => {
     switch (activeTool) {
-      case "pages":
-        return (
-          <PageTree
-            pages={pages}
-            activePageId={pageData.id}
-            onPageSelect={handlePageSelect}
-            onPageSettings={handlePageSettings}
-            onAddPage={() => setAddPageOpen(true)}
-            onDeletePage={handleDeletePage}
-            onDuplicatePage={handleDuplicatePage}
-            headerMenuItems={headerMenuItems}
-          />
-        )
       case "navigation":
         return headerMenuId ? (
           <NavigationEditor
@@ -1240,10 +1290,74 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
             onEditItem={handleEditNavItem}
             onMenuChange={refreshMenu}
             onEditCTA={handleEditCTA}
+            activePageId={pageData.id}
+            onPageSelect={handlePageSelect}
+            onPageSettings={handlePageSettings}
+            onAddPage={() => setAddPageOpen(true)}
+            onDeletePage={handleDeletePage}
+            onDuplicatePage={handleDuplicatePage}
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-            <p>No header menu found. Create one in the Navigation settings.</p>
+          // No-menu fallback: show a flat list of all pages with click-to-navigate
+          <div className="flex flex-col h-full">
+            <div className="flex flex-col gap-2 p-4 pb-2 border-b shrink-0">
+              <h3 className="text-sm font-semibold text-foreground">Pages</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start text-xs h-8 gap-2"
+                onClick={() => setAddPageOpen(true)}
+              >
+                <Plus className="size-3.5" />
+                Add Page
+              </Button>
+            </div>
+            <ScrollArea className="flex-1">
+              <div className="p-3">
+                {pages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                    <FileText className="size-10 mb-3 opacity-30" />
+                    <p className="text-sm font-medium">No pages yet</p>
+                    <p className="text-xs mt-1">Create your first page to get started.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-0.5">
+                    {pages.map((p) => {
+                      const isActive = p.id === pageData.id
+                      return (
+                        <div
+                          key={p.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => handlePageSelect(p.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault()
+                              handlePageSelect(p.id)
+                            }
+                          }}
+                          className={cn(
+                            "group flex items-center gap-2 px-2 py-2 rounded-md transition-colors cursor-pointer",
+                            isActive
+                              ? "bg-sidebar-accent border-l-2 border-primary text-primary"
+                              : "hover:bg-muted/50 text-foreground",
+                          )}
+                        >
+                          <FileText className="size-3.5 shrink-0 opacity-70" />
+                          <span className={cn(
+                            "text-xs truncate flex-1",
+                            isActive ? "font-semibold" : "font-medium",
+                          )}>
+                            {p.title}
+                          </span>
+                          {isActive && <Check className="size-3 text-primary shrink-0" />}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
           </div>
         )
       case "design":
@@ -1340,11 +1454,13 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
             setEditingNavbar(false)
             setEditingNavItemId(null)
             setEditingNavSettings(false)
+            setEditingFooter(false)
           }}
           onDeselectSection={() => {
             setSelectedSectionId(null)
             setEditingSectionId(null)
             setEditingNavbar(false)
+            setEditingFooter(false)
           }}
           onAddSection={openSectionPicker}
           onDeleteSection={handleDeleteSection}
@@ -1355,6 +1471,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           onNavbarClick={handleNavbarClick}
           onNavbarLinkClick={handleNavbarLinkClick}
           isNavbarEditing={editingNavbar}
+          onFooterClick={handleFooterClick}
+          isFooterEditing={editingFooter}
           onUndo={handleUndo}
           onRedo={handleRedo}
           onSave={handleSave}
@@ -1363,7 +1481,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
 
         {/* Right Drawer (320px, animated) — inline section / navbar / nav item editor */}
         <BuilderRightDrawer
-          section={editingNavItemId || editingNavSettings ? null : editingSection}
+          section={editingNavItemId || editingNavSettings || editingFooter ? null : editingSection}
           onClose={handleCloseEditor}
           onChange={handleSectionEditorChange}
           onDelete={handleDeleteSection}
@@ -1378,6 +1496,11 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           onNavItemUpdated={handleNavItemUpdated}
           onNavSettingsClose={handleNavbarClose}
           onNavSettingsUpdated={handleNavSettingsUpdated}
+          editingFooter={editingFooter}
+          footerMenuId={footerMenuId}
+          footerMenuItems={footerMenuItems}
+          onFooterClose={handleFooterClose}
+          onFooterUpdated={handleFooterUpdated}
         />
       </div>
 

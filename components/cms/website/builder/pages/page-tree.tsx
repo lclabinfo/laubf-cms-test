@@ -26,11 +26,38 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import type { PageSummary, NavTreeMenuItem, NavTreeNode } from "../types"
+import type { PageSummary } from "../types"
+import type { PageType } from "@/lib/db/types"
 
 // ---------------------------------------------------------------------------
-// Types
+// Types (local — this file is deprecated, kept for reference only)
 // ---------------------------------------------------------------------------
+
+interface NavTreeMenuItem {
+  id: string
+  label: string
+  href: string | null
+  isExternal: boolean
+  groupLabel: string | null
+  sortOrder: number
+  children: NavTreeMenuItem[]
+}
+
+type NavTreeNodeKind = "page" | "folder" | "link"
+
+interface NavTreeNode {
+  id: string
+  label: string
+  kind: NavTreeNodeKind
+  pageId: string | null
+  pageType: PageType | null
+  isHomepage: boolean
+  isPublished: boolean
+  href: string | null
+  isExternal: boolean
+  groupLabel: string | null
+  children: NavTreeNode[]
+}
 
 export interface PageTreeProps {
   pages: PageSummary[]

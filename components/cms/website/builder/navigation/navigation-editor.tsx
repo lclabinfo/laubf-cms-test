@@ -20,6 +20,7 @@ import { CSS } from "@dnd-kit/utilities"
 import {
   ChevronDown,
   ChevronRight,
+  Copy,
   ExternalLink,
   EyeOff,
   FileText,
@@ -29,6 +30,7 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
+  Settings,
   Star,
   Trash2,
   X,
@@ -93,6 +95,18 @@ export interface NavigationEditorProps {
   onMenuChange?: () => void
   /** Opens the NavSettingsForm in the right drawer to edit CTA fields */
   onEditCTA?: () => void
+  /** ID of the currently active page (for highlighting) */
+  activePageId: string
+  /** Navigate to a page in the canvas */
+  onPageSelect: (pageId: string) => void
+  /** Open page settings modal */
+  onPageSettings?: (page: PageSummary) => void
+  /** Open add page modal */
+  onAddPage?: () => void
+  /** Delete a page */
+  onDeletePage?: (pageId: string) => void
+  /** Duplicate a page */
+  onDuplicatePage?: (pageId: string) => void
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +152,34 @@ function getTypeBadge(type: NavItemType): string | null {
     default:
       return null
   }
+}
+
+/** Strip leading "/" and /website/ prefix, query params for slug matching. */
+function normalizeHref(href: string): string {
+  let normalized = href
+  if (normalized.startsWith("/website/")) {
+    normalized = normalized.slice("/website".length)
+  } else if (normalized === "/website") {
+    normalized = "/"
+  }
+  const [pathPart] = normalized.split("?")
+  return pathPart.replace(/^\//, "")
+}
+
+/** Resolve a nav item's href to a page ID using the pages array. */
+function resolveHrefToPageId(
+  href: string | null,
+  pages: PageSummary[],
+): string | null {
+  if (!href) return null
+  const slug = normalizeHref(href)
+  // Homepage
+  if (slug === "") {
+    const homepage = pages.find((p) => p.isHomepage || p.slug === "")
+    return homepage?.id ?? null
+  }
+  const match = pages.find((p) => p.slug === slug)
+  return match?.id ?? null
 }
 
 /** Group children by groupLabel, preserving order. */
@@ -213,13 +255,13 @@ function InlineAddInput({ placeholder, onSubmit, onCancel }: InlineAddInputProps
   }
 
   return (
-    <div className="flex items-center gap-1 px-1 py-1">
+    <div className="flex items-center gap-1.5 px-3 py-1.5">
       <Input
         ref={inputRef}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         placeholder={placeholder}
-        className="h-6 text-xs flex-1 bg-muted/30 border-border/50"
+        className="h-7 text-xs flex-1 bg-muted/30 border-border/50"
         onKeyDown={(e) => {
           if (e.key === "Enter") handleSubmit()
           if (e.key === "Escape") onCancel()
@@ -229,24 +271,24 @@ function InlineAddInput({ placeholder, onSubmit, onCancel }: InlineAddInputProps
       <Button
         variant="ghost"
         size="icon"
-        className="h-5 w-5 shrink-0 text-primary hover:text-primary"
+        className="h-6 w-6 shrink-0 text-primary hover:text-primary"
         onMouseDown={(e) => {
           e.preventDefault()
           handleSubmit()
         }}
       >
-        <Check className="size-3" />
+        <Check className="size-3.5" />
       </Button>
       <Button
         variant="ghost"
         size="icon"
-        className="h-5 w-5 shrink-0 text-muted-foreground hover:text-foreground"
+        className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
         onMouseDown={(e) => {
           e.preventDefault()
           onCancel()
         }}
       >
-        <X className="size-3" />
+        <X className="size-3.5" />
       </Button>
     </div>
   )
@@ -260,9 +302,31 @@ interface SortableNavItemProps {
   item: MenuItemData
   onEditItem?: (itemId: string) => void
   onDeleteItem: (itemId: string) => void
+  /** Resolved page ID for this item (null if external/featured/unmatched) */
+  resolvedPageId: string | null
+  /** Currently active page ID */
+  activePageId: string
+  /** Navigate to a page */
+  onPageSelect: (pageId: string) => void
+  /** Page management callbacks */
+  pages: PageSummary[]
+  onPageSettings?: (page: PageSummary) => void
+  onDeletePage?: (pageId: string) => void
+  onDuplicatePage?: (pageId: string) => void
 }
 
-function SortableNavItem({ item, onEditItem, onDeleteItem }: SortableNavItemProps) {
+function SortableNavItem({
+  item,
+  onEditItem,
+  onDeleteItem,
+  resolvedPageId,
+  activePageId,
+  onPageSelect,
+  pages,
+  onPageSettings,
+  onDeletePage,
+  onDuplicatePage,
+}: SortableNavItemProps) {
   const sortableId = toChildId(item.id)
   const {
     attributes,
@@ -281,14 +345,27 @@ function SortableNavItem({ item, onEditItem, onDeleteItem }: SortableNavItemProp
 
   const type = inferItemType(item, false)
   const badge = getTypeBadge(type)
+  const isActive = resolvedPageId != null && resolvedPageId === activePageId
+  const isPageItem = resolvedPageId != null
+  const pageSummary = isPageItem ? pages.find((p) => p.id === resolvedPageId) : null
+
+  const handleLabelClick = () => {
+    if (isPageItem && resolvedPageId) {
+      onPageSelect(resolvedPageId)
+    }
+    // External links and featured items: no navigation
+  }
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group/item flex items-center gap-1 rounded-md px-1 py-1.5 transition-colors hover:bg-muted/50",
+        "group/item flex items-center gap-2 rounded-md px-3 py-2 transition-colors",
         isDragging && "opacity-50 bg-muted/30",
+        isActive
+          ? "bg-sidebar-accent border-l-2 border-primary"
+          : "hover:bg-sidebar-accent",
       )}
     >
       {/* Drag handle */}
@@ -306,10 +383,17 @@ function SortableNavItem({ item, onEditItem, onDeleteItem }: SortableNavItemProp
       {/* Label + description */}
       <button
         type="button"
-        className="flex-1 min-w-0 text-left"
-        onClick={() => onEditItem?.(item.id)}
+        className={cn(
+          "flex-1 min-w-0 text-left",
+          isPageItem && "cursor-pointer",
+          !isPageItem && "cursor-default",
+        )}
+        onClick={handleLabelClick}
       >
-        <span className="text-xs font-medium text-foreground truncate block">
+        <span className={cn(
+          "text-xs font-medium truncate block",
+          isActive ? "text-primary font-semibold" : "text-foreground",
+        )}>
           {item.label}
         </span>
       </button>
@@ -327,27 +411,71 @@ function SortableNavItem({ item, onEditItem, onDeleteItem }: SortableNavItemProp
           </span>
         )}
         {badge && (
-          <span className="text-[9px] font-medium text-muted-foreground/50 bg-muted/50 px-1.5 py-0.5 rounded">
+          <span className="text-[10px] font-medium text-muted-foreground/50 bg-muted/50 px-1.5 py-0.5 rounded-md">
             {badge}
           </span>
         )}
 
-        {/* Delete button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "h-5 w-5 rounded-sm transition-opacity shrink-0",
-            "opacity-0 group-hover/item:opacity-100",
-            "hover:bg-destructive/10 text-muted-foreground hover:text-destructive",
-          )}
-          onClick={(e) => {
-            e.stopPropagation()
-            onDeleteItem(item.id)
-          }}
-        >
-          <Trash2 className="size-3" />
-        </Button>
+        {/* Active checkmark */}
+        {isActive && (
+          <Check className="size-3.5 text-primary shrink-0" />
+        )}
+
+        {/* Context menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "h-6 w-6 rounded-md transition-opacity shrink-0",
+                "opacity-0 group-hover/item:opacity-100 data-[state=open]:opacity-100",
+                "hover:bg-muted text-muted-foreground",
+              )}
+            >
+              <MoreHorizontal className="size-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem onClick={() => onEditItem?.(item.id)}>
+              <Pencil className="size-3.5 mr-2" /> Edit Properties
+            </DropdownMenuItem>
+            {/* Page management actions */}
+            {isPageItem && pageSummary && (
+              <>
+                <DropdownMenuSeparator />
+                {onPageSettings && (
+                  <DropdownMenuItem onClick={() => onPageSettings(pageSummary)}>
+                    <Settings className="size-3.5 mr-2" /> Page Settings
+                  </DropdownMenuItem>
+                )}
+                {onDuplicatePage && (
+                  <DropdownMenuItem onClick={() => onDuplicatePage(resolvedPageId!)}>
+                    <Copy className="size-3.5 mr-2" /> Duplicate Page
+                  </DropdownMenuItem>
+                )}
+                {onDeletePage && !pageSummary.isHomepage && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => onDeletePage(resolvedPageId!)}
+                    >
+                      <Trash2 className="size-3.5 mr-2" /> Delete Page
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              className="text-destructive focus:text-destructive"
+              onClick={() => onDeleteItem(item.id)}
+            >
+              <Trash2 className="size-3.5 mr-2" /> Remove from Menu
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   )
@@ -376,7 +504,7 @@ function NavSectionHeader({ label, onRename, onDelete }: NavSectionHeaderProps) 
   }
 
   return (
-    <div className="flex items-center justify-between px-1 pt-3 pb-1">
+    <div className="flex items-center justify-between px-3 pt-4 pb-1.5">
       {isRenaming ? (
         <Input
           autoFocus
@@ -400,21 +528,21 @@ function NavSectionHeader({ label, onRename, onDelete }: NavSectionHeaderProps) 
           <Button
             variant="ghost"
             size="icon"
-            className="h-4 w-4 rounded-sm hover:bg-muted/50 text-muted-foreground/40 hover:text-muted-foreground"
+            className="h-5 w-5 rounded-md hover:bg-muted/50 text-muted-foreground/40 hover:text-muted-foreground"
           >
-            <MoreHorizontal className="size-3" />
+            <MoreHorizontal className="size-3.5" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-40">
           <DropdownMenuItem onClick={() => { setEditValue(label); setIsRenaming(true) }}>
-            <Pencil className="size-3 mr-2" /> Rename
+            <Pencil className="size-3.5 mr-2" /> Rename
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
             onClick={onDelete}
           >
-            <Trash2 className="size-3 mr-2" /> Delete section
+            <Trash2 className="size-3.5 mr-2" /> Delete section
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -435,6 +563,19 @@ interface TopLevelItemProps {
   onDeleteItem: (itemId: string) => void
   onMenuChange?: () => void
   allChildPrefixedIds: string[]
+  /** Resolved page ID for this item */
+  resolvedPageId: string | null
+  /** Currently active page ID */
+  activePageId: string
+  /** Navigate to a page */
+  onPageSelect: (pageId: string) => void
+  /** Page management callbacks */
+  pages: PageSummary[]
+  onPageSettings?: (page: PageSummary) => void
+  onDeletePage?: (pageId: string) => void
+  onDuplicatePage?: (pageId: string) => void
+  /** Resolver function for child items */
+  resolvePageId: (href: string | null) => string | null
 }
 
 function SortableTopLevelItem({
@@ -446,6 +587,14 @@ function SortableTopLevelItem({
   onDeleteItem,
   onMenuChange,
   allChildPrefixedIds,
+  resolvedPageId,
+  activePageId,
+  onPageSelect,
+  pages,
+  onPageSettings,
+  onDeletePage,
+  onDuplicatePage,
+  resolvePageId,
 }: TopLevelItemProps) {
   const sortableId = toTopId(item.id)
   const {
@@ -468,10 +617,28 @@ function SortableTopLevelItem({
   const type = inferItemType(item, hasChildren)
   const badge = getTypeBadge(type)
   const groups = useMemo(() => groupChildrenByLabel(children), [children])
+  const isActive = resolvedPageId != null && resolvedPageId === activePageId
+  const isPageItem = resolvedPageId != null
+  const pageSummary = isPageItem ? pages.find((p) => p.id === resolvedPageId) : null
 
   // Inline add state for child items and sections
   const [addingChildInGroup, setAddingChildInGroup] = useState<string | null | undefined>(undefined)
   const [addingSection, setAddingSection] = useState(false)
+
+  // Handle label click: navigate to page + toggle expand for dropdowns
+  const handleLabelClick = () => {
+    if (type === "page-dropdown" && resolvedPageId) {
+      // Navigate to the landing page AND toggle expand
+      onPageSelect(resolvedPageId)
+      onToggleExpand()
+    } else if (isPageItem && resolvedPageId) {
+      onPageSelect(resolvedPageId)
+    } else if (type === "folder-dropdown") {
+      // Folder dropdowns: just toggle expand
+      onToggleExpand()
+    }
+    // External links and featured items: no navigation
+  }
 
   // Add child item to a specific section
   const handleAddChildItem = useCallback(
@@ -574,7 +741,12 @@ function SortableTopLevelItem({
       className={cn(isDragging && "opacity-50")}
     >
       {/* Top-level row */}
-      <div className="group/top flex items-center gap-1.5 px-2 py-2.5 hover:bg-muted/30 transition-colors">
+      <div className={cn(
+        "group/top flex items-center gap-2 px-3 py-2.5 transition-colors",
+        isActive
+          ? "bg-sidebar-accent border-l-2 border-primary"
+          : "hover:bg-sidebar-accent/60",
+      )}>
         {/* Drag handle — only element with DnD listeners */}
         <div
           {...attributes}
@@ -592,12 +764,12 @@ function SortableTopLevelItem({
               e.stopPropagation()
               onToggleExpand()
             }}
-            className="shrink-0 p-0.5 rounded hover:bg-muted/60 flex items-center justify-center"
+            className="shrink-0 p-0.5 rounded-md hover:bg-sidebar-accent flex items-center justify-center"
           >
             {isExpanded ? (
-              <ChevronDown className="size-3 text-muted-foreground" />
+              <ChevronDown className="size-3.5 text-muted-foreground" />
             ) : (
-              <ChevronRight className="size-3 text-muted-foreground" />
+              <ChevronRight className="size-3.5 text-muted-foreground" />
             )}
           </button>
         ) : (
@@ -610,20 +782,32 @@ function SortableTopLevelItem({
         {/* Label */}
         <button
           type="button"
-          className="flex-1 min-w-0 text-left"
-          onClick={() => onEditItem?.(item.id)}
+          className={cn(
+            "flex-1 min-w-0 text-left",
+            (isPageItem || type === "folder-dropdown") && "cursor-pointer",
+            !(isPageItem || type === "folder-dropdown") && "cursor-default",
+          )}
+          onClick={handleLabelClick}
         >
-          <span className="text-xs font-semibold text-foreground truncate block">
+          <span className={cn(
+            "text-sm font-semibold truncate block",
+            isActive ? "text-primary" : "text-foreground",
+          )}>
             {item.label}
           </span>
         </button>
 
-        {/* Right side: badge + menu */}
+        {/* Right side: badge + active checkmark + menu */}
         <div className="flex items-center gap-1.5 shrink-0">
           {badge && (
-            <span className="text-[9px] font-medium text-muted-foreground/50 bg-muted/50 px-1.5 py-0.5 rounded">
+            <span className="text-[10px] font-medium text-muted-foreground/50 bg-muted/50 px-1.5 py-0.5 rounded-md">
               {badge}
             </span>
+          )}
+
+          {/* Active checkmark */}
+          {isActive && (
+            <Check className="size-3.5 text-primary shrink-0" />
           )}
 
           <DropdownMenu>
@@ -632,24 +816,51 @@ function SortableTopLevelItem({
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  "h-5 w-5 rounded-sm transition-opacity shrink-0",
+                  "h-6 w-6 rounded-md transition-opacity shrink-0",
                   "opacity-0 group-hover/top:opacity-100 data-[state=open]:opacity-100",
                   "hover:bg-muted text-muted-foreground",
                 )}
               >
-                <MoreHorizontal className="size-3" />
+                <MoreHorizontal className="size-3.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onClick={() => onEditItem?.(item.id)}>
-                <Pencil className="size-3 mr-2" /> Edit
+                <Pencil className="size-3.5 mr-2" /> Edit Properties
               </DropdownMenuItem>
+              {/* Page management actions */}
+              {isPageItem && pageSummary && (
+                <>
+                  <DropdownMenuSeparator />
+                  {onPageSettings && (
+                    <DropdownMenuItem onClick={() => onPageSettings(pageSummary)}>
+                      <Settings className="size-3.5 mr-2" /> Page Settings
+                    </DropdownMenuItem>
+                  )}
+                  {onDuplicatePage && (
+                    <DropdownMenuItem onClick={() => onDuplicatePage(resolvedPageId!)}>
+                      <Copy className="size-3.5 mr-2" /> Duplicate Page
+                    </DropdownMenuItem>
+                  )}
+                  {onDeletePage && !pageSummary.isHomepage && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => onDeletePage(resolvedPageId!)}
+                      >
+                        <Trash2 className="size-3.5 mr-2" /> Delete Page
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
                 onClick={() => onDeleteItem(item.id)}
               >
-                <Trash2 className="size-3 mr-2" /> Delete
+                <Trash2 className="size-3.5 mr-2" /> Remove from Menu
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -658,10 +869,10 @@ function SortableTopLevelItem({
 
       {/* Expanded children — no nested DndContext, uses parent's context */}
       {hasChildren && isExpanded && (
-        <div className="pl-6 pb-2">
+        <div className="pl-7 pb-3">
           {/* Landing page indicator for page+dropdown */}
           {type === "page-dropdown" && item.href && (
-            <div className="flex items-center gap-1.5 px-2 py-1.5 mb-1">
+            <div className="flex items-center gap-2 px-3 py-2 mb-1">
               <div className="size-1.5 rounded-full bg-primary/60" />
               <span className="text-[10px] text-muted-foreground/70">
                 Landing page{" "}
@@ -694,6 +905,13 @@ function SortableTopLevelItem({
                     item={child}
                     onEditItem={onEditItem}
                     onDeleteItem={onDeleteItem}
+                    resolvedPageId={resolvePageId(child.isExternal ? null : child.href)}
+                    activePageId={activePageId}
+                    onPageSelect={onPageSelect}
+                    pages={pages}
+                    onPageSettings={onPageSettings}
+                    onDeletePage={onDeletePage}
+                    onDuplicatePage={onDuplicatePage}
                   />
                 ))}
 
@@ -711,9 +929,9 @@ function SortableTopLevelItem({
                   <button
                     type="button"
                     onClick={() => setAddingChildInGroup(group.label)}
-                    className="flex items-center gap-1.5 px-1 py-1 text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors w-full"
+                    className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors w-full rounded-md hover:bg-muted/30"
                   >
-                    <Plus className="size-3" />
+                    <Plus className="size-3.5" />
                     Add item
                   </button>
                 )}
@@ -737,9 +955,9 @@ function SortableTopLevelItem({
             <button
               type="button"
               onClick={() => setAddingSection(true)}
-              className="flex items-center gap-1.5 px-1 py-1.5 mt-1 text-[10px] text-primary/70 hover:text-primary transition-colors w-full border-t border-border/30 pt-2"
+              className="flex items-center gap-2 px-3 py-2 mt-1 text-xs text-primary/70 hover:text-primary transition-colors w-full border-t border-border/30 pt-2 rounded-md hover:bg-muted/30"
             >
-              <Plus className="size-3" />
+              <Plus className="size-3.5" />
               Add section
             </button>
           )}
@@ -769,11 +987,11 @@ function NavCTASection({
   if (!ctaLabel && !ctaHref) return null
 
   return (
-    <div className="border-t border-border/50 px-3 py-3">
+    <div className="border-t border-sidebar-border px-3 py-3">
       <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 select-none mb-2">
         CTA Button
       </div>
-      <div className="flex items-center justify-between gap-2 px-1 py-1.5 rounded-md bg-muted/20">
+      <div className="flex items-center justify-between gap-2 px-2 py-2 rounded-md bg-muted/20">
         <div className="flex items-center gap-2 min-w-0">
           <Link className="size-3.5 shrink-0 text-primary/70" />
           <div className="min-w-0">
@@ -788,14 +1006,14 @@ function NavCTASection({
           </div>
         </div>
         {!ctaVisible && (
-          <span className="text-[9px] text-muted-foreground/40 bg-muted/40 px-1.5 py-0.5 rounded shrink-0">
+          <span className="text-[10px] text-muted-foreground/40 bg-muted/40 px-1.5 py-0.5 rounded-md shrink-0">
             hidden
           </span>
         )}
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 text-[10px] shrink-0"
+          className="h-7 text-xs shrink-0"
           onClick={onEditCTA}
         >
           Edit
@@ -812,12 +1030,22 @@ function NavCTASection({
 interface NavHiddenPagesSectionProps {
   pages: PageSummary[]
   menuItemHrefs: Set<string>
+  activePageId: string
+  onPageSelect: (pageId: string) => void
+  onPageSettings?: (page: PageSummary) => void
+  onDeletePage?: (pageId: string) => void
+  onDuplicatePage?: (pageId: string) => void
   onAddHiddenPage?: () => void
 }
 
 function NavHiddenPagesSection({
   pages,
   menuItemHrefs,
+  activePageId,
+  onPageSelect,
+  onPageSettings,
+  onDeletePage,
+  onDuplicatePage,
   onAddHiddenPage,
 }: NavHiddenPagesSectionProps) {
   // Hidden pages = published pages not referenced by any menu item
@@ -837,39 +1065,105 @@ function NavHiddenPagesSection({
   if (hiddenPages.length === 0 && !onAddHiddenPage) return null
 
   return (
-    <div className="border-t border-border/50 px-3 py-3">
+    <div className="border-t border-sidebar-border px-3 py-3">
       <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 select-none mb-2">
         Hidden Pages
       </div>
       {hiddenPages.length === 0 ? (
-        <p className="text-[10px] text-muted-foreground/40 px-1 py-1">
+        <p className="text-xs text-muted-foreground/40 px-2 py-1.5">
           All published pages are in the navigation.
         </p>
       ) : (
-        <div className="space-y-0.5">
-          {hiddenPages.map((page) => (
-            <div
-              key={page.id}
-              className="flex items-center gap-2 px-1 py-1.5 rounded-md hover:bg-muted/30 transition-colors"
-            >
-              <EyeOff className="size-3 shrink-0 text-muted-foreground/40" />
-              <span className="text-xs text-muted-foreground/70 truncate flex-1">
-                {page.title}
-              </span>
-              <span className="text-[10px] text-muted-foreground/40 shrink-0">
-                /{page.slug}
-              </span>
-            </div>
-          ))}
+        <div className="space-y-1">
+          {hiddenPages.map((page) => {
+            const isActive = page.id === activePageId
+            return (
+              <div
+                key={page.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => onPageSelect(page.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    onPageSelect(page.id)
+                  }
+                }}
+                className={cn(
+                  "group/hidden flex items-center gap-2 px-2 py-2 rounded-md transition-colors cursor-pointer",
+                  isActive
+                    ? "bg-sidebar-accent border-l-2 border-primary"
+                    : "hover:bg-sidebar-accent",
+                )}
+              >
+                <EyeOff className="size-3.5 shrink-0 text-muted-foreground/40" />
+                <span className={cn(
+                  "text-xs truncate flex-1",
+                  isActive ? "text-primary font-semibold" : "text-muted-foreground/70",
+                )}>
+                  {page.title}
+                </span>
+                <span className="text-[10px] text-muted-foreground/40 shrink-0">
+                  /{page.slug}
+                </span>
+
+                {/* Active checkmark */}
+                {isActive && (
+                  <Check className="size-3.5 text-primary shrink-0" />
+                )}
+
+                {/* Context menu for page management */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn(
+                        "h-6 w-6 rounded-md transition-opacity shrink-0",
+                        "opacity-0 group-hover/hidden:opacity-100 data-[state=open]:opacity-100",
+                        "hover:bg-muted text-muted-foreground",
+                      )}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreHorizontal className="size-3.5" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    {onPageSettings && (
+                      <DropdownMenuItem onClick={() => onPageSettings(page)}>
+                        <Settings className="size-3.5 mr-2" /> Page Settings
+                      </DropdownMenuItem>
+                    )}
+                    {onDuplicatePage && (
+                      <DropdownMenuItem onClick={() => onDuplicatePage(page.id)}>
+                        <Copy className="size-3.5 mr-2" /> Duplicate Page
+                      </DropdownMenuItem>
+                    )}
+                    {onDeletePage && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive focus:text-destructive"
+                          onClick={() => onDeletePage(page.id)}
+                        >
+                          <Trash2 className="size-3.5 mr-2" /> Delete Page
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )
+          })}
         </div>
       )}
       {onAddHiddenPage && (
         <button
           type="button"
           onClick={onAddHiddenPage}
-          className="flex items-center gap-1.5 px-1 py-1.5 mt-1 text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors w-full"
+          className="flex items-center gap-2 px-2 py-2 mt-1 text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors w-full rounded-md hover:bg-muted/30"
         >
-          <Plus className="size-3" />
+          <Plus className="size-3.5" />
           Add hidden page
         </button>
       )}
@@ -893,6 +1187,12 @@ export function NavigationEditor({
   onEditItem,
   onMenuChange,
   onEditCTA,
+  activePageId,
+  onPageSelect,
+  onPageSettings,
+  onAddPage,
+  onDeletePage,
+  onDuplicatePage,
 }: NavigationEditorProps) {
   // Local state for menu items
   const [items, setItems] = useState<MenuItemData[]>(menuItems)
@@ -926,6 +1226,12 @@ export function NavigationEditor({
       return next
     })
   }, [])
+
+  // Href-to-page resolver (memoized)
+  const resolvePageId = useCallback(
+    (href: string | null) => resolveHrefToPageId(href, pages),
+    [pages],
+  )
 
   // Top-level items (parentId === null), sorted
   const topLevelItems = useMemo(
@@ -1159,23 +1465,38 @@ export function NavigationEditor({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header with Add button */}
-      <div className="flex items-center justify-between p-4 pb-2 border-b shrink-0">
-        <h3 className="text-sm font-semibold text-foreground">Navigation</h3>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 text-xs gap-1.5"
-          onClick={() => setAddingTopLevel(true)}
-        >
-          <Plus className="size-3" />
-          Add item
-        </Button>
+      {/* Header with Add Page + Add Menu Item buttons */}
+      <div className="flex flex-col gap-2 p-4 pb-3 border-b border-sidebar-border shrink-0">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-foreground">Pages & Navigation</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          {onAddPage && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1.5 flex-1"
+              onClick={onAddPage}
+            >
+              <Plus className="size-3.5" />
+              Add Page
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 text-xs gap-1.5 flex-1"
+            onClick={() => setAddingTopLevel(true)}
+          >
+            <Plus className="size-3.5" />
+            Add Menu Item
+          </Button>
+        </div>
       </div>
 
       {/* Inline add for top-level */}
       {addingTopLevel && (
-        <div className="px-3 py-2 border-b border-border/30">
+        <div className="px-3 py-2 border-b border-sidebar-border">
           <InlineAddInput
             placeholder="Item label..."
             onSubmit={(label) => {
@@ -1208,19 +1529,37 @@ export function NavigationEditor({
                 items={topLevelPrefixedIds}
                 strategy={verticalListSortingStrategy}
               >
-                {topLevelItems.map((item) => (
-                  <SortableTopLevelItem
-                    key={item.id}
-                    item={item}
-                    menuId={menuId}
-                    isExpanded={expandedIds.has(item.id)}
-                    onToggleExpand={() => toggleExpand(item.id)}
-                    onEditItem={onEditItem}
-                    onDeleteItem={handleDeleteItem}
-                    onMenuChange={refreshMenu}
-                    allChildPrefixedIds={childPrefixedIdsByParent[item.id] ?? []}
-                  />
-                ))}
+                {topLevelItems.map((item) => {
+                  const hasChildren = (item.children ?? []).length > 0
+                  const type = inferItemType(item, hasChildren)
+                  // Don't resolve page for external links or featured items
+                  const itemResolvedPageId =
+                    type === "external-link" || type === "featured"
+                      ? null
+                      : resolvePageId(item.href)
+
+                  return (
+                    <SortableTopLevelItem
+                      key={item.id}
+                      item={item}
+                      menuId={menuId}
+                      isExpanded={expandedIds.has(item.id)}
+                      onToggleExpand={() => toggleExpand(item.id)}
+                      onEditItem={onEditItem}
+                      onDeleteItem={handleDeleteItem}
+                      onMenuChange={refreshMenu}
+                      allChildPrefixedIds={childPrefixedIdsByParent[item.id] ?? []}
+                      resolvedPageId={itemResolvedPageId}
+                      activePageId={activePageId}
+                      onPageSelect={onPageSelect}
+                      pages={pages}
+                      onPageSettings={onPageSettings}
+                      onDeletePage={onDeletePage}
+                      onDuplicatePage={onDuplicatePage}
+                      resolvePageId={resolvePageId}
+                    />
+                  )
+                })}
               </SortableContext>
             </DndContext>
           )}
@@ -1237,6 +1576,11 @@ export function NavigationEditor({
           <NavHiddenPagesSection
             pages={pages}
             menuItemHrefs={menuItemHrefs}
+            activePageId={activePageId}
+            onPageSelect={onPageSelect}
+            onPageSettings={onPageSettings}
+            onDeletePage={onDeletePage}
+            onDuplicatePage={onDuplicatePage}
           />
         </div>
       </ScrollArea>
