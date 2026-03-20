@@ -344,6 +344,6 @@ Database versioning is **revision history** ("restore to last Tuesday"), not und
 
 | Document | Purpose |
 |---|---|
-| `docs/04_builder/dev-notes/dirty-tracking.md` | Dirty tracking system in detail |
-| `docs/04_builder/dev-notes/concurrent-editing-strategy.md` | Presence + dirty tracking + background sync + last-write-wins design (all implemented) |
+| `docs/04_builder/architecture/dirty-tracking.md` | Dirty tracking system in detail |
+| `docs/04_builder/architecture/concurrent-editing-strategy.md` | Presence + dirty tracking + background sync + last-write-wins design (all implemented) |
 | `docs/04_builder/worklog/undo-redo-drawer-sync.md` | Controlled component refactor (March 18 fix) |

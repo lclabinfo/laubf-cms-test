@@ -244,5 +244,5 @@ Background sync uses a JSON hash of `{ sections, title }` to detect changes. If 
 
 | Document | Purpose |
 |---|---|
-| `docs/04_builder/dev-notes/undo-redo-and-save-architecture.md` | Full undo/redo system architecture |
-| `docs/04_builder/dev-notes/concurrent-editing-strategy.md` | Why dirty tracking matters for concurrent editing |
+| `docs/04_builder/architecture/undo-redo-and-save-architecture.md` | Full undo/redo system architecture |
+| `docs/04_builder/architecture/concurrent-editing-strategy.md` | Why dirty tracking matters for concurrent editing |

@@ -182,7 +182,7 @@ Everything from `dev-guide-day1.md` is complete:
 
 ### Task 5: Presence Awareness System
 
-> **IMPLEMENTED** (March 19). Heartbeat presence + banner + background sync + post-save merge. See `dev-notes/concurrent-editing-strategy.md`.
+> **IMPLEMENTED** (March 19). Heartbeat presence + banner + background sync + post-save merge. See `architecture/concurrent-editing-strategy.md`.
 
 **Database:**
 

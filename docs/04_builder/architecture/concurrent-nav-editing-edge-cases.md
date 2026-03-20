@@ -1,7 +1,7 @@
 # Concurrent Navigation Editing — Edge Cases & Strategy
 
 > **Date:** March 19, 2026
-> **Status:** Brainstorm / design review — not yet implemented
+> **Status:** IMPLEMENTED (March 18-19). Navigation editor fully shipped with DnD, inline CRUD, and concurrent editing support.
 > **Prerequisite:** Read `concurrent-editing-strategy.md` for the page-section concurrent editing approach.
 > **Key difference:** Page sections are scoped to a single page. Navigation is **shared global state** — every admin on every page sees and edits the same navbar.
 

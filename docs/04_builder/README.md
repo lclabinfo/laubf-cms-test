@@ -25,19 +25,19 @@ The section type system — what exists, what's editable, and where it's headed.
 | [section-editor-gap-analysis.md](section-catalog/section-editor-gap-analysis.md) | Field-by-field gap analysis: what each editor exposes vs. what it should. |
 | [section-design-recommendation.md](section-catalog/section-design-recommendation.md) | Product recommendation: consolidate 41 → 24 types with variants (Shopify-style). |
 
-## Dev Notes (`dev-notes/`)
+## Architecture (`architecture/`)
 
-Technical references for implementation.
+System design, data flow, and technical architecture documentation.
 
 | Document | Purpose |
 |---|---|
-| [builder-system-architecture.md](dev-notes/builder-system-architecture.md) | Full system analysis — data flow, state management, section lifecycle, pain points, optimization recs. |
-| [builder-rendering.md](dev-notes/builder-rendering.md) | Builder canvas vs. live website rendering pipeline, known gaps, z-index scheme. |
-| [undo-redo-and-save-architecture.md](dev-notes/undo-redo-and-save-architecture.md) | Undo/redo + save system design. In-memory React state, 50-snapshot cap, auto-save 30s. |
-| [concurrent-editing-strategy.md](dev-notes/concurrent-editing-strategy.md) | How the builder handles multiple users editing simultaneously. Presence + dirty tracking + background sync + last-write-wins. All 3 layers implemented March 19. |
-| [dirty-tracking.md](dev-notes/dirty-tracking.md) | Granular dirty tracking system — which flags exist, what sets/clears them, interaction with background sync. |
-| [section-db-audit.md](dev-notes/section-db-audit.md) | DB connectivity per section — DAL functions, data sources. |
-| [README.md](dev-notes/README.md) | Quick overview of how the builder works — architecture diagram, key files, "when to use each doc." |
+| [builder-system-architecture.md](architecture/builder-system-architecture.md) | Full system analysis — data flow, state management, section lifecycle, pain points, optimization recs. |
+| [builder-rendering.md](architecture/builder-rendering.md) | Builder canvas vs. live website rendering pipeline, known gaps, z-index scheme. |
+| [undo-redo-and-save-architecture.md](architecture/undo-redo-and-save-architecture.md) | Undo/redo + save system design. In-memory React state, 50-snapshot cap, auto-save 30s. |
+| [concurrent-editing-strategy.md](architecture/concurrent-editing-strategy.md) | How the builder handles multiple users editing simultaneously. Presence + dirty tracking + background sync + last-write-wins. All 3 layers implemented March 19. |
+| [dirty-tracking.md](architecture/dirty-tracking.md) | Granular dirty tracking system — which flags exist, what sets/clears them, interaction with background sync. |
+| [section-db-audit.md](architecture/section-db-audit.md) | DB connectivity per section — DAL functions, data sources. |
+| [README.md](architecture/README.md) | Quick overview of how the builder works — architecture diagram, key files, "when to use each doc." |
 
 ## Mental Model (`mental-model/`)
 

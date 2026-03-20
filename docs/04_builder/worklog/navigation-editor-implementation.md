@@ -1,7 +1,7 @@
 # Navigation Editor — Implementation Plan
 
 > **Date:** March 18, 2026
-> **Prerequisite:** Read `dev-notes/navigation-editor-spec.md` for full requirements.
+> **Prerequisite:** Read `architecture/navigation-editor-spec.md` for full requirements.
 > **Goal:** Replace the disconnected navbar editor + CMS navigation page with a unified, tree-based navigation editor inside the website builder.
 
 ---
@@ -200,7 +200,7 @@ Phase 5:
 
 **Agent B: `nav-tree-component`**
 - **Scope:** The main NavigationEditor tree component
-- **Context needed:** Navigation spec (`dev-notes/navigation-editor-spec.md`), reference screenshot, existing PageTree (`page-tree.tsx`), DnD patterns from `sortable-section.tsx`
+- **Context needed:** Navigation spec (`architecture/navigation-editor-spec.md`), reference screenshot, existing PageTree (`page-tree.tsx`), DnD patterns from `sortable-section.tsx`
 - **Output:** `components/cms/website/builder/navigation-editor.tsx` + sub-components
 - **Critical:** This is the largest and most complex piece. Must match the reference UI exactly.
 - **Can run parallel with:** Agent C

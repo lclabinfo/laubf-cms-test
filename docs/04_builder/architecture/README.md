@@ -1,4 +1,4 @@
-# Builder Dev Notes — Quick Overview
+# Builder Architecture — Quick Overview
 
 > Read this first. It explains how the builder system works at a high level and when to dive into each detailed doc.
 

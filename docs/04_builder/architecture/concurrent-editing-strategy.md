@@ -116,7 +116,7 @@ Result: [S1, S2*, S3, S4*, S5] -- both changes preserved, zero conflict
 
 **Performance win**: a page with 15 sections where the user edited 2 goes from 17 HTTP requests (1 page + 1 reorder + 15 sections) down to 4 (1 page + 1 reorder + 2 sections).
 
-See `docs/04_builder/dev-notes/dirty-tracking.md` for full dirty tracking documentation.
+See `docs/04_builder/architecture/dirty-tracking.md` for full dirty tracking documentation.
 
 ---
 

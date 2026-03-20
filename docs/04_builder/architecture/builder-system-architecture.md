@@ -332,7 +332,7 @@ API routes call `revalidatePath('/website/...')` after mutations, busting Next.j
 
 ~~Every save sends ALL sections, not just changed ones.~~
 
-**Implemented (March 18-19):** Dirty tracking via `dirtySectionIds: Set<string>`, `reorderDirty`, `pageDirty` in BuilderShell. Only dirty sections are PATCHed on save (K+2 requests instead of N+2). Post-save refetch merges other users' changes. Background sync (15s) keeps idle users up to date. See `docs/04_builder/dev-notes/concurrent-editing-strategy.md` and `docs/04_builder/dev-notes/dirty-tracking.md`.
+**Implemented (March 18-19):** Dirty tracking via `dirtySectionIds: Set<string>`, `reorderDirty`, `pageDirty` in BuilderShell. Only dirty sections are PATCHed on save (K+2 requests instead of N+2). Post-save refetch merges other users' changes. Background sync (15s) keeps idle users up to date. See `docs/04_builder/architecture/concurrent-editing-strategy.md` and `docs/04_builder/architecture/dirty-tracking.md`.
 
 ### 6.3 No content validation
 
@@ -417,11 +417,11 @@ This makes adding a new section editor a 1-line change (add to the map) instead 
 
 ### R4: Track dirty sections for optimized save — IMPLEMENTED March 18
 
-**Status: COMPLETE.** `dirtySectionIds: Set<string>`, `reorderDirty`, `pageDirty` flags in BuilderShell. Save only PATCHes dirty sections. Post-save refetch merges other users' changes. Background sync (15s) keeps idle users up to date. See `docs/04_builder/dev-notes/dirty-tracking.md`.
+**Status: COMPLETE.** `dirtySectionIds: Set<string>`, `reorderDirty`, `pageDirty` flags in BuilderShell. Save only PATCHes dirty sections. Post-save refetch merges other users' changes. Background sync (15s) keeps idle users up to date. See `docs/04_builder/architecture/dirty-tracking.md`.
 
 ### R7: Presence awareness for concurrent editing — IMPLEMENTED March 19
 
-**Status: COMPLETE.** `BuilderPresence` Prisma model + heartbeat API (`/api/v1/builder/presence`). `usePresenceHeartbeat` hook (30s). Amber warning banner: "X is also editing this page — your changes may overwrite theirs if you save now." `useBackgroundSync` hook (15s polling). Post-save refetch + merge. Resilient reorder DAL. 11 bugs found and fixed via QA audit. See `docs/04_builder/dev-notes/concurrent-editing-strategy.md`.
+**Status: COMPLETE.** `BuilderPresence` Prisma model + heartbeat API (`/api/v1/builder/presence`). `usePresenceHeartbeat` hook (30s). Amber warning banner: "X is also editing this page — your changes may overwrite theirs if you save now." `useBackgroundSync` hook (15s polling). Post-save refetch + merge. Resilient reorder DAL. 11 bugs found and fixed via QA audit. See `docs/04_builder/architecture/concurrent-editing-strategy.md`.
 
 ### R5: Consider debouncing editor changes (Low priority, low effort)
 

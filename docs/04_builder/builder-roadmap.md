@@ -19,7 +19,7 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 
 **Editing approach (decided):** Right-panel drawer with form fields + live canvas preview (Shopify-style). The drawer is the correct UI for design-focused, infrequent editing. Inline canvas editing is deferred — high cost, low value given the CMS handles all recurring content. See `mental-model/builder-review.md` for the full analysis.
 
-**Concurrent editing (implemented):** Presence awareness + dirty section tracking + silent last-write-wins + background sync. No merge UI, no conflict modals, no page locking. See `dev-notes/concurrent-editing-strategy.md` for the full design.
+**Concurrent editing (implemented):** Presence awareness + dirty section tracking + silent last-write-wins + background sync. No merge UI, no conflict modals, no page locking. See `architecture/concurrent-editing-strategy.md` for the full design.
 
 ---
 
@@ -193,7 +193,7 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 
 ### Day 5 — Monday (Week 2): Presence System + Theme Compliance + UX Polish
 
-**Presence awareness system** (concurrent editing — see `dev-notes/concurrent-editing-strategy.md`) — **ALL DONE** (Mar 19)
+**Presence awareness system** (concurrent editing — see `architecture/concurrent-editing-strategy.md`) — **ALL DONE** (Mar 19)
 - [x] Create `BuilderPresence` model in Prisma schema (pageId, userId, userName, lastSeen, churchId)
 - [x] Create heartbeat API: `POST /api/v1/builder/presence` (upsert + returns other editors)
 - [x] Create presence query API: `GET /api/v1/builder/presence?pageId=xxx` (active editors with lastSeen < 60s)
@@ -286,7 +286,7 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 | AI website generation | Requires Phase 1 + Phase 2 complete first. Target: after Phase 2. |
 | Section merging/consolidation | All 40 types are actively used. Low ROI. |
 | New section types | 40 is comprehensive for MVP |
-| Per-section conflict modals / merge UI | Church admins don't understand merge. Silent last-write-wins with presence awareness is better UX. See `dev-notes/concurrent-editing-strategy.md`. |
+| Per-section conflict modals / merge UI | Church admins don't understand merge. Silent last-write-wins with presence awareness is better UX. See `architecture/concurrent-editing-strategy.md`. |
 
 ---
 
@@ -328,8 +328,8 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 
 **Editor gap analysis (current vs should-be):** See `section-catalog/section-editor-gap-analysis.md`.
 
-**Concurrent editing design:** See `dev-notes/concurrent-editing-strategy.md`.
+**Concurrent editing design:** See `architecture/concurrent-editing-strategy.md`.
 
-**Save & undo/redo architecture:** See `dev-notes/undo-redo-and-save-architecture.md`.
+**Save & undo/redo architecture:** See `architecture/undo-redo-and-save-architecture.md`.
 
-**System architecture & recommendations:** See `dev-notes/builder-system-architecture.md`.
+**System architecture & recommendations:** See `architecture/builder-system-architecture.md`.
