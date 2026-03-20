@@ -425,7 +425,8 @@ async function main() {
   console.log('Clearing existing data...')
 
   // Delete in reverse dependency order
-  // Website builder tables first
+  // Builder + website tables first
+  await prisma.builderPresence.deleteMany()
   await prisma.menuItem.deleteMany()
   await prisma.menu.deleteMany()
   await prisma.pageSection.deleteMany()
@@ -443,7 +444,6 @@ async function main() {
   await prisma.event.deleteMany()
   await prisma.video.deleteMany()
   await prisma.dailyBread.deleteMany()
-  await prisma.speaker.deleteMany()
   await prisma.series.deleteMany()
   await prisma.ministry.deleteMany()
   await prisma.campus.deleteMany()
