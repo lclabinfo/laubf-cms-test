@@ -370,16 +370,17 @@ function NavHiddenPagesSection({
   onDuplicatePage,
   onAddHiddenPage,
 }: NavHiddenPagesSectionProps) {
-  // Hidden pages = published pages not referenced by any menu item
+  // Pages not in the navigation = pages whose slug is not referenced by any menu item
+  // This includes unpublished/draft pages AND published pages not in the nav
   const hiddenPages = useMemo(() => {
     return pages.filter((p) => {
-      if (!p.isPublished) return false
-      // Check if this page's slug is referenced by any menu item href
       const slug = p.slug || ""
+      // Homepage is always in the navigation conceptually — skip it
+      if (p.isHomepage) return false
+      // Check if this page's slug is referenced by any menu item href
       return (
         !menuItemHrefs.has(`/${slug}`) &&
-        !menuItemHrefs.has(slug) &&
-        !p.isHomepage
+        !menuItemHrefs.has(slug)
       )
     })
   }, [pages, menuItemHrefs])
@@ -389,11 +390,11 @@ function NavHiddenPagesSection({
   return (
     <div className="border-t border-sidebar-border px-3 py-3">
       <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 select-none mb-2">
-        Hidden Pages
+        Not in Navigation
       </div>
       {hiddenPages.length === 0 ? (
         <p className="text-xs text-muted-foreground/40 px-2 py-1.5">
-          All published pages are in the navigation.
+          All pages are in the navigation.
         </p>
       ) : (
         <div className="space-y-1">
@@ -425,6 +426,11 @@ function NavHiddenPagesSection({
                 )}>
                   {page.title}
                 </span>
+                {!page.isPublished && (
+                  <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-md shrink-0">
+                    Draft
+                  </span>
+                )}
                 <span className="text-[10px] text-muted-foreground/40 shrink-0">
                   /{page.slug}
                 </span>
@@ -461,7 +467,7 @@ function NavHiddenPagesSection({
                         <Copy className="size-3.5 mr-2" /> Duplicate Page
                       </DropdownMenuItem>
                     )}
-                    {onDeletePage && (
+                    {onDeletePage && !page.isHomepage && (
                       <>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem
@@ -746,21 +752,32 @@ export function NavigationEditor({
         // Same parent child reorder
         const parent = items.find((i) => i.id === newParentId)
         if (!parent?.children?.length) return
-        const childIds = [...parent.children]
-          .sort((a, b) => a.sortOrder - b.sortOrder)
-          .map((c) => c.id)
+        const sortedChildren = [...parent.children].sort((a, b) => a.sortOrder - b.sortOrder)
+        const childIds = sortedChildren.map((c) => c.id)
         const oldIndex = childIds.indexOf(active.id as string)
         const newIndex = childIds.indexOf(over.id as string)
         if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return
 
         const reordered = arrayMove(childIds, oldIndex, newIndex)
 
+        // Determine the groupLabel the moved item should inherit from its new neighbor
+        const movedChild = sortedChildren.find((c) => c.id === active.id)
+        const overChild = sortedChildren.find((c) => c.id === over.id)
+        const newGroupLabel = overChild?.groupLabel ?? null
+        const oldGroupLabel = movedChild?.groupLabel ?? null
+        const groupLabelChanged = newGroupLabel !== oldGroupLabel
+
         setItems((prev) =>
           prev.map((item) => {
             if (item.id !== newParentId) return item
             const newChildren = (item.children ?? []).map((c) => {
               const idx = reordered.indexOf(c.id)
-              return idx !== -1 ? { ...c, sortOrder: idx } : c
+              if (idx === -1) return c
+              // Update groupLabel if this is the moved item and it changed groups
+              if (groupLabelChanged && c.id === active.id) {
+                return { ...c, sortOrder: idx, groupLabel: newGroupLabel }
+              }
+              return { ...c, sortOrder: idx }
             })
             return { ...item, children: newChildren }
           }),
@@ -772,6 +789,14 @@ export function NavigationEditor({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ itemIds: reordered }),
           })
+          // If groupLabel changed, also PATCH the moved item
+          if (groupLabelChanged) {
+            await fetch(`/api/v1/menus/${menuId}/items/${active.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ groupLabel: newGroupLabel }),
+            })
+          }
           await refreshMenu()
         } catch {
           toast.error("Failed to reorder items")
@@ -780,11 +805,15 @@ export function NavigationEditor({
       }
     } else {
       // Different parent -- reparent via PATCH
+      // Inherit groupLabel from the item we're dropping near
+      const overFi = flattenedItems.find((fi) => fi.item.id === over.id)
+      const inheritedGroupLabel = overFi?.item.groupLabel ?? null
+
       try {
         await fetch(`/api/v1/menus/${menuId}/items/${active.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ parentId: newParentId, groupLabel: null }),
+          body: JSON.stringify({ parentId: newParentId, groupLabel: inheritedGroupLabel }),
         })
         toast.success(newParentId ? "Item moved" : "Item moved to top level")
         await refreshMenu()
@@ -851,6 +880,60 @@ export function NavigationEditor({
   const handleConvertToPage = useCallback((item: MenuItemData) => {
     onEditItem?.(item.id)
   }, [onEditItem])
+
+  // Rename a group (update groupLabel on all items in that section)
+  const handleRenameGroup = useCallback(
+    async (parentId: string, oldLabel: string, newLabel: string) => {
+      const parent = items.find((i) => i.id === parentId)
+      if (!parent?.children) return
+      const itemsInGroup = parent.children.filter((c) => c.groupLabel === oldLabel)
+
+      try {
+        await Promise.all(
+          itemsInGroup.map((c) =>
+            fetch(`/api/v1/menus/${menuId}/items/${c.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ groupLabel: newLabel }),
+            }),
+          ),
+        )
+        toast.success("Section renamed")
+        await refreshMenu()
+      } catch {
+        toast.error("Failed to rename section")
+        await refreshMenu()
+      }
+    },
+    [menuId, items, refreshMenu],
+  )
+
+  // Remove grouping (set groupLabel to null on all items in the section)
+  const handleUngroupItems = useCallback(
+    async (parentId: string, groupLabel: string) => {
+      const parent = items.find((i) => i.id === parentId)
+      if (!parent?.children) return
+      const itemsInGroup = parent.children.filter((c) => c.groupLabel === groupLabel)
+
+      try {
+        await Promise.all(
+          itemsInGroup.map((c) =>
+            fetch(`/api/v1/menus/${menuId}/items/${c.id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ groupLabel: null }),
+            }),
+          ),
+        )
+        toast.success("Grouping removed")
+        await refreshMenu()
+      } catch {
+        toast.error("Failed to remove grouping")
+        await refreshMenu()
+      }
+    },
+    [menuId, items, refreshMenu],
+  )
 
   // Move a child item to a different parent or top level
   const handleMoveToParent = useCallback(
@@ -1029,11 +1112,44 @@ export function NavigationEditor({
 
                   return (
                     <div key={item.id}>
-                      {showSectionHeader && (
-                        <div className="py-1 mt-2" style={{ paddingLeft: depth * INDENT_WIDTH + 8 }}>
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 truncate block">
+                      {showSectionHeader && item.groupLabel && (
+                        <div
+                          className="group/section flex items-center justify-between py-1 mt-2 pr-2"
+                          style={{ paddingLeft: depth * INDENT_WIDTH + 8 }}
+                        >
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 truncate">
                             {item.groupLabel}
                           </span>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 shrink-0 opacity-0 group-hover/section:opacity-100 data-[state=open]:opacity-100 transition-opacity text-muted-foreground/40 hover:text-muted-foreground"
+                              >
+                                <MoreHorizontal className="size-3" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  const newName = prompt("Rename section:", item.groupLabel!)
+                                  if (newName && newName !== item.groupLabel) {
+                                    handleRenameGroup(fiParentId!, item.groupLabel!, newName)
+                                  }
+                                }}
+                              >
+                                Rename
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={() => handleUngroupItems(fiParentId!, item.groupLabel!)}
+                              >
+                                Remove Grouping
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       )}
                       <SortableTreeItem
