@@ -39,6 +39,8 @@ export function usePresenceHeartbeat({
           }),
         )
         setOtherEditors(editors)
+      } else {
+        console.warn(`[presence] heartbeat failed: ${res.status} ${res.statusText}`)
       }
     } catch {
       // Silently fail — retry next interval
