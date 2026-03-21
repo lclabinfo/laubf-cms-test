@@ -1,9 +1,7 @@
 "use client"
 
-import { ExternalLink } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
-import { Button } from "@/components/ui/button"
 import type { SectionType } from "@/lib/db/types"
 import {
   EditorInput,
@@ -12,41 +10,10 @@ import {
   EditorButtonGroup,
   TwoColumnGrid,
   DataDrivenBanner,
-  DATA_SOURCE_LABELS,
   ArrayField,
+  LinkInput,
 } from "./shared"
 
-// --- "Manage in CMS" link ---
-const CMS_LINKS: Partial<Record<SectionType, { label: string; href: string }>> = {
-  ALL_MESSAGES: { label: "Manage Messages", href: "/cms/messages" },
-  ALL_EVENTS: { label: "Manage Events", href: "/cms/events" },
-  ALL_BIBLE_STUDIES: { label: "Manage Bible Studies", href: "/cms/bible-studies" },
-  ALL_VIDEOS: { label: "Manage Media", href: "/cms/media" },
-  UPCOMING_EVENTS: { label: "Manage Events", href: "/cms/events" },
-  EVENT_CALENDAR: { label: "Manage Events", href: "/cms/events" },
-  RECURRING_MEETINGS: { label: "Manage Events", href: "/cms/events" },
-  MEDIA_GRID: { label: "Manage Media", href: "/cms/media" },
-  HIGHLIGHT_CARDS: { label: "Manage Events", href: "/cms/events" },
-  SPOTLIGHT_MEDIA: { label: "Manage Messages", href: "/cms/messages" },
-}
-
-function ManageInCmsLink({ sectionType }: { sectionType: SectionType }) {
-  const link = CMS_LINKS[sectionType]
-  if (!link) return null
-  return (
-    <Button
-      variant="outline"
-      size="sm"
-      className="w-full"
-      asChild
-    >
-      <a href={link.href} target="_blank" rel="noopener noreferrer">
-        <ExternalLink className="size-3.5 mr-2" />
-        {link.label}
-      </a>
-    </Button>
-  )
-}
 
 interface DataSectionEditorProps {
   sectionType: SectionType
@@ -241,7 +208,7 @@ function SimpleDataEditor({
       />
 
       {(ctaLabelPlaceholder || ctaHrefPlaceholder) && (
-        <TwoColumnGrid>
+        <>
           <EditorInput
             label="CTA Label (optional)"
             value={ctaLabel}
@@ -249,14 +216,14 @@ function SimpleDataEditor({
             placeholder={ctaLabelPlaceholder ?? "View All"}
             labelSize="xs"
           />
-          <EditorInput
+          <LinkInput
             label="CTA Link (optional)"
             value={ctaHref}
             onChange={(val) => onChange({ ...content, ctaHref: val })}
             placeholder={ctaHrefPlaceholder ?? "/page"}
             labelSize="xs"
           />
-        </TwoColumnGrid>
+        </>
       )}
     </>
   )
@@ -294,32 +261,30 @@ function UpcomingEventsEditor({
 
       <div className="space-y-3">
         <Label className="text-sm font-medium">CTA Button</Label>
-        <TwoColumnGrid>
-          <EditorInput
-            label="Button Label"
-            value={ctaButton.label}
-            onChange={(val) =>
-              onChange({
-                ...content,
-                ctaButton: { ...ctaButton, label: val },
-              })
-            }
-            placeholder="View All Events"
-            labelSize="xs"
-          />
-          <EditorInput
-            label="Button Link"
-            value={ctaButton.href}
-            onChange={(val) =>
-              onChange({
-                ...content,
-                ctaButton: { ...ctaButton, href: val },
-              })
-            }
-            placeholder="/events"
-            labelSize="xs"
-          />
-        </TwoColumnGrid>
+        <EditorInput
+          label="Button Label"
+          value={ctaButton.label}
+          onChange={(val) =>
+            onChange({
+              ...content,
+              ctaButton: { ...ctaButton, label: val },
+            })
+          }
+          placeholder="View All Events"
+          labelSize="xs"
+        />
+        <LinkInput
+          label="Button Link"
+          value={ctaButton.href}
+          onChange={(val) =>
+            onChange({
+              ...content,
+              ctaButton: { ...ctaButton, href: val },
+            })
+          }
+          placeholder="/events"
+          labelSize="xs"
+        />
       </div>
 
       <Separator />
@@ -403,22 +368,20 @@ function EventCalendarEditor({
         maxItems={4}
         renderItem={(item, _index, updateItem) => (
           <div className="space-y-3">
-            <TwoColumnGrid>
-              <EditorInput
-                label="Button Label"
-                value={item.label}
-                onChange={(val) => updateItem({ ...item, label: val })}
-                placeholder="View All Events"
-                labelSize="xs"
-              />
-              <EditorInput
-                label="Button Link"
-                value={item.href}
-                onChange={(val) => updateItem({ ...item, href: val })}
-                placeholder="/events"
-                labelSize="xs"
-              />
-            </TwoColumnGrid>
+            <EditorInput
+              label="Button Label"
+              value={item.label}
+              onChange={(val) => updateItem({ ...item, label: val })}
+              placeholder="View All Events"
+              labelSize="xs"
+            />
+            <LinkInput
+              label="Button Link"
+              value={item.href}
+              onChange={(val) => updateItem({ ...item, href: val })}
+              placeholder="/events"
+              labelSize="xs"
+            />
             <EditorToggle
               label="Show Arrow Icon"
               description="Display an arrow icon on the button (primary style)"
@@ -573,22 +536,20 @@ function HighlightCardsEditor({
 
       <Separator />
 
-      <TwoColumnGrid>
-        <EditorInput
-          label="CTA Label (optional)"
-          value={ctaLabel}
-          onChange={(val) => onChange({ ...content, ctaLabel: val })}
-          placeholder="View All Events"
-          labelSize="xs"
-        />
-        <EditorInput
-          label="CTA Link (optional)"
-          value={ctaHref}
-          onChange={(val) => onChange({ ...content, ctaHref: val })}
-          placeholder="/events"
-          labelSize="xs"
-        />
-      </TwoColumnGrid>
+      <EditorInput
+        label="CTA Label (optional)"
+        value={ctaLabel}
+        onChange={(val) => onChange({ ...content, ctaLabel: val })}
+        placeholder="View All Events"
+        labelSize="xs"
+      />
+      <LinkInput
+        label="CTA Link (optional)"
+        value={ctaHref}
+        onChange={(val) => onChange({ ...content, ctaHref: val })}
+        placeholder="/events"
+        labelSize="xs"
+      />
 
       <Separator />
 
@@ -699,12 +660,9 @@ export function DataSectionEditor({
   content,
   onChange,
 }: DataSectionEditorProps) {
-  const description =
-    DATA_SOURCE_LABELS[sectionType] ?? "Data loaded from the CMS database"
-
   return (
     <div className="space-y-6">
-      <DataDrivenBanner sectionType={sectionType} description={description} />
+      <DataDrivenBanner sectionType={sectionType} />
 
       {sectionType === "SPOTLIGHT_MEDIA" && (
         <SpotlightMediaEditor content={content} onChange={onChange} />
@@ -774,15 +732,6 @@ export function DataSectionEditor({
         />
       )}
 
-      <Separator />
-
-      <ManageInCmsLink sectionType={sectionType} />
-
-      <p className="text-xs text-muted-foreground">
-        Content is managed through the CMS. Use the controls above to customize
-        how it&apos;s displayed. To add or edit the actual content, click the
-        button above.
-      </p>
     </div>
   )
 }
