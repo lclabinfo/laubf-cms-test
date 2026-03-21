@@ -5,8 +5,39 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
-import { ImageIcon, X, Plus, ChevronUp, ChevronDown, Video, Trash2 } from "lucide-react"
+import { ImageIcon, X, Plus, Video, GripVertical } from "lucide-react"
 import { MediaPickerDialog } from "@/components/cms/media/media-picker-dialog"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core"
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import { cn } from "@/lib/utils"
+
+// --- Helpers ---
+
+/** Extract a human-readable filename from a URL */
+function filenameFromUrl(url: string): string {
+  try {
+    const pathname = new URL(url, "https://x").pathname
+    const name = pathname.split("/").pop() || url
+    // Strip UUID prefix pattern (e.g. "a1b2c3d4-...-filename.jpg" → "filename.jpg")
+    return name.replace(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-/i, "")
+  } catch {
+    return url.split("/").pop() || url
+  }
+}
 
 // --- ImagePickerField ---
 
@@ -29,23 +60,28 @@ export function ImagePickerField({
         <div className="relative group rounded-md border overflow-hidden h-20">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={value} alt="" className="size-full object-cover" />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
-            <Button
-              size="sm"
-              variant="secondary"
-              className="h-7 text-xs"
-              onClick={() => setPickerOpen(true)}
-            >
-              Replace
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              className="h-7 text-xs"
-              onClick={() => onChange("")}
-            >
-              <X className="size-3" />
-            </Button>
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors flex flex-col items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
+            <div className="flex items-center gap-1.5">
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 text-xs"
+                onClick={() => setPickerOpen(true)}
+              >
+                Replace
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                className="h-7 text-xs"
+                onClick={() => onChange("")}
+              >
+                <X className="size-3" />
+              </Button>
+            </div>
+            <span className="text-[10px] text-white/80 truncate max-w-[90%] px-1">
+              {filenameFromUrl(value)}
+            </span>
           </div>
         </div>
       ) : (
@@ -78,6 +114,87 @@ export interface ImageListFieldProps {
   maxImages?: number
 }
 
+/** Sortable wrapper for a single image row */
+function SortableImageRow({
+  id,
+  img,
+  onRemove,
+}: {
+  id: string
+  img: { src: string; alt: string }
+  onRemove: () => void
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "relative group flex items-center gap-2 rounded-md border overflow-hidden",
+        isDragging && "opacity-50 shadow-lg ring-2 ring-primary/30",
+      )}
+    >
+      {/* Drag handle */}
+      <div
+        {...attributes}
+        {...listeners}
+        className="flex-shrink-0 pl-1 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <GripVertical className="size-4" />
+      </div>
+
+      {/* Thumbnail */}
+      <div className="h-16 w-20 flex-shrink-0 rounded overflow-hidden bg-muted">
+        {/\.(mp4|webm|mov|ogg)(\?|$)/i.test(img.src) ? (
+          <div className="h-full w-full flex items-center justify-center text-muted-foreground">
+            <Video className="size-5" />
+          </div>
+        ) : img.src ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={img.src}
+            alt={img.alt}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <div className="h-full w-full flex items-center justify-center text-muted-foreground">
+            <ImageIcon className="size-5" />
+          </div>
+        )}
+      </div>
+
+      {/* Alt text (truncated) */}
+      <span className="flex-1 truncate text-xs text-muted-foreground px-1">
+        {img.alt || "No alt text"}
+      </span>
+
+      {/* Remove button */}
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        className="h-6 w-6 mr-1 text-muted-foreground hover:text-destructive"
+        onClick={onRemove}
+      >
+        <X className="size-3.5" />
+      </Button>
+    </div>
+  )
+}
+
 export function ImageListField({
   label,
   images,
@@ -85,6 +202,11 @@ export function ImageListField({
   maxImages = 10,
 }: ImageListFieldProps) {
   const [pickerOpen, setPickerOpen] = useState(false)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  )
 
   const handleAdd = useCallback(
     (url: string, alt?: string) => {
@@ -101,25 +223,17 @@ export function ImageListField({
     [images, onChange],
   )
 
-  const handleMoveUp = useCallback(
-    (index: number) => {
-      if (index === 0) return
-      const next = [...images]
-      ;[next[index - 1], next[index]] = [next[index], next[index - 1]]
-      onChange(next)
-    },
-    [images, onChange],
-  )
+  // Generate stable IDs for each image based on src + index
+  const imageIds = images.map((img, i) => `${img.src}-${i}`)
 
-  const handleMoveDown = useCallback(
-    (index: number) => {
-      if (index >= images.length - 1) return
-      const next = [...images]
-      ;[next[index], next[index + 1]] = [next[index + 1], next[index]]
-      onChange(next)
-    },
-    [images, onChange],
-  )
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIndex = imageIds.indexOf(active.id as string)
+      const newIndex = imageIds.indexOf(over.id as string)
+      onChange(arrayMove(images, oldIndex, newIndex))
+    }
+  }
 
   return (
     <div className="space-y-1.5">
@@ -137,71 +251,25 @@ export function ImageListField({
         </button>
       ) : (
         <div className="space-y-2">
-          {images.map((img, index) => (
-            <div
-              key={`${img.src}-${index}`}
-              className="relative group flex items-center gap-2 rounded-md border overflow-hidden"
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={imageIds}
+              strategy={verticalListSortingStrategy}
             >
-              {/* Thumbnail */}
-              <div className="h-16 w-20 flex-shrink-0 rounded overflow-hidden bg-muted">
-                {/\.(mp4|webm|mov|ogg)(\?|$)/i.test(img.src) ? (
-                  <div className="h-full w-full flex items-center justify-center text-muted-foreground">
-                    <Video className="size-5" />
-                  </div>
-                ) : img.src ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={img.src}
-                    alt={img.alt}
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="h-full w-full flex items-center justify-center text-muted-foreground">
-                    <ImageIcon className="size-5" />
-                  </div>
-                )}
-              </div>
-
-              {/* Alt text (truncated) */}
-              <span className="flex-1 truncate text-xs text-muted-foreground px-1">
-                {img.alt || "No alt text"}
-              </span>
-
-              {/* Reorder + Remove controls */}
-              <div className="flex flex-col items-center gap-0.5 pr-1">
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  disabled={index === 0}
-                  onClick={() => handleMoveUp(index)}
-                >
-                  <ChevronUp className="size-3.5" />
-                </Button>
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="ghost"
-                  className="h-6 w-6"
-                  disabled={index === images.length - 1}
-                  onClick={() => handleMoveDown(index)}
-                >
-                  <ChevronDown className="size-3.5" />
-                </Button>
-              </div>
-
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                className="h-6 w-6 mr-1 text-muted-foreground hover:text-destructive"
-                onClick={() => handleRemove(index)}
-              >
-                <X className="size-3.5" />
-              </Button>
-            </div>
-          ))}
+              {images.map((img, index) => (
+                <SortableImageRow
+                  key={imageIds[index]}
+                  id={imageIds[index]}
+                  img={img}
+                  onRemove={() => handleRemove(index)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
 
           {/* Add more button */}
           {images.length < maxImages && (
@@ -235,6 +303,7 @@ export interface VideoPickerFieldProps {
   label: string
   value: string
   onChange: (url: string) => void
+  description?: string
   posterImage?: string
   onPosterChange?: (url: string) => void
 }
@@ -243,6 +312,7 @@ export function VideoPickerField({
   label,
   value,
   onChange,
+  description,
   posterImage,
   onPosterChange,
 }: VideoPickerFieldProps) {
@@ -251,38 +321,48 @@ export function VideoPickerField({
 
   return (
     <div className="space-y-2">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <div>
+        <Label className="text-xs text-muted-foreground">{label}</Label>
+        {description && (
+          <p className="text-[11px] text-muted-foreground/70 mt-0.5 text-balance">{description}</p>
+        )}
+      </div>
 
       {value ? (
         <div className="space-y-2">
           {/* Video preview */}
-          <div className="relative rounded-md border overflow-hidden">
+          <div className="relative group rounded-md border overflow-hidden">
             <video
               src={value}
               poster={posterImage || undefined}
               muted
-              controls
               preload="metadata"
-              className="h-32 w-full rounded-md object-cover"
+              className="h-32 w-full object-cover"
             />
-            <Button
-              type="button"
-              size="icon"
-              variant="secondary"
-              className="absolute top-1.5 right-1.5 h-6 w-6"
-              onClick={() => onChange("")}
-            >
-              <X className="size-3" />
-            </Button>
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors flex flex-col items-center justify-center gap-1 opacity-0 group-hover:opacity-100">
+              <div className="flex items-center gap-1.5">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 text-xs"
+                  onClick={() => setPickerOpen(true)}
+                >
+                  Replace
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="h-7 text-xs"
+                  onClick={() => onChange("")}
+                >
+                  <X className="size-3" />
+                </Button>
+              </div>
+              <span className="text-[10px] text-white/80 truncate max-w-[90%] px-1">
+                {filenameFromUrl(value)}
+              </span>
+            </div>
           </div>
-
-          {/* URL input */}
-          <Input
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="https://..."
-            className="text-xs"
-          />
 
           {/* Poster image picker */}
           {onPosterChange && (
@@ -290,6 +370,9 @@ export function VideoPickerField({
               <Label className="text-xs text-muted-foreground">
                 Poster / Fallback Image
               </Label>
+              <p className="text-[11px] text-muted-foreground/70">
+                Displays while loading or on playback failure
+              </p>
               {posterImage ? (
                 <div className="relative group rounded-md border overflow-hidden h-16">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -298,23 +381,28 @@ export function VideoPickerField({
                     alt=""
                     className="size-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="h-6 text-xs"
-                      onClick={() => setPosterPickerOpen(true)}
-                    >
-                      Replace
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      className="h-6 text-xs"
-                      onClick={() => onPosterChange("")}
-                    >
-                      <X className="size-3" />
-                    </Button>
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors flex flex-col items-center justify-center gap-0.5 opacity-0 group-hover:opacity-100">
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-6 text-xs"
+                        onClick={() => setPosterPickerOpen(true)}
+                      >
+                        Replace
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="h-6 text-xs"
+                        onClick={() => onPosterChange("")}
+                      >
+                        <X className="size-3" />
+                      </Button>
+                    </div>
+                    <span className="text-[10px] text-white/80 truncate max-w-[90%] px-1">
+                      {filenameFromUrl(posterImage)}
+                    </span>
                   </div>
                 </div>
               ) : (
@@ -339,31 +427,21 @@ export function VideoPickerField({
           )}
         </div>
       ) : (
-        <div className="space-y-2">
-          {/* Empty state */}
-          <button
-            type="button"
-            onClick={() => setPickerOpen(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-muted-foreground/25 py-6 text-sm text-muted-foreground hover:border-muted-foreground/40 transition-colors"
-          >
-            <Video className="size-4" />
-            Add Video
-          </button>
-
-          {/* URL input for pasting */}
-          <Input
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder="Or paste a video URL..."
-            className="text-xs"
-          />
-        </div>
+        <button
+          type="button"
+          onClick={() => setPickerOpen(true)}
+          className="flex w-full items-center justify-center gap-2 rounded-md border-2 border-dashed border-muted-foreground/25 py-6 text-sm text-muted-foreground hover:border-muted-foreground/40 transition-colors"
+        >
+          <Video className="size-4" />
+          Add Video
+        </button>
       )}
 
       <MediaPickerDialog
         open={pickerOpen}
         onOpenChange={setPickerOpen}
         folder="Website"
+        mediaType="video"
         onSelect={(url) => onChange(url)}
       />
     </div>
