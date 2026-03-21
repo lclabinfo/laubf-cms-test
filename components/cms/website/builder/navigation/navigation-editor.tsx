@@ -28,6 +28,7 @@ import {
   Folder,
   Link,
   MoreHorizontal,
+  Navigation2,
   Plus,
   Settings,
   Trash2,
@@ -358,6 +359,7 @@ interface NavHiddenPagesSectionProps {
   onDeletePage?: (pageId: string) => void
   onDuplicatePage?: (pageId: string) => void
   onAddHiddenPage?: () => void
+  onAddToNavigation?: (page: PageSummary) => void
 }
 
 function NavHiddenPagesSection({
@@ -369,6 +371,7 @@ function NavHiddenPagesSection({
   onDeletePage,
   onDuplicatePage,
   onAddHiddenPage,
+  onAddToNavigation,
 }: NavHiddenPagesSectionProps) {
   // Pages not in the navigation = pages whose slug is not referenced by any menu item
   // This includes unpublished/draft pages AND published pages not in the nav
@@ -385,7 +388,7 @@ function NavHiddenPagesSection({
     })
   }, [pages, menuItemHrefs])
 
-  if (hiddenPages.length === 0 && !onAddHiddenPage) return null
+  // Always show the section so users know about it, even when empty
 
   return (
     <div className="border-t border-sidebar-border px-3 py-3">
@@ -457,6 +460,11 @@ function NavHiddenPagesSection({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">
+                    {onAddToNavigation && (
+                      <DropdownMenuItem onClick={() => onAddToNavigation(page)}>
+                        <Navigation2 className="size-3.5 mr-2" /> Add to Navigation
+                      </DropdownMenuItem>
+                    )}
                     {onPageSettings && (
                       <DropdownMenuItem onClick={() => onPageSettings(page)}>
                         <Settings className="size-3.5 mr-2" /> Page Settings
@@ -495,6 +503,103 @@ function NavHiddenPagesSection({
           Add hidden page
         </button>
       )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// SectionHeader — interactive group label with inline rename
+// ---------------------------------------------------------------------------
+
+function SectionHeader({
+  label,
+  depth,
+  indentWidth,
+  onRename,
+  onUngroup,
+}: {
+  label: string
+  depth: number
+  indentWidth: number
+  onRename: (newName: string) => void
+  onUngroup: () => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [editValue, setEditValue] = useState(label)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus()
+      inputRef.current?.select()
+    }
+  }, [editing])
+
+  const handleSubmit = () => {
+    const trimmed = editValue.trim()
+    if (trimmed && trimmed !== label) {
+      onRename(trimmed)
+    }
+    setEditing(false)
+    setEditValue(label)
+  }
+
+  if (editing) {
+    return (
+      <div
+        className="flex items-center gap-1.5 py-1 mt-2 pr-2"
+        style={{ paddingLeft: depth * indentWidth + 8 }}
+      >
+        <Input
+          ref={inputRef}
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          className="h-6 text-[10px] font-semibold uppercase tracking-wider flex-1 bg-muted/30 border-border/50"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSubmit()
+            if (e.key === "Escape") {
+              setEditing(false)
+              setEditValue(label)
+            }
+          }}
+          onBlur={handleSubmit}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="group/section flex items-center justify-between py-1.5 mt-2 pr-2 rounded-md hover:bg-muted/30 transition-colors cursor-default"
+      style={{ paddingLeft: depth * indentWidth + 8 }}
+    >
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 group-hover/section:text-muted-foreground transition-colors truncate">
+        {label}
+      </span>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 shrink-0 opacity-0 group-hover/section:opacity-100 data-[state=open]:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal className="size-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem onClick={() => setEditing(true)}>
+            Rename
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={onUngroup}
+          >
+            Remove Grouping
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }
@@ -1015,6 +1120,26 @@ export function NavigationEditor({
     [menuId, items, refreshMenu],
   )
 
+  // Add a hidden page to the navigation by creating a menu item
+  const handleAddToNavigation = useCallback(
+    async (page: PageSummary) => {
+      try {
+        const href = page.slug ? `/${page.slug}` : "/"
+        const res = await fetch(`/api/v1/menus/${menuId}/items`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label: page.title, href }),
+        })
+        if (!res.ok) throw new Error("Failed to add to navigation")
+        toast.success(`"${page.title}" added to navigation`)
+        await refreshMenu()
+      } catch {
+        toast.error("Failed to add to navigation")
+      }
+    },
+    [menuId, refreshMenu],
+  )
+
   // Loading state: if no items and no pages, show empty
   const isEmpty = topLevelItems.length === 0
 
@@ -1113,44 +1238,13 @@ export function NavigationEditor({
                   return (
                     <div key={item.id}>
                       {showSectionHeader && item.groupLabel && (
-                        <div
-                          className="group/section flex items-center justify-between py-1 mt-2 pr-2"
-                          style={{ paddingLeft: depth * INDENT_WIDTH + 8 }}
-                        >
-                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 truncate">
-                            {item.groupLabel}
-                          </span>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-5 w-5 shrink-0 opacity-0 group-hover/section:opacity-100 data-[state=open]:opacity-100 transition-opacity text-muted-foreground/40 hover:text-muted-foreground"
-                              >
-                                <MoreHorizontal className="size-3" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-44">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  const newName = prompt("Rename section:", item.groupLabel!)
-                                  if (newName && newName !== item.groupLabel) {
-                                    handleRenameGroup(fiParentId!, item.groupLabel!, newName)
-                                  }
-                                }}
-                              >
-                                Rename
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => handleUngroupItems(fiParentId!, item.groupLabel!)}
-                              >
-                                Remove Grouping
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
+                        <SectionHeader
+                          label={item.groupLabel}
+                          depth={depth}
+                          indentWidth={INDENT_WIDTH}
+                          onRename={(newName) => handleRenameGroup(fiParentId!, item.groupLabel!, newName)}
+                          onUngroup={() => handleUngroupItems(fiParentId!, item.groupLabel!)}
+                        />
                       )}
                       <SortableTreeItem
                         item={item}
@@ -1212,6 +1306,7 @@ export function NavigationEditor({
             onPageSettings={onPageSettings}
             onDeletePage={onDeletePage}
             onDuplicatePage={onDuplicatePage}
+            onAddToNavigation={handleAddToNavigation}
           />
         </div>
       </ScrollArea>
