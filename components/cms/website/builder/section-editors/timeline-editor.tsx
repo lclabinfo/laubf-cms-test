@@ -14,7 +14,6 @@ interface TimelineEditorProps {
 }
 
 export function TimelineEditor({ content, onChange }: TimelineEditorProps) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const description = (content.description as string) ?? ""
   const items = (content.items as {
@@ -25,14 +24,6 @@ export function TimelineEditor({ content, onChange }: TimelineEditorProps) {
 
   return (
     <div className="space-y-6">
-      <EditorInput
-        label="Overline"
-        labelSize="sm"
-        value={overline}
-        onChange={(val) => onChange({ ...content, overline: val })}
-        placeholder="Sunday Service"
-      />
-
       <EditorInput
         label="Heading"
         labelSize="sm"

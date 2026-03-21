@@ -13,6 +13,7 @@ import {
   CardItemEditor,
   AddCardButton,
   AddressField,
+  ButtonConfig,
   type GenericCard,
 } from "./shared"
 
@@ -34,7 +35,8 @@ export function ActionCardGridEditor({
   const ctaButton = (content.ctaButton as {
     label: string
     href: string
-  }) ?? null
+    visible: boolean
+  }) ?? { label: "", href: "", visible: false }
   const cards = (content.cards as GenericCard[]) ?? []
 
   function updateCard(index: number, card: GenericCard) {
@@ -109,30 +111,12 @@ export function ActionCardGridEditor({
         onChange={(v) => onChange({ ...content, subheading: v })}
       />
 
-      {ctaButton !== null && (
-        <TwoColumnGrid>
-          <EditorInput
-            label="CTA Button Label"
-            value={ctaButton.label}
-            onChange={(v) =>
-              onChange({
-                ...content,
-                ctaButton: { ...ctaButton, label: v },
-              })
-            }
-          />
-          <EditorInput
-            label="CTA Button Link"
-            value={ctaButton.href}
-            onChange={(v) =>
-              onChange({
-                ...content,
-                ctaButton: { ...ctaButton, href: v },
-              })
-            }
-          />
-        </TwoColumnGrid>
-      )}
+      <ButtonConfig
+        id="action-card-cta"
+        label="CTA Button"
+        buttonData={ctaButton}
+        onChange={(b) => onChange({ ...content, ctaButton: b })}
+      />
 
       <Separator />
 
@@ -302,7 +286,6 @@ export function PillarsEditor({
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const items = (content.items as {
     title: string
@@ -338,13 +321,6 @@ export function PillarsEditor({
 
   return (
     <div className="space-y-6">
-      <EditorInput
-        label="Overline"
-        labelSize="sm"
-        value={overline}
-        onChange={(v) => onChange({ ...content, overline: v })}
-      />
-
       <EditorInput
         label="Heading"
         labelSize="sm"

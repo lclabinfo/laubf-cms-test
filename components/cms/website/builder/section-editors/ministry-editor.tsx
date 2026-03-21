@@ -22,7 +22,6 @@ export function MinistryIntroEditor({
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const description = (content.description as string) ?? ""
   const image = (content.image as {
@@ -33,14 +32,6 @@ export function MinistryIntroEditor({
 
   return (
     <div className="space-y-6">
-      <EditorInput
-        label="Overline"
-        labelSize="sm"
-        value={overline}
-        onChange={(v) => onChange({ ...content, overline: v })}
-        placeholder="About This Ministry"
-      />
-
       <EditorInput
         label="Heading"
         labelSize="sm"
@@ -333,7 +324,6 @@ export function CampusCardGridEditor({
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const description = (content.description as string) ?? ""
   const campuses = (content.campuses as {
@@ -364,14 +354,6 @@ export function CampusCardGridEditor({
 
   return (
     <div className="space-y-6">
-      <EditorInput
-        label="Overline"
-        labelSize="sm"
-        value={overline}
-        onChange={(v) => onChange({ ...content, overline: v })}
-        placeholder="Our Locations"
-      />
-
       <EditorInput
         label="Heading"
         labelSize="sm"
@@ -468,7 +450,6 @@ export function MeetTeamEditor({
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const members = (content.members as {
     name: string
@@ -479,14 +460,6 @@ export function MeetTeamEditor({
 
   return (
     <div className="space-y-6">
-      <EditorInput
-        label="Overline"
-        labelSize="sm"
-        value={overline}
-        onChange={(v) => onChange({ ...content, overline: v })}
-        placeholder="Our Team"
-      />
-
       <EditorInput
         label="Heading"
         labelSize="sm"
@@ -555,7 +528,6 @@ export function LocationDetailEditor({
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const timeLabel = (content.timeLabel as string) ?? ""
   const timeValue = (content.timeValue as string) ?? ""
   const locationLabel = (content.locationLabel as string) ?? ""
@@ -565,16 +537,6 @@ export function LocationDetailEditor({
 
   return (
     <div className="space-y-6">
-      <EditorInput
-        label="Overline"
-        labelSize="sm"
-        value={overline}
-        onChange={(v) => onChange({ ...content, overline: v })}
-        placeholder="Visit Us"
-      />
-
-      <Separator />
-
       <div className="space-y-3">
         <Label className="text-sm font-medium">Service Time</Label>
         <TwoColumnGrid>
@@ -649,21 +611,23 @@ export function DirectoryListEditor({
 }) {
   const heading = (content.heading as string) ?? ""
   const items = (content.items as {
-    label: string
-    href: string
-    description?: string
+    id: string
+    name: string
+    active?: boolean
+    href?: string
   }[]) ?? []
-  const image = (content.image as { src: string; alt: string }) ?? {
-    src: "",
-    alt: "",
-  }
+  const image = (content.image as {
+    src: string
+    alt: string
+    objectPosition?: string
+  }) ?? { src: "", alt: "" }
   const ctaHeading = (content.ctaHeading as string) ?? ""
   const ctaButton = (content.ctaButton as {
     label: string
     href: string
   }) ?? { label: "", href: "" }
 
-  function updateItem(index: number, field: string, value: string) {
+  function updateItem(index: number, field: string, value: string | boolean) {
     const updated = [...items]
     updated[index] = { ...updated[index], [field]: value }
     onChange({ ...content, items: updated })
@@ -679,7 +643,15 @@ export function DirectoryListEditor({
   function addItem() {
     onChange({
       ...content,
-      items: [...items, { label: "", href: "#", description: "" }],
+      items: [
+        ...items,
+        {
+          id: `item-${Date.now()}`,
+          name: "",
+          href: "#",
+          active: true,
+        },
+      ],
     })
   }
 
@@ -708,7 +680,7 @@ export function DirectoryListEditor({
 
         {items.map((item, i) => (
           <div
-            key={i}
+            key={item.id}
             className="rounded-lg border p-4 space-y-3 relative group"
           >
             <div className="flex items-start justify-between">
@@ -728,25 +700,18 @@ export function DirectoryListEditor({
 
             <TwoColumnGrid>
               <EditorInput
-                label="Label"
-                value={item.label}
-                onChange={(v) => updateItem(i, "label", v)}
-                placeholder="Item name"
+                label="Name"
+                value={item.name}
+                onChange={(v) => updateItem(i, "name", v)}
+                placeholder="Ministry Name"
               />
               <EditorInput
                 label="Link"
-                value={item.href}
+                value={item.href ?? ""}
                 onChange={(v) => updateItem(i, "href", v)}
-                placeholder="/page"
+                placeholder="/ministries/name"
               />
             </TwoColumnGrid>
-
-            <EditorInput
-              label="Description (optional)"
-              value={item.description ?? ""}
-              onChange={(v) => updateItem(i, "description", v)}
-              placeholder="Short description"
-            />
           </div>
         ))}
 
@@ -760,7 +725,7 @@ export function DirectoryListEditor({
       <Separator />
 
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Background Image</Label>
+        <Label className="text-sm font-medium">Side Image</Label>
         <ImagePickerField
           label="Image"
           value={image.src}
@@ -771,17 +736,30 @@ export function DirectoryListEditor({
             })
           }
         />
-        <EditorInput
-          label="Alt Text"
-          value={image.alt}
-          onChange={(v) =>
-            onChange({
-              ...content,
-              image: { ...image, alt: v },
-            })
-          }
-          placeholder="Directory image"
-        />
+        <TwoColumnGrid>
+          <EditorInput
+            label="Alt Text"
+            value={image.alt}
+            onChange={(v) =>
+              onChange({
+                ...content,
+                image: { ...image, alt: v },
+              })
+            }
+            placeholder="Directory image"
+          />
+          <EditorInput
+            label="Object Position"
+            value={image.objectPosition ?? ""}
+            onChange={(v) =>
+              onChange({
+                ...content,
+                image: { ...image, objectPosition: v || undefined },
+              })
+            }
+            placeholder="center center"
+          />
+        </TwoColumnGrid>
       </div>
 
       <Separator />

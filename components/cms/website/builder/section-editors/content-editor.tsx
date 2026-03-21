@@ -7,8 +7,10 @@ import {
   EditorInput,
   EditorTextarea,
   EditorToggle,
-  TwoColumnGrid,
+  EditorButtonGroup,
+  CarouselSpeedField,
   ImagePickerField,
+  ImageListField,
   ButtonConfig,
 } from "./shared"
 
@@ -21,7 +23,6 @@ export function MediaTextEditor({
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const body = (content.body as string) ?? ""
   const button = (content.button as {
@@ -29,17 +30,10 @@ export function MediaTextEditor({
     href: string
     visible: boolean
   }) ?? { label: "", href: "", visible: false }
+  const images = (content.images as Array<{ src: string; alt: string }>) ?? []
 
   return (
     <div className="space-y-6">
-      <EditorInput
-        label="Overline"
-        labelSize="sm"
-        value={overline}
-        onChange={(v) => onChange({ ...content, overline: v })}
-        placeholder="Section label"
-      />
-
       <EditorInput
         label="Heading"
         labelSize="sm"
@@ -66,10 +60,39 @@ export function MediaTextEditor({
         onChange={(b) => onChange({ ...content, button: b })}
       />
 
-      <p className="text-xs text-muted-foreground">
-        Rotating images are configured in the JSON content. An image gallery
-        editor is planned for a future update.
-      </p>
+      <Separator />
+
+      <ImageListField
+        label="Rotating Images"
+        images={images}
+        onChange={(imgs) => onChange({ ...content, images: imgs })}
+        maxImages={14}
+      />
+    </div>
+  )
+}
+
+/** Layout editor for MEDIA_TEXT — rendered in the Layout accordion panel */
+export function MediaTextLayoutEditor({
+  content,
+  onChange,
+}: {
+  content: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
+  const rotationSpeed = (content.rotationSpeed as number) ?? 50
+
+  return (
+    <div className="space-y-6">
+      <CarouselSpeedField
+        label="Rotation Speed"
+        value={rotationSpeed}
+        onChange={(v) => onChange({ ...content, rotationSpeed: v })}
+        min={10}
+        max={120}
+        step={5}
+        description="Duration in seconds for one full rotation. Higher = slower."
+      />
     </div>
   )
 }
@@ -83,7 +106,6 @@ export function QuoteBannerEditor({
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const verse = (content.verse as { text: string; reference: string }) ?? {
     text: "",
@@ -92,14 +114,6 @@ export function QuoteBannerEditor({
 
   return (
     <div className="space-y-6">
-      <EditorInput
-        label="Overline"
-        labelSize="sm"
-        value={overline}
-        onChange={(v) => onChange({ ...content, overline: v })}
-        placeholder="Scripture"
-      />
-
       <EditorInput
         label="Heading"
         labelSize="sm"
@@ -152,7 +166,6 @@ export function CTABannerEditor({
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const body = (content.body as string) ?? ""
   const primaryButton = (content.primaryButton as {
@@ -168,24 +181,17 @@ export function CTABannerEditor({
   const bgImage = (content.backgroundImage as {
     src: string
     alt: string
+    objectPosition?: string
   }) ?? null
 
   return (
     <div className="space-y-6">
       <EditorInput
-        label="Overline"
-        labelSize="sm"
-        value={overline}
-        onChange={(v) => onChange({ ...content, overline: v })}
-        placeholder="Section label"
-      />
-
-      <EditorInput
         label="Heading"
         labelSize="sm"
         value={heading}
         onChange={(v) => onChange({ ...content, heading: v })}
-        placeholder="Call to action heading"
+  placeholder="Call to action heading"
       />
 
       <EditorTextarea
@@ -206,11 +212,25 @@ export function CTABannerEditor({
           onChange({
             ...content,
             backgroundImage: url
-              ? { src: url, alt: bgImage?.alt ?? "" }
+              ? { src: url, alt: bgImage?.alt ?? "", objectPosition: bgImage?.objectPosition }
               : undefined,
           })
         }
       />
+
+      {bgImage?.src && (
+        <EditorInput
+          label="Alt Text"
+          value={bgImage.alt ?? ""}
+          onChange={(v) =>
+            onChange({
+              ...content,
+              backgroundImage: { ...bgImage, alt: v },
+            })
+          }
+          placeholder="Describe the background image"
+        />
+      )}
 
       <Separator />
 
@@ -232,6 +252,51 @@ export function CTABannerEditor({
           </div>
         </EditorField>
       </div>
+    </div>
+  )
+}
+
+// --- CTA Banner Layout Editor ---
+
+export function CTABannerLayoutEditor({
+  content,
+  onChange,
+}: {
+  content: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
+  const bgImage = (content.backgroundImage as {
+    src: string
+    alt: string
+    objectPosition?: string
+  }) ?? null
+
+  if (!bgImage?.src) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Add a background image in the Content tab to configure layout options.
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <EditorButtonGroup
+        label="Image Focus Point"
+        value={bgImage.objectPosition ?? "center"}
+        onChange={(v) =>
+          onChange({
+            ...content,
+            backgroundImage: { ...bgImage, objectPosition: v },
+          })
+        }
+        options={[
+          { value: "top", label: "Top" },
+          { value: "center", label: "Center" },
+          { value: "bottom", label: "Bottom" },
+        ]}
+        size="sm"
+      />
     </div>
   )
 }
@@ -309,7 +374,6 @@ export function StatementEditor({
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const leadIn = (content.leadIn as string) ?? ""
   const showIcon = (content.showIcon as boolean) ?? false
@@ -337,14 +401,6 @@ export function StatementEditor({
 
   return (
     <div className="space-y-6">
-      <EditorInput
-        label="Overline"
-        labelSize="sm"
-        value={overline}
-        onChange={(v) => onChange({ ...content, overline: v })}
-        placeholder="Our Mission"
-      />
-
       <EditorInput
         label="Heading"
         labelSize="sm"
@@ -424,105 +480,4 @@ export function StatementEditor({
   )
 }
 
-// --- Spotlight Media Editor ---
-
-export function SpotlightMediaEditor({
-  content,
-  onChange,
-}: {
-  content: Record<string, unknown>
-  onChange: (c: Record<string, unknown>) => void
-}) {
-  const sectionHeading = (content.sectionHeading as string) ?? ""
-  const sermon = (content.sermon as {
-    slug?: string
-    title: string
-    speaker: string
-    date: string
-    series?: string
-    thumbnailUrl?: string | null
-    videoUrl?: string
-  }) ?? {
-    title: "",
-    speaker: "",
-    date: "",
-  }
-
-  function updateSermon(field: string, value: string) {
-    onChange({
-      ...content,
-      sermon: { ...sermon, [field]: value },
-    })
-  }
-
-  return (
-    <div className="space-y-6">
-      <EditorInput
-        label="Section Heading"
-        labelSize="sm"
-        value={sectionHeading}
-        onChange={(v) => onChange({ ...content, sectionHeading: v })}
-        placeholder="Latest Message"
-      />
-
-      <Separator />
-
-      <div className="space-y-3">
-        <EditorField label="Featured Sermon" labelSize="sm">
-          <div className="space-y-3">
-            <EditorInput
-              label="Title"
-              value={sermon.title}
-              onChange={(v) => updateSermon("title", v)}
-              placeholder="Sermon title"
-            />
-
-            <TwoColumnGrid>
-              <EditorInput
-                label="Speaker"
-                value={sermon.speaker}
-                onChange={(v) => updateSermon("speaker", v)}
-                placeholder="Speaker name"
-              />
-              <EditorInput
-                label="Date"
-                value={sermon.date}
-                onChange={(v) => updateSermon("date", v)}
-                placeholder="January 1, 2026"
-              />
-            </TwoColumnGrid>
-
-            <TwoColumnGrid>
-              <EditorInput
-                label="Series"
-                value={sermon.series ?? ""}
-                onChange={(v) => updateSermon("series", v)}
-                placeholder="Series name"
-              />
-              <EditorInput
-                label="Slug"
-                value={sermon.slug ?? ""}
-                onChange={(v) => updateSermon("slug", v)}
-                placeholder="sermon-slug"
-              />
-            </TwoColumnGrid>
-
-            <ImagePickerField
-              label="Thumbnail"
-              value={sermon.thumbnailUrl ?? ""}
-              onChange={(url) => updateSermon("thumbnailUrl", url)}
-            />
-
-            <EditorInput
-              label="Video URL"
-              value={sermon.videoUrl ?? ""}
-              onChange={(v) => updateSermon("videoUrl", v)}
-              placeholder="https://..."
-            />
-          </div>
-        </EditorField>
-      </div>
-    </div>
-  )
-}
 

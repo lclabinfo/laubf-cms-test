@@ -1,16 +1,52 @@
 "use client"
 
+import { ExternalLink } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
+import { Button } from "@/components/ui/button"
 import type { SectionType } from "@/lib/db/types"
 import {
   EditorInput,
   EditorToggle,
   EditorSelect,
+  EditorButtonGroup,
   TwoColumnGrid,
   DataDrivenBanner,
   DATA_SOURCE_LABELS,
+  ArrayField,
 } from "./shared"
+
+// --- "Manage in CMS" link ---
+const CMS_LINKS: Partial<Record<SectionType, { label: string; href: string }>> = {
+  ALL_MESSAGES: { label: "Manage Messages", href: "/cms/messages" },
+  ALL_EVENTS: { label: "Manage Events", href: "/cms/events" },
+  ALL_BIBLE_STUDIES: { label: "Manage Bible Studies", href: "/cms/bible-studies" },
+  ALL_VIDEOS: { label: "Manage Media", href: "/cms/media" },
+  UPCOMING_EVENTS: { label: "Manage Events", href: "/cms/events" },
+  EVENT_CALENDAR: { label: "Manage Events", href: "/cms/events" },
+  RECURRING_MEETINGS: { label: "Manage Events", href: "/cms/events" },
+  MEDIA_GRID: { label: "Manage Media", href: "/cms/media" },
+  HIGHLIGHT_CARDS: { label: "Manage Events", href: "/cms/events" },
+  SPOTLIGHT_MEDIA: { label: "Manage Messages", href: "/cms/messages" },
+}
+
+function ManageInCmsLink({ sectionType }: { sectionType: SectionType }) {
+  const link = CMS_LINKS[sectionType]
+  if (!link) return null
+  return (
+    <Button
+      variant="outline"
+      size="sm"
+      className="w-full"
+      asChild
+    >
+      <a href={link.href} target="_blank" rel="noopener noreferrer">
+        <ExternalLink className="size-3.5 mr-2" />
+        {link.label}
+      </a>
+    </Button>
+  )
+}
 
 interface DataSectionEditorProps {
   sectionType: SectionType
@@ -18,7 +54,167 @@ interface DataSectionEditorProps {
   onChange: (content: Record<string, unknown>) => void
 }
 
-// --- Simple heading-only sections (ALL_MESSAGES, ALL_EVENTS, ALL_BIBLE_STUDIES, ALL_VIDEOS) ---
+// --- All Messages Editor (content panel — toolbar feature toggles) ---
+
+function AllMessagesEditor({
+  content,
+  onChange,
+}: {
+  content: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
+  const showTabs = (content.showTabs as boolean) ?? true
+  const showSearch = (content.showSearch as boolean) ?? true
+  const showFilters = (content.showFilters as boolean) ?? true
+
+  return (
+    <>
+      <EditorToggle
+        label="Tabs (All Messages / Series)"
+        description="Tab switcher between message list and series view"
+        checked={showTabs}
+        onCheckedChange={(checked) => onChange({ ...content, showTabs: checked })}
+      />
+
+      <EditorToggle
+        label="Search Bar"
+        description="Search across titles, speakers, and passages"
+        checked={showSearch}
+        onCheckedChange={(checked) => onChange({ ...content, showSearch: checked })}
+      />
+
+      <EditorToggle
+        label="Filters"
+        description="Series, speaker, year, and date range filters"
+        checked={showFilters}
+        onCheckedChange={(checked) => onChange({ ...content, showFilters: checked })}
+      />
+    </>
+  )
+}
+
+// --- All Messages Layout Editor (registered separately in LAYOUT_EDITORS) ---
+
+export function AllMessagesLayoutEditor({
+  content,
+  onChange,
+}: {
+  content: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
+  const columns = (content.columns as { desktop?: number; tablet?: number; mobile?: number }) ?? {}
+  const desktopCols = columns.desktop ?? 3
+  const tabletCols = columns.tablet ?? 2
+  const mobileCols = columns.mobile ?? 1
+  const cardGap = (content.cardGap as string) ?? "default"
+  const itemsPerPage = (content.itemsPerPage as number) ?? 50
+
+  const showDate = (content.showDate as boolean) ?? true
+  const showSeriesPill = (content.showSeriesPill as boolean) ?? true
+  const showSpeaker = (content.showSpeaker as boolean) ?? true
+  const showPassage = (content.showPassage as boolean) ?? true
+  const showDuration = (content.showDuration as boolean) ?? true
+
+  function updateColumns(field: string, value: number) {
+    onChange({
+      ...content,
+      columns: { ...columns, [field]: value },
+    })
+  }
+
+  return (
+    <>
+      <EditorButtonGroup
+        label="Columns (Desktop)"
+        value={String(desktopCols)}
+        onChange={(v) => updateColumns("desktop", parseInt(v))}
+        options={[
+          { value: "2", label: "2" },
+          { value: "3", label: "3" },
+          { value: "4", label: "4" },
+        ]}
+        size="sm"
+      />
+
+      <TwoColumnGrid>
+        <EditorButtonGroup
+          label="Tablet"
+          value={String(tabletCols)}
+          onChange={(v) => updateColumns("tablet", parseInt(v))}
+          options={[
+            { value: "1", label: "1" },
+            { value: "2", label: "2" },
+            { value: "3", label: "3" },
+          ]}
+          size="sm"
+        />
+        <EditorButtonGroup
+          label="Mobile"
+          value={String(mobileCols)}
+          onChange={(v) => updateColumns("mobile", parseInt(v))}
+          options={[
+            { value: "1", label: "1" },
+            { value: "2", label: "2" },
+          ]}
+          size="sm"
+        />
+      </TwoColumnGrid>
+
+      <EditorSelect
+        label="Card Spacing"
+        value={cardGap}
+        onValueChange={(v) => onChange({ ...content, cardGap: v })}
+        options={[
+          { value: "tight", label: "Tight" },
+          { value: "default", label: "Default" },
+          { value: "spacious", label: "Spacious" },
+        ]}
+      />
+
+      <EditorInput
+        label="Items Per Page"
+        value={String(itemsPerPage)}
+        onChange={(val) => onChange({ ...content, itemsPerPage: parseInt(val) || 50 })}
+        placeholder="50"
+        type="number"
+        min={6}
+        max={100}
+      />
+
+      <Separator />
+
+      <Label className="text-sm font-medium">Card Elements</Label>
+
+      <EditorToggle
+        label="Date"
+        checked={showDate}
+        onCheckedChange={(checked) => onChange({ ...content, showDate: checked })}
+      />
+      <EditorToggle
+        label="Series Pill"
+        checked={showSeriesPill}
+        onCheckedChange={(checked) => onChange({ ...content, showSeriesPill: checked })}
+      />
+      <EditorToggle
+        label="Speaker"
+        checked={showSpeaker}
+        onCheckedChange={(checked) => onChange({ ...content, showSpeaker: checked })}
+      />
+      <EditorToggle
+        label="Bible Passage"
+        checked={showPassage}
+        onCheckedChange={(checked) => onChange({ ...content, showPassage: checked })}
+      />
+      <EditorToggle
+        label="Duration Badge"
+        checked={showDuration}
+        onCheckedChange={(checked) => onChange({ ...content, showDuration: checked })}
+      />
+    </>
+  )
+}
+
+// --- Simple heading-only sections (ALL_EVENTS, ALL_BIBLE_STUDIES, ALL_VIDEOS) ---
 
 function SimpleDataEditor({
   content,
@@ -75,7 +271,6 @@ function UpcomingEventsEditor({
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const ctaButton = (content.ctaButton as {
     label: string
@@ -84,13 +279,6 @@ function UpcomingEventsEditor({
 
   return (
     <>
-      <EditorInput
-        label="Overline"
-        value={overline}
-        onChange={(val) => onChange({ ...content, overline: val })}
-        placeholder="What's Coming Up"
-      />
-
       <EditorInput
         label="Section Heading"
         value={heading}
@@ -143,6 +331,7 @@ function EventCalendarEditor({
   onChange: (c: Record<string, unknown>) => void
 }) {
   const heading = (content.heading as string) ?? ""
+  const ctaButtons = (content.ctaButtons as { label: string; href: string; icon?: boolean }[]) ?? []
 
   return (
     <>
@@ -153,9 +342,45 @@ function EventCalendarEditor({
         placeholder="Schedule"
       />
 
-      <p className="text-xs text-muted-foreground">
-        CTA buttons for the calendar header are configured in the JSON content.
-      </p>
+      <Separator />
+
+      <ArrayField
+        label="CTA Buttons"
+        items={ctaButtons}
+        onItemsChange={(updated) => onChange({ ...content, ctaButtons: updated })}
+        createItem={() => ({ label: "", href: "", icon: false as boolean | undefined })}
+        addLabel="Add Button"
+        emptyMessage="No CTA buttons added yet."
+        emptyDescription='Click "Add Button" to add a call-to-action below the calendar.'
+        reorderable
+        maxItems={4}
+        renderItem={(item, _index, updateItem) => (
+          <div className="space-y-3">
+            <TwoColumnGrid>
+              <EditorInput
+                label="Button Label"
+                value={item.label}
+                onChange={(val) => updateItem({ ...item, label: val })}
+                placeholder="View All Events"
+                labelSize="xs"
+              />
+              <EditorInput
+                label="Button Link"
+                value={item.href}
+                onChange={(val) => updateItem({ ...item, href: val })}
+                placeholder="/events"
+                labelSize="xs"
+              />
+            </TwoColumnGrid>
+            <EditorToggle
+              label="Show Arrow Icon"
+              description="Display an arrow icon on the button (primary style)"
+              checked={item.icon ?? false}
+              onCheckedChange={(checked) => updateItem({ ...item, icon: checked })}
+            />
+          </div>
+        )}
+      />
     </>
   )
 }
@@ -399,6 +624,27 @@ function HighlightCardsEditor({
   )
 }
 
+// --- Spotlight Media (Latest Message) ---
+
+function SpotlightMediaEditor({
+  content,
+  onChange,
+}: {
+  content: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
+  const sectionHeading = (content.sectionHeading as string) ?? ""
+
+  return (
+    <EditorInput
+      label="Section Heading"
+      value={sectionHeading}
+      onChange={(val) => onChange({ ...content, sectionHeading: val })}
+      placeholder="Latest Message"
+    />
+  )
+}
+
 // --- Main export ---
 
 export function DataSectionEditor({
@@ -412,6 +658,10 @@ export function DataSectionEditor({
   return (
     <div className="space-y-6">
       <DataDrivenBanner sectionType={sectionType} description={description} />
+
+      {sectionType === "SPOTLIGHT_MEDIA" && (
+        <SpotlightMediaEditor content={content} onChange={onChange} />
+      )}
 
       {sectionType === "HIGHLIGHT_CARDS" && (
         <HighlightCardsEditor content={content} onChange={onChange} />
@@ -438,12 +688,7 @@ export function DataSectionEditor({
       )}
 
       {sectionType === "ALL_MESSAGES" && (
-        <SimpleDataEditor
-          content={content}
-          onChange={onChange}
-          ctaLabelPlaceholder="View All"
-          ctaHrefPlaceholder="/messages"
-        />
+        <AllMessagesEditor content={content} onChange={onChange} />
       )}
 
       {sectionType === "ALL_EVENTS" && (
@@ -482,10 +727,14 @@ export function DataSectionEditor({
         />
       )}
 
+      <Separator />
+
+      <ManageInCmsLink sectionType={sectionType} />
+
       <p className="text-xs text-muted-foreground">
-        The data displayed in this section is managed through the CMS content
-        modules. To add or edit the underlying content, use the relevant CMS
-        section (Messages, Events, Bible Studies, etc.).
+        Content is managed through the CMS. Use the controls above to customize
+        how it&apos;s displayed. To add or edit the actual content, click the
+        button above.
       </p>
     </div>
   )

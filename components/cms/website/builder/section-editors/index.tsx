@@ -5,20 +5,24 @@ import type { SectionType } from "@/lib/db/types"
 // Hero editors
 import {
   HeroBannerEditor,
+  HeroBannerLayoutEditor,
   PageHeroEditor,
   TextImageHeroEditor,
+  TextImageHeroLayoutEditor,
   EventsHeroEditor,
   MinistryHeroEditor,
+  MinistryHeroLayoutEditor,
 } from "./hero-editor"
 
 // Content editors
 import {
   MediaTextEditor,
+  MediaTextLayoutEditor,
   QuoteBannerEditor,
   CTABannerEditor,
+  CTABannerLayoutEditor,
   AboutDescriptionEditor,
   StatementEditor,
-  SpotlightMediaEditor,
 } from "./content-editor"
 
 // Cards editors
@@ -31,7 +35,7 @@ import {
 } from "./cards-editor"
 
 // Data-driven section editors
-import { DataSectionEditor } from "./data-section-editor"
+import { DataSectionEditor, AllMessagesLayoutEditor } from "./data-section-editor"
 
 // Ministry editors
 import {
@@ -97,7 +101,6 @@ const SECTION_EDITORS: Partial<Record<SectionType, SubEditorComponent>> = {
   CTA_BANNER: CTABannerEditor,
   ABOUT_DESCRIPTION: AboutDescriptionEditor,
   STATEMENT: StatementEditor,
-  SPOTLIGHT_MEDIA: SpotlightMediaEditor,
 
   // Cards sections
   ACTION_CARD_GRID: ActionCardGridEditor,
@@ -143,6 +146,7 @@ const DATA_SECTION_TYPES: Set<SectionType> = new Set([
   "QUICK_LINKS",
   "DAILY_BREAD_FEATURE",
   "HIGHLIGHT_CARDS",
+  "SPOTLIGHT_MEDIA",
 ])
 
 /**
@@ -182,4 +186,41 @@ export function SectionContentEditor({
  */
 export function hasStructuredEditor(sectionType: SectionType): boolean {
   return sectionType in SECTION_EDITORS || DATA_SECTION_TYPES.has(sectionType)
+}
+
+// --- Layout Editor Registry ---
+
+/**
+ * Flat registry mapping section types that have layout-specific fields
+ * to their layout editor component. Rendered in the Layout accordion panel.
+ */
+const LAYOUT_EDITORS: Partial<Record<SectionType, SubEditorComponent>> = {
+  HERO_BANNER: HeroBannerLayoutEditor,
+  TEXT_IMAGE_HERO: TextImageHeroLayoutEditor,
+  MINISTRY_HERO: MinistryHeroLayoutEditor,
+  MEDIA_TEXT: MediaTextLayoutEditor,
+  CTA_BANNER: CTABannerLayoutEditor,
+  ALL_MESSAGES: AllMessagesLayoutEditor,
+}
+
+/**
+ * Returns true if the given section type has layout-specific fields.
+ * Used to conditionally show the Layout panel in the accordion.
+ */
+export function hasLayoutEditor(sectionType: SectionType): boolean {
+  return sectionType in LAYOUT_EDITORS
+}
+
+/**
+ * Renders the layout editor for a given section type.
+ * Returns null if the section type has no layout fields.
+ */
+export function SectionLayoutEditor({
+  sectionType,
+  content,
+  onChange,
+}: SectionEditorProps) {
+  const Editor = LAYOUT_EDITORS[sectionType]
+  if (!Editor) return null
+  return <Editor content={content} onChange={onChange} />
 }

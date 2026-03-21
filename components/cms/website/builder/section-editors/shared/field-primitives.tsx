@@ -271,3 +271,53 @@ export interface TwoColumnGridProps {
 export function TwoColumnGrid({ children }: TwoColumnGridProps) {
   return <div className="grid grid-cols-2 gap-3">{children}</div>
 }
+
+// --- CarouselSpeedField ---
+
+export interface CarouselSpeedFieldProps {
+  /** Speed value in seconds */
+  value: number
+  onChange: (seconds: number) => void
+  /** Minimum speed in seconds */
+  min?: number
+  /** Maximum speed in seconds */
+  max?: number
+  step?: number
+  label?: string
+  description?: string
+}
+
+/**
+ * Reusable speed/interval control for any carousel or auto-advancing section.
+ * Used by Hero (crossfade interval), Media Text (rotation speed), etc.
+ */
+export function CarouselSpeedField({
+  value,
+  onChange,
+  min = 2,
+  max = 15,
+  step = 1,
+  label = "Slide Speed",
+  description = "Seconds between each slide transition",
+}: CarouselSpeedFieldProps) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between">
+        <Label className="text-xs text-muted-foreground">{label}</Label>
+        <span className="text-xs tabular-nums text-muted-foreground">
+          {value}s
+        </span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="w-full accent-primary"
+      />
+      <p className="text-[11px] text-muted-foreground/70">{description}</p>
+    </div>
+  )
+}

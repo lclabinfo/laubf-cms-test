@@ -14,7 +14,6 @@ interface FormEditorProps {
 }
 
 export function FormEditor({ content, onChange }: FormEditorProps) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const description = (content.description as string) ?? ""
   const interestOptions = (content.interestOptions as {
@@ -31,14 +30,6 @@ export function FormEditor({ content, onChange }: FormEditorProps) {
 
   return (
     <div className="space-y-6">
-      <EditorInput
-        label="Overline"
-        labelSize="sm"
-        value={overline}
-        onChange={(val) => onChange({ ...content, overline: val })}
-        placeholder="Get In Touch"
-      />
-
       <EditorInput
         label="Heading"
         labelSize="sm"
