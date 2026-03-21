@@ -29,6 +29,7 @@ import {
 } from "lucide-react"
 import NextLink from "next/link"
 import type { SectionType } from "@/lib/db/types"
+import { SECTION_TYPE_LABELS } from "@/components/cms/website/builder/section-catalog"
 
 /**
  * Safely extract a display string from a content field that may be
@@ -62,51 +63,14 @@ function extractButton(value: unknown): { label: string; href: string } | null {
 }
 
 /**
- * Section type labels
+ * Section type labels — sourced from the catalog, with extras for
+ * types not yet in the catalog (placeholders / future sections).
  */
 const sectionTypeLabels: Record<string, string> = {
-  HERO_BANNER: "Hero Banner",
-  PAGE_HERO: "Page Hero",
-  TEXT_IMAGE_HERO: "Text & Image Hero",
-  EVENTS_HERO: "Events Hero",
-  MINISTRY_HERO: "Ministry Hero",
-  MEDIA_TEXT: "Media & Text",
-  MEDIA_GRID: "Media Grid",
-  SPOTLIGHT_MEDIA: "Spotlight Media",
-  PHOTO_GALLERY: "Photo Gallery",
-  QUOTE_BANNER: "Quote Banner",
-  CTA_BANNER: "Call to Action",
-  ABOUT_DESCRIPTION: "About Description",
-  STATEMENT: "Statement",
-  ACTION_CARD_GRID: "Action Card Grid",
-  HIGHLIGHT_CARDS: "Highlight Cards",
-  FEATURE_BREAKDOWN: "Feature Breakdown",
-  PATHWAY_CARD: "Pathway Cards",
-  PILLARS: "Pillars",
-  NEWCOMER: "Newcomer Welcome",
-  ALL_MESSAGES: "All Messages",
-  ALL_EVENTS: "All Events",
-  ALL_BIBLE_STUDIES: "Bible Studies",
-  ALL_VIDEOS: "All Videos",
-  UPCOMING_EVENTS: "Upcoming Events",
-  EVENT_CALENDAR: "Event Calendar",
-  RECURRING_MEETINGS: "Recurring Meetings",
-  RECURRING_SCHEDULE: "Recurring Schedule",
-  MINISTRY_INTRO: "Ministry Intro",
-  MINISTRY_SCHEDULE: "Ministry Schedule",
-  CAMPUS_CARD_GRID: "Campus Cards",
-  DIRECTORY_LIST: "Directory List",
-  MEET_TEAM: "Meet the Team",
-  LOCATION_DETAIL: "Location Detail",
-  FORM_SECTION: "Form",
-  FAQ_SECTION: "FAQ",
-  TIMELINE_SECTION: "Timeline",
+  ...SECTION_TYPE_LABELS,
   NAVBAR: "Navigation Bar",
-  FOOTER: "Footer",
-  DAILY_BREAD_FEATURE: "Daily Bread",
-  QUICK_LINKS: "Quick Links",
-  CUSTOM_HTML: "Custom HTML",
-  CUSTOM_EMBED: "Custom Embed",
+  MAP_SECTION: "Map",
+  GIVING_WIDGET: "Giving Widget",
 }
 
 const sectionIcons: Partial<Record<SectionType, typeof Layout>> = {

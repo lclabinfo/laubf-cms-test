@@ -332,7 +332,37 @@ export default function WebsiteThemePage() {
             </div>
           </section>
 
-          {/* Card 2: Typography */}
+          {/* Card 2: Color Schemes */}
+          <section className="rounded-xl border bg-card">
+            <div className="px-5 py-3 border-b">
+              <h2 className="text-sm font-semibold">Color Schemes</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Available schemes for page sections. Brand uses your Primary Color as background.
+              </p>
+            </div>
+            <div className="p-5">
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: "Light", bg: "#ffffff", text: "#262626", textSub: "#525252", border: "#e5e5e5" },
+                  { label: "Dark", bg: "#0d0d0d", text: "#fafafa", textSub: "#a3a3a3", border: "#404040" },
+                  { label: "Brand", bg: theme.primaryColor ?? "#1a1a2e", text: "#ffffff", textSub: "#d4d4d4", border: "#525252" },
+                ].map((scheme) => (
+                  <div key={scheme.label} className="rounded-lg border overflow-hidden" style={{ borderColor: scheme.border }}>
+                    <div className="p-3 flex flex-col gap-1.5" style={{ backgroundColor: scheme.bg }}>
+                      <div className="h-2 w-3/4 rounded-full" style={{ backgroundColor: scheme.text, opacity: 0.9 }} />
+                      <div className="h-1.5 w-full rounded-full" style={{ backgroundColor: scheme.textSub, opacity: 0.5 }} />
+                      <div className="h-1.5 w-2/3 rounded-full" style={{ backgroundColor: scheme.textSub, opacity: 0.3 }} />
+                    </div>
+                    <div className="px-3 py-1.5 text-xs font-medium text-center border-t" style={{ borderColor: scheme.border }}>
+                      {scheme.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Card 3: Typography */}
           <section className="rounded-xl border bg-card">
             <div className="px-5 py-3 border-b">
               <h2 className="text-sm font-semibold">Typography</h2>
@@ -421,7 +451,7 @@ export default function WebsiteThemePage() {
             </div>
           </section>
 
-          {/* Card 3: Curated Pairings */}
+          {/* Card 4: Curated Pairings */}
           <section className="rounded-xl border bg-card">
             <div className="px-5 py-3 border-b">
               <h2 className="text-sm font-semibold">Curated Font Pairings</h2>
@@ -475,7 +505,7 @@ export default function WebsiteThemePage() {
             </div>
           </section>
 
-          {/* Card 4: Custom CSS (Advanced) */}
+          {/* Card 5: Custom CSS (Advanced) */}
           <Collapsible open={cssOpen} onOpenChange={setCssOpen}>
             <section className="rounded-xl border bg-card">
               <CollapsibleTrigger asChild>

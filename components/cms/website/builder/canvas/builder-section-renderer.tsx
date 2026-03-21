@@ -123,10 +123,31 @@ export function BuilderSectionRenderer({
 }: BuilderSectionRendererProps) {
   // Async server components — render their client counterparts with resolved data
   if (type === "ALL_MESSAGES") {
+    const cols = content.columns as Record<string, number> | undefined
+    const layout = {
+      showSearch: (content.showSearch as boolean) ?? true,
+      showTabs: (content.showTabs as boolean) ?? true,
+      showFilters: (content.showFilters as boolean) ?? true,
+      columns: {
+        desktop: cols?.desktop ?? 3,
+        tablet: cols?.tablet ?? 2,
+        mobile: cols?.mobile ?? 1,
+      },
+      cardGap: ((content.cardGap as string) ?? "default") as "tight" | "default" | "spacious",
+      itemsPerPage: (content.itemsPerPage as number) ?? 50,
+      showDate: (content.showDate as boolean) ?? true,
+      showSeriesPill: (content.showSeriesPill as boolean) ?? true,
+      showSpeaker: (content.showSpeaker as boolean) ?? true,
+      showPassage: (content.showPassage as boolean) ?? true,
+      showDuration: (content.showDuration as boolean) ?? true,
+    }
     return (
       <AllMessagesClient
         messages={(resolvedData?.messages as any[]) ?? []}
-        heading={(content.heading as string) || "Messages"}
+        layout={layout}
+        colorScheme={colorScheme?.toLowerCase() ?? "light"}
+        paddingY={paddingY?.toLowerCase() ?? "default"}
+        containerWidth={containerWidth?.toLowerCase() ?? "standard"}
       />
     )
   }
@@ -159,7 +180,7 @@ export function BuilderSectionRenderer({
     )
   }
 
-  const sectionColorScheme = colorScheme === "DARK" ? "dark" : "light"
+  const sectionColorScheme = colorScheme?.toLowerCase() ?? "dark"
   const sectionPaddingY = paddingY?.toLowerCase() as "none" | "compact" | "default" | "spacious"
   const sectionContainerWidth = containerWidth?.toLowerCase() as "standard" | "narrow" | "full"
 

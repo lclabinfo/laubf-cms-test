@@ -1,6 +1,6 @@
 "use client"
 
-import { Plus, Palette, Image as ImageIcon, Lock, Navigation } from "lucide-react"
+import { Plus, Palette, Image as ImageIcon, Lock, Navigation, MessageSquareWarning } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   Tooltip,
@@ -15,6 +15,7 @@ interface BuilderSidebarProps {
   activeTool: BuilderTool
   onToolClick: (tool: BuilderTool) => void
   pageType: PageType
+  onFeedback?: () => void
 }
 
 const tools: {
@@ -40,6 +41,7 @@ export function BuilderSidebar({
   activeTool,
   onToolClick,
   pageType,
+  onFeedback,
 }: BuilderSidebarProps) {
   const isLockedTemplate = pageType === "MINISTRY" || pageType === "CAMPUS"
 
@@ -90,6 +92,25 @@ export function BuilderSidebar({
             </Tooltip>
           )
         })}
+
+        {/* Feedback button — pinned to bottom */}
+        {onFeedback && (
+          <div className="mt-auto">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onFeedback}
+                  className="w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-200 text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <MessageSquareWarning className="size-5" strokeWidth={1.5} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={8}>
+                <p className="text-xs">Send Feedback</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        )}
       </TooltipProvider>
     </div>
   )

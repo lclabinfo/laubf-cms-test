@@ -29,6 +29,8 @@ import {
 import { useBuilderHistory } from "./use-builder-history"
 import { useBackgroundSync } from "./use-background-sync"
 import { usePresenceHeartbeat } from "./use-presence-heartbeat"
+import { useActionLogger } from "./use-action-logger"
+import { BuilderFeedbackDialog } from "./feedback/builder-feedback-dialog"
 import { AlertTriangle, Check, FileText, Plus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -298,6 +300,10 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     setPages(allPages)
   }, [allPages])
 
+  // Action logger for feedback snapshot
+  const actionLogger = useActionLogger()
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+
   const openSectionPicker = useCallback((afterIndex: number) => {
     setPickerInsertIndex(afterIndex)
     setPickerMode("sidebar")
@@ -315,9 +321,10 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         setPickerOpen(true)
         return
       }
+      actionLogger.log("tool_switch", tool ?? "none")
       setActiveTool(activeTool === tool ? null : tool)
     },
-    [sections.length, activeTool, setActiveTool],
+    [sections.length, activeTool, setActiveTool, actionLogger],
   )
 
   // -------------------------------------------------------------------------
@@ -443,6 +450,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
       setPageDirty(false)
       setIsDirty(false)
       setSaveState("saved")
+      actionLogger.log("save", `${dirtySections.length} section(s)`)
       toast.success("Page saved")
 
       // Silent background refetch to pick up other users' changes
@@ -743,6 +751,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         setEditingSectionId(newSection.id)
         setReorderDirty(true)
         setIsDirty(true)
+        actionLogger.log("section_add", `${sectionType} at index ${clampedIndex + 1}`)
         toast.success("Section added")
       } catch (err) {
         console.error("Add section error:", err)
@@ -792,6 +801,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         })
         setReorderDirty(true)
         setIsDirty(true)
+        actionLogger.log("section_delete", sections.find((s) => s.id === sectionId)?.sectionType)
         toast.success("Section deleted")
       } catch (err) {
         console.error("Delete section error:", err)
@@ -811,7 +821,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     setSections(reordered)
     setReorderDirty(true)
     setIsDirty(true)
-  }, [pushSnapshot])
+    actionLogger.log("section_reorder")
+  }, [pushSnapshot, actionLogger])
 
   // -------------------------------------------------------------------------
   // Section editing (inline right drawer)
@@ -825,8 +836,10 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
       setEditingFooter(false)
       setEditingSectionId(sectionId)
       setSelectedSectionId(sectionId)
+      const sType = sections.find((s) => s.id === sectionId)?.sectionType
+      actionLogger.log("section_select", sType)
     },
-    [],
+    [sections, actionLogger],
   )
 
   const handleCloseEditor = useCallback(() => {
@@ -1409,7 +1422,10 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         page={pageData}
         allPages={pages}
         deviceMode={deviceMode}
-        onDeviceChange={setDeviceMode}
+        onDeviceChange={(mode: DeviceMode) => {
+          setDeviceMode(mode)
+          actionLogger.log("device_mode_change", mode)
+        }}
         onSave={handleSave}
         onPublishToggle={handlePublishToggle}
         onTitleChange={handleTitleChange}
@@ -1458,6 +1474,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           activeTool={activeTool}
           onToolClick={handleToolClick}
           pageType={pageData.pageType}
+          onFeedback={() => setFeedbackOpen(true)}
         />
 
         {/* Drawer (320px, animated) */}
@@ -1625,6 +1642,20 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Feedback Dialog */}
+      <BuilderFeedbackDialog
+        open={feedbackOpen}
+        onOpenChange={setFeedbackOpen}
+        pageId={pageData.id}
+        pageSlug={pageData.slug}
+        pageTitle={pageData.title}
+        editingSectionId={editingSectionId}
+        editingSectionType={editingSection?.sectionType ?? null}
+        deviceMode={deviceMode}
+        activeTool={activeTool}
+        getActionHistory={actionLogger.getHistory}
+      />
     </div>
   )
 }

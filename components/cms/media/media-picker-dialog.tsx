@@ -22,9 +22,13 @@ import {
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 
-const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
-const ACCEPTED_TYPES_STRING = ACCEPTED_TYPES.join(",")
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+const VIDEO_TYPES = ["video/mp4", "video/webm"]
+const ALL_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES]
+
+const IMAGE_MAX_SIZE = 10 * 1024 * 1024 // 10 MB
+const VIDEO_MAX_SIZE = 15 * 1024 * 1024 // 15 MB
+
 const FETCH_LIMIT = 200 // Fetch up to 200 items per folder view
 
 interface MediaPickerDialogProps {
@@ -33,6 +37,8 @@ interface MediaPickerDialogProps {
   onSelect: (url: string, alt?: string) => void
   /** Auto-create and filter to this folder (e.g. "Events") */
   folder?: string
+  /** Filter media library and upload types. Default: "image" */
+  mediaType?: "image" | "video" | "all"
 }
 
 type ViewMode = "grid" | "list"
@@ -94,7 +100,13 @@ export function MediaPickerDialog({
   onOpenChange,
   onSelect,
   folder,
+  mediaType: mediaTypeProp = "image",
 }: MediaPickerDialogProps) {
+  const acceptedTypes = mediaTypeProp === "video" ? VIDEO_TYPES : mediaTypeProp === "all" ? ALL_TYPES : IMAGE_TYPES
+  const acceptedTypesString = acceptedTypes.join(",")
+  const maxFileSize = mediaTypeProp === "video" ? VIDEO_MAX_SIZE : IMAGE_MAX_SIZE
+  const isVideoMode = mediaTypeProp === "video"
+  const mediaLabel = isVideoMode ? "video" : mediaTypeProp === "all" ? "media" : "image"
   // View
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
   const [searchQuery, setSearchQuery] = useState("")
@@ -177,9 +189,11 @@ export function MediaPickerDialog({
       setItemsLoading(true)
       try {
         const params = new URLSearchParams({
-          type: "image",
           limit: String(FETCH_LIMIT),
         })
+        if (mediaTypeProp !== "all") {
+          params.set("type", mediaTypeProp === "video" ? "video" : "image")
+        }
         if (folderValue) {
           params.set("folder", folderValue)
         }
@@ -211,7 +225,7 @@ export function MediaPickerDialog({
         }
       }
     },
-    []
+    [mediaTypeProp]
   )
 
   // Fetch items when dialog opens or active folder changes
@@ -242,10 +256,10 @@ export function MediaPickerDialog({
   // Upload
   // ---------------------------------------------------------------------------
   async function uploadFile(file: File) {
-    if (!ACCEPTED_TYPES.includes(file.type)) {
+    if (!acceptedTypes.includes(file.type)) {
       return
     }
-    if (file.size > MAX_FILE_SIZE) {
+    if (file.size > maxFileSize) {
       return
     }
 
@@ -292,8 +306,9 @@ export function MediaPickerDialog({
         return
       }
 
-      // 3. Get image dimensions
-      const dims = await getImageDimensions(file)
+      // 3. Get image dimensions (skip for video)
+      const isVideo = file.type.startsWith("video/")
+      const dims = isVideo ? { width: 0, height: 0 } : await getImageDimensions(file)
 
       // 4. Create media record
       const createRes = await fetch("/api/v1/media", {
@@ -406,7 +421,7 @@ export function MediaPickerDialog({
             Select Media
           </DialogTitle>
           <DialogDescription className="sr-only">
-            Browse and select an image from your media library or upload a new one.
+            Browse and select {mediaLabel === "image" ? "an" : "a"} {mediaLabel} from your media library or upload a new one.
           </DialogDescription>
 
           <div className="flex items-center gap-2">
@@ -449,7 +464,7 @@ export function MediaPickerDialog({
             <input
               ref={fileInputRef}
               type="file"
-              accept={ACCEPTED_TYPES_STRING}
+              accept={acceptedTypesString}
               onChange={handleFileChange}
               className="hidden"
               disabled={isUploading}
@@ -469,6 +484,13 @@ export function MediaPickerDialog({
             </Button>
           </div>
         </div>
+
+        {/* Video file size guidance */}
+        {isVideoMode && (
+          <div className="px-5 py-1.5 border-b text-xs text-muted-foreground bg-muted/30 shrink-0">
+            Recommended: under 5 MB for fast loading. Max: {formatFileSize(maxFileSize)}.
+          </div>
+        )}
 
         {/* ---- Body ---- */}
         <div className="flex flex-1 min-h-0">
@@ -554,12 +576,12 @@ export function MediaPickerDialog({
                 <div className="flex flex-col items-center justify-center h-full text-center">
                   <ImageIcon className="size-12 text-muted-foreground/30 mb-3" />
                   <p className="text-sm font-medium text-muted-foreground">
-                    {searchQuery ? "No images match your search" : "No images found"}
+                    {searchQuery ? `No ${mediaLabel}s match your search` : `No ${mediaLabel}s found`}
                   </p>
                   <p className="text-xs text-muted-foreground/70 mt-1">
                     {searchQuery
                       ? "Try a different search term"
-                      : "Upload an image to get started"}
+                      : `Upload ${mediaLabel === "image" ? "an" : "a"} ${mediaLabel} to get started`}
                   </p>
                 </div>
               ) : viewMode === "grid" ? (
@@ -724,8 +746,8 @@ export function MediaPickerDialog({
                       <ImageIcon className="size-10 text-muted-foreground/30 mb-2" />
                       <span className="text-sm text-muted-foreground">
                         {searchQuery
-                          ? "No images match your search"
-                          : "No images found"}
+                          ? `No ${mediaLabel}s match your search`
+                          : `No ${mediaLabel}s found`}
                       </span>
                     </div>
                   )}
