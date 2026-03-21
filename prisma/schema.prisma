@@ -94,6 +94,7 @@ model Church {
 
   // Website Builder
   builderPresences       BuilderPresence[]
+  builderFeedbacks       BuilderFeedback[]
 
   @@index([slug])
   @@index([status])
@@ -1224,6 +1225,8 @@ enum SectionType {
 enum ColorScheme {
   LIGHT
   DARK
+  BRAND
+  MUTED
 }
 
 enum PaddingSize {
@@ -1715,4 +1718,37 @@ model BuilderPresence {
   @@unique([pageId, userId])
   @@index([pageId])
   @@index([churchId])
+}
+
+model BuilderFeedback {
+  id          String   @id @default(uuid()) @db.Uuid
+  churchId    String   @db.Uuid
+  userId      String   @db.Uuid
+  userName    String
+
+  // User-provided
+  title       String
+  description String   @db.Text
+  type        String   @default("bug")
+
+  // Auto-captured snapshot
+  snapshot    Json     @db.JsonB
+
+  // Last ~20 actions before submission
+  actionHistory Json?  @db.JsonB
+
+  // Admin processing
+  isRead      Boolean  @default(false)
+  readAt      DateTime?
+  status      String   @default("new")
+  adminNotes  String?  @db.Text
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  church      Church   @relation(fields: [churchId], references: [id], onDelete: Cascade)
+
+  @@index([churchId, status])
+  @@index([churchId, type])
+  @@index([churchId, createdAt(sort: Desc)])
 }
