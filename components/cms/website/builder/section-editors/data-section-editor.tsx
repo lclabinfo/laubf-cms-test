@@ -1,5 +1,6 @@
 "use client"
 
+import { Lock } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import type { SectionType } from "@/lib/db/types"
@@ -14,6 +15,21 @@ import {
   LinkInput,
 } from "./shared"
 
+/** Visual lock overlay — shows controls as read-only with a lock icon */
+function LockedField({ children, label }: { children: React.ReactNode; label?: string }) {
+  return (
+    <div className="relative">
+      <div className="opacity-40 pointer-events-none select-none">{children}</div>
+      <div className="absolute inset-0 flex items-center justify-end pr-2">
+        <div className="flex items-center gap-1 rounded-md bg-muted/80 px-2 py-1">
+          <Lock className="size-3 text-muted-foreground" />
+          {label && <span className="text-[10px] text-muted-foreground font-medium">{label}</span>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 
 interface DataSectionEditorProps {
   sectionType: SectionType
@@ -21,44 +37,9 @@ interface DataSectionEditorProps {
   onChange: (content: Record<string, unknown>) => void
 }
 
-// --- All Messages Editor (content panel — toolbar feature toggles) ---
-
-function AllMessagesEditor({
-  content,
-  onChange,
-}: {
-  content: Record<string, unknown>
-  onChange: (c: Record<string, unknown>) => void
-}) {
-  const showTabs = (content.showTabs as boolean) ?? true
-  const showSearch = (content.showSearch as boolean) ?? true
-  const showFilters = (content.showFilters as boolean) ?? true
-
-  return (
-    <>
-      <EditorToggle
-        label="Tabs (All Messages / Series)"
-        description="Tab switcher between message list and series view"
-        checked={showTabs}
-        onCheckedChange={(checked) => onChange({ ...content, showTabs: checked })}
-      />
-
-      <EditorToggle
-        label="Search Bar"
-        description="Search across titles, speakers, and passages"
-        checked={showSearch}
-        onCheckedChange={(checked) => onChange({ ...content, showSearch: checked })}
-      />
-
-      <EditorToggle
-        label="Filters"
-        description="Series, speaker, year, and date range filters"
-        checked={showFilters}
-        onCheckedChange={(checked) => onChange({ ...content, showFilters: checked })}
-      />
-    </>
-  )
-}
+// --- All Messages Editor (content panel — no editable fields, CMS-driven) ---
+// Tabs, search, filters are default features — not configurable.
+// The content panel only shows the DataDrivenBanner + Manage in CMS link.
 
 // --- All Messages Layout Editor (registered separately in LAYOUT_EDITORS) ---
 
@@ -91,41 +72,45 @@ export function AllMessagesLayoutEditor({
 
   return (
     <>
-      <EditorButtonGroup
-        label="Columns (Desktop)"
-        value={String(desktopCols)}
-        onChange={(v) => updateColumns("desktop", parseInt(v))}
-        options={[
-          { value: "2", label: "2" },
-          { value: "3", label: "3" },
-          { value: "4", label: "4" },
-        ]}
-        size="sm"
-      />
-
-      <TwoColumnGrid>
+      <LockedField>
         <EditorButtonGroup
-          label="Tablet"
-          value={String(tabletCols)}
-          onChange={(v) => updateColumns("tablet", parseInt(v))}
+          label="Columns (Desktop)"
+          value={String(desktopCols)}
+          onChange={(v) => updateColumns("desktop", parseInt(v))}
           options={[
-            { value: "1", label: "1" },
             { value: "2", label: "2" },
             { value: "3", label: "3" },
+            { value: "4", label: "4" },
           ]}
           size="sm"
         />
-        <EditorButtonGroup
-          label="Mobile"
-          value={String(mobileCols)}
-          onChange={(v) => updateColumns("mobile", parseInt(v))}
-          options={[
-            { value: "1", label: "1" },
-            { value: "2", label: "2" },
-          ]}
-          size="sm"
-        />
-      </TwoColumnGrid>
+      </LockedField>
+
+      <LockedField>
+        <TwoColumnGrid>
+          <EditorButtonGroup
+            label="Tablet"
+            value={String(tabletCols)}
+            onChange={(v) => updateColumns("tablet", parseInt(v))}
+            options={[
+              { value: "1", label: "1" },
+              { value: "2", label: "2" },
+              { value: "3", label: "3" },
+            ]}
+            size="sm"
+          />
+          <EditorButtonGroup
+            label="Mobile"
+            value={String(mobileCols)}
+            onChange={(v) => updateColumns("mobile", parseInt(v))}
+            options={[
+              { value: "1", label: "1" },
+              { value: "2", label: "2" },
+            ]}
+            size="sm"
+          />
+        </TwoColumnGrid>
+      </LockedField>
 
       <EditorSelect
         label="Card Spacing"
@@ -692,9 +677,8 @@ export function DataSectionEditor({
         <DailyBreadEditor content={content} onChange={onChange} />
       )}
 
-      {sectionType === "ALL_MESSAGES" && (
-        <AllMessagesEditor content={content} onChange={onChange} />
-      )}
+      {/* ALL_MESSAGES has no content fields — everything is CMS-driven.
+          Layout controls are in the Layout panel via AllMessagesLayoutEditor. */}
 
       {sectionType === "ALL_EVENTS" && (
         <SimpleDataEditor

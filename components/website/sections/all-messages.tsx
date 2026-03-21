@@ -3,10 +3,6 @@ import { getAllSeries } from '@/lib/dal/series'
 import AllMessagesClient from './all-messages-client'
 
 interface AllMessagesContent {
-  // Toolbar toggles
-  showSearch?: boolean
-  showTabs?: boolean
-  showFilters?: boolean
   // Grid layout
   columns?: { desktop?: number; tablet?: number; mobile?: number }
   cardGap?: 'tight' | 'default' | 'spacious'
@@ -41,8 +37,11 @@ export default async function AllMessagesSection({
       getAllSeries(churchId),
     ])
 
+    // Only include messages that have an actual video source (youtubeId or videoUrl)
+    const withVideo = messagesResult.data.filter((m) => m.youtubeId || m.videoUrl)
+
     // Transform messages to the shape the client component expects
-    const messages = messagesResult.data.map((m) => ({
+    const messages = withVideo.map((m) => ({
       id: m.id,
       slug: m.slug,
       title: m.title,
@@ -65,9 +64,6 @@ export default async function AllMessagesSection({
     }))
 
     const layoutConfig = {
-      showSearch: content.showSearch ?? true,
-      showTabs: content.showTabs ?? true,
-      showFilters: content.showFilters ?? true,
       columns: {
         desktop: content.columns?.desktop ?? 3,
         tablet: content.columns?.tablet ?? 2,

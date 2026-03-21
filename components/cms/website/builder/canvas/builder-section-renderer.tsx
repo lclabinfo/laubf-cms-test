@@ -125,9 +125,6 @@ export function BuilderSectionRenderer({
   if (type === "ALL_MESSAGES") {
     const cols = content.columns as Record<string, number> | undefined
     const layout = {
-      showSearch: (content.showSearch as boolean) ?? true,
-      showTabs: (content.showTabs as boolean) ?? true,
-      showFilters: (content.showFilters as boolean) ?? true,
       columns: {
         desktop: cols?.desktop ?? 3,
         tablet: cols?.tablet ?? 2,

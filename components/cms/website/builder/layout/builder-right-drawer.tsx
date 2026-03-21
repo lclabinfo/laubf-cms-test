@@ -148,9 +148,9 @@ function ColorSchemePicker({
   onChange: (v: string) => void
 }) {
   const schemes = [
-    { value: "LIGHT", label: "Light", previewBg: "#ffffff", previewText: "#262626", borderIdle: "#e5e5e5" },
-    { value: "DARK", label: "Dark", previewBg: "#0d0d0d", previewText: "#ffffff", borderIdle: "#404040" },
-    { value: "BRAND", label: "Brand", previewBg: "var(--ws-color-primary, #1a1a2e)", previewText: "#ffffff", borderIdle: "#525252" },
+    { value: "LIGHT", label: "Light", previewBg: "#ffffff", previewText: "#262626" },
+    { value: "DARK", label: "Dark", previewBg: "#0d0d0d", previewText: "#ffffff" },
+    { value: "BRAND", label: "Brand", previewBg: "var(--ws-color-primary, #1a1a2e)", previewText: "#ffffff" },
   ]
   return (
     <div className="space-y-1.5">
@@ -167,11 +167,8 @@ function ColorSchemePicker({
                 "flex flex-col rounded-lg overflow-hidden transition-all cursor-pointer border-2",
                 selected
                   ? "border-blue-600 ring-1 ring-blue-600/20"
-                  : "border-transparent",
+                  : "border-muted-foreground/30",
               )}
-              style={{
-                borderColor: selected ? undefined : scheme.borderIdle,
-              }}
             >
               <div
                 className="p-3 flex flex-col gap-1.5"
@@ -398,18 +395,6 @@ function SectionEditorInline({
                             )}
                           </>
                         )}
-                        <Separator />
-                        <div className="pt-2 pb-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
-                            onClick={() => onDelete(section.id)}
-                          >
-                            <Trash2 className="size-3.5 mr-2" />
-                            Delete Section
-                          </Button>
-                        </div>
                       </>
                     )}
                   </div>
@@ -419,6 +404,19 @@ function SectionEditorInline({
           </div>
         )
       })}
+
+      {/* Fixed footer — delete button always visible outside accordion */}
+      <div className="shrink-0 border-t px-4 py-3">
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+          onClick={() => onDelete(section.id)}
+        >
+          <Trash2 className="size-3.5 mr-2" />
+          Delete Section
+        </Button>
+      </div>
     </div>
   )
 }

@@ -1,3 +1,4 @@
+"use client"
 /*
  * MessageCard -- Card component for Sunday message/sermon entries
  *
@@ -11,6 +12,8 @@ import {
   IconBookOpen,
   IconUser,
 } from "@/components/website/shared/icons"
+import { useSectionTheme } from "@/components/website/shared/theme-tokens"
+import { cn } from "@/lib/utils"
 
 interface Message {
   id: string
@@ -42,6 +45,7 @@ function formatDate(dateStr: string) {
 }
 
 export default function MessageCard({ message }: { message: Message }) {
+  const t = useSectionTheme()
   const hasYouTube = message.hasVideo && !!message.youtubeId
   const hasVimeo = message.hasVideo && !hasYouTube && !!message.videoUrl
   const hasAnyVideo = message.hasVideo && (hasYouTube || hasVimeo)
@@ -51,7 +55,10 @@ export default function MessageCard({ message }: { message: Message }) {
   return (
     <Link
       href={resolveHref(`/messages/${message.slug}`)}
-      className="group relative rounded-[24px] p-3 cursor-pointer transition-all duration-300 bg-white-0 hover:bg-white-1-5 hover:-translate-y-0.5 hover:shadow-[0px_8px_16px_0px_rgba(0,0,0,0.06)]"
+      className={cn(
+        "group relative rounded-[24px] p-3 cursor-pointer transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0px_8px_16px_0px_rgba(0,0,0,0.06)]",
+        t.surfaceBgSubtle,
+      )}
     >
       {/* Video Thumbnail */}
       <div className="relative aspect-video rounded-[16px] overflow-hidden bg-black-1">
@@ -115,12 +122,12 @@ export default function MessageCard({ message }: { message: Message }) {
       <div className="flex flex-col items-start pt-5 px-2 pb-3">
         {/* Date + Series pill row */}
         <div className="flex items-center justify-between w-full mb-[12px]">
-          <p className="font-medium leading-none text-black-3 text-[14px] tracking-[-0.42px] whitespace-nowrap">
+          <p className={cn("font-medium leading-none text-[14px] tracking-[-0.42px] whitespace-nowrap", t.textMuted)}>
             {formatDate(message.dateFor)}
           </p>
           {message.series && (
-            <div className="bg-white-2 flex flex-col items-start px-[8px] py-[6px] rounded-[8px] shrink-0">
-              <p className="font-medium leading-none text-black-3 text-[12px] text-center tracking-[0.24px]">
+            <div className={cn("flex flex-col items-start px-[8px] py-[6px] rounded-[8px] shrink-0", t.surfaceBg)}>
+              <p className={cn("font-medium leading-none text-[12px] text-center tracking-[0.24px]", t.textMuted)}>
                 {message.series}
               </p>
             </div>
@@ -129,11 +136,11 @@ export default function MessageCard({ message }: { message: Message }) {
 
         {/* Title */}
         <div className="w-full mb-[12px]">
-          <p className="font-medium leading-[1.2] text-black-1 text-[18px] sm:text-[24px] tracking-[-0.72px] line-clamp-2">
+          <p className={cn("font-medium leading-[1.2] text-[18px] sm:text-[24px] tracking-[-0.72px] line-clamp-2", t.textPrimary)}>
             {displayTitle}
           </p>
           {showSubtitle && (
-            <p className="font-medium leading-[1.3] text-black-3 text-[13px] sm:text-[14px] tracking-[-0.28px] mt-1 line-clamp-1">
+            <p className={cn("font-medium leading-[1.3] text-[13px] sm:text-[14px] tracking-[-0.28px] mt-1 line-clamp-1", t.textMuted)}>
               {message.title}
             </p>
           )}
@@ -142,14 +149,14 @@ export default function MessageCard({ message }: { message: Message }) {
         {/* Speaker + Passage */}
         <div className="flex flex-col gap-[6px] w-full">
           <div className="flex gap-[8px] items-center">
-            <IconUser className="shrink-0 size-[16px] text-black-3" />
-            <p className="leading-[1.4] text-black-3 text-[14px] sm:text-[16px] tracking-[-0.32px]">
+            <IconUser className={cn("shrink-0 size-[16px]", t.textMuted)} />
+            <p className={cn("leading-[1.4] text-[14px] sm:text-[16px] tracking-[-0.32px]", t.textMuted)}>
               {message.speaker}
             </p>
           </div>
           <div className="flex gap-[8px] items-center">
-            <IconBookOpen className="shrink-0 size-[16px] text-black-3" />
-            <p className="leading-[1.4] text-black-3 text-[14px] sm:text-[16px] tracking-[-0.32px]">
+            <IconBookOpen className={cn("shrink-0 size-[16px]", t.textMuted)} />
+            <p className={cn("leading-[1.4] text-[14px] sm:text-[16px] tracking-[-0.32px]", t.textMuted)}>
               {message.passage}
             </p>
           </div>
@@ -159,7 +166,7 @@ export default function MessageCard({ message }: { message: Message }) {
       {/* Border overlay */}
       <div
         aria-hidden="true"
-        className="absolute border border-white-2-5 inset-0 pointer-events-none rounded-[24px]"
+        className={cn("absolute inset-0 pointer-events-none rounded-[24px] border", t.cardBorder)}
       />
     </Link>
   )

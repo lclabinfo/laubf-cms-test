@@ -6,7 +6,7 @@ import type { SectionType } from "@/lib/db/types"
 
 /** CMS module name + link for each data-driven section type */
 const CMS_MODULES: Partial<Record<SectionType, { module: string; href: string }>> = {
-  ALL_MESSAGES: { module: "Messages", href: "/cms/messages" },
+  ALL_MESSAGES: { module: "Messages (Video)", href: "/cms/messages" },
   ALL_EVENTS: { module: "Events", href: "/cms/events" },
   ALL_BIBLE_STUDIES: { module: "Bible Studies", href: "/cms/bible-studies" },
   ALL_VIDEOS: { module: "Media", href: "/cms/media" },

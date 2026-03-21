@@ -35,9 +35,9 @@ export function DisplaySettings({ data, onChange }: DisplaySettingsProps) {
         <Label className="text-sm font-medium">Color Scheme</Label>
         <div className="grid grid-cols-3 gap-2">
           {[
-            { value: "LIGHT", label: "Light", bg: "bg-white", text: "bg-neutral-800", border: "border-neutral-200" },
-            { value: "DARK", label: "Dark", bg: "bg-[#0d0d0d]", text: "bg-white", border: "border-neutral-700" },
-            { value: "BRAND", label: "Brand", bg: "bg-[#1a1a2e]", text: "bg-white", border: "border-[#1a1a2e]/40" },
+            { value: "LIGHT", label: "Light", bg: "bg-white", text: "bg-neutral-800" },
+            { value: "DARK", label: "Dark", bg: "bg-[#0d0d0d]", text: "bg-white" },
+            { value: "BRAND", label: "Brand", bg: "bg-[#1a1a2e]", text: "bg-white" },
           ].map((scheme) => (
             <button
               key={scheme.value}
@@ -47,7 +47,7 @@ export function DisplaySettings({ data, onChange }: DisplaySettingsProps) {
                 "flex flex-col rounded-lg border-2 overflow-hidden transition-all cursor-pointer",
                 data.colorScheme === scheme.value
                   ? "border-primary ring-1 ring-primary/20"
-                  : `${scheme.border} hover:border-muted-foreground/40`
+                  : "border-muted-foreground/30 hover:border-muted-foreground/40"
               )}
             >
               <div className={cn("p-2.5 flex flex-col gap-1", scheme.bg)}>

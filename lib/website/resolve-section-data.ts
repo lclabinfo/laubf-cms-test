@@ -212,11 +212,12 @@ export async function resolveSectionData(
       }
 
       case 'all-messages': {
-        const messagesResult = await getMessages(churchId, { pageSize: 5000 })
+        const messagesResult = await getMessages(churchId, { pageSize: 5000, videoPublished: true })
+        const withVideo = messagesResult.data.filter((m) => m.youtubeId || m.videoUrl)
         return {
           content,
           resolvedData: {
-            messages: messagesResult.data.map((m) => ({
+            messages: withVideo.map((m) => ({
               id: m.id,
               slug: m.slug,
               title: m.title,
