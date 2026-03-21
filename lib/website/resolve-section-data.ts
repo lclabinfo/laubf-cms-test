@@ -126,16 +126,26 @@ export async function resolveSectionData(
       }
 
       case 'upcoming-events': {
-        const events = await getUpcomingEvents(churchId, 100)
-        // For UPCOMING_EVENTS section, filter out recurring meetings (only show actual events)
+        const maxCount = (content.maxCount as number) ?? 100
+        const includeRecurring = content.includeRecurring === true
+        const includePast = content.includePast === true
+        const pastDays = (content.pastDays as number) ?? 14
+
+        const events = await getUpcomingEvents(churchId, maxCount, {
+          includeRecurring,
+          pastEventsDays: includePast ? pastDays : 0,
+        })
+
+        // For UPCOMING_EVENTS section, filter out recurring meetings unless explicitly included
         // EVENT_CALENDAR and RECURRING_MEETINGS sections also use this dataSource but handle their own filtering
-        const filteredEvents = sectionType === 'UPCOMING_EVENTS'
+        const filteredEvents = sectionType === 'UPCOMING_EVENTS' && !includeRecurring
           ? events.filter((e) => !e.isRecurring)
           : events
+
         return {
           content,
           resolvedData: {
-            events: filteredEvents.map((e) => ({
+            events: filteredEvents.slice(0, maxCount).map((e) => ({
               slug: e.slug,
               title: e.title,
               dateStart: toDateString(e.dateStart),

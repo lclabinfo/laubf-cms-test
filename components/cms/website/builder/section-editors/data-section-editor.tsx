@@ -276,6 +276,10 @@ function UpcomingEventsEditor({
     label: string
     href: string
   }) ?? { label: "", href: "" }
+  const maxCount = (content.maxCount as number) ?? 6
+  const includeRecurring = (content.includeRecurring as boolean) ?? false
+  const includePast = (content.includePast as boolean) ?? false
+  const pastDays = (content.pastDays as number) ?? 14
 
   return (
     <>
@@ -317,6 +321,49 @@ function UpcomingEventsEditor({
           />
         </TwoColumnGrid>
       </div>
+
+      <Separator />
+
+      <EditorInput
+        label="Max Events"
+        value={String(maxCount)}
+        onChange={(val) => onChange({ ...content, maxCount: parseInt(val) || 6 })}
+        placeholder="6"
+        type="number"
+        min={1}
+        max={20}
+        labelSize="xs"
+      />
+
+      <EditorToggle
+        label="Include Recurring Meetings"
+        description="Show recurring meetings (e.g. Bible study, prayer) alongside one-off events."
+        checked={includeRecurring}
+        onCheckedChange={(checked) => onChange({ ...content, includeRecurring: checked })}
+        bordered
+      />
+
+      <EditorToggle
+        label="Include Past Events"
+        description="Show recently ended events."
+        checked={includePast}
+        onCheckedChange={(checked) => onChange({ ...content, includePast: checked })}
+        bordered
+      />
+
+      {includePast && (
+        <EditorSelect
+          label="Past Events Window"
+          value={String(pastDays)}
+          onValueChange={(val) => onChange({ ...content, pastDays: parseInt(val) })}
+          options={[
+            { value: "7", label: "Last 7 days" },
+            { value: "14", label: "Last 2 weeks" },
+            { value: "30", label: "Last 30 days" },
+          ]}
+          labelSize="xs"
+        />
+      )}
     </>
   )
 }
