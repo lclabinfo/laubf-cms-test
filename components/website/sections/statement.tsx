@@ -3,7 +3,7 @@
 import { useRef, useState, useEffect, useCallback } from "react"
 import { motion } from "motion/react"
 import SectionContainer from "@/components/website/shared/section-container"
-import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
+import { themeTokens, isDarkScheme, type SectionTheme } from "@/components/website/shared/theme-tokens"
 
 const STICKY_TOP = 180
 const DEFAULT_MASK_IMAGE_URL =
@@ -21,13 +21,14 @@ function StatementContent({
 }: {
   leadIn: string
   paragraphs: StatementParagraph[]
-  colorScheme: string
+  colorScheme: SectionTheme
 }) {
   const [activeIndex, setActiveIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const activeColor = colorScheme === "dark" ? "#fafafa" : "#0d0d0d"
-  const mutedColor = colorScheme === "dark" ? "#9e9e9e" : "#9e9e9e"
+  const dark = isDarkScheme(colorScheme)
+  const activeColor = dark ? "#fafafa" : "#0d0d0d"
+  const mutedColor = dark ? "#9e9e9e" : "#9e9e9e"
 
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return

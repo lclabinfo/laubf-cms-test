@@ -106,8 +106,17 @@ export async function buildThemeTokens(churchId: string) {
 
   const defaultTokens = (themeData?.theme?.defaultTokens ?? {}) as Record<string, string>
 
+  // Convert hex to "r,g,b" string for use in rgba() gradients
+  const hexToRgb = (hex: string): string => {
+    const h = hex.replace('#', '')
+    const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16)
+    return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`
+  }
+
+  const primaryHex = themeData?.primaryColor || defaultTokens['--color-primary'] || '#1a1a2e'
   const websiteThemeTokens: Record<string, string> = {
-    '--ws-color-primary': themeData?.primaryColor || defaultTokens['--color-primary'] || '#1a1a2e',
+    '--ws-color-primary': primaryHex,
+    '--ws-color-primary-rgb': hexToRgb(primaryHex),
     '--ws-color-secondary': themeData?.secondaryColor || defaultTokens['--color-secondary'] || '#16213e',
     '--ws-color-background': themeData?.backgroundColor || defaultTokens['--color-background'] || '#ffffff',
     '--ws-color-text': themeData?.textColor || defaultTokens['--color-text'] || '#1a1a1a',

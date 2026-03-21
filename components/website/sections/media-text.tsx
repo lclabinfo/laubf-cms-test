@@ -5,7 +5,7 @@ import { useEffect, useState } from "react"
 import SectionContainer from "@/components/website/shared/section-container"
 import OverlineLabel from "@/components/website/shared/overline-label"
 import CTAButton from "@/components/website/shared/cta-button"
-import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
+import { themeTokens, isDarkScheme, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import Image from "next/image"
 
 interface SectionImage {
@@ -234,15 +234,12 @@ export default function MediaTextSection({ content, colorScheme = "dark", paddin
   const t = themeTokens[colorScheme]
   const speed = content.rotationSpeed ?? 50
 
-  const themeColor =
-    colorScheme === "dark"
-      ? "rgb(13, 13, 13)"
-      : "rgb(250, 250, 250)"
+  const dark = isDarkScheme(colorScheme)
+  const themeColor = dark ? "rgb(13, 13, 13)" : "rgb(250, 250, 250)"
 
-  const vignetteGradient =
-    colorScheme === "dark"
-      ? "linear-gradient(rgb(13,13,13) 5%, rgba(13,13,13,0.5) 25%, rgba(13,13,13,0) 50%, rgba(13,13,13,0.5) 75%, rgb(13,13,13) 97.5%)"
-      : "linear-gradient(rgb(250,250,250) 0%, rgba(250,250,250,0.5) 24.5%, rgba(250,250,250,0) 50%, rgba(250,250,250,0.5) 75%, rgb(250,250,250) 100%)"
+  const vignetteGradient = dark
+    ? "linear-gradient(rgb(13,13,13) 5%, rgba(13,13,13,0.5) 25%, rgba(13,13,13,0) 50%, rgba(13,13,13,0.5) 75%, rgb(13,13,13) 97.5%)"
+    : "linear-gradient(rgb(250,250,250) 0%, rgba(250,250,250,0.5) 24.5%, rgba(250,250,250,0) 50%, rgba(250,250,250,0.5) 75%, rgb(250,250,250) 100%)"
 
   return (
     <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth} className="py-0!" noContainer>
