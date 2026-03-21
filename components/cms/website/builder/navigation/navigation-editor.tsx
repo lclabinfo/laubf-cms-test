@@ -4,35 +4,32 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react"
 import {
   DndContext,
   closestCenter,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
+  type DragMoveEvent,
 } from "@dnd-kit/core"
 import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-  useSortable,
+  arrayMove,
 } from "@dnd-kit/sortable"
-import { CSS } from "@dnd-kit/utilities"
 import {
   ChevronDown,
-  ChevronRight,
   Copy,
   ExternalLink,
   EyeOff,
   FilePlus,
-  FileText,
   Folder,
-  GripVertical,
   Link,
   MoreHorizontal,
-  Pencil,
   Plus,
   Settings,
-  Star,
   Trash2,
   X,
   Check,
@@ -50,6 +47,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import type { PageSummary } from "../types"
+import { flattenTree, getProjection } from "./tree-utils"
+import { SortableTreeItem, TreeItemOverlay } from "./sortable-tree-item"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -114,47 +113,6 @@ export interface NavigationEditorProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function inferItemType(item: MenuItemData, hasChildren: boolean): NavItemType {
-  if (item.parentId === null) {
-    if (item.href && hasChildren) return "page-dropdown"
-    if (!item.href && hasChildren) return "folder-dropdown"
-    if (item.href) return "page"
-  }
-  if (item.featuredTitle && item.sortOrder >= 99) return "featured"
-  if (item.isExternal) return "external-link"
-  return "page"
-}
-
-function TypeIcon({ type, className }: { type: NavItemType; className?: string }) {
-  switch (type) {
-    case "folder-dropdown":
-      return <Folder className={className} />
-    case "page-dropdown":
-      return <FileText className={className} />
-    case "page":
-      return <FileText className={className} />
-    case "external-link":
-      return <ExternalLink className={className} />
-    case "featured":
-      return <Star className={className} />
-  }
-}
-
-function getTypeBadge(type: NavItemType): string | null {
-  switch (type) {
-    case "folder-dropdown":
-      return "dropdown"
-    case "page-dropdown":
-      return "page + dropdown"
-    case "external-link":
-      return "external"
-    case "featured":
-      return "featured"
-    default:
-      return null
-  }
-}
-
 /** Strip leading "/" and /website/ prefix, query params for slug matching. */
 function normalizeHref(href: string): string {
   let normalized = href
@@ -183,52 +141,8 @@ function resolveHrefToPageId(
   return match?.id ?? null
 }
 
-/** Group children by groupLabel, preserving order. */
-interface ChildGroup {
-  label: string | null
-  items: MenuItemData[]
-}
-
-function groupChildrenByLabel(children: MenuItemData[]): ChildGroup[] {
-  const groups: ChildGroup[] = []
-  let currentLabel: string | null | undefined = undefined
-
-  const sorted = [...children].sort((a, b) => a.sortOrder - b.sortOrder)
-
-  for (const child of sorted) {
-    if (child.groupLabel !== currentLabel) {
-      currentLabel = child.groupLabel
-      groups.push({ label: child.groupLabel, items: [] })
-    }
-    groups[groups.length - 1].items.push(child)
-  }
-
-  return groups
-}
-
-// Prefix helpers for single-DndContext architecture
-const TOP_PREFIX = "top::"
-const CHILD_PREFIX = "child::"
-
-function toTopId(id: string) {
-  return `${TOP_PREFIX}${id}`
-}
-function toChildId(id: string) {
-  return `${CHILD_PREFIX}${id}`
-}
-function fromPrefixedId(prefixedId: string): { type: "top" | "child"; id: string } {
-  if (typeof prefixedId === "string" && prefixedId.startsWith(TOP_PREFIX)) {
-    return { type: "top", id: prefixedId.slice(TOP_PREFIX.length) }
-  }
-  if (typeof prefixedId === "string" && prefixedId.startsWith(CHILD_PREFIX)) {
-    return { type: "child", id: prefixedId.slice(CHILD_PREFIX.length) }
-  }
-  // Fallback — treat as top
-  return { type: "top", id: String(prefixedId) }
-}
-
 // ---------------------------------------------------------------------------
-// InlineAddInput — replaces window.prompt() with inline field
+// InlineAddInput -- replaces window.prompt() with inline field
 // ---------------------------------------------------------------------------
 
 interface InlineAddInputProps {
@@ -296,7 +210,7 @@ function InlineAddInput({ placeholder, onSubmit, onCancel }: InlineAddInputProps
 }
 
 // ---------------------------------------------------------------------------
-// ExternalLinkAddInput — two-field inline input for adding external links
+// ExternalLinkAddInput -- two-field inline input for adding external links
 // ---------------------------------------------------------------------------
 
 interface ExternalLinkAddInputProps {
@@ -371,702 +285,6 @@ function ExternalLinkAddInput({ onSubmit, onCancel }: ExternalLinkAddInputProps)
           <X className="size-3.5" />
         </Button>
       </div>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// SortableNavItem (child items)
-// ---------------------------------------------------------------------------
-
-interface SortableNavItemProps {
-  item: MenuItemData
-  onEditItem?: (itemId: string) => void
-  onDeleteItem: (itemId: string) => void
-  /** Resolved page ID for this item (null if external/featured/unmatched) */
-  resolvedPageId: string | null
-  /** Currently active page ID */
-  activePageId: string
-  /** Navigate to a page */
-  onPageSelect: (pageId: string) => void
-  /** Page management callbacks */
-  pages: PageSummary[]
-  onPageSettings?: (page: PageSummary) => void
-  onDeletePage?: (pageId: string) => void
-  onDuplicatePage?: (pageId: string) => void
-}
-
-function SortableNavItem({
-  item,
-  onEditItem,
-  onDeleteItem,
-  resolvedPageId,
-  activePageId,
-  onPageSelect,
-  pages,
-  onPageSettings,
-  onDeletePage,
-  onDuplicatePage,
-}: SortableNavItemProps) {
-  const sortableId = toChildId(item.id)
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: sortableId })
-
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition,
-    zIndex: isDragging ? 50 : undefined,
-  }
-
-  const type = inferItemType(item, false)
-  const badge = getTypeBadge(type)
-  const isActive = resolvedPageId != null && resolvedPageId === activePageId
-  const isPageItem = resolvedPageId != null
-  const pageSummary = isPageItem ? pages.find((p) => p.id === resolvedPageId) : null
-
-  const handleLabelClick = () => {
-    if (isPageItem && resolvedPageId) {
-      onPageSelect(resolvedPageId)
-    }
-    // External links and featured items: no navigation
-  }
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "group/item flex items-center gap-2 rounded-md px-3 py-2 transition-colors",
-        isDragging && "opacity-50 bg-muted/30",
-        isActive
-          ? "bg-sidebar-accent border-l-2 border-primary"
-          : "hover:bg-sidebar-accent",
-      )}
-    >
-      {/* Drag handle */}
-      <div
-        {...attributes}
-        {...listeners}
-        className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground shrink-0 touch-none"
-      >
-        <GripVertical className="size-3.5" />
-      </div>
-
-      {/* Icon */}
-      <TypeIcon type={type} className="size-3.5 shrink-0 text-muted-foreground/70" />
-
-      {/* Label + description */}
-      <button
-        type="button"
-        className={cn(
-          "flex-1 min-w-0 text-left",
-          isPageItem && "cursor-pointer",
-          !isPageItem && "cursor-default",
-        )}
-        onClick={handleLabelClick}
-      >
-        <span className={cn(
-          "text-xs font-medium truncate block",
-          isActive ? "text-primary font-semibold" : "text-foreground",
-        )}>
-          {item.label}
-        </span>
-      </button>
-
-      {/* Right side: description / scheduleMeta + badge */}
-      <div className="flex items-center gap-1.5 shrink-0">
-        {item.description && type === "page" && (
-          <span className="text-[10px] text-muted-foreground/60 max-w-24 truncate hidden sm:inline">
-            {item.description}
-          </span>
-        )}
-        {item.scheduleMeta && type === "external-link" && (
-          <span className="text-[10px] text-muted-foreground/60 max-w-28 truncate">
-            {item.scheduleMeta}
-          </span>
-        )}
-        {badge && (
-          <span className="text-[10px] font-medium text-muted-foreground/50 bg-muted/50 px-1.5 py-0.5 rounded-md">
-            {badge}
-          </span>
-        )}
-
-        {/* Active checkmark */}
-        {isActive && (
-          <Check className="size-3.5 text-primary shrink-0" />
-        )}
-
-        {/* Context menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "h-6 w-6 rounded-md transition-opacity shrink-0",
-                "opacity-0 group-hover/item:opacity-100 data-[state=open]:opacity-100",
-                "hover:bg-muted text-muted-foreground",
-              )}
-            >
-              <MoreHorizontal className="size-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuItem onClick={() => onEditItem?.(item.id)}>
-              <Pencil className="size-3.5 mr-2" /> Edit Properties
-            </DropdownMenuItem>
-            {/* Page management actions */}
-            {isPageItem && pageSummary && (
-              <>
-                <DropdownMenuSeparator />
-                {onPageSettings && (
-                  <DropdownMenuItem onClick={() => onPageSettings(pageSummary)}>
-                    <Settings className="size-3.5 mr-2" /> Page Settings
-                  </DropdownMenuItem>
-                )}
-                {onDuplicatePage && (
-                  <DropdownMenuItem onClick={() => onDuplicatePage(resolvedPageId!)}>
-                    <Copy className="size-3.5 mr-2" /> Duplicate Page
-                  </DropdownMenuItem>
-                )}
-                {onDeletePage && !pageSummary.isHomepage && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() => onDeletePage(resolvedPageId!)}
-                    >
-                      <Trash2 className="size-3.5 mr-2" /> Delete Page
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive focus:text-destructive"
-              onClick={() => onDeleteItem(item.id)}
-            >
-              <Trash2 className="size-3.5 mr-2" /> Remove from Menu
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// NavSectionHeader
-// ---------------------------------------------------------------------------
-
-interface NavSectionHeaderProps {
-  label: string
-  onRename: (newLabel: string) => void
-  onDelete: () => void
-}
-
-function NavSectionHeader({ label, onRename, onDelete }: NavSectionHeaderProps) {
-  const [isRenaming, setIsRenaming] = useState(false)
-  const [editValue, setEditValue] = useState(label)
-
-  const handleRenameSubmit = () => {
-    const trimmed = editValue.trim()
-    if (trimmed && trimmed !== label) {
-      onRename(trimmed)
-    }
-    setIsRenaming(false)
-  }
-
-  return (
-    <div className="flex items-center justify-between px-3 pt-4 pb-1.5">
-      {isRenaming ? (
-        <Input
-          autoFocus
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={handleRenameSubmit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleRenameSubmit()
-            if (e.key === "Escape") setIsRenaming(false)
-          }}
-          className="h-5 text-[10px] font-semibold uppercase tracking-wider bg-transparent border-0 border-b border-muted-foreground/30 rounded-none px-0 py-0 focus-visible:ring-0"
-        />
-      ) : (
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 select-none">
-          {label}
-        </span>
-      )}
-
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 rounded-md hover:bg-muted/50 text-muted-foreground/40 hover:text-muted-foreground"
-          >
-            <MoreHorizontal className="size-3.5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-40">
-          <DropdownMenuItem onClick={() => { setEditValue(label); setIsRenaming(true) }}>
-            <Pencil className="size-3.5 mr-2" /> Rename
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="text-destructive focus:text-destructive"
-            onClick={onDelete}
-          >
-            <Trash2 className="size-3.5 mr-2" /> Delete section
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// TopLevelItem (NOT a DndContext — just a row with useSortable)
-// ---------------------------------------------------------------------------
-
-interface TopLevelItemProps {
-  item: MenuItemData
-  menuId: string
-  isExpanded: boolean
-  onToggleExpand: () => void
-  onEditItem?: (itemId: string) => void
-  onDeleteItem: (itemId: string) => void
-  onMenuChange?: () => void
-  allChildPrefixedIds: string[]
-  /** Resolved page ID for this item */
-  resolvedPageId: string | null
-  /** Currently active page ID */
-  activePageId: string
-  /** Navigate to a page */
-  onPageSelect: (pageId: string) => void
-  /** Page management callbacks */
-  pages: PageSummary[]
-  onPageSettings?: (page: PageSummary) => void
-  onDeletePage?: (pageId: string) => void
-  onDuplicatePage?: (pageId: string) => void
-  /** Resolver function for child items */
-  resolvePageId: (href: string | null) => string | null
-  /** Convert a page/page-dropdown item to a dropdown (removes href) */
-  onConvertToDropdown?: (item: MenuItemData) => void
-  /** Convert a folder-dropdown item to a page (opens editor) */
-  onConvertToPage?: (item: MenuItemData) => void
-}
-
-function SortableTopLevelItem({
-  item,
-  menuId,
-  isExpanded,
-  onToggleExpand,
-  onEditItem,
-  onDeleteItem,
-  onMenuChange,
-  allChildPrefixedIds,
-  resolvedPageId,
-  activePageId,
-  onPageSelect,
-  pages,
-  onPageSettings,
-  onDeletePage,
-  onDuplicatePage,
-  resolvePageId,
-  onConvertToDropdown,
-  onConvertToPage,
-}: TopLevelItemProps) {
-  const sortableId = toTopId(item.id)
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: sortableId })
-
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition,
-    zIndex: isDragging ? 50 : undefined,
-  }
-
-  const children = useMemo(() => item.children ?? [], [item.children])
-  const hasChildren = children.length > 0
-  const type = inferItemType(item, hasChildren)
-  const badge = getTypeBadge(type)
-  const groups = useMemo(() => groupChildrenByLabel(children), [children])
-  const isActive = resolvedPageId != null && resolvedPageId === activePageId
-  const isPageItem = resolvedPageId != null
-  const pageSummary = isPageItem ? pages.find((p) => p.id === resolvedPageId) : null
-
-  // Inline add state for child items and sections
-  const [addingChildInGroup, setAddingChildInGroup] = useState<string | null | undefined>(undefined)
-  const [addingSection, setAddingSection] = useState(false)
-
-  // Handle label click: navigate to page + toggle expand for dropdowns
-  const handleLabelClick = () => {
-    if (type === "page-dropdown" && resolvedPageId) {
-      // Navigate to the landing page AND toggle expand
-      onPageSelect(resolvedPageId)
-      onToggleExpand()
-    } else if (isPageItem && resolvedPageId) {
-      onPageSelect(resolvedPageId)
-    } else if (type === "folder-dropdown") {
-      // Folder dropdowns: just toggle expand
-      onToggleExpand()
-    }
-    // External links and featured items: no navigation
-  }
-
-  // Add child item to a specific section
-  const handleAddChildItem = useCallback(
-    async (label: string, groupLabel: string | null) => {
-      try {
-        const res = await fetch(`/api/v1/menus/${menuId}/items`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            label,
-            parentId: item.id,
-            groupLabel,
-          }),
-        })
-        if (!res.ok) throw new Error("Failed to add item")
-        toast.success("Item added")
-        onMenuChange?.()
-      } catch {
-        toast.error("Failed to add item")
-      }
-    },
-    [menuId, item.id, onMenuChange],
-  )
-
-  // Add a new section (group)
-  const handleAddSection = useCallback(async (sectionName: string) => {
-    try {
-      const res = await fetch(`/api/v1/menus/${menuId}/items`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          label: "New Item",
-          parentId: item.id,
-          groupLabel: sectionName,
-        }),
-      })
-      if (!res.ok) throw new Error("Failed to add section")
-      toast.success("Section added")
-      onMenuChange?.()
-    } catch {
-      toast.error("Failed to add section")
-    }
-  }, [menuId, item.id, onMenuChange])
-
-  // Rename a section (update groupLabel on all items in that section)
-  const handleRenameSection = useCallback(
-    async (oldLabel: string, newLabel: string) => {
-      const sectionItems = children.filter((c) => c.groupLabel === oldLabel)
-      try {
-        await Promise.all(
-          sectionItems.map((child) =>
-            fetch(`/api/v1/menus/${menuId}/items/${child.id}`, {
-              method: "PATCH",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ groupLabel: newLabel }),
-            }),
-          ),
-        )
-        toast.success("Section renamed")
-        onMenuChange?.()
-      } catch {
-        toast.error("Failed to rename section")
-      }
-    },
-    [menuId, children, onMenuChange],
-  )
-
-  // Delete a section (delete all items in that section)
-  const handleDeleteSection = useCallback(
-    async (groupLabel: string) => {
-      const sectionItems = children.filter((c) => c.groupLabel === groupLabel)
-      if (
-        !confirm(
-          `Delete section "${groupLabel}" and its ${sectionItems.length} item(s)?`,
-        )
-      )
-        return
-
-      try {
-        await Promise.all(
-          sectionItems.map((child) =>
-            fetch(`/api/v1/menus/${menuId}/items/${child.id}`, {
-              method: "DELETE",
-            }),
-          ),
-        )
-        toast.success("Section deleted")
-        onMenuChange?.()
-      } catch {
-        toast.error("Failed to delete section")
-      }
-    },
-    [menuId, children, onMenuChange],
-  )
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(isDragging && "opacity-50")}
-    >
-      {/* Top-level row */}
-      <div className={cn(
-        "group/top flex items-center gap-2 px-3 py-2.5 transition-colors",
-        isActive
-          ? "bg-sidebar-accent border-l-2 border-primary"
-          : "hover:bg-sidebar-accent/60",
-      )}>
-        {/* Drag handle — only element with DnD listeners */}
-        <div
-          {...attributes}
-          {...listeners}
-          className="cursor-grab text-muted-foreground/40 hover:text-muted-foreground shrink-0 touch-none"
-        >
-          <GripVertical className="size-3.5" />
-        </div>
-
-        {/* Expand/collapse — NO DnD attributes here */}
-        {hasChildren ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onToggleExpand()
-            }}
-            className="shrink-0 p-0.5 rounded-md hover:bg-sidebar-accent flex items-center justify-center"
-          >
-            {isExpanded ? (
-              <ChevronDown className="size-3.5 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="size-3.5 text-muted-foreground" />
-            )}
-          </button>
-        ) : (
-          <div className="w-4 shrink-0" />
-        )}
-
-        {/* Icon */}
-        <TypeIcon type={type} className="size-3.5 shrink-0 text-muted-foreground/70" />
-
-        {/* Label */}
-        <button
-          type="button"
-          className={cn(
-            "flex-1 min-w-0 text-left",
-            (isPageItem || type === "folder-dropdown") && "cursor-pointer",
-            !(isPageItem || type === "folder-dropdown") && "cursor-default",
-          )}
-          onClick={handleLabelClick}
-        >
-          <span className={cn(
-            "text-sm font-semibold truncate block",
-            isActive ? "text-primary" : "text-foreground",
-          )}>
-            {item.label}
-          </span>
-        </button>
-
-        {/* Right side: badge + active checkmark + menu */}
-        <div className="flex items-center gap-1.5 shrink-0">
-          {badge && (
-            <span className="text-[10px] font-medium text-muted-foreground/50 bg-muted/50 px-1.5 py-0.5 rounded-md">
-              {badge}
-            </span>
-          )}
-
-          {/* Active checkmark */}
-          {isActive && (
-            <Check className="size-3.5 text-primary shrink-0" />
-          )}
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  "h-6 w-6 rounded-md transition-opacity shrink-0",
-                  "opacity-0 group-hover/top:opacity-100 data-[state=open]:opacity-100",
-                  "hover:bg-muted text-muted-foreground",
-                )}
-              >
-                <MoreHorizontal className="size-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => onEditItem?.(item.id)}>
-                <Pencil className="size-3.5 mr-2" /> Edit Properties
-              </DropdownMenuItem>
-              {/* Type conversion options */}
-              {type === "folder-dropdown" && onConvertToPage && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onConvertToPage(item)}>
-                    <FileText className="size-3.5 mr-2" /> Convert to Page
-                  </DropdownMenuItem>
-                </>
-              )}
-              {(type === "page" || type === "page-dropdown") && onConvertToDropdown && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onConvertToDropdown(item)}>
-                    <ChevronDown className="size-3.5 mr-2" /> Convert to Dropdown
-                  </DropdownMenuItem>
-                </>
-              )}
-              {/* Page management actions */}
-              {isPageItem && pageSummary && (
-                <>
-                  <DropdownMenuSeparator />
-                  {onPageSettings && (
-                    <DropdownMenuItem onClick={() => onPageSettings(pageSummary)}>
-                      <Settings className="size-3.5 mr-2" /> Page Settings
-                    </DropdownMenuItem>
-                  )}
-                  {onDuplicatePage && (
-                    <DropdownMenuItem onClick={() => onDuplicatePage(resolvedPageId!)}>
-                      <Copy className="size-3.5 mr-2" /> Duplicate Page
-                    </DropdownMenuItem>
-                  )}
-                  {onDeletePage && !pageSummary.isHomepage && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        className="text-destructive focus:text-destructive"
-                        onClick={() => onDeletePage(resolvedPageId!)}
-                      >
-                        <Trash2 className="size-3.5 mr-2" /> Delete Page
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => onDeleteItem(item.id)}
-              >
-                <Trash2 className="size-3.5 mr-2" /> Remove from Menu
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-
-      {/* Expanded children — no nested DndContext, uses parent's context */}
-      {hasChildren && isExpanded && (
-        <div className="pl-7 pb-3">
-          {/* Landing page indicator for page+dropdown */}
-          {type === "page-dropdown" && item.href && (
-            <div className="flex items-center gap-2 px-3 py-2 mb-1">
-              <div className="size-1.5 rounded-full bg-primary/60" />
-              <span className="text-[10px] text-muted-foreground/70">
-                Landing page{" "}
-                <span className="text-muted-foreground/50">{item.href}</span>
-              </span>
-            </div>
-          )}
-
-          <SortableContext
-            items={allChildPrefixedIds}
-            strategy={verticalListSortingStrategy}
-          >
-            {groups.map((group, gi) => (
-              <div key={group.label ?? `group-${gi}`}>
-                {/* Section header */}
-                {group.label && (
-                  <NavSectionHeader
-                    label={group.label}
-                    onRename={(newLabel) =>
-                      handleRenameSection(group.label!, newLabel)
-                    }
-                    onDelete={() => handleDeleteSection(group.label!)}
-                  />
-                )}
-
-                {/* Items in section */}
-                {group.items.map((child) => (
-                  <SortableNavItem
-                    key={child.id}
-                    item={child}
-                    onEditItem={onEditItem}
-                    onDeleteItem={onDeleteItem}
-                    resolvedPageId={resolvePageId(child.isExternal ? null : child.href)}
-                    activePageId={activePageId}
-                    onPageSelect={onPageSelect}
-                    pages={pages}
-                    onPageSettings={onPageSettings}
-                    onDeletePage={onDeletePage}
-                    onDuplicatePage={onDuplicatePage}
-                  />
-                ))}
-
-                {/* Add item to this section — inline input replaces prompt() */}
-                {addingChildInGroup === group.label ? (
-                  <InlineAddInput
-                    placeholder="Item label..."
-                    onSubmit={(label) => {
-                      setAddingChildInGroup(undefined)
-                      handleAddChildItem(label, group.label)
-                    }}
-                    onCancel={() => setAddingChildInGroup(undefined)}
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setAddingChildInGroup(group.label)}
-                    className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors w-full rounded-md hover:bg-muted/30"
-                  >
-                    <Plus className="size-3.5" />
-                    Add item
-                  </button>
-                )}
-              </div>
-            ))}
-          </SortableContext>
-
-          {/* Add section — inline input replaces prompt() */}
-          {addingSection ? (
-            <div className="border-t border-border/30 pt-2 mt-1">
-              <InlineAddInput
-                placeholder="Section name..."
-                onSubmit={(name) => {
-                  setAddingSection(false)
-                  handleAddSection(name)
-                }}
-                onCancel={() => setAddingSection(false)}
-              />
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setAddingSection(true)}
-              className="flex items-center gap-2 px-3 py-2 mt-1 text-xs text-primary/70 hover:text-primary transition-colors w-full border-t border-border/30 pt-2 rounded-md hover:bg-muted/30"
-            >
-              <Plus className="size-3.5" />
-              Add section
-            </button>
-          )}
-        </div>
-      )}
     </div>
   )
 }
@@ -1320,6 +538,11 @@ export function NavigationEditor({
   const [addingTopLevel, setAddingTopLevel] = useState(false)
   const [addingExternalLink, setAddingExternalLink] = useState(false)
 
+  // Drag state for flat tree
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
+  const [offsetLeft, setOffsetLeft] = useState(0)
+
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev)
@@ -1347,22 +570,23 @@ export function NavigationEditor({
     [items],
   )
 
-  const topLevelPrefixedIds = useMemo(
-    () => topLevelItems.map((i) => toTopId(i.id)),
-    [topLevelItems],
+  // Flat tree for drag-and-drop
+  const INDENT_WIDTH = 28
+
+  const flattenedItems = useMemo(
+    () => flattenTree(items.filter((i) => i.parentId === null), expandedIds),
+    [items, expandedIds],
   )
 
-  // Build a map of parentId -> prefixed child IDs for SortableContexts
-  const childPrefixedIdsByParent = useMemo(() => {
-    const map: Record<string, string[]> = {}
-    for (const tlItem of topLevelItems) {
-      const children = tlItem.children ?? []
-      map[tlItem.id] = [...children]
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((c) => toChildId(c.id))
-    }
-    return map
-  }, [topLevelItems])
+  const sortableIds = useMemo(
+    () => flattenedItems.map((fi) => fi.item.id),
+    [flattenedItems],
+  )
+
+  // Projected depth during drag
+  const projected = activeId && overId
+    ? getProjection(flattenedItems, activeId, overId, offsetLeft, INDENT_WIDTH)
+    : null
 
   // Collect all hrefs from all menu items (for hidden pages detection)
   const menuItemHrefs = useMemo(() => {
@@ -1370,7 +594,7 @@ export function NavigationEditor({
     function collectHrefs(itemList: MenuItemData[]) {
       for (const item of itemList) {
         if (item.href && !item.isExternal) {
-          // Strip query params for matching (e.g. "/events?tab=event" → "/events")
+          // Strip query params for matching (e.g. "/events?tab=event" -> "/events")
           const [pathPart] = item.href.split("?")
           hrefs.add(pathPart)
           hrefs.add(item.href)
@@ -1407,35 +631,96 @@ export function NavigationEditor({
     }
   }, [menuId, onMenuChange])
 
-  // Find parent of a child item
-  const findParentOfChild = useCallback(
-    (childId: string): MenuItemData | undefined => {
-      return items.find(
-        (i) => i.parentId === null && i.children?.some((c) => c.id === childId),
-      )
-    },
-    [items],
-  )
+  // ---------------------------------------------------------------------------
+  // Drag handlers
+  // ---------------------------------------------------------------------------
 
-  // SINGLE onDragEnd handler — dispatches based on prefixed ID
-  const handleDragEnd = useCallback(
-    async (event: DragEndEvent) => {
-      const { active, over } = event
-      if (!over || active.id === over.id) return
+  // Track which item was expanded before drag so we can restore after
+  const dragExpandedRef = useRef<string | null>(null)
 
-      const activeInfo = fromPrefixedId(active.id as string)
-      const overInfo = fromPrefixedId(over.id as string)
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const id = event.active.id as string
+    setActiveId(id)
+    setOverId(id)
+    setOffsetLeft(0)
 
-      // Top-level reorder
-      if (activeInfo.type === "top" && overInfo.type === "top") {
-        const ids = topLevelItems.map((i) => i.id)
-        const oldIndex = ids.indexOf(activeInfo.id)
-        const newIndex = ids.indexOf(overInfo.id)
+    // Collapse the dragged item's children during drag (visual clarity)
+    // but remember it so we can re-expand after drop
+    if (expandedIds.has(id)) {
+      dragExpandedRef.current = id
+      setExpandedIds((prev) => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
+    } else {
+      dragExpandedRef.current = null
+    }
+  }, [expandedIds])
+
+  const handleDragMove = useCallback((event: DragMoveEvent) => {
+    setOffsetLeft(event.delta.x)
+    if (event.over) {
+      setOverId(event.over.id as string)
+    }
+  }, [])
+
+  const handleDragCancel = useCallback(() => {
+    // Re-expand if we collapsed during drag
+    if (dragExpandedRef.current) {
+      setExpandedIds((prev) => new Set([...prev, dragExpandedRef.current!]))
+      dragExpandedRef.current = null
+    }
+    setActiveId(null)
+    setOverId(null)
+    setOffsetLeft(0)
+  }, [])
+
+  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
+    const { active, over } = event
+
+    // Re-expand if we collapsed during drag
+    if (dragExpandedRef.current) {
+      setExpandedIds((prev) => new Set([...prev, dragExpandedRef.current!]))
+      dragExpandedRef.current = null
+    }
+
+    // Reset drag state
+    setActiveId(null)
+    setOverId(null)
+    setOffsetLeft(0)
+
+    if (!over || active.id === over.id) return
+
+    const activeItem = flattenedItems.find((fi) => fi.item.id === active.id)
+    const overItem = flattenedItems.find((fi) => fi.item.id === over.id)
+    if (!activeItem || !overItem) return
+
+    const projection = getProjection(
+      flattenedItems,
+      active.id as string,
+      over.id as string,
+      offsetLeft,
+      INDENT_WIDTH,
+    )
+    if (!projection) return
+
+    const { parentId: newParentId } = projection
+    const oldParentId = activeItem.parentId
+
+    if (oldParentId === newParentId) {
+      // Same parent -- reorder
+      if (newParentId === null) {
+        // Top-level reorder
+        const topItems = items
+          .filter((i) => i.parentId === null)
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+        const ids = topItems.map((i) => i.id)
+        const oldIndex = ids.indexOf(active.id as string)
+        const newIndex = ids.indexOf(over.id as string)
         if (oldIndex === -1 || newIndex === -1) return
 
-        const reordered = [...ids]
-        const [moved] = reordered.splice(oldIndex, 1)
-        reordered.splice(newIndex, 0, moved)
+        const reordered = arrayMove(ids, oldIndex, newIndex)
 
         // Optimistic update
         setItems((prev) =>
@@ -1447,41 +732,32 @@ export function NavigationEditor({
         )
 
         try {
-          const res = await fetch(`/api/v1/menus/${menuId}/items`, {
+          await fetch(`/api/v1/menus/${menuId}/items`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ itemIds: reordered }),
           })
-          if (!res.ok) throw new Error("Failed to reorder")
           await refreshMenu()
         } catch {
           toast.error("Failed to reorder items")
           await refreshMenu()
         }
-        return
-      }
+      } else {
+        // Same parent child reorder
+        const parent = items.find((i) => i.id === newParentId)
+        if (!parent?.children?.length) return
+        const childIds = [...parent.children]
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+          .map((c) => c.id)
+        const oldIndex = childIds.indexOf(active.id as string)
+        const newIndex = childIds.indexOf(over.id as string)
+        if (oldIndex === -1 || newIndex === -1 || oldIndex === newIndex) return
 
-      // Child reorder (both must be children, same parent)
-      if (activeInfo.type === "child" && overInfo.type === "child") {
-        const parent = findParentOfChild(activeInfo.id)
-        if (!parent) return
+        const reordered = arrayMove(childIds, oldIndex, newIndex)
 
-        const allChildren = [...(parent.children ?? [])].sort(
-          (a, b) => a.sortOrder - b.sortOrder,
-        )
-        const ids = allChildren.map((c) => c.id)
-        const oldIndex = ids.indexOf(activeInfo.id)
-        const newIndex = ids.indexOf(overInfo.id)
-        if (oldIndex === -1 || newIndex === -1) return
-
-        const reordered = [...ids]
-        const [moved] = reordered.splice(oldIndex, 1)
-        reordered.splice(newIndex, 0, moved)
-
-        // Optimistic update for children
         setItems((prev) =>
           prev.map((item) => {
-            if (item.id !== parent.id) return item
+            if (item.id !== newParentId) return item
             const newChildren = (item.children ?? []).map((c) => {
               const idx = reordered.indexOf(c.id)
               return idx !== -1 ? { ...c, sortOrder: idx } : c
@@ -1491,29 +767,39 @@ export function NavigationEditor({
         )
 
         try {
-          const res = await fetch(
-            `/api/v1/menus/${menuId}/items/${parent.id}/children`,
-            {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ itemIds: reordered }),
-            },
-          )
-          if (!res.ok) throw new Error("Failed to reorder")
+          await fetch(`/api/v1/menus/${menuId}/items/${newParentId}/children`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ itemIds: reordered }),
+          })
           await refreshMenu()
         } catch {
           toast.error("Failed to reorder items")
           await refreshMenu()
         }
-        return
       }
+    } else {
+      // Different parent -- reparent via PATCH
+      try {
+        await fetch(`/api/v1/menus/${menuId}/items/${active.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ parentId: newParentId, groupLabel: null }),
+        })
+        toast.success(newParentId ? "Item moved" : "Item moved to top level")
+        await refreshMenu()
+      } catch {
+        toast.error("Failed to move item")
+        await refreshMenu()
+      }
+    }
+  }, [menuId, flattenedItems, items, offsetLeft, refreshMenu])
 
-      // Cross-type drag (top->child or child->top) — ignore for now
-    },
-    [menuId, topLevelItems, findParentOfChild, refreshMenu],
-  )
+  // ---------------------------------------------------------------------------
+  // API handler callbacks
+  // ---------------------------------------------------------------------------
 
-  // Add top-level item — inline input replaces prompt()
+  // Add top-level item -- inline input replaces prompt()
   const handleAddTopLevel = useCallback(async (label: string) => {
     try {
       const res = await fetch(`/api/v1/menus/${menuId}/items`, {
@@ -1529,7 +815,7 @@ export function NavigationEditor({
     }
   }, [menuId, refreshMenu])
 
-  // Add external link — inline input creates a MenuItem with isExternal
+  // Add external link -- inline input creates a MenuItem with isExternal
   const handleAddExternalLink = useCallback(async (label: string, url: string) => {
     try {
       const res = await fetch(`/api/v1/menus/${menuId}/items`, {
@@ -1561,20 +847,61 @@ export function NavigationEditor({
     }
   }, [menuId, refreshMenu])
 
-  // Convert dropdown to page — open the editor so user can set URL
+  // Convert dropdown to page -- open the editor so user can set URL
   const handleConvertToPage = useCallback((item: MenuItemData) => {
     onEditItem?.(item.id)
   }, [onEditItem])
+
+  // Move a child item to a different parent or top level
+  const handleMoveToParent = useCallback(
+    async (itemId: string, newParentId: string | null) => {
+      // Prevent circular reference: can't move an item into itself or its own children
+      if (newParentId === itemId) return
+      const targetItem = items.find((i) => i.id === newParentId)
+      if (targetItem?.parentId === itemId) {
+        toast.error("Cannot move an item into its own child")
+        return
+      }
+
+      try {
+        const res = await fetch(`/api/v1/menus/${menuId}/items/${itemId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            parentId: newParentId,
+            groupLabel: null, // clear section assignment on move
+          }),
+        })
+        if (!res.ok) throw new Error("Failed to move item")
+        toast.success(newParentId ? "Item moved" : "Item moved to top level")
+        await refreshMenu()
+      } catch {
+        toast.error("Failed to move item")
+      }
+    },
+    [menuId, items, refreshMenu],
+  )
+
+  // List of top-level dropdown items available as move targets
+  const moveTargets = useMemo(
+    () =>
+      topLevelItems
+        .filter((i) => !i.href || (i.children ?? []).length > 0) // dropdowns only
+        .map((i) => ({ id: i.id, label: i.label })),
+    [topLevelItems],
+  )
 
   // Delete item
   const handleDeleteItem = useCallback(
     async (itemId: string) => {
       const item = items.find((i) => i.id === itemId)
         ?? items.flatMap((i) => i.children ?? []).find((c) => c.id === itemId)
-      const hasChildren = item && 'children' in item && Array.isArray(item.children) && item.children.length > 0
+      if (!item) return
+
+      const hasChildren = 'children' in item && Array.isArray(item.children) && item.children.length > 0
       const message = hasChildren
-        ? `Delete "${item?.label}" and all its children?`
-        : `Delete "${item?.label}"?`
+        ? `Delete "${item.label}" and all its children?`
+        : `Delete "${item.label}"?`
 
       if (!confirm(message)) return
 
@@ -1683,46 +1010,72 @@ export function NavigationEditor({
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragMove={handleDragMove}
               onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
             >
-              <SortableContext
-                items={topLevelPrefixedIds}
-                strategy={verticalListSortingStrategy}
-              >
-                {topLevelItems.map((item) => {
-                  const hasChildren = (item.children ?? []).length > 0
-                  const type = inferItemType(item, hasChildren)
-                  // Don't resolve page for external links or featured items
-                  const itemResolvedPageId =
-                    type === "external-link" || type === "featured"
-                      ? null
-                      : resolvePageId(item.href)
+              <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
+                {flattenedItems.map((fi, idx) => {
+                  const { item, depth, parentId: fiParentId } = fi
+                  const hasChildren = (item.children?.length ?? 0) > 0
+                  const isExpanded = expandedIds.has(item.id)
+                  const resolvedPage = item.isExternal ? null : resolvePageId(item.href)
+
+                  // Show section header when groupLabel changes between consecutive children
+                  const prevFi = idx > 0 ? flattenedItems[idx - 1] : null
+                  const showSectionHeader = depth > 0 && item.groupLabel &&
+                    (!prevFi || prevFi.depth === 0 || prevFi.item.groupLabel !== item.groupLabel)
 
                   return (
-                    <SortableTopLevelItem
-                      key={item.id}
-                      item={item}
-                      menuId={menuId}
-                      isExpanded={expandedIds.has(item.id)}
-                      onToggleExpand={() => toggleExpand(item.id)}
-                      onEditItem={onEditItem}
-                      onDeleteItem={handleDeleteItem}
-                      onMenuChange={refreshMenu}
-                      allChildPrefixedIds={childPrefixedIdsByParent[item.id] ?? []}
-                      resolvedPageId={itemResolvedPageId}
-                      activePageId={activePageId}
-                      onPageSelect={onPageSelect}
-                      pages={pages}
-                      onPageSettings={onPageSettings}
-                      onDeletePage={onDeletePage}
-                      onDuplicatePage={onDuplicatePage}
-                      resolvePageId={resolvePageId}
-                      onConvertToDropdown={handleConvertToDropdown}
-                      onConvertToPage={handleConvertToPage}
-                    />
+                    <div key={item.id}>
+                      {showSectionHeader && (
+                        <div className="py-1 mt-2" style={{ paddingLeft: depth * INDENT_WIDTH + 8 }}>
+                          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 truncate block">
+                            {item.groupLabel}
+                          </span>
+                        </div>
+                      )}
+                      <SortableTreeItem
+                        item={item}
+                        depth={activeId === item.id && projected ? projected.depth : depth}
+                        indentWidth={INDENT_WIDTH}
+                        isGhost={activeId === item.id}
+                        hasChildren={hasChildren}
+                        isExpanded={isExpanded}
+                        onToggleExpand={() => toggleExpand(item.id)}
+                        resolvedPageId={resolvedPage}
+                        activePageId={activePageId}
+                        onPageSelect={onPageSelect}
+                        onEditItem={onEditItem}
+                        onDeleteItem={handleDeleteItem}
+                        pages={pages}
+                        onPageSettings={onPageSettings}
+                        onDeletePage={onDeletePage}
+                        onDuplicatePage={onDuplicatePage}
+                        onMoveToParent={handleMoveToParent}
+                        moveTargets={moveTargets.filter((t) => t.id !== fiParentId)}
+                        onConvertToDropdown={handleConvertToDropdown}
+                        onConvertToPage={handleConvertToPage}
+                      />
+                    </div>
                   )
                 })}
               </SortableContext>
+
+              <DragOverlay>
+                {activeId && (() => {
+                  const activeItem = flattenedItems.find((fi) => fi.item.id === activeId)
+                  if (!activeItem) return null
+                  return (
+                    <TreeItemOverlay
+                      item={activeItem.item}
+                      depth={activeItem.depth}
+                      hasChildren={(activeItem.item.children?.length ?? 0) > 0}
+                    />
+                  )
+                })()}
+              </DragOverlay>
             </DndContext>
           )}
 

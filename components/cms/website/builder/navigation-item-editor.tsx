@@ -273,10 +273,16 @@ function NavPageItemForm({
   const [label, setLabel] = useState(item.label)
   const [href, setHref] = useState(item.href ?? "")
   const [description, setDescription] = useState(item.description ?? "")
+  const [iconName, setIconName] = useState(item.iconName ?? "")
   const [isVisible, setIsVisible] = useState(item.isVisible)
   const [saving, setSaving] = useState(false)
 
   const pageOptions = buildPageOptions(pages)
+
+  // Check if the current href matches a page option (clean slug)
+  // If not (e.g. /events?tab=event), show the raw URL input instead
+  const hrefBase = href.split("?")[0]
+  const matchesPage = pageOptions.some((p) => p.value === hrefBase || p.value === href)
 
   const handleSave = useCallback(async () => {
     setSaving(true)
@@ -284,6 +290,7 @@ function NavPageItemForm({
       label,
       href: href || null,
       description: description || null,
+      iconName: iconName || null,
       isVisible,
     })
     setSaving(false)
@@ -291,7 +298,7 @@ function NavPageItemForm({
       toast.success("Item saved")
       onItemUpdated()
     }
-  }, [menuId, item.id, label, href, description, isVisible, onItemUpdated])
+  }, [menuId, item.id, label, href, description, iconName, isVisible, onItemUpdated])
 
   return (
     <div className="space-y-4">
@@ -302,19 +309,39 @@ function NavPageItemForm({
         placeholder="e.g. Events"
       />
 
-      <EditorSelect
-        label="Page"
-        value={href}
-        onValueChange={setHref}
-        options={pageOptions}
-        placeholder="Select a page..."
-      />
-
       <EditorInput
         label="Description"
         value={description}
         onChange={setDescription}
         placeholder="Short subtitle for dropdown"
+      />
+
+      <Separator />
+
+      {matchesPage ? (
+        <EditorSelect
+          label="Page"
+          value={href}
+          onValueChange={setHref}
+          options={pageOptions}
+          placeholder="Select a page..."
+        />
+      ) : (
+        <EditorInput
+          label="URL"
+          value={href}
+          onChange={setHref}
+          placeholder="/events?tab=event"
+          description="Links to a page with filters or query params"
+        />
+      )}
+
+      <EditorInput
+        label="Icon"
+        value={iconName}
+        onChange={setIconName}
+        placeholder="e.g. calendar, users, book-open"
+        description="Lucide icon name"
       />
 
       <Separator />
@@ -348,7 +375,6 @@ function NavExternalLinkForm({
 }) {
   const [label, setLabel] = useState(item.label)
   const [href, setHref] = useState(item.href ?? "")
-  const [scheduleMeta, setScheduleMeta] = useState(item.scheduleMeta ?? "")
   const [description, setDescription] = useState(item.description ?? "")
   const [openInNewTab, setOpenInNewTab] = useState(item.openInNewTab)
   const [isVisible, setIsVisible] = useState(item.isVisible)
@@ -360,7 +386,6 @@ function NavExternalLinkForm({
       label,
       href: href || null,
       description: description || null,
-      scheduleMeta: scheduleMeta || null,
       openInNewTab,
       isVisible,
     })
@@ -375,7 +400,6 @@ function NavExternalLinkForm({
     label,
     href,
     description,
-    scheduleMeta,
     openInNewTab,
     isVisible,
     onItemUpdated,
@@ -391,26 +415,21 @@ function NavExternalLinkForm({
       />
 
       <EditorInput
+        label="Description"
+        value={description}
+        onChange={setDescription}
+        placeholder="e.g. Mon-Fri @ 6 AM"
+        description="Shown as subtitle in the mega menu"
+      />
+
+      <Separator />
+
+      <EditorInput
         label="URL"
         value={href}
         onChange={setHref}
         type="url"
         placeholder="https://..."
-      />
-
-      <EditorInput
-        label="Schedule"
-        value={scheduleMeta}
-        onChange={setScheduleMeta}
-        placeholder="e.g. Mon-Fri @ 6 AM"
-        description="Displayed alongside the link in the mega menu"
-      />
-
-      <EditorInput
-        label="Description"
-        value={description}
-        onChange={setDescription}
-        placeholder="Short subtitle"
       />
 
       <Separator />
