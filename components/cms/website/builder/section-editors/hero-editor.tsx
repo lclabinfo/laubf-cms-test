@@ -9,6 +9,7 @@ import {
   EditorInput,
   EditorTextarea,
   EditorButtonGroup,
+  CarouselSpeedField,
   ImagePickerField,
   ImageListField,
   VideoPickerField,
@@ -147,6 +148,7 @@ export function HeroBannerEditor({
     src: string
     mobileSrc?: string
   }) ?? { src: "", mobileSrc: "" }
+  const legacyMobileVideo = (content.mobileVideo as { src?: string })?.src || ""
   const posterImage = (content.posterImage as {
     src: string
     alt: string
@@ -160,102 +162,16 @@ export function HeroBannerEditor({
   const rawImages = (content.images as Array<{ src: string; alt: string }>) ??
     (bgImage.src && !isVideoSrc(bgImage.src) ? [{ src: bgImage.src, alt: bgImage.alt }] : [])
   const images = rawImages.filter((img) => !isVideoSrc(img.src))
-  const overline = (content.overline as string) ?? ""
 
-  // New layout fields with sensible defaults
+  // Layout variant (needed to determine which image fields to show)
   const layout = (content.layout as string) || "fullwidth"
-  const splitArrangement =
-    (content.splitArrangement as string) || "text-left"
-  const textHAlign = (content.textHAlign as string) || "center"
-  const textVAlign = (content.textVAlign as string) || "middle"
-  const splitTextAlign = (content.textAlign as string) || "left"
 
-  // Infer media type from existing content
-  // Override saved "image" if the only media source is actually a video file
-  const savedMediaType = content.mediaType as string | undefined
-  const hasRealVideo = bgVideo.src || isVideoSrc(bgImage.src)
-  const hasRealImages = images.length > 0
-  const mediaType = savedMediaType
-    ? (savedMediaType === "image" && !hasRealImages && hasRealVideo ? "video" : savedMediaType)
-    : (hasRealVideo ? "video" : "image")
+  // Trust saved mediaType once set; only infer from content when not saved
+  const mediaType = (content.mediaType as string) || (bgVideo.src ? "video" : "image")
 
   return (
     <div className="space-y-6">
-      {/* Layout Variant */}
-      <EditorButtonGroup
-        label="Layout"
-        value={layout}
-        onChange={(v) => onChange({ ...content, layout: v })}
-        options={[
-          { value: "fullwidth", label: "Full Width" },
-          { value: "split", label: "Split" },
-        ]}
-        size="sm"
-      />
-
-      {/* Split: Arrangement picker */}
-      {layout === "split" && (
-        <LayoutArrangementPicker
-          value={splitArrangement}
-          onChange={(v) =>
-            onChange({ ...content, splitArrangement: v })
-          }
-        />
-      )}
-
-      {/* Fullwidth: Text Position */}
-      {layout === "fullwidth" && (
-        <>
-          <EditorButtonGroup
-            label="Horizontal Position"
-            value={textHAlign}
-            onChange={(v) => onChange({ ...content, textHAlign: v })}
-            options={[
-              { value: "left", label: "Left" },
-              { value: "center", label: "Center" },
-              { value: "right", label: "Right" },
-            ]}
-            size="sm"
-          />
-          <EditorButtonGroup
-            label="Vertical Position"
-            value={textVAlign}
-            onChange={(v) => onChange({ ...content, textVAlign: v })}
-            options={[
-              { value: "top", label: "Top" },
-              { value: "middle", label: "Middle" },
-              { value: "bottom", label: "Bottom" },
-            ]}
-            size="sm"
-          />
-        </>
-      )}
-
-      {/* Split: Text Alignment */}
-      {layout === "split" && (
-        <EditorButtonGroup
-          label="Text Alignment"
-          value={splitTextAlign}
-          onChange={(v) => onChange({ ...content, textAlign: v })}
-          options={[
-            { value: "left", label: "Left" },
-            { value: "center", label: "Center" },
-            { value: "right", label: "Right" },
-          ]}
-          size="sm"
-        />
-      )}
-
-      <Separator />
-
-      {/* Overline (shown for both layouts) */}
-      <EditorInput
-        label="Overline"
-        labelSize="sm"
-        value={overline}
-        onChange={(v) => onChange({ ...content, overline: v })}
-        placeholder="Optional overline text"
-      />
+      {/* === Content (always visible) === */}
 
       {/* Heading */}
       <div className="space-y-3">
@@ -312,7 +228,22 @@ export function HeroBannerEditor({
       />
 
       {/* Image fields */}
-      {mediaType === "image" && (
+      {mediaType === "image" && layout === "contained" && (
+        <div className="space-y-3">
+          <ImagePickerField
+            label="Featured Image"
+            value={bgImage.src}
+            onChange={(v) =>
+              onChange({
+                ...content,
+                backgroundImage: { ...bgImage, src: v },
+                images: v ? [{ src: v, alt: bgImage.alt || "" }] : [],
+              })
+            }
+          />
+        </div>
+      )}
+      {mediaType === "image" && layout !== "contained" && (
         <div className="space-y-3">
           <ImageListField
             label={layout === "split" ? "Images" : "Background Images"}
@@ -335,9 +266,10 @@ export function HeroBannerEditor({
 
       {/* Video fields */}
       {mediaType === "video" && (
-        <div className="space-y-3">
+        <div className="space-y-4">
           <VideoPickerField
-            label="Video URL"
+            label="Desktop Video"
+            description="1920×1080+  ·  Screens ≥ 1024px"
             value={bgVideo.src || (isVideoSrc(bgImage.src) ? bgImage.src : "")}
             onChange={(v) =>
               onChange({
@@ -347,26 +279,34 @@ export function HeroBannerEditor({
                 ...(isVideoSrc(bgImage.src) ? { backgroundImage: { ...bgImage, src: "" } } : {}),
               })
             }
-            posterImage={posterImage.src}
-            onPosterChange={(v) =>
+          />
+          <VideoPickerField
+            label="Mobile Video (optional)"
+            description="720×1280 portrait  ·  Screens < 1024px  ·  Uses desktop video if empty"
+            value={bgVideo.mobileSrc || legacyMobileVideo}
+            onChange={(v) =>
+              onChange({
+                ...content,
+                backgroundVideo: { ...bgVideo, mobileSrc: v },
+                mobileVideo: undefined, // clear legacy field
+              })
+            }
+          />
+          <ImagePickerField
+            label="Poster / Fallback Image"
+            value={posterImage.src}
+            onChange={(v) =>
               onChange({
                 ...content,
                 posterImage: { ...posterImage, src: v },
               })
             }
           />
-          <EditorInput
-            label="Mobile Video URL (optional)"
-            value={bgVideo.mobileSrc ?? ""}
-            onChange={(v) =>
-              onChange({
-                ...content,
-                backgroundVideo: { ...bgVideo, mobileSrc: v },
-              })
-            }
-            placeholder="https://..."
-            type="url"
-          />
+          {posterImage.src && (
+            <p className="text-[11px] text-muted-foreground/70 -mt-1">
+              Displays while loading or on playback failure
+            </p>
+          )}
         </div>
       )}
 
@@ -391,6 +331,105 @@ export function HeroBannerEditor({
           </div>
         </EditorField>
       </div>
+
+    </div>
+  )
+}
+
+/** Layout editor for HERO_BANNER — rendered in the Layout accordion panel */
+export function HeroBannerLayoutEditor({
+  content,
+  onChange,
+}: {
+  content: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
+  const layout = (content.layout as string) || "fullwidth"
+  const splitArrangement = (content.splitArrangement as string) || "text-left"
+  const textHAlign = (content.textHAlign as string) || "center"
+  const textVAlign = (content.textVAlign as string) || "middle"
+  const splitTextAlign = (content.textAlign as string) || "left"
+  const carouselSpeed = (content.carouselSpeed as number) ?? 5
+  const mediaType = (content.mediaType as string) || "image"
+  const images = (content.images as Array<{ src: string }>) ?? []
+  const hasCarousel = mediaType === "image" && images.length >= 2
+
+  return (
+    <div className="space-y-6">
+      <EditorButtonGroup
+        label="Layout"
+        value={layout}
+        onChange={(v) => onChange({ ...content, layout: v })}
+        options={[
+          { value: "fullwidth", label: "Full Width" },
+          { value: "split", label: "Split" },
+          { value: "contained", label: "Contained" },
+        ]}
+        size="sm"
+      />
+
+      {(layout === "split" || layout === "contained") && (
+        <LayoutArrangementPicker
+          value={splitArrangement}
+          onChange={(v) => onChange({ ...content, splitArrangement: v })}
+        />
+      )}
+
+      {layout === "fullwidth" && (
+        <>
+          <EditorButtonGroup
+            label="Horizontal Position"
+            value={textHAlign}
+            onChange={(v) => onChange({ ...content, textHAlign: v })}
+            options={[
+              { value: "left", label: "Left" },
+              { value: "center", label: "Center" },
+              { value: "right", label: "Right" },
+            ]}
+            size="sm"
+          />
+          <EditorButtonGroup
+            label="Vertical Position"
+            value={textVAlign}
+            onChange={(v) => onChange({ ...content, textVAlign: v })}
+            options={[
+              { value: "top", label: "Top" },
+              { value: "middle", label: "Middle" },
+              { value: "bottom", label: "Bottom" },
+            ]}
+            size="sm"
+          />
+        </>
+      )}
+
+      {(layout === "split" || layout === "contained") && (
+        <EditorButtonGroup
+          label="Text Alignment"
+          value={splitTextAlign}
+          onChange={(v) => onChange({ ...content, textAlign: v })}
+          options={[
+            { value: "left", label: "Left" },
+            { value: "center", label: "Center" },
+            { value: "right", label: "Right" },
+          ]}
+          size="sm"
+        />
+      )}
+
+      {hasCarousel && (
+        <>
+          <Separator />
+          <CarouselSpeedField
+            value={carouselSpeed}
+            onChange={(v) => onChange({ ...content, carouselSpeed: v })}
+            min={2}
+            max={15}
+            step={1}
+            description="Seconds between each image crossfade"
+          />
+        </>
+      )}
+
     </div>
   )
 }
@@ -404,7 +443,6 @@ export function PageHeroEditor({
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const primaryButton = (content.primaryButton as {
     label: string
@@ -419,14 +457,6 @@ export function PageHeroEditor({
 
   return (
     <div className="space-y-6">
-      <EditorInput
-        label="Overline"
-        labelSize="sm"
-        value={overline}
-        onChange={(v) => onChange({ ...content, overline: v })}
-        placeholder="Church Name"
-      />
-
       <EditorInput
         label="Heading"
         labelSize="sm"
@@ -473,7 +503,6 @@ export function TextImageHeroEditor({
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const headingLine1 = (content.headingLine1 as string) ?? ""
   const headingAccent = (content.headingAccent as string) ?? ""
   const description = (content.description as string) ?? ""
@@ -482,19 +511,9 @@ export function TextImageHeroEditor({
     alt: string
     objectPosition?: string
   }) ?? { src: "", alt: "" }
-  const textAlign =
-    (content.textAlign as "left" | "center" | "right") ?? "left"
 
   return (
     <div className="space-y-6">
-      <EditorInput
-        label="Overline"
-        labelSize="sm"
-        value={overline}
-        onChange={(v) => onChange({ ...content, overline: v })}
-        placeholder="About Us"
-      />
-
       <div className="space-y-3">
         <EditorField label="Heading" labelSize="sm">
           <div className="space-y-2">
@@ -525,20 +544,6 @@ export function TextImageHeroEditor({
 
       <Separator />
 
-      {/* Text Alignment */}
-      <EditorButtonGroup
-        label="Text Alignment"
-        value={textAlign}
-        onChange={(v) => onChange({ ...content, textAlign: v })}
-        options={[
-          { value: "left", label: "Left" },
-          { value: "center", label: "Center" },
-          { value: "right", label: "Right" },
-        ]}
-      />
-
-      <Separator />
-
       {/* Image */}
       <div className="space-y-3">
         <ImagePickerField
@@ -560,6 +565,32 @@ export function TextImageHeroEditor({
           placeholder="Hero image"
         />
       </div>
+
+    </div>
+  )
+}
+
+/** Layout editor for TEXT_IMAGE_HERO */
+export function TextImageHeroLayoutEditor({
+  content,
+  onChange,
+}: {
+  content: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
+  const textAlign = (content.textAlign as string) ?? "left"
+  return (
+    <div className="space-y-6">
+      <EditorButtonGroup
+        label="Text Alignment"
+        value={textAlign}
+        onChange={(v) => onChange({ ...content, textAlign: v })}
+        options={[
+          { value: "left", label: "Left" },
+          { value: "center", label: "Center" },
+          { value: "right", label: "Right" },
+        ]}
+      />
     </div>
   )
 }
@@ -606,10 +637,7 @@ export function MinistryHeroEditor({
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
-  const headingStyle =
-    (content.headingStyle as "display" | "sans") ?? "display"
   const ctaButton = (content.ctaButton as {
     label: string
     href: string
@@ -623,14 +651,7 @@ export function MinistryHeroEditor({
 
   return (
     <div className="space-y-6">
-      <EditorInput
-        label="Overline"
-        labelSize="sm"
-        value={overline}
-        onChange={(v) => onChange({ ...content, overline: v })}
-        placeholder="Ministry name"
-      />
-
+      {/* === Content === */}
       <EditorTextarea
         label="Heading"
         labelSize="sm"
@@ -638,16 +659,6 @@ export function MinistryHeroEditor({
         onChange={(v) => onChange({ ...content, heading: v })}
         placeholder="Ministry heading (use newlines for line breaks)"
         rows={4}
-      />
-
-      <EditorButtonGroup
-        label="Heading Style"
-        value={headingStyle}
-        onChange={(v) => onChange({ ...content, headingStyle: v })}
-        options={[
-          { value: "display", label: "Display" },
-          { value: "sans", label: "Sans" },
-        ]}
       />
 
       <Separator />
@@ -690,3 +701,26 @@ export function MinistryHeroEditor({
   )
 }
 
+/** Layout editor for MINISTRY_HERO */
+export function MinistryHeroLayoutEditor({
+  content,
+  onChange,
+}: {
+  content: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
+  const headingStyle = (content.headingStyle as string) ?? "display"
+  return (
+    <div className="space-y-6">
+      <EditorButtonGroup
+        label="Heading Style"
+        value={headingStyle}
+        onChange={(v) => onChange({ ...content, headingStyle: v })}
+        options={[
+          { value: "display", label: "Display" },
+          { value: "sans", label: "Sans" },
+        ]}
+      />
+    </div>
+  )
+}
