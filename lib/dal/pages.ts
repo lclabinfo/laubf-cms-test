@@ -92,9 +92,9 @@ export async function updatePage(
 }
 
 export async function deletePage(churchId: string, id: string) {
-  return prisma.page.update({
+  // Hard delete — removes the page and all its sections (cascade)
+  return prisma.page.delete({
     where: { id, churchId },
-    data: { deletedAt: new Date() },
   })
 }
 

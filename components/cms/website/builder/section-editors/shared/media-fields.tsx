@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
+import { Checkbox } from "@/components/ui/checkbox"
 import { ImageIcon, X, Plus, Video, GripVertical } from "lucide-react"
 import { MediaPickerDialog } from "@/components/cms/media/media-picker-dialog"
 import {
@@ -448,13 +449,223 @@ export function VideoPickerField({
   )
 }
 
+// --- LinkInput ---
+
+interface PageSummary {
+  id: string
+  slug: string
+  title: string
+  pageType: string
+  isHomepage: boolean
+  isPublished: boolean
+  sortOrder: number
+  parentId: string | null
+}
+
+/** Cached pages promise — fetched once per session on first `/` keystroke */
+let pagesCache: Promise<PageSummary[]> | null = null
+
+function fetchPages(): Promise<PageSummary[]> {
+  if (!pagesCache) {
+    pagesCache = fetch("/api/v1/pages")
+      .then((res) => res.json())
+      .then((json) => {
+        const pages = (json.data ?? []) as PageSummary[]
+        return pages.filter((p) => p.isPublished)
+      })
+      .catch(() => {
+        pagesCache = null
+        return [] as PageSummary[]
+      })
+  }
+  return pagesCache
+}
+
+export interface LinkInputProps {
+  label?: string
+  value: string
+  onChange: (url: string) => void
+  placeholder?: string
+  labelSize?: "sm" | "xs"
+}
+
+export function LinkInput({
+  label,
+  value,
+  onChange,
+  placeholder = "/page or https://...",
+  labelSize = "xs",
+}: LinkInputProps) {
+  const [pages, setPages] = useState<PageSummary[]>([])
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [activeIndex, setActiveIndex] = useState(0)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+
+  const isExternal = value.startsWith("http://") || value.startsWith("https://")
+
+  // Filter pages based on current input (match slug or title)
+  const filtered = pages.filter((p) => {
+    if (!value.startsWith("/")) return false
+    const query = value.slice(1).toLowerCase()
+    const slug = p.isHomepage ? "" : p.slug
+    return (
+      slug.toLowerCase().includes(query) ||
+      p.title.toLowerCase().includes(query)
+    )
+  })
+
+  // Show dropdown when typing `/` and not an external URL
+  const shouldShowDropdown = showDropdown && !isExternal && value.startsWith("/") && filtered.length > 0
+
+  // Fetch pages on first `/` keystroke
+  function handleChange(newValue: string) {
+    onChange(newValue)
+    if (newValue.startsWith("/") && !isExternal) {
+      fetchPages().then((result) => {
+        setPages(result)
+        setShowDropdown(true)
+        setActiveIndex(0)
+      })
+    } else {
+      setShowDropdown(false)
+    }
+  }
+
+  function selectPage(page: PageSummary) {
+    const slug = page.isHomepage ? "/" : `/${page.slug}`
+    onChange(slug)
+    setShowDropdown(false)
+    inputRef.current?.focus()
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!shouldShowDropdown) return
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault()
+      setActiveIndex((prev) => (prev + 1) % filtered.length)
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault()
+      setActiveIndex((prev) => (prev - 1 + filtered.length) % filtered.length)
+    } else if (e.key === "Enter") {
+      e.preventDefault()
+      selectPage(filtered[activeIndex])
+    } else if (e.key === "Escape") {
+      e.preventDefault()
+      setShowDropdown(false)
+    }
+  }
+
+  // Scroll active item into view
+  useEffect(() => {
+    if (shouldShowDropdown && listRef.current) {
+      const activeEl = listRef.current.children[activeIndex] as HTMLElement
+      if (activeEl) {
+        activeEl.scrollIntoView({ block: "nearest" })
+      }
+    }
+  }, [activeIndex, shouldShowDropdown])
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setShowDropdown(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
+  }, [])
+
+  const input = (
+    <div ref={containerRef} className="relative">
+      <Input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => handleChange(e.target.value)}
+        onFocus={() => {
+          if (value.startsWith("/") && !isExternal && pages.length > 0) {
+            setShowDropdown(true)
+            setActiveIndex(0)
+          }
+        }}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        autoComplete="off"
+      />
+
+      {shouldShowDropdown && (
+        <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover rounded-md shadow-md border ring-1 ring-foreground/10 overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-100">
+          <div className="px-3 py-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider border-b">
+            Pages
+          </div>
+          <div ref={listRef} className="max-h-56 overflow-y-auto">
+            {filtered.map((page, index) => {
+              const isActive = index === activeIndex
+              const displaySlug = page.isHomepage ? "/" : `/${page.slug}`
+              return (
+                <button
+                  key={page.id}
+                  onMouseEnter={() => setActiveIndex(index)}
+                  onClick={() => selectPage(page)}
+                  className={cn(
+                    "w-full text-left px-3 py-2 text-sm flex items-center justify-between transition-colors",
+                    isActive
+                      ? "bg-accent text-accent-foreground"
+                      : "text-popover-foreground hover:bg-accent"
+                  )}
+                  type="button"
+                >
+                  <div className="flex flex-col">
+                    <span className="font-medium">{page.title}</span>
+                    <span className="text-[11px] text-muted-foreground">{displaySlug}</span>
+                  </div>
+                  <kbd
+                    className={cn(
+                      "text-[10px] border rounded px-1.5 py-0.5 bg-background transition-opacity",
+                      isActive
+                        ? "text-muted-foreground opacity-100"
+                        : "opacity-0"
+                    )}
+                  >
+                    Enter
+                  </kbd>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  if (!label) return input
+
+  return (
+    <div className="space-y-1.5">
+      <Label
+        className={
+          labelSize === "sm"
+            ? "text-sm font-medium"
+            : "text-xs text-muted-foreground"
+        }
+      >
+        {label}
+      </Label>
+      {input}
+    </div>
+  )
+}
+
 // --- ButtonConfig ---
 
 export interface ButtonConfigProps {
   id: string
   label: string
-  buttonData: { label: string; href: string; visible: boolean }
-  onChange: (data: { label: string; href: string; visible: boolean }) => void
+  buttonData: { label: string; href: string; visible: boolean; openInNewTab?: boolean }
+  onChange: (data: { label: string; href: string; visible: boolean; openInNewTab?: boolean }) => void
 }
 
 export function ButtonConfig({
@@ -474,7 +685,7 @@ export function ButtonConfig({
         />
       </div>
       {buttonData.visible && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-3">
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">
               Button Text
@@ -487,15 +698,28 @@ export function ButtonConfig({
               placeholder="Learn More"
             />
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Link URL</Label>
-            <Input
-              value={buttonData.href}
-              onChange={(e) =>
-                onChange({ ...buttonData, href: e.target.value })
+          <LinkInput
+            label="Link URL"
+            value={buttonData.href}
+            onChange={(url) =>
+              onChange({ ...buttonData, href: url })
+            }
+            placeholder="/about or https://..."
+          />
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id={`${id}-new-tab`}
+              checked={buttonData.openInNewTab ?? false}
+              onCheckedChange={(checked) =>
+                onChange({ ...buttonData, openInNewTab: checked === true })
               }
-              placeholder="/about"
             />
+            <Label
+              htmlFor={`${id}-new-tab`}
+              className="text-xs text-muted-foreground cursor-pointer"
+            >
+              Open in new tab
+            </Label>
           </div>
         </div>
       )}

@@ -84,6 +84,7 @@ type Snapshot = {
   viewportHeight?: number
   browserInfo?: string
   url?: string
+  userEmail?: string
   churchName?: string
   churchSlug?: string
   timestamp?: string
@@ -270,7 +271,15 @@ function createColumns(onDelete: (id: string) => void): ColumnDef<Feedback>[] {
     {
       accessorKey: "userName",
       header: ({ column }) => <SortableHeader column={column}>By</SortableHeader>,
-      size: 120,
+      cell: ({ row }) => (
+        <div className="min-w-0">
+          <div className="text-sm truncate">{row.original.userName}</div>
+          {row.original.snapshot.userEmail && (
+            <div className="text-[11px] text-muted-foreground truncate">{row.original.snapshot.userEmail}</div>
+          )}
+        </div>
+      ),
+      size: 160,
     },
     {
       id: "actions",
@@ -651,7 +660,7 @@ export default function BuilderFeedbackPage() {
                   <Label className="text-xs font-medium text-muted-foreground">Context</Label>
                   <div className="grid grid-cols-2 gap-2 mt-1.5 text-xs">
                     <ContextRow icon={FileText} label="Location" value={getSourceLabel(selected.snapshot)} />
-                    <ContextRow icon={User} label="Submitted by" value={selected.userName} />
+                    <ContextRow icon={User} label="Submitted by" value={selected.snapshot.userEmail ? `${selected.userName} (${selected.snapshot.userEmail})` : selected.userName} />
                     <ContextRow icon={Clock} label="Date" value={new Date(selected.createdAt).toLocaleString()} />
                     {selected.snapshot.deviceMode && (
                       <ContextRow icon={Monitor} label="Device" value={selected.snapshot.deviceMode} />

@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     const [user, church] = await Promise.all([
       prisma.user.findUnique({
         where: { id: authResult.userId },
-        select: { firstName: true, lastName: true },
+        select: { firstName: true, lastName: true, email: true },
       }),
       prisma.church.findUnique({
         where: { id: churchId },
@@ -54,9 +54,10 @@ export async function POST(request: NextRequest) {
     ])
     const userName = user ? [user.firstName, user.lastName].filter(Boolean).join(' ') : 'Unknown'
 
-    // Merge church info into snapshot
+    // Merge church + user info into snapshot
     const snapshot = {
       ...(body.snapshot || {}),
+      userEmail: user?.email ?? null,
       churchName: church?.name ?? null,
       churchSlug: church?.slug ?? null,
     }
