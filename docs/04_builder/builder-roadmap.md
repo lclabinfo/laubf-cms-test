@@ -62,7 +62,9 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 | ~~No presence awareness for concurrent editors~~ | ~~P1~~ | **DONE** (Mar 19) — Heartbeat presence + banner + background sync + post-save merge |
 | ~~Editor routing requires 2-file changes to add a section type~~ | ~~P1~~ | **DONE** (Mar 18) — flat registry, 1-line change |
 | All content typed as `Record<string, unknown>` — no compile-time safety | P1 | NOT STARTED |
-| Color scheme is binary light/dark — needs to be a palette system | P1 | NOT STARTED |
+| ~~Color scheme is binary light/dark — needs to be a palette system~~ | ~~P1~~ | **DONE** (Mar 20) — 4 schemes: Light/Dark/Brand/Muted. Theme tokens in `theme-tokens.tsx`. |
+| 10 sections have hardcoded colors ignoring theme tokens | P1 | IN PROGRESS — all-messages migrated Mar 20. 10 remaining (see Monday checklist). |
+| CMS-driven sections lack layout editors (only heading + CTA) | P1 | IN PROGRESS — ALL_MESSAGES done Mar 20. ALL_EVENTS, ALL_BIBLE_STUDIES, ALL_VIDEOS next. |
 | ~~Drag preview shows label card instead of section visual~~ | ~~P1~~ | **DONE** (Mar 19) — Full section snapshot thumbnail at 0.25x scale |
 | Blue selection border clipped by overflow-hidden | P1 | NOT STARTED |
 | Section picker modal wrong positioning (centered instead of near trigger) | P1 | NOT STARTED |
