@@ -1,9 +1,9 @@
 # Navigation Bar Editor — Specification
 
-> **Date:** March 18, 2026
+> **Date:** March 18, 2026 (spec) / March 20, 2026 (last updated)
 > **Owner:** David Lim
-> **Status:** Approved requirements, pending implementation
-> **Location in builder:** Right drawer when navbar is selected, or dedicated "Navigation" tool in left sidebar
+> **Status:** IMPLEMENTED -- navigation editor with flat-tree DnD reparenting is complete. See `navigation-editor-architecture.md` for technical implementation details.
+> **Location in builder:** Left sidebar "Pages & Navigation" panel, Navigation section
 
 ---
 

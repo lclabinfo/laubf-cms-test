@@ -1,8 +1,8 @@
 # Website Builder — Roadmap
 
 > **Owner**: David Lim
-> **Updated**: March 19, 2026
-> **Status**: All 41 section editors complete. Shared component library extracted. Dirty tracking + selective save + concurrent editing (presence, background sync, post-save merge) all implemented. Iframe canvas migration complete. Navigation editor complete. Drag preview fixed. **No remaining P0 blockers.**
+> **Updated**: March 20, 2026
+> **Status**: All 41 section editors complete. Shared component library extracted. Dirty tracking + selective save + concurrent editing (presence, background sync, post-save merge) all implemented. Iframe canvas migration complete. Navigation editor complete. Footer menu editor + click-to-edit in canvas done. Sidebar consolidated (Pages & Navigation merged). Drag preview fixed. Hero editor expanded with full media/overlay/CTA controls. **No remaining P0 blockers. Now in QA + section attribute polish phase.**
 
 ---
 
@@ -35,6 +35,10 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 - Dirty section tracking + selective save (K+2 requests instead of N+2)
 - Flat editor registry (1-line to add a new section type)
 - Page tree with add/duplicate/delete pages + page settings
+- Footer menu editor with click-to-edit in canvas (click footer → opens editor in right drawer)
+- Unified sidebar panel (Pages & Navigation consolidated into single tab)
+- Click-to-edit navbar/footer in canvas (iframe postMessage protocol)
+- Navigation DnD reparenting: flat tree pattern with depth projection, cross-parent drag-and-drop (see `worklog/nav-dnd-reparenting-plan.md`)
 - Auto-save (30s), undo/redo (Cmd+Z), unsaved changes warning
 - Device preview (desktop/tablet/mobile) via iframe — **responsive breakpoints working correctly**
 - 20 API endpoints for all website entities
@@ -172,7 +176,16 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 
 ---
 
-### Day 4 — Friday: Verification + Color System
+### Day 4 — Friday (March 20): Section Attribute QA + Hero Editor Polish
+
+> **Scope change:** Footer menu editor, sidebar consolidation, and nav/page editor QA were added to Day 3 (Mar 19). Day 4 focus shifted to section attribute editors — making each editor control all visual attributes, not just content text.
+
+**Hero editor expansion** — **DONE** (`fe0a819`)
+- [x] Background media fields (image/video picker, overlay opacity, media type toggle)
+- [x] Shared `media-fields.tsx` (+305 lines) — reusable across all section editors
+- [x] Extended `field-primitives.tsx` with new control types
+- [x] Hero banner rendering updated to support all editable attributes
+- [x] CTA buttons, text alignment, color scheme all wired
 
 **Section-by-section verification** (all 41 sections)
 - [ ] For each section type: open editor → verify all fields save → check canvas renders → check public site
@@ -182,12 +195,12 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 - [ ] Navigation changes reflect on public site
 - [ ] Test concurrent editing: open builder in two tabs, edit different sections, save both — verify both changes preserved
 
-**Color palette system**
+**Color palette system** (deferred to Day 5)
 - [ ] Replace binary light/dark toggle with named color palettes per section
 - [ ] Palettes = named sets of color variations (Light, Dark, Brand Primary, Brand Accent, Muted, etc.)
 - [ ] Backward-compatible with existing light/dark sections
 
-**End of day: All sections verified working. Color palette in place.**
+**End of day: Hero editor fully functional. Section attribute QA in progress.**
 
 ---
 
@@ -215,7 +228,7 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 
 **UX bug fixes** (from `backlogs/builder-ux-issues.md`)
 - [ ] Issue 2: Fix blue selection border clipping — switch from `outline` to `inset box-shadow`
-- [ ] Issue 1: Fix drag preview — show semi-transparent section visual instead of label card
+- [x] Issue 1: Fix drag preview — show semi-transparent section visual instead of label card — **DONE** (Mar 19)
 - [ ] Issue 3: Fix section picker positioning — sidebar mode + popover mode instead of centered modal
 - [ ] Issue 4: Soften modal borders from black to subtle gray
 

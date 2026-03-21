@@ -128,6 +128,8 @@ All 41 types are organized into 8 categories. Each has: a catalog entry (icon, d
 | Debug why a section looks different in builder vs live site | [builder-rendering.md](builder-rendering.md) |
 | Understand how undo/redo or save works | [undo-redo-and-save-architecture.md](undo-redo-and-save-architecture.md) |
 | Know where a section's data comes from (DB vs JSONB) | [section-db-audit.md](section-db-audit.md) |
+| Understand the navigation editor DnD system | [navigation-editor-architecture.md](navigation-editor-architecture.md) (flat tree pattern, API endpoints, data flow) |
+| See the navigation editor requirements/spec | [navigation-editor-spec.md](navigation-editor-spec.md) (item types, structural rules, data model) |
 | Work on Day 1 tasks from the roadmap | [../dev-guide-day1.md](../dev-guide-day1.md) (lives one level up) |
 
 ---
@@ -146,3 +148,7 @@ All 41 types are organized into 8 categories. Each has: a catalog entry (icon, d
 | `lib/dal/pages.ts` | All page/section CRUD operations (Prisma). |
 | `lib/website/resolve-section-data.ts` | Resolves dynamic data sources for 11 section types. |
 | `components/website/sections/registry.tsx` | Maps SectionType enum to React components (public site). |
+| `navigation/navigation-editor.tsx` | Navigation tree editor with flat-tree DnD, CRUD, inline add. |
+| `navigation/tree-utils.ts` | Pure functions: flattenTree, getProjection, removeItem, insertItem. |
+| `navigation/sortable-tree-item.tsx` | Unified tree item component + DragOverlay snapshot. |
+| `navigation-item-editor.tsx` | Right-drawer form for editing individual nav item properties. |
