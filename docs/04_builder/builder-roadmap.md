@@ -240,6 +240,61 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 
 ---
 
+## Monday Review Checklist (March 24, 2026)
+
+> Items flagged for David to review before moving to Phase 2. Organized by priority.
+
+### P0 — Must verify before moving on
+
+- [ ] **Add Section modal** — Open the section picker on every page, verify all 41 types appear with correct names/categories/icons. Add one of each to a test page and confirm the default content renders correctly in the canvas.
+- [ ] **Section editors end-to-end** — For each homepage section (10 total), open the editor, change a field, verify it updates in the canvas, save, reload, confirm it persisted. Sections: HERO_BANNER, MEDIA_TEXT, HIGHLIGHT_CARDS, EVENT_CALENDAR, QUOTE_BANNER, ACTION_CARD_GRID, DIRECTORY_LIST, SPOTLIGHT_MEDIA, MEDIA_GRID, CTA_BANNER.
+- [ ] **All pages render** — Navigate to every seeded page on the public website (Home, About, Messages, Events, Bible Studies, Videos, I'm New, Giving, etc.). Verify no blank sections, no console errors, no layout breaks.
+- [ ] **Detail pages render** — Check `/messages/[slug]`, `/events/[slug]`, `/bible-study/[slug]` detail pages. These are NOT in the builder but must still work.
+- [ ] **Color scheme on all homepage sections** — Switch each homepage section between Light/Dark/Brand/Muted. Verify text remains readable and colors apply correctly. (Brand/Muted support was added March 20 via `theme-tokens.tsx` expansion.)
+- [ ] **Section drawer syncs with canvas clicks** — Click section A in canvas, verify drawer shows A's editor. Click section B without closing drawer, verify drawer immediately switches to B's editor. (Fixed March 20 — `setEditingSectionId(id)` added to `onSelectSection`.)
+
+### P1 — Review design & architecture decisions
+
+- [ ] **Design tokens** — Review `docs/00_dev-notes/design-tokens.md` and verify the token values match what's rendering. Check font sizes, spacing scale, color palette against Figma prototype.
+- [ ] **Color palette system** — The Style panel now has 4 schemes (Light/Dark/Brand/Muted). Review whether these are sufficient or if more palette presets are needed. See `theme-tokens.tsx` for current token values.
+- [ ] **Section redesign recommendation** — Review `docs/04_builder/section-catalog/section-design-recommendation.md`. Decide on Phase 1 timing (rename + recategorize). This is zero-risk and gives 60% of the UX improvement.
+- [ ] **Subpage template strategy** — Review `docs/04_builder/architecture/subpage-template-brainstorm.md`. Decide: Option A (style-only), B (hybrid), C (full composition), or D (variant presets) for MVP. Key question: do we need this before launch?
+- [ ] **Shared editor components** — Spot-check a few editors to verify they're using shared primitives (`ButtonConfig`, `LinkInput`, `ImagePickerField`, `ImageListField`, `CarouselSpeedField`, `ArrayField`) consistently. No inline reimplementations.
+
+### P2 — Review before production
+
+- [ ] **Hosting & domain strategy** — Review `docs/03_website-rendering/06-hosting-domain-strategy.md`. Verify DNS, proxy, SSL plan is still valid.
+- [ ] **Caching strategy** — Review `docs/03_website-rendering/07-caching-strategy.md`. Decide on ISR vs on-demand revalidation.
+- [ ] **Multi-tenant middleware** — Review whether Phase D (hostname-based tenant routing) is needed for launch or can be deferred.
+- [ ] **Authentication edge cases** — Review `docs/08_user-journeys/` for auth flows, onboarding edge cases, permission checks.
+- [ ] **Builder performance** — Open the builder on a page with 10+ sections. Verify canvas doesn't lag, drawer switches quickly, save completes in <2s.
+
+### Audit results (March 20, 2026)
+
+**Section editor audit: ALL 41 EDITORS COMPLETE**
+- 29 fully functional editors (content + optional layout panels)
+- 12 data-driven sections (DataSectionEditor wrapper)
+- 1 intentionally non-editable (NAVBAR — handled by layout)
+- 6 layout editors registered (HERO_BANNER, TEXT_IMAGE_HERO, MINISTRY_HERO, MEDIA_TEXT, CTA_BANNER, ALL_MESSAGES)
+- 0 TODO/FIXME comments remaining
+- 0 "configured in JSON" placeholders remaining
+- 0 missing exports or unresolved imports
+
+**Changes made today (March 20) that need verification:**
+- ImageListField switched from arrow reordering to drag-and-drop (@dnd-kit)
+- LinkInput component added (type `/` to search pages, supports external URLs)
+- ButtonConfig redesigned (stacked layout, LinkInput, "open in new tab" toggle)
+- All inline CTA fields upgraded to use LinkInput
+- CarouselSpeedField added to Hero layout editor (2-15s)
+- Overline fields removed from all 17 editors
+- SPOTLIGHT_MEDIA moved from SECTION_EDITORS to DATA_SECTION_TYPES
+- DIRECTORY_LIST field name fixed (label -> name)
+- Section picker deduped to use catalog as single source of truth
+- Color scheme expanded (brand + muted tokens in theme-tokens.tsx)
+- Canvas click now syncs drawer editor
+
+---
+
 ## Phase 2: Make the Builder Useful (~2 weeks after Phase 1)
 
 ### Design Panel
