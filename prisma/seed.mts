@@ -481,47 +481,51 @@ async function main() {
   await prisma.church.deleteMany()
 
   // ── 1. Create Church ──────────────────────────────────────
+  // Use upsert so partial re-runs don't create duplicates (slug has a unique constraint)
   console.log('Creating LA UBF church...')
-  const church = await prisma.church.create({
-    data: {
-      name: 'LA UBF',
-      slug: 'la-ubf',
-      email: 'laubf.downey@gmail.com',
-      phone: '(562) 396-6350',
-      address: '11625 Paramount Blvd',
-      city: 'Downey',
-      state: 'CA',
-      zipCode: '90241',
-      country: 'US',
-      timezone: 'America/Los_Angeles',
-      locale: 'en-US',
-      websiteUrl: 'https://laubf.org',
-      facebookUrl: 'https://facebook.com/losangelesubf',
-      instagramUrl: 'https://instagram.com/la.ubf',
-      youtubeUrl: 'https://www.youtube.com/channel/UC1SRAeGrnVlvoEEMZ-htVlA',
-      settings: {
-        description: 'LA UBF (Los Angeles University Bible Fellowship) is a Bible-centered community raising lifelong disciples on college campuses and beyond.',
-        emails: [{ label: 'General', value: 'laubf.downey@gmail.com' }],
-        phones: [{ label: 'Main', value: '(562) 396-6350' }],
-        worshipServices: [
-          { day: 'Sunday', startTime: '11:00', endTime: '12:30', description: 'Sunday Worship Service' },
-        ],
-        extraSocialLinks: [
-          { platform: 'tiktok', url: 'https://www.tiktok.com/@la.ubf' },
-        ],
-        savedAddresses: [
-          {
-            id: '00000000-0000-0000-0000-000000000001',
-            label: 'LA UBF Main Center',
-            address: '11625 Paramount Blvd',
-            city: 'Downey',
-            state: 'CA',
-            zip: '90241',
-            isPrimary: true,
-          },
-        ],
-      },
+  const churchData = {
+    name: 'LA UBF',
+    slug: 'la-ubf',
+    email: 'laubf.downey@gmail.com',
+    phone: '(562) 396-6350',
+    address: '11625 Paramount Blvd',
+    city: 'Downey',
+    state: 'CA',
+    zipCode: '90241',
+    country: 'US',
+    timezone: 'America/Los_Angeles',
+    locale: 'en-US',
+    websiteUrl: 'https://laubf.org',
+    facebookUrl: 'https://facebook.com/losangelesubf',
+    instagramUrl: 'https://instagram.com/la.ubf',
+    youtubeUrl: 'https://www.youtube.com/channel/UC1SRAeGrnVlvoEEMZ-htVlA',
+    settings: {
+      description: 'LA UBF (Los Angeles University Bible Fellowship) is a Bible-centered community raising lifelong disciples on college campuses and beyond.',
+      emails: [{ label: 'General', value: 'laubf.downey@gmail.com' }],
+      phones: [{ label: 'Main', value: '(562) 396-6350' }],
+      worshipServices: [
+        { day: 'Sunday', startTime: '11:00', endTime: '12:30', description: 'Sunday Worship Service' },
+      ],
+      extraSocialLinks: [
+        { platform: 'tiktok', url: 'https://www.tiktok.com/@la.ubf' },
+      ],
+      savedAddresses: [
+        {
+          id: '00000000-0000-0000-0000-000000000001',
+          label: 'LA UBF Main Center',
+          address: '11625 Paramount Blvd',
+          city: 'Downey',
+          state: 'CA',
+          zip: '90241',
+          isPrimary: true,
+        },
+      ],
     },
+  } as const
+  const church = await prisma.church.upsert({
+    where: { slug: 'la-ubf' },
+    create: churchData,
+    update: churchData,
   })
   const churchId = church.id
 
