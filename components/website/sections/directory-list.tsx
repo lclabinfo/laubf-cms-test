@@ -2,7 +2,8 @@
 
 import { useRef, useEffect, useCallback } from "react"
 import { useMotionValue, useSpring, motion } from "motion/react"
-import { SectionThemeContext, type SectionTheme } from "@/components/website/shared/theme-tokens"
+import { SectionThemeContext, themeTokens, isDarkScheme, type SectionTheme } from "@/components/website/shared/theme-tokens"
+import { cn } from "@/lib/utils"
 import CTAButton from "@/components/website/shared/cta-button"
 import Image from "next/image"
 import Link from "next/link"
@@ -29,16 +30,19 @@ interface Props {
   colorScheme?: SectionTheme
 }
 
-export default function DirectoryListSection({ content }: Props) {
+export default function DirectoryListSection({ content, colorScheme = "light" }: Props) {
+  const t = themeTokens[colorScheme]
+
   return (
-    <SectionThemeContext.Provider value="light">
-      <div className="bg-white-1">
+    <SectionThemeContext.Provider value={colorScheme}>
+      <div className={t.bg}>
         {/* Desktop: parallax layout */}
         <div className="hidden lg:block">
           <DirectoryParallaxBlock
             heading={content.heading}
             items={content.items}
             image={content.image}
+            colorScheme={colorScheme}
           />
         </div>
 
@@ -48,12 +52,13 @@ export default function DirectoryListSection({ content }: Props) {
             heading={content.heading}
             items={content.items}
             image={content.image}
+            colorScheme={colorScheme}
           />
         </div>
 
         {/* CTA block */}
         <section className="flex flex-col items-center gap-5 pb-20 lg:pb-30 pt-8 text-center px-4">
-          <h3 className="text-h3 text-black-1">{content.ctaHeading}</h3>
+          <h3 className={cn("text-h3", t.textPrimary)}>{content.ctaHeading}</h3>
           <CTAButton
             label={content.ctaButton.label}
             href={content.ctaButton.href}
@@ -69,11 +74,15 @@ function DirectoryMobileBlock({
   heading,
   items,
   image,
+  colorScheme,
 }: {
   heading: string
   items: DirectoryItem[]
   image: DirectoryListContent["image"]
+  colorScheme: SectionTheme
 }) {
+  const t = themeTokens[colorScheme]
+
   return (
     <section className="px-4 pt-20 pb-8">
       <div className="flex flex-col items-center gap-5">
@@ -88,10 +97,10 @@ function DirectoryMobileBlock({
                 style={{ objectPosition: image.objectPosition }}
               />
             ) : (
-              <div className="absolute inset-0 bg-white-2" />
+              <div className={cn("absolute inset-0", t.surfaceBg)} />
             )}
           </div>
-          <h2 className="text-h2 text-black-1 text-center">{heading}</h2>
+          <h2 className={cn("text-h2 text-center", t.textPrimary)}>{heading}</h2>
         </div>
 
         <div className="flex flex-col items-center gap-0 w-full">
@@ -99,9 +108,9 @@ function DirectoryMobileBlock({
             <Link
               key={item.id}
               href={resolveHref(item.href ?? `#${item.id}`)}
-              className="group flex items-center justify-center gap-3 w-full max-w-[320px] py-3 rounded-lg transition-colors hover:bg-white-1-5"
+              className={cn("group flex items-center justify-center gap-3 w-full max-w-[320px] py-3 rounded-lg transition-colors", isDarkScheme(colorScheme) ? "hover:bg-white/5" : "hover:bg-black/5")}
             >
-              <span className="text-h3 font-medium text-black-3 transition-colors group-hover:text-black-1">
+              <span className={cn("text-h3 font-medium transition-colors", t.textMuted, isDarkScheme(colorScheme) ? "group-hover:text-white-1" : "group-hover:text-black-1")}>
                 {item.name}
               </span>
               <svg
@@ -110,7 +119,7 @@ function DirectoryMobileBlock({
                 viewBox="0 0 48 48"
                 fill="none"
                 aria-hidden="true"
-                className="text-black-3 opacity-0 transition-opacity group-hover:opacity-100 shrink-0"
+                className={cn("opacity-0 transition-opacity group-hover:opacity-100 shrink-0", t.textMuted)}
               >
                 <path
                   d="M14 34L34 14M34 14H14M34 14V34"
@@ -134,10 +143,12 @@ function DirectoryParallaxBlock({
   heading,
   items,
   image,
+  colorScheme,
 }: {
   heading: string
   items: DirectoryItem[]
   image: DirectoryListContent["image"]
+  colorScheme: SectionTheme
 }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const rawY = useMotionValue(0)
@@ -178,6 +189,7 @@ function DirectoryParallaxBlock({
                   key={item.id}
                   name={item.name}
                   href={resolveHref(item.href ?? `#${item.id}`)}
+                  colorScheme={colorScheme}
                 />
               ))}
             </div>
@@ -189,7 +201,7 @@ function DirectoryParallaxBlock({
               className="flex flex-col gap-6 will-change-transform"
               style={{ y: smoothY }}
             >
-              <h2 className="text-h2 max-w-[280px] text-black-1">
+              <h2 className={cn("text-h2 max-w-[280px]", themeTokens[colorScheme].textPrimary)}>
                 {heading}
               </h2>
               <div className="relative h-[240px] w-[400px] overflow-hidden rounded-xl">
@@ -202,7 +214,7 @@ function DirectoryParallaxBlock({
                     style={{ objectPosition: image.objectPosition }}
                   />
                 ) : (
-                  <div className="absolute inset-0 bg-white-2" />
+                  <div className={cn("absolute inset-0", themeTokens[colorScheme].surfaceBg)} />
                 )}
               </div>
             </motion.div>
@@ -213,13 +225,15 @@ function DirectoryParallaxBlock({
   )
 }
 
-function DirectoryLink({ name, href }: { name: string; href: string }) {
+function DirectoryLink({ name, href, colorScheme }: { name: string; href: string; colorScheme: SectionTheme }) {
+  const t = themeTokens[colorScheme]
+
   return (
     <Link
       href={resolveHref(href)}
       className="group relative flex h-12 w-full items-center justify-end"
     >
-      <span className="text-h2 font-medium leading-none text-white-3 transition-[color,translate] duration-300 ease-[cubic-bezier(0,0.55,0.45,1)] group-hover:-translate-x-[60px] group-hover:text-black-1">
+      <span className={cn("text-h2 font-medium leading-none transition-[color,translate] duration-300 ease-[cubic-bezier(0,0.55,0.45,1)] group-hover:-translate-x-[60px]", t.textMuted, isDarkScheme(colorScheme) ? "group-hover:text-white-1" : "group-hover:text-black-1")}>
         {name}
       </span>
       <span className="absolute right-0 flex h-full w-[60px] items-center justify-center opacity-0 transition-opacity duration-300 ease-[cubic-bezier(0,0.55,0.45,1)] group-hover:opacity-100 pointer-events-none">
@@ -229,7 +243,7 @@ function DirectoryLink({ name, href }: { name: string; href: string }) {
           viewBox="0 0 48 48"
           fill="none"
           aria-hidden="true"
-          className="text-black-1"
+          className={t.textPrimary}
         >
           <path
             d="M14 34L34 14M34 14H14M34 14V34"

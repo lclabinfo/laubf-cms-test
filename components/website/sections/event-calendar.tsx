@@ -15,7 +15,7 @@ import {
 } from "@/components/website/shared/icons"
 import { cn } from "@/lib/utils"
 import { resolveHref } from "@/lib/website/resolve-href"
-import type { SectionTheme } from "@/components/website/shared/theme-tokens"
+import { themeTokens, isDarkScheme, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import { formatTime } from "@/lib/website/format-time"
 
 interface Event {
@@ -60,6 +60,8 @@ interface Props {
 
 export default function EventCalendarSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth, events: rawEvents = [] }: Props) {
   const animate = enableAnimations !== false
+  const t = themeTokens[colorScheme]
+  const dark = isDarkScheme(colorScheme)
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -131,7 +133,7 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
       <div className="flex flex-col gap-6">
         {/* Schedule heading */}
         <AnimateOnScroll animation="fade-up" enabled={animate}>
-          <h2 className="text-h2 text-black-1">{content.heading}</h2>
+          <h2 className={cn("text-h2", t.textPrimary)}>{content.heading}</h2>
         </AnimateOnScroll>
 
         {/* Calendar/List container */}
@@ -139,14 +141,14 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
           {/* Header row: view toggle (left) + month nav (right, calendar only) */}
           <div className="flex flex-wrap items-center justify-between gap-3">
             {/* List / Month toggle */}
-            <div className="flex rounded-[14px] bg-white-2 p-1">
+            <div className={cn("flex rounded-[14px] p-1", dark ? "bg-white/10" : "bg-black/5")}>
               <button
                 onClick={() => setViewMode("list")}
                 className={cn(
                   "flex items-center gap-1.5 rounded-[10px] px-4 py-2.5 text-[14px] font-medium transition-colors",
                   viewMode === "list"
-                    ? "bg-white-0 text-black-1 shadow-sm"
-                    : "text-black-3 hover:text-black-2",
+                    ? cn(dark ? "bg-white/15 shadow-sm" : "bg-white shadow-sm", t.textPrimary)
+                    : cn(t.textMuted, dark ? "hover:text-white-2" : "hover:text-black-2"),
                 )}
               >
                 <IconListView className="size-4" />
@@ -157,8 +159,8 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
                 className={cn(
                   "flex items-center gap-1.5 rounded-[10px] px-4 py-2.5 text-[14px] font-medium transition-colors",
                   viewMode === "calendar"
-                    ? "bg-white-0 text-black-1 shadow-sm"
-                    : "text-black-3 hover:text-black-2",
+                    ? cn(dark ? "bg-white/15 shadow-sm" : "bg-white shadow-sm", t.textPrimary)
+                    : cn(t.textMuted, dark ? "hover:text-white-2" : "hover:text-black-2"),
                 )}
               >
                 <IconCalendar className="size-4" />
@@ -171,17 +173,17 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
               <div className="flex items-center gap-3">
                 <button
                   onClick={goToPrevMonth}
-                  className="flex size-8 items-center justify-center rounded-full border border-white-2 text-black-2 transition-colors hover:bg-white-1-5"
+                  className={cn("flex size-8 items-center justify-center rounded-full border transition-colors", t.borderColor, t.textSecondary, dark ? "hover:bg-white/5" : "hover:bg-black/5")}
                   aria-label="Previous month"
                 >
                   <IconChevronLeft className="size-4" />
                 </button>
-                <h3 className="min-w-[180px] text-center text-[16px] font-medium uppercase tracking-wide text-black-1">
+                <h3 className={cn("min-w-[180px] text-center text-[16px] font-medium uppercase tracking-wide", t.textPrimary)}>
                   {monthLabel}
                 </h3>
                 <button
                   onClick={goToNextMonth}
-                  className="flex size-8 items-center justify-center rounded-full border border-white-2 text-black-2 transition-colors hover:bg-white-1-5"
+                  className={cn("flex size-8 items-center justify-center rounded-full border transition-colors", t.borderColor, t.textSecondary, dark ? "hover:bg-white/5" : "hover:bg-black/5")}
                   aria-label="Next month"
                 >
                   <IconChevronRight className="size-4" />
@@ -200,8 +202,8 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
                   className={cn(
                     "rounded-full px-3 py-1.5 text-[12px] font-medium tracking-wide transition-colors",
                     activeFilter === filter.value
-                      ? "bg-black-1 text-white-0"
-                      : "bg-white-2 text-black-3 hover:bg-white-2-5 hover:text-black-2",
+                      ? cn(t.btnPrimaryBg, t.btnPrimaryText)
+                      : cn(dark ? "bg-white/10 hover:bg-white/15" : "bg-black/5 hover:bg-black/10", t.textMuted, dark ? "hover:text-white-2" : "hover:text-black-2"),
                   )}
                 >
                   {filter.label}
@@ -210,10 +212,10 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
             </div>
             {viewMode === "calendar" && (
               <div className="hidden sm:flex items-center gap-2">
-                <span className="text-[14px] text-black-3">
+                <span className={cn("text-[14px]", t.textMuted)}>
                   Events in {upcomingMonthName}
                 </span>
-                <span className="flex size-[26px] items-center justify-center rounded-full bg-black-1 text-[12px] font-medium text-white-0">
+                <span className={cn("flex size-[26px] items-center justify-center rounded-full text-[12px] font-medium", t.btnPrimaryBg, t.btnPrimaryText)}>
                   {monthEvents.length}
                 </span>
               </div>
@@ -222,7 +224,7 @@ export default function EventCalendarSection({ content, enableAnimations, colorS
 
           {/* Content: List or Calendar */}
           {viewMode === "list" ? (
-            <EventListView events={filteredEvents} filteredAll={filteredEvents} />
+            <EventListView events={filteredEvents} filteredAll={filteredEvents} colorScheme={colorScheme} />
           ) : (
             <EventCalendarGrid events={filteredEvents} month={currentMonth} year={currentYear} />
           )}
@@ -261,10 +263,14 @@ const RECURRING_LIMIT = 4
 function EventListView({
   events,
   filteredAll,
+  colorScheme,
 }: {
   events: Event[]
   filteredAll: Event[]
+  colorScheme: SectionTheme
 }) {
+  const t = themeTokens[colorScheme]
+  const dark = isDarkScheme(colorScheme)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayISO = today.toISOString().split("T")[0]
@@ -290,7 +296,7 @@ function EventListView({
   if (!hasUpcoming && !hasRecurring) {
     return (
       <div className="flex items-center justify-center py-16">
-        <p className="text-body-2 text-black-3">No upcoming events.</p>
+        <p className={cn("text-body-2", t.textMuted)}>No upcoming events.</p>
       </div>
     )
   }
@@ -301,15 +307,15 @@ function EventListView({
       {hasUpcoming && (
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            <p className="text-body-1 text-black-3 uppercase tracking-wide">
+            <p className={cn("text-body-1 uppercase tracking-wide", t.textMuted)}>
               Upcoming
             </p>
-            <span className="flex size-[22px] items-center justify-center rounded-full bg-black-1 text-[11px] font-medium text-white-0">
+            <span className={cn("flex size-[22px] items-center justify-center rounded-full text-[11px] font-medium", t.btnPrimaryBg, t.btnPrimaryText)}>
               {totalUpcoming}
             </span>
           </div>
           <div className="relative">
-            <div className="flex flex-col border-t border-white-2-5">
+            <div className={cn("flex flex-col border-t", t.borderSubtle)}>
               {shownUpcoming.map((event) => (
                 <EventListItem
                   key={event.slug}
@@ -327,14 +333,14 @@ function EventListView({
             </div>
             {moreUpcoming > 0 && (
               <div className="relative -mt-4">
-                <div className="absolute inset-x-0 -top-16 h-16 bg-gradient-to-t from-white-1 to-transparent pointer-events-none" />
-                <div className="relative flex items-center justify-between rounded-[12px] border border-white-2-5 bg-white-0 px-4 py-3">
-                  <span className="text-[14px] text-black-3">
+                <div className={cn("absolute inset-x-0 -top-16 h-16 pointer-events-none", dark ? "bg-gradient-to-t from-black-1 to-transparent" : "bg-gradient-to-t from-white-1 to-transparent")} />
+                <div className={cn("relative flex items-center justify-between rounded-[12px] border px-4 py-3", t.borderSubtle, t.surfaceBg)}>
+                  <span className={cn("text-[14px]", t.textMuted)}>
                     {moreUpcoming} more upcoming event{moreUpcoming !== 1 ? "s" : ""}
                   </span>
                   <Link
                     href={resolveHref("/events")}
-                    className="text-[14px] font-medium text-black-1 hover:underline"
+                    className={cn("text-[14px] font-medium hover:underline", t.textPrimary)}
                   >
                     View all
                   </Link>
@@ -349,15 +355,15 @@ function EventListView({
       {hasRecurring && (
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
-            <p className="text-body-1 text-black-3 uppercase tracking-wide">
+            <p className={cn("text-body-1 uppercase tracking-wide", t.textMuted)}>
               Recurring
             </p>
-            <span className="flex size-[22px] items-center justify-center rounded-full bg-black-1 text-[11px] font-medium text-white-0">
+            <span className={cn("flex size-[22px] items-center justify-center rounded-full text-[11px] font-medium", t.btnPrimaryBg, t.btnPrimaryText)}>
               {totalRecurring}
             </span>
           </div>
           <div className="relative">
-            <div className="flex flex-col border-t border-white-2-5">
+            <div className={cn("flex flex-col border-t", t.borderSubtle)}>
               {shownRecurring.map((event) => (
                 <EventListItem
                   key={event.slug}
@@ -375,14 +381,14 @@ function EventListView({
             </div>
             {moreRecurring > 0 && (
               <div className="relative -mt-4">
-                <div className="absolute inset-x-0 -top-16 h-16 bg-gradient-to-t from-white-1 to-transparent pointer-events-none" />
-                <div className="relative flex items-center justify-between rounded-[12px] border border-white-2-5 bg-white-0 px-4 py-3">
-                  <span className="text-[14px] text-black-3">
+                <div className={cn("absolute inset-x-0 -top-16 h-16 pointer-events-none", dark ? "bg-gradient-to-t from-black-1 to-transparent" : "bg-gradient-to-t from-white-1 to-transparent")} />
+                <div className={cn("relative flex items-center justify-between rounded-[12px] border px-4 py-3", t.borderSubtle, t.surfaceBg)}>
+                  <span className={cn("text-[14px]", t.textMuted)}>
                     {moreRecurring} more recurring event{moreRecurring !== 1 ? "s" : ""}
                   </span>
                   <Link
                     href={resolveHref("/events")}
-                    className="text-[14px] font-medium text-black-1 hover:underline"
+                    className={cn("text-[14px] font-medium hover:underline", t.textPrimary)}
                   >
                     View all
                   </Link>
