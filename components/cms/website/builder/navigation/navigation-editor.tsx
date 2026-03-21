@@ -554,7 +554,8 @@ function SectionHeader({
           ref={inputRef}
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
-          className="h-6 text-[10px] font-semibold uppercase tracking-wider flex-1 bg-muted/30 border-border/50"
+          className="h-7 text-xs flex-1"
+          placeholder="Section name"
           onKeyDown={(e) => {
             if (e.key === "Enter") handleSubmit()
             if (e.key === "Escape") {
@@ -1040,6 +1041,54 @@ export function NavigationEditor({
     [menuId, items, refreshMenu],
   )
 
+  // Add a child item to a dropdown (with optional groupLabel)
+  const handleAddChildItem = useCallback(
+    async (parentId: string, groupLabel: string | null) => {
+      const label = prompt("Item label:")
+      if (!label?.trim()) return
+      try {
+        const res = await fetch(`/api/v1/menus/${menuId}/items`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ label: label.trim(), parentId, groupLabel }),
+        })
+        if (!res.ok) throw new Error("Failed to add item")
+        toast.success("Item added")
+        await refreshMenu()
+      } catch {
+        toast.error("Failed to add item")
+      }
+    },
+    [menuId, refreshMenu],
+  )
+
+  // Add a new section (groupLabel) to a dropdown
+  const handleAddSection = useCallback(
+    async (parentId: string) => {
+      const sectionName = prompt("Section name:")
+      if (!sectionName?.trim()) return
+      try {
+        const res = await fetch(`/api/v1/menus/${menuId}/items`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            label: "New Item",
+            parentId,
+            groupLabel: sectionName.trim(),
+          }),
+        })
+        if (!res.ok) throw new Error("Failed to add section")
+        toast.success("Section added")
+        // Expand the parent so the new section is visible
+        setExpandedIds((prev) => new Set([...prev, parentId]))
+        await refreshMenu()
+      } catch {
+        toast.error("Failed to add section")
+      }
+    },
+    [menuId, refreshMenu],
+  )
+
   // Move a child item to a different parent or top level
   const handleMoveToParent = useCallback(
     async (itemId: string, newParentId: string | null) => {
@@ -1093,6 +1142,9 @@ export function NavigationEditor({
 
       if (!confirm(message)) return
 
+      // Cache the deleted item for undo
+      const deletedItem = structuredClone(item)
+
       // Optimistic removal
       setItems((prev) => {
         const filtered = prev.filter((i) => i.id !== itemId)
@@ -1110,7 +1162,57 @@ export function NavigationEditor({
           method: "DELETE",
         })
         if (!res.ok) throw new Error("Failed to delete item")
-        toast.success("Item deleted")
+        toast.success(`"${deletedItem.label}" deleted`, {
+          action: {
+            label: "Undo",
+            onClick: async () => {
+              try {
+                // Recreate the menu item
+                const createRes = await fetch(`/api/v1/menus/${menuId}/items`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    label: deletedItem.label,
+                    href: deletedItem.href,
+                    parentId: deletedItem.parentId,
+                    isExternal: deletedItem.isExternal,
+                    openInNewTab: deletedItem.openInNewTab,
+                    description: deletedItem.description,
+                    iconName: deletedItem.iconName,
+                    groupLabel: deletedItem.groupLabel,
+                  }),
+                })
+                if (!createRes.ok) throw new Error()
+
+                // Recreate children if any
+                if (hasChildren && deletedItem.children) {
+                  const { data: parentData } = await createRes.json()
+                  for (const child of deletedItem.children) {
+                    await fetch(`/api/v1/menus/${menuId}/items`, {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        label: child.label,
+                        href: child.href,
+                        parentId: parentData.id,
+                        isExternal: child.isExternal,
+                        openInNewTab: child.openInNewTab,
+                        description: child.description,
+                        iconName: child.iconName,
+                        groupLabel: child.groupLabel,
+                      }),
+                    })
+                  }
+                }
+
+                toast.success(`"${deletedItem.label}" restored`)
+                await refreshMenu()
+              } catch {
+                toast.error("Failed to restore item")
+              }
+            },
+          },
+        })
         await refreshMenu()
       } catch {
         toast.error("Failed to delete item")
@@ -1267,6 +1369,8 @@ export function NavigationEditor({
                         moveTargets={moveTargets.filter((t) => t.id !== fiParentId)}
                         onConvertToDropdown={handleConvertToDropdown}
                         onConvertToPage={handleConvertToPage}
+                        onAddChildItem={depth === 0 ? (groupLabel) => handleAddChildItem(item.id, groupLabel) : undefined}
+                        onAddSection={depth === 0 ? () => handleAddSection(item.id) : undefined}
                       />
                     </div>
                   )
