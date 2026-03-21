@@ -1,24 +1,36 @@
 "use client"
 
 import { useCallback, useState } from "react"
-import { X, Trash2 } from "lucide-react"
+import {
+  X,
+  Trash2,
+  ChevronDown,
+  FileText,
+  LayoutGrid,
+  Palette,
+  Settings,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
+import { Slider } from "@/components/ui/slider"
 import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import type { SectionType } from "@/lib/db/types"
 import { sectionTypeLabels } from "@/components/cms/website/pages/section-picker-dialog"
 import {
   SectionContentEditor,
+  SectionLayoutEditor,
   hasStructuredEditor,
+  hasLayoutEditor,
 } from "../section-editors"
-import {
-  DisplaySettings,
-  type DisplaySettingsData,
-} from "../section-editors/display-settings"
 import { JsonEditor } from "../section-editors/json-editor"
+import {
+  EditorSelect,
+  EditorToggle,
+  EditorInput,
+  EditorButtonGroup,
+} from "../section-editors/shared"
 import {
   NavItemEditor,
   NavSettingsForm,
@@ -46,13 +58,12 @@ interface BuilderRightDrawerProps {
   onClose: () => void
   onChange: (data: Partial<SectionEditorData>) => void
   onDelete: (sectionId: string) => void
-  /** Navigation item editing */
   editingNavItemId?: string | null
   editingNavSettings?: boolean
   menuItems?: MenuItemData[]
   menuId?: string | null
   pages?: PageSummary[]
-  /** @deprecated kept for call-site compat — unused in this component */
+  /** @deprecated kept for call-site compat */
   churchId?: string
   initialNavbarSettings?: {
     scrollBehavior?: string
@@ -66,7 +77,6 @@ interface BuilderRightDrawerProps {
   onNavItemUpdated?: () => void
   onNavSettingsClose?: () => void
   onNavSettingsUpdated?: () => void
-  /** Footer editing */
   editingFooter?: boolean
   footerMenuId?: string | null
   footerMenuItems?: MenuItemData[]
@@ -74,9 +84,121 @@ interface BuilderRightDrawerProps {
   onFooterUpdated?: () => void
 }
 
+// --- Panel types ---
+
+type PanelId = "content" | "layout" | "style" | "advanced"
+
+interface PanelDef {
+  id: PanelId
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+}
+
+const ALL_PANELS: PanelDef[] = [
+  { id: "content", label: "Content", icon: FileText },
+  { id: "layout", label: "Layout", icon: LayoutGrid },
+  { id: "style", label: "Style", icon: Palette },
+  { id: "advanced", label: "Advanced", icon: Settings },
+]
+
+// --- Panel Header ---
+
+function PanelHeader({
+  label,
+  icon: Icon,
+  active,
+  onClick,
+}: {
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-2.5 px-4 py-3 text-left border-b shrink-0 transition-colors duration-150",
+        "text-xs font-semibold uppercase tracking-wider",
+        active
+          ? "bg-muted/60 text-foreground"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+      )}
+    >
+      <Icon className="size-4 shrink-0" />
+      <span className="flex-1">{label}</span>
+      <ChevronDown
+        className={cn(
+          "size-3.5 shrink-0 transition-transform duration-200",
+          active && "rotate-180"
+        )}
+      />
+    </button>
+  )
+}
+
+// --- Color Scheme Picker ---
+
+function ColorSchemePicker({
+  value,
+  onChange,
+}: {
+  value: string
+  onChange: (v: string) => void
+}) {
+  const schemes = [
+    { value: "LIGHT", label: "Light", previewBg: "#ffffff", previewText: "#262626", borderIdle: "#e5e5e5" },
+    { value: "DARK", label: "Dark", previewBg: "#0d0d0d", previewText: "#ffffff", borderIdle: "#404040" },
+    { value: "BRAND", label: "Brand", previewBg: "var(--ws-color-primary, #1a1a2e)", previewText: "#ffffff", borderIdle: "#525252" },
+  ]
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm font-medium">Color Scheme</Label>
+      <div className="grid grid-cols-2 gap-2">
+        {schemes.map((scheme) => {
+          const selected = value === scheme.value
+          return (
+            <button
+              key={scheme.value}
+              type="button"
+              onClick={() => onChange(scheme.value)}
+              className={cn(
+                "flex flex-col rounded-lg overflow-hidden transition-all cursor-pointer border-2",
+                selected
+                  ? "border-blue-600 ring-1 ring-blue-600/20"
+                  : "border-transparent",
+              )}
+              style={{
+                borderColor: selected ? undefined : scheme.borderIdle,
+              }}
+            >
+              <div
+                className="p-3 flex flex-col gap-1.5"
+                style={{ backgroundColor: scheme.previewBg }}
+              >
+                <div className="h-1.5 w-3/4 rounded-full opacity-80" style={{ backgroundColor: scheme.previewText }} />
+                <div className="h-1.5 w-full rounded-full opacity-50" style={{ backgroundColor: scheme.previewText }} />
+                <div className="h-1.5 w-2/3 rounded-full opacity-30" style={{ backgroundColor: scheme.previewText }} />
+              </div>
+              <div className="px-3 py-1.5 text-xs font-medium text-center border-t">
+                {scheme.label}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 /**
- * Inline editor form for a section, keyed by section.id so it
- * remounts when a different section is opened.
+ * Accordion-based section editor.
+ *
+ * - Only one panel open at a time (clicking open panel closes it)
+ * - Active panel fills all available vertical space
+ * - Only the active panel's content scrolls (no outer scroll)
+ * - Panels: Content, Layout (conditional), Style, Advanced
  */
 function SectionEditorInline({
   section,
@@ -87,16 +209,8 @@ function SectionEditorInline({
   onChange: (data: Partial<SectionEditorData>) => void
   onDelete: (sectionId: string) => void
 }) {
-  // Derived from props — no local state. Ensures undo/redo propagates instantly.
   const content = section.content ?? {}
-  const displaySettings: DisplaySettingsData = {
-    colorScheme: section.colorScheme,
-    paddingY: section.paddingY,
-    containerWidth: section.containerWidth,
-    enableAnimations: section.enableAnimations,
-    visible: section.visible,
-    label: section.label ?? "",
-  }
+  const [activePanel, setActivePanel] = useState<PanelId | null>("content")
   const [showJson, setShowJson] = useState(false)
 
   const handleContentChange = useCallback(
@@ -106,108 +220,211 @@ function SectionEditorInline({
     [onChange],
   )
 
-  const handleDisplayChange = useCallback(
-    (newSettings: DisplaySettingsData) => {
-      onChange({
-        colorScheme: newSettings.colorScheme,
-        paddingY: newSettings.paddingY,
-        containerWidth: newSettings.containerWidth,
-        enableAnimations: newSettings.enableAnimations,
-        visible: newSettings.visible,
-        label: newSettings.label || null,
-      })
+  const updateDisplay = useCallback(
+    (field: string, value: string | boolean) => {
+      onChange({ [field]: value })
     },
     [onChange],
   )
 
   const isStructured = hasStructuredEditor(section.sectionType)
+  const showLayout = hasLayoutEditor(section.sectionType)
+
+  // All panels always shown — Layout has padding/width for every section
+  const panels = ALL_PANELS
+
+  const togglePanel = (id: PanelId) => {
+    setActivePanel((prev) => (prev === id ? null : id))
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Section Label */}
-      <div className="space-y-2">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Section Label
-        </Label>
-        <Input
-          value={displaySettings.label}
-          onChange={(e) =>
-            handleDisplayChange({ ...displaySettings, label: e.target.value })
-          }
-          placeholder="Optional admin-only label"
-          className="text-sm"
-        />
-      </div>
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      {panels.map(({ id, label, icon }) => {
+        const isActive = activePanel === id
+        return (
+          <div
+            key={id}
+            className="flex flex-col min-h-0 overflow-hidden shrink-0"
+            style={{
+              flex: isActive ? "1 1 0%" : "0 0 auto",
+              transition: "flex 200ms ease-out",
+            }}
+          >
+            <PanelHeader
+              label={label}
+              icon={icon}
+              active={isActive}
+              onClick={() => togglePanel(id)}
+            />
+            {/* Always rendered — the flex transition slides it open/closed */}
+            <div className="flex-1 min-h-0 overflow-hidden">
+              {isActive && (
+                <ScrollArea className="h-full">
+                  <div className="p-4 space-y-6">
+                    {/* --- Content --- */}
+                    {id === "content" && (
+                      <SectionContentEditor
+                        sectionType={section.sectionType}
+                        content={content}
+                        onChange={handleContentChange}
+                      />
+                    )}
 
-      <Separator />
+                    {/* --- Layout --- */}
+                    {id === "layout" && (
+                      <>
+                        {/* Section-specific layout fields (variants, alignment, etc.) */}
+                        {showLayout && (
+                          <>
+                            <SectionLayoutEditor
+                              sectionType={section.sectionType}
+                              content={content}
+                              onChange={handleContentChange}
+                            />
+                            <Separator />
+                          </>
+                        )}
 
-      {/* Content Editor */}
-      <div className="space-y-3">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Content
-        </Label>
-        <SectionContentEditor
-          sectionType={section.sectionType}
-          content={content}
-          onChange={handleContentChange}
-        />
-      </div>
+                        {/* Shared layout fields (all sections) */}
+                        <EditorSelect
+                          label="Vertical Padding"
+                          value={section.paddingY}
+                          onValueChange={(v) => updateDisplay("paddingY", v)}
+                          options={[
+                            { value: "NONE", label: "None" },
+                            { value: "COMPACT", label: "Compact" },
+                            { value: "DEFAULT", label: "Default" },
+                            { value: "SPACIOUS", label: "Spacious" },
+                          ]}
+                        />
+                        <EditorSelect
+                          label="Container Width"
+                          value={section.containerWidth}
+                          onValueChange={(v) => updateDisplay("containerWidth", v)}
+                          options={[
+                            { value: "NARROW", label: "Narrow" },
+                            { value: "STANDARD", label: "Standard" },
+                            { value: "FULL", label: "Full" },
+                          ]}
+                        />
+                      </>
+                    )}
 
-      <Separator />
+                    {/* --- Style --- */}
+                    {id === "style" && (
+                      <>
+                        <ColorSchemePicker
+                          value={section.colorScheme}
+                          onChange={(v) => updateDisplay("colorScheme", v)}
+                        />
 
-      {/* Display Settings */}
-      <div className="space-y-3">
-        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Display Settings
-        </Label>
-        <DisplaySettings
-          data={displaySettings}
-          onChange={handleDisplayChange}
-        />
-      </div>
+                        {/* Overlay controls — hero fullwidth only */}
+                        {section.sectionType === "HERO_BANNER" && (content.layout as string || "fullwidth") === "fullwidth" && (
+                          <>
+                            <Separator />
+                            <EditorButtonGroup
+                              label="Overlay"
+                              value={(content.overlayType as string) || "gradient"}
+                              onChange={(v) => handleContentChange({ ...content, overlayType: v })}
+                              options={[
+                                { value: "gradient", label: "Gradient" },
+                                { value: "solid", label: "Solid" },
+                                { value: "none", label: "None" },
+                              ]}
+                              size="sm"
+                            />
+                            {((content.overlayType as string) || "gradient") !== "none" && (
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <Label className="text-xs text-muted-foreground">
+                                    Overlay Opacity
+                                  </Label>
+                                  <span className="text-xs tabular-nums text-muted-foreground">
+                                    {Math.round(((content.overlayOpacity as number) ?? 0.6) * 100)}%
+                                  </span>
+                                </div>
+                                <Slider
+                                  value={[((content.overlayOpacity as number) ?? 0.6) * 100]}
+                                  onValueChange={([v]) =>
+                                    handleContentChange({ ...content, overlayOpacity: v / 100 })
+                                  }
+                                  min={0}
+                                  max={100}
+                                  step={5}
+                                  className="w-full"
+                                />
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </>
+                    )}
 
-      {/* JSON toggle for structured editors */}
-      {isStructured && (
-        <>
-          <Separator />
-          <div className="space-y-3">
-            <button
-              type="button"
-              className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
-              onClick={() => setShowJson(!showJson)}
-            >
-              {showJson ? "Hide JSON" : "Show JSON"}
-            </button>
-            {showJson && (
-              <JsonEditor content={content} onChange={handleContentChange} />
-            )}
+                    {/* --- Advanced --- */}
+                    {id === "advanced" && (
+                      <>
+                        <EditorToggle
+                          label="Animations"
+                          description="Enable scroll and entrance animations"
+                          checked={section.enableAnimations}
+                          onCheckedChange={(v) => updateDisplay("enableAnimations", v)}
+                        />
+                        <EditorToggle
+                          label="Visible"
+                          description="Hidden sections are only visible in the builder"
+                          checked={section.visible}
+                          onCheckedChange={(v) => updateDisplay("visible", v)}
+                        />
+                        <Separator />
+                        <EditorInput
+                          label="Section Label"
+                          value={section.label ?? ""}
+                          onChange={(val) => onChange({ label: val || null })}
+                          placeholder="Optional admin-only label"
+                          description="An internal label to help you identify this section. Not shown on the website."
+                        />
+                        {isStructured && (
+                          <>
+                            <Separator />
+                            <button
+                              type="button"
+                              className="text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors"
+                              onClick={() => setShowJson(!showJson)}
+                            >
+                              {showJson ? "Hide JSON" : "Show JSON"}
+                            </button>
+                            {showJson && (
+                              <JsonEditor content={content} onChange={handleContentChange} />
+                            )}
+                          </>
+                        )}
+                        <Separator />
+                        <div className="pt-2 pb-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                            onClick={() => onDelete(section.id)}
+                          >
+                            <Trash2 className="size-3.5 mr-2" />
+                            Delete Section
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
           </div>
-        </>
-      )}
-
-      <Separator />
-
-      {/* Delete Section */}
-      <div className="pt-2 pb-4">
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
-          onClick={() => onDelete(section.id)}
-        >
-          <Trash2 className="size-3.5 mr-2" />
-          Delete Section
-        </Button>
-      </div>
+        )
+      })}
     </div>
   )
 }
 
-/**
- * Right-side drawer for inline section editing.
- * Slides in from the right, 320px wide.
- */
-/** Find a menu item by ID across nested children. */
+// --- Helper functions ---
+
 function findMenuItemById(items: MenuItemData[], id: string): MenuItemData | null {
   for (const item of items) {
     if (item.id === id) return item
@@ -219,13 +436,12 @@ function findMenuItemById(items: MenuItemData[], id: string): MenuItemData | nul
   return null
 }
 
-/** Infer the NavItemType for the NavItemEditor from a MenuItemData. */
 function inferNavItemType(item: MenuItemData): import("../navigation-item-editor").NavItemType {
   if (item.parentId === null) {
     const hasChildren = (item.children?.length ?? 0) > 0
     if (item.href && hasChildren) return "top-level-page"
     if (!item.href && hasChildren) return "top-level-folder"
-    if (item.href) return "page" // top-level single link
+    if (item.href) return "page"
     return "top-level-folder"
   }
   if (item.featuredTitle && item.sortOrder >= 99) return "featured"
@@ -233,6 +449,11 @@ function inferNavItemType(item: MenuItemData): import("../navigation-item-editor
   return "page"
 }
 
+/**
+ * Right-side drawer (320px). For section editing, the drawer is:
+ * - Fixed header (title + close)
+ * - Accordion that fills all remaining space (no outer scroll)
+ */
 export function BuilderRightDrawer({
   section,
   onClose,
@@ -255,7 +476,6 @@ export function BuilderRightDrawer({
   onFooterClose,
   onFooterUpdated,
 }: BuilderRightDrawerProps) {
-  // Resolve the nav item being edited
   const editingNavItem = editingNavItemId && menuItems
     ? findMenuItemById(menuItems, editingNavItemId)
     : null
@@ -270,8 +490,6 @@ export function BuilderRightDrawer({
     ? sectionTypeLabels[section.sectionType] ?? section.sectionType
     : ""
 
-  // NavItemEditor and NavSettingsForm render their own headers,
-  // so we only render the shared header for section editing
   const showSharedHeader = showSection
   const title = `Edit ${typeLabel}`
 
@@ -284,7 +502,6 @@ export function BuilderRightDrawer({
     >
       {isOpen && (
         <>
-          {/* Nav Item Editor (has its own header) */}
           {showNavItem && editingNavItem && menuId && pages && (
             <NavItemEditor
               item={editingNavItem as NavEditorMenuItem}
@@ -296,7 +513,6 @@ export function BuilderRightDrawer({
             />
           )}
 
-          {/* Nav Settings Form (has its own header) */}
           {showNavSettings && (
             <NavSettingsForm
               initialSettings={initialNavbarSettings}
@@ -305,7 +521,6 @@ export function BuilderRightDrawer({
             />
           )}
 
-          {/* Footer Menu Editor (has its own header) */}
           {showFooter && footerMenuId && (
             <FooterMenuEditor
               menuId={footerMenuId}
@@ -315,7 +530,6 @@ export function BuilderRightDrawer({
             />
           )}
 
-          {/* Shared header for section editing */}
           {showSharedHeader && (
             <div className="h-14 border-b flex items-center justify-between px-4 bg-muted/30 shrink-0">
               <h3 className="font-semibold text-xs uppercase tracking-wider text-foreground truncate pr-2">
@@ -332,18 +546,13 @@ export function BuilderRightDrawer({
             </div>
           )}
 
-          {/* Scrollable content for section editing */}
           {showSection && section && (
-            <ScrollArea className="flex-1 min-h-0">
-              <div className="p-4 min-w-0 overflow-hidden">
-                <SectionEditorInline
-                  key={section.id}
-                  section={section}
-                  onChange={onChange}
-                  onDelete={onDelete}
-                />
-              </div>
-            </ScrollArea>
+            <SectionEditorInline
+              key={section.id}
+              section={section}
+              onChange={onChange}
+              onDelete={onDelete}
+            />
           )}
         </>
       )}
