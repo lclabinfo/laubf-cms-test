@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect, useRef } from "react"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import {
@@ -14,6 +15,7 @@ import {
   Star,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -163,11 +165,21 @@ function ItemContextMenu({
           </DropdownMenuItem>
         )}
 
+        {/* Remove from Menu — nav action, not page-destructive */}
+        <DropdownMenuItem
+          onClick={() => onDeleteItem(item.id)}
+        >
+          Remove from Menu
+        </DropdownMenuItem>
+
         {/* Dropdown-specific: Add Item / Add Section */}
         {isDropdown && onAddChildItem && (
-          <DropdownMenuItem onClick={() => onAddChildItem(null)}>
-            Add Item
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onAddChildItem(null)}>
+              Add Item
+            </DropdownMenuItem>
+          </>
         )}
         {isDropdown && onAddSection && (
           <DropdownMenuItem onClick={() => onAddSection()}>
@@ -186,31 +198,6 @@ function ItemContextMenu({
           <DropdownMenuItem onClick={() => onConvertToDropdown(item)}>
             Convert to Dropdown
           </DropdownMenuItem>
-        )}
-
-        {/* Page management */}
-        {isPageItem && resolvedPage && (
-          <>
-            <DropdownMenuSeparator />
-            {onPageSettings && (
-              <DropdownMenuItem onClick={() => onPageSettings(resolvedPage)}>
-                Page Settings
-              </DropdownMenuItem>
-            )}
-            {onDuplicatePage && (
-              <DropdownMenuItem onClick={() => onDuplicatePage(resolvedPageId!)}>
-                Duplicate Page
-              </DropdownMenuItem>
-            )}
-            {onDeletePage && !resolvedPage.isHomepage && (
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => onDeletePage(resolvedPageId!)}
-              >
-                Delete Page
-              </DropdownMenuItem>
-            )}
-          </>
         )}
 
         {/* Move to submenu (child items only) */}
@@ -237,14 +224,33 @@ function ItemContextMenu({
           </>
         )}
 
-        {/* Remove from Menu (always last, destructive) */}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="text-destructive focus:text-destructive"
-          onClick={() => onDeleteItem(item.id)}
-        >
-          Remove from Menu
-        </DropdownMenuItem>
+        {/* Page management */}
+        {isPageItem && resolvedPage && (
+          <>
+            <DropdownMenuSeparator />
+            {onPageSettings && (
+              <DropdownMenuItem onClick={() => onPageSettings(resolvedPage)}>
+                Page Settings
+              </DropdownMenuItem>
+            )}
+            {onDuplicatePage && (
+              <DropdownMenuItem onClick={() => onDuplicatePage(resolvedPageId!)}>
+                Duplicate Page
+              </DropdownMenuItem>
+            )}
+            {onDeletePage && !resolvedPage.isHomepage && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => onDeletePage(resolvedPageId!)}
+                >
+                  Delete Page
+                </DropdownMenuItem>
+              </>
+            )}
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -447,6 +453,175 @@ export function TreeItemOverlay({
         )}
       >
         {item.label}
+      </span>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// SortableSectionHeader — draggable group header for nav sections
+// ---------------------------------------------------------------------------
+
+export interface SortableSectionHeaderProps {
+  id: string
+  label: string
+  depth: number
+  indentWidth?: number
+  isGhost?: boolean
+  onRename: (newName: string) => void
+  onUngroup: () => void
+}
+
+export function SortableSectionHeader({
+  id,
+  label,
+  depth,
+  indentWidth = 28,
+  isGhost,
+  onRename,
+  onUngroup,
+}: SortableSectionHeaderProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id })
+
+  const [editing, setEditing] = useState(false)
+  const [editValue, setEditValue] = useState(label)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (editing) {
+      // Wait a tick so the input is mounted before focusing
+      requestAnimationFrame(() => {
+        inputRef.current?.focus()
+        inputRef.current?.select()
+      })
+    }
+  }, [editing])
+
+  // Keep editValue in sync if label changes externally
+  useEffect(() => {
+    setEditValue(label)
+  }, [label])
+
+  const commitRename = () => {
+    const trimmed = editValue.trim()
+    if (trimmed && trimmed !== label) {
+      onRename(trimmed)
+    } else {
+      setEditValue(label)
+    }
+    setEditing(false)
+  }
+
+  const cancelRename = () => {
+    setEditValue(label)
+    setEditing(false)
+  }
+
+  // Editing mode: show input
+  if (editing) {
+    return (
+      <div
+        style={{ paddingLeft: depth * indentWidth + 8 }}
+        className="flex items-center gap-1.5 py-1.5 mt-2 pr-2"
+      >
+        <Input
+          ref={inputRef}
+          value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={commitRename}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault()
+              commitRename()
+            } else if (e.key === "Escape") {
+              e.preventDefault()
+              cancelRename()
+            }
+          }}
+          className="h-6 text-[10px] font-semibold uppercase tracking-wider px-1.5"
+        />
+      </div>
+    )
+  }
+
+  // Normal mode: draggable section header
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Translate.toString(transform),
+        transition,
+        paddingLeft: depth * indentWidth + 8,
+        opacity: isGhost ? 0.3 : 1,
+      }}
+      className="group/section flex items-center justify-between py-1.5 mt-2 pr-2 rounded-md hover:bg-muted/30 transition-colors"
+    >
+      {/* Drag handle */}
+      <div
+        className="flex items-center gap-1.5 flex-1 min-w-0"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="size-3 shrink-0 text-muted-foreground/30 cursor-grab" />
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 group-hover/section:text-muted-foreground transition-colors truncate">
+          {label}
+        </span>
+      </div>
+
+      {/* Context menu */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-5 w-5 shrink-0 opacity-0 group-hover/section:opacity-100 data-[state=open]:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <MoreHorizontal className="size-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuItem onClick={() => setEditing(true)}>
+            Rename
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="text-destructive focus:text-destructive"
+            onClick={onUngroup}
+          >
+            Remove Grouping
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// SectionHeaderOverlay — static render for DragOverlay
+// ---------------------------------------------------------------------------
+
+export function SectionHeaderOverlay({
+  label,
+  depth,
+}: {
+  label: string
+  depth: number
+}) {
+  return (
+    <div
+      className="flex items-center gap-1.5 rounded-md border border-border bg-sidebar px-2 py-1.5 shadow-lg max-w-[280px]"
+      style={{ paddingLeft: depth * 28 + 8 }}
+    >
+      <GripVertical className="size-3 shrink-0 text-muted-foreground/30" />
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground truncate">
+        {label}
       </span>
     </div>
   )

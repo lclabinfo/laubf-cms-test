@@ -48,8 +48,8 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import type { PageSummary } from "../types"
-import { flattenTree, getProjection } from "./tree-utils"
-import { SortableTreeItem, TreeItemOverlay } from "./sortable-tree-item"
+import { flattenTree, getProjection, isSectionId, parseSectionId } from "./tree-utils"
+import { SortableTreeItem, TreeItemOverlay, SortableSectionHeader, SectionHeaderOverlay } from "./sortable-tree-item"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -508,104 +508,6 @@ function NavHiddenPagesSection({
 }
 
 // ---------------------------------------------------------------------------
-// SectionHeader — interactive group label with inline rename
-// ---------------------------------------------------------------------------
-
-function SectionHeader({
-  label,
-  depth,
-  indentWidth,
-  onRename,
-  onUngroup,
-}: {
-  label: string
-  depth: number
-  indentWidth: number
-  onRename: (newName: string) => void
-  onUngroup: () => void
-}) {
-  const [editing, setEditing] = useState(false)
-  const [editValue, setEditValue] = useState(label)
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  useEffect(() => {
-    if (editing) {
-      inputRef.current?.focus()
-      inputRef.current?.select()
-    }
-  }, [editing])
-
-  const handleSubmit = () => {
-    const trimmed = editValue.trim()
-    if (trimmed && trimmed !== label) {
-      onRename(trimmed)
-    }
-    setEditing(false)
-    setEditValue(label)
-  }
-
-  if (editing) {
-    return (
-      <div
-        className="flex items-center gap-1.5 py-1 mt-2 pr-2"
-        style={{ paddingLeft: depth * indentWidth + 8 }}
-      >
-        <Input
-          ref={inputRef}
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          className="h-7 text-xs flex-1"
-          placeholder="Section name"
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleSubmit()
-            if (e.key === "Escape") {
-              setEditing(false)
-              setEditValue(label)
-            }
-          }}
-          onBlur={handleSubmit}
-        />
-      </div>
-    )
-  }
-
-  return (
-    <div
-      className="group/section flex items-center justify-between py-1.5 mt-2 pr-2 rounded-md hover:bg-muted/30 transition-colors cursor-default"
-      style={{ paddingLeft: depth * indentWidth + 8 }}
-    >
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 group-hover/section:text-muted-foreground transition-colors truncate">
-        {label}
-      </span>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-5 w-5 shrink-0 opacity-0 group-hover/section:opacity-100 data-[state=open]:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <MoreHorizontal className="size-3.5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-44">
-          <DropdownMenuItem onClick={() => setEditing(true)}>
-            Rename
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className="text-destructive focus:text-destructive"
-            onClick={onUngroup}
-          >
-            Remove Grouping
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // NavigationEditor (main component)
 // ---------------------------------------------------------------------------
 
@@ -756,6 +658,12 @@ export function NavigationEditor({
     setOverId(id)
     setOffsetLeft(0)
 
+    // Section headers don't have children to collapse
+    if (isSectionId(id)) {
+      dragExpandedRef.current = null
+      return
+    }
+
     // Collapse the dragged item's children during drag (visual clarity)
     // but remember it so we can re-expand after drop
     if (expandedIds.has(id)) {
@@ -803,6 +711,84 @@ export function NavigationEditor({
     setOffsetLeft(0)
 
     if (!over || active.id === over.id) return
+
+    // Section header drag — reorder entire group
+    if (isSectionId(active.id as string)) {
+      const sectionInfo = parseSectionId(active.id as string)
+      if (!sectionInfo) return
+
+      const { parentId: sectionParentId, groupLabel } = sectionInfo
+      const parent = items.find(i => i.id === sectionParentId)
+      if (!parent?.children) return
+
+      // Get all children sorted by sortOrder
+      const sortedChildren = [...parent.children].sort((a, b) => a.sortOrder - b.sortOrder)
+
+      // Group children by their groupLabel (preserving order)
+      const groups: { label: string | null; items: MenuItemData[] }[] = []
+      let currentLabel: string | null | undefined
+      for (const child of sortedChildren) {
+        if (child.groupLabel !== currentLabel) {
+          currentLabel = child.groupLabel
+          groups.push({ label: child.groupLabel, items: [] })
+        }
+        groups[groups.length - 1].items.push(child)
+      }
+
+      // Find the dragged group and the target position
+      const draggedGroupIdx = groups.findIndex(g => g.label === groupLabel)
+      if (draggedGroupIdx === -1) return
+
+      // Determine target group index from over.id
+      let targetGroupIdx = draggedGroupIdx
+      const overIdStr = over.id as string
+      if (isSectionId(overIdStr)) {
+        const overSection = parseSectionId(overIdStr)
+        if (overSection) {
+          targetGroupIdx = groups.findIndex(g => g.label === overSection.groupLabel)
+        }
+      } else {
+        // Dropped on a regular item — find which group it belongs to
+        const overChild = sortedChildren.find(c => c.id === overIdStr)
+        if (overChild) {
+          targetGroupIdx = groups.findIndex(g => g.label === overChild.groupLabel)
+        }
+      }
+
+      if (targetGroupIdx === -1 || draggedGroupIdx === targetGroupIdx) return
+
+      // Move the group
+      const reorderedGroups = [...groups]
+      const [movedGroup] = reorderedGroups.splice(draggedGroupIdx, 1)
+      reorderedGroups.splice(targetGroupIdx, 0, movedGroup)
+
+      // Flatten back to a single ordered array of IDs
+      const reorderedIds = reorderedGroups.flatMap(g => g.items.map(i => i.id))
+
+      // Optimistic update
+      setItems(prev => prev.map(item => {
+        if (item.id !== sectionParentId) return item
+        const newChildren = (item.children ?? []).map(c => {
+          const idx = reorderedIds.indexOf(c.id)
+          return idx !== -1 ? { ...c, sortOrder: idx } : c
+        })
+        return { ...item, children: newChildren }
+      }))
+
+      // API call
+      try {
+        await fetch(`/api/v1/menus/${menuId}/items/${sectionParentId}/children`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ itemIds: reorderedIds }),
+        })
+        await refreshMenu()
+      } catch {
+        toast.error("Failed to reorder sections")
+        await refreshMenu()
+      }
+      return
+    }
 
     const activeItem = flattenedItems.find((fi) => fi.item.id === active.id)
     const overItem = flattenedItems.find((fi) => fi.item.id === over.id)
@@ -1326,59 +1312,75 @@ export function NavigationEditor({
               onDragCancel={handleDragCancel}
             >
               <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-                {flattenedItems.map((fi, idx) => {
-                  const { item, depth, parentId: fiParentId } = fi
+                {flattenedItems.map((fi) => {
+                  const { item, depth, parentId: fiParentId, type: fiType } = fi
+
+                  // Section header — sortable
+                  if (fiType === "section-header") {
+                    const sectionInfo = parseSectionId(item.id)
+                    return (
+                      <SortableSectionHeader
+                        key={item.id}
+                        id={item.id}
+                        label={item.groupLabel ?? item.label}
+                        depth={depth}
+                        indentWidth={INDENT_WIDTH}
+                        isGhost={activeId === item.id}
+                        onRename={(newName) => {
+                          if (sectionInfo) handleRenameGroup(sectionInfo.parentId, sectionInfo.groupLabel, newName)
+                        }}
+                        onUngroup={() => {
+                          if (sectionInfo) handleUngroupItems(sectionInfo.parentId, sectionInfo.groupLabel)
+                        }}
+                      />
+                    )
+                  }
+
+                  // Regular item
                   const hasChildren = (item.children?.length ?? 0) > 0
                   const isExpanded = expandedIds.has(item.id)
                   const resolvedPage = item.isExternal ? null : resolvePageId(item.href)
 
-                  // Show section header when groupLabel changes between consecutive children
-                  const prevFi = idx > 0 ? flattenedItems[idx - 1] : null
-                  const showSectionHeader = depth > 0 && item.groupLabel &&
-                    (!prevFi || prevFi.depth === 0 || prevFi.item.groupLabel !== item.groupLabel)
-
                   return (
-                    <div key={item.id}>
-                      {showSectionHeader && item.groupLabel && (
-                        <SectionHeader
-                          label={item.groupLabel}
-                          depth={depth}
-                          indentWidth={INDENT_WIDTH}
-                          onRename={(newName) => handleRenameGroup(fiParentId!, item.groupLabel!, newName)}
-                          onUngroup={() => handleUngroupItems(fiParentId!, item.groupLabel!)}
-                        />
-                      )}
-                      <SortableTreeItem
-                        item={item}
-                        depth={activeId === item.id && projected ? projected.depth : depth}
-                        indentWidth={INDENT_WIDTH}
-                        isGhost={activeId === item.id}
-                        hasChildren={hasChildren}
-                        isExpanded={isExpanded}
-                        onToggleExpand={() => toggleExpand(item.id)}
-                        resolvedPageId={resolvedPage}
-                        activePageId={activePageId}
-                        onPageSelect={onPageSelect}
-                        onEditItem={onEditItem}
-                        onDeleteItem={handleDeleteItem}
-                        pages={pages}
-                        onPageSettings={onPageSettings}
-                        onDeletePage={onDeletePage}
-                        onDuplicatePage={onDuplicatePage}
-                        onMoveToParent={handleMoveToParent}
-                        moveTargets={moveTargets.filter((t) => t.id !== fiParentId)}
-                        onConvertToDropdown={handleConvertToDropdown}
-                        onConvertToPage={handleConvertToPage}
-                        onAddChildItem={depth === 0 ? (groupLabel) => handleAddChildItem(item.id, groupLabel) : undefined}
-                        onAddSection={depth === 0 ? () => handleAddSection(item.id) : undefined}
-                      />
-                    </div>
+                    <SortableTreeItem
+                      key={item.id}
+                      item={item}
+                      depth={activeId === item.id && projected ? projected.depth : depth}
+                      indentWidth={INDENT_WIDTH}
+                      isGhost={activeId === item.id}
+                      hasChildren={hasChildren}
+                      isExpanded={isExpanded}
+                      onToggleExpand={() => toggleExpand(item.id)}
+                      resolvedPageId={resolvedPage}
+                      activePageId={activePageId}
+                      onPageSelect={onPageSelect}
+                      onEditItem={onEditItem}
+                      onDeleteItem={handleDeleteItem}
+                      pages={pages}
+                      onPageSettings={onPageSettings}
+                      onDeletePage={onDeletePage}
+                      onDuplicatePage={onDuplicatePage}
+                      onMoveToParent={handleMoveToParent}
+                      moveTargets={moveTargets.filter((t) => t.id !== fiParentId)}
+                      onConvertToDropdown={handleConvertToDropdown}
+                      onConvertToPage={handleConvertToPage}
+                      onAddChildItem={depth === 0 ? (groupLabel) => handleAddChildItem(item.id, groupLabel) : undefined}
+                      onAddSection={depth === 0 ? () => handleAddSection(item.id) : undefined}
+                    />
                   )
                 })}
               </SortableContext>
 
               <DragOverlay>
                 {activeId && (() => {
+                  // Check if active item is a section header
+                  if (isSectionId(activeId)) {
+                    const sectionInfo = parseSectionId(activeId)
+                    if (sectionInfo) {
+                      return <SectionHeaderOverlay label={sectionInfo.groupLabel} depth={1} />
+                    }
+                  }
+                  // Regular item overlay
                   const activeItem = flattenedItems.find((fi) => fi.item.id === activeId)
                   if (!activeItem) return null
                   return (

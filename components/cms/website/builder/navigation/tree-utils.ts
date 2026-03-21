@@ -20,6 +20,10 @@ export interface FlattenedItem {
   parentId: string | null
   /** Position in the flat array */
   index: number
+  /** Whether this is a real item or a virtual section header */
+  type: "item" | "section-header"
+  /** Set for section headers and their member items */
+  groupLabel?: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -35,14 +39,77 @@ function sortBySortOrder<T extends { sortOrder: number }>(items: T[]): T[] {
 }
 
 // ---------------------------------------------------------------------------
+// Section ID helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse a virtual section header id like "section::parentId::groupLabel"
+ * into its component parts. Returns null if the id is not a section header.
+ */
+export function parseSectionId(id: string): { parentId: string; groupLabel: string } | null {
+  if (!id.startsWith("section::")) return null
+  const parts = id.split("::")
+  return { parentId: parts[1], groupLabel: parts.slice(2).join("::") }
+}
+
+/**
+ * Check whether an id represents a virtual section header.
+ */
+export function isSectionId(id: string): boolean {
+  return id.startsWith("section::")
+}
+
+// ---------------------------------------------------------------------------
+// getItemsInGroup
+// ---------------------------------------------------------------------------
+
+/**
+ * Return all real (non-header) flattened items that belong to a specific
+ * group under the given parent.
+ */
+export function getItemsInGroup(items: FlattenedItem[], parentId: string, groupLabel: string): FlattenedItem[] {
+  return items.filter(fi => fi.parentId === parentId && fi.type === "item" && fi.item.groupLabel === groupLabel)
+}
+
+// ---------------------------------------------------------------------------
 // flattenTree
 // ---------------------------------------------------------------------------
+
+/**
+ * Create a minimal fake MenuItemData for a virtual section header.
+ */
+function makeSectionHeaderItem(parentItem: MenuItemData, groupLabel: string): MenuItemData {
+  return {
+    id: `section::${parentItem.id}::${groupLabel}`,
+    menuId: parentItem.menuId,
+    label: groupLabel,
+    href: null,
+    description: null,
+    iconName: null,
+    openInNewTab: false,
+    isExternal: false,
+    parentId: parentItem.id,
+    groupLabel: groupLabel,
+    featuredImage: null,
+    featuredTitle: null,
+    featuredDescription: null,
+    featuredHref: null,
+    scheduleMeta: null,
+    sortOrder: -1,
+    isVisible: true,
+  }
+}
 
 /**
  * Flatten a tree-shaped menu (top-level items with `children` arrays) into a
  * single ordered array. Top-level items get depth 0, their children get
  * depth 1. Items are sorted by `sortOrder` at each level. Children are only
  * included when their parent is in `expandedIds`.
+ *
+ * When a parent is expanded, children are grouped by `groupLabel`. A virtual
+ * section header entry is inserted before each group of items that share a
+ * non-null `groupLabel`. Items with `groupLabel: null` are emitted without
+ * a header.
  */
 export function flattenTree(
   items: MenuItemData[],
@@ -52,11 +119,49 @@ export function flattenTree(
   let index = 0
 
   for (const item of sortBySortOrder(items)) {
-    result.push({ item, depth: 0, parentId: null, index: index++ })
+    result.push({ item, depth: 0, parentId: null, index: index++, type: "item" })
 
     if (item.children?.length && expandedIds.has(item.id)) {
-      for (const child of sortBySortOrder(item.children)) {
-        result.push({ item: child, depth: 1, parentId: item.id, index: index++ })
+      const sortedChildren = sortBySortOrder(item.children)
+
+      // Collect distinct group labels in their first-appearance order
+      const seenGroups = new Set<string>()
+      const groupOrder: (string | null)[] = []
+      for (const child of sortedChildren) {
+        const gl = child.groupLabel ?? null
+        const key = gl ?? "__null__"
+        if (!seenGroups.has(key)) {
+          seenGroups.add(key)
+          groupOrder.push(gl)
+        }
+      }
+
+      // Emit children grouped, with section headers for non-null groups
+      for (const gl of groupOrder) {
+        const groupChildren = sortedChildren.filter(c => (c.groupLabel ?? null) === gl)
+
+        if (gl !== null) {
+          // Insert virtual section header
+          result.push({
+            item: makeSectionHeaderItem(item, gl),
+            depth: 1,
+            parentId: item.id,
+            index: index++,
+            type: "section-header",
+            groupLabel: gl,
+          })
+        }
+
+        for (const child of groupChildren) {
+          result.push({
+            item: child,
+            depth: 1,
+            parentId: item.id,
+            index: index++,
+            type: "item",
+            groupLabel: gl,
+          })
+        }
       }
     }
   }
@@ -88,7 +193,30 @@ export function getProjection(
 ): { depth: number; parentId: string | null } | null {
   const MAX_DEPTH = 1
 
-  const overIndex = items.findIndex((i) => i.item.id === overId)
+  // If overId is a section header, resolve it to the first real item in that
+  // section so we project against a valid drop target.
+  let resolvedOverId = overId
+  if (isSectionId(overId)) {
+    const parsed = parseSectionId(overId)
+    if (parsed) {
+      const firstInGroup = items.find(
+        i => i.type === "item" && i.parentId === parsed.parentId && i.item.groupLabel === parsed.groupLabel,
+      )
+      if (firstInGroup) {
+        resolvedOverId = firstInGroup.item.id
+      } else {
+        // Section header with no items — find the parent instead
+        const parent = items.find(i => i.item.id === parsed.parentId)
+        if (parent) {
+          resolvedOverId = parent.item.id
+        } else {
+          return null
+        }
+      }
+    }
+  }
+
+  const overIndex = items.findIndex((i) => i.item.id === resolvedOverId)
   const activeIndex = items.findIndex((i) => i.item.id === activeId)
 
   if (overIndex === -1 || activeIndex === -1) return null
@@ -100,7 +228,7 @@ export function getProjection(
 
   // Find where overId sits in the filtered list
   const overIndexFiltered = itemsWithoutActive.findIndex(
-    (i) => i.item.id === overId,
+    (i) => i.item.id === resolvedOverId,
   )
   if (overIndexFiltered === -1) return null
 

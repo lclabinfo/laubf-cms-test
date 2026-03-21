@@ -1157,6 +1157,18 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
       const target = pages.find((p) => p.id === pageId)
       if (!target) return
 
+      // Fetch full page data before deleting so we can undo
+      let fullPageData: Record<string, unknown> | null = null
+      try {
+        const fetchRes = await fetch(`/api/v1/pages/${target.slug || target.id}`)
+        if (fetchRes.ok) {
+          const { data } = await fetchRes.json()
+          fullPageData = data
+        }
+      } catch {
+        // Continue with delete even if we can't fetch for undo
+      }
+
       try {
         const res = await fetch(`/api/v1/pages/${target.slug || target.id}`, {
           method: "DELETE",
@@ -1176,13 +1188,83 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           }
         }
 
-        toast.success("Page deleted")
+        toast.success(`"${target.title}" deleted`, {
+          action: fullPageData
+            ? {
+                label: "Undo",
+                onClick: async () => {
+                  try {
+                    // Recreate the page
+                    const createRes = await fetch("/api/v1/pages", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        title: fullPageData!.title,
+                        slug: fullPageData!.slug,
+                        pageType: fullPageData!.pageType,
+                        layout: fullPageData!.layout,
+                        isPublished: fullPageData!.isPublished,
+                        isHomepage: fullPageData!.isHomepage,
+                        sortOrder: fullPageData!.sortOrder,
+                        parentId: fullPageData!.parentId,
+                        metaTitle: fullPageData!.metaTitle,
+                        metaDescription: fullPageData!.metaDescription,
+                      }),
+                    })
+                    if (!createRes.ok) throw new Error("Failed to restore page")
+                    const { data: newPage } = await createRes.json()
+
+                    // Recreate all sections
+                    const oldSections = (fullPageData!.sections as Array<Record<string, unknown>>) ?? []
+                    for (let i = 0; i < oldSections.length; i++) {
+                      const s = oldSections[i]
+                      await fetch(`/api/v1/pages/${newPage.slug || newPage.id}/sections`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          sectionType: s.sectionType,
+                          sortOrder: s.sortOrder ?? i,
+                          content: s.content,
+                          visible: s.visible,
+                          colorScheme: s.colorScheme,
+                          paddingY: s.paddingY,
+                          containerWidth: s.containerWidth,
+                          enableAnimations: s.enableAnimations,
+                          label: s.label,
+                          dataSource: s.dataSource,
+                        }),
+                      })
+                    }
+
+                    // Add restored page to local list
+                    setPages((prev) => [
+                      ...prev,
+                      {
+                        id: newPage.id,
+                        slug: newPage.slug,
+                        title: newPage.title,
+                        pageType: newPage.pageType,
+                        isHomepage: newPage.isHomepage,
+                        isPublished: newPage.isPublished,
+                        sortOrder: newPage.sortOrder,
+                        parentId: newPage.parentId,
+                      },
+                    ])
+                    router.refresh()
+                    toast.success(`"${target.title}" restored`)
+                  } catch {
+                    toast.error("Failed to restore page")
+                  }
+                },
+              }
+            : undefined,
+        })
       } catch (err) {
         console.error("Delete page error:", err)
         toast.error("Failed to delete page")
       }
     },
-    [pendingDeletePageId, pages, pageData.id, navigateAway],
+    [pendingDeletePageId, pages, pageData.id, navigateAway, router],
   )
 
   const cancelDeletePage = useCallback(() => {
@@ -1493,6 +1575,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           selectedSectionId={selectedSectionId}
           onSelectSection={(id) => {
             setSelectedSectionId(id)
+            setEditingSectionId(id)
             setEditingNavbar(false)
             setEditingNavItemId(null)
             setEditingNavSettings(false)
