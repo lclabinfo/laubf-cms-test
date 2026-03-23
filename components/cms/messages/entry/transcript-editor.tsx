@@ -26,7 +26,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import dynamic from "next/dynamic"
+
+const RichTextEditor = dynamic(
+  () => import("@/components/ui/rich-text-editor").then((m) => m.RichTextEditor),
+  { ssr: false, loading: () => <div className="h-64 animate-pulse rounded-md bg-muted" /> },
+)
 import type { TranscriptSegment } from "@/lib/messages-data"
 
 interface TranscriptEditorProps {

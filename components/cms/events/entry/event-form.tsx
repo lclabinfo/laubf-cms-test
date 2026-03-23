@@ -26,13 +26,22 @@ import {
   X,
   HelpCircleIcon,
 } from "lucide-react"
-import { EventContactList } from "./event-contact-list"
+import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
-import { RichTextEditor } from "@/components/ui/rich-text-editor"
+
+const RichTextEditor = dynamic(
+  () => import("@/components/ui/rich-text-editor").then((m) => m.RichTextEditor),
+  { ssr: false, loading: () => <div className="h-64 animate-pulse rounded-md bg-muted" /> },
+)
+
+const EventContactList = dynamic(
+  () => import("./event-contact-list").then((m) => m.EventContactList),
+  { ssr: false, loading: () => <div className="h-32 animate-pulse rounded-md bg-muted" /> },
+)
 import { DatePicker } from "@/components/ui/date-picker"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Toggle } from "@/components/ui/toggle"

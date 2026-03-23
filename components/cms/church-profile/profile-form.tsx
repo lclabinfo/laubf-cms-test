@@ -34,7 +34,12 @@ import {
 } from "@/lib/church-profile-data"
 import { BibleVersionSettings } from "./bible-version-settings"
 import { SavedAddressSettings } from "./saved-address-settings"
-import { QuickLinksEditor } from "./quick-links-editor"
+import dynamic from "next/dynamic"
+
+const QuickLinksEditor = dynamic(
+  () => import("./quick-links-editor").then((m) => m.QuickLinksEditor),
+  { ssr: false, loading: () => <div className="h-40 animate-pulse rounded-md bg-muted" /> },
+)
 
 // ─── Section names ───────────────────────────────────────────────
 type SectionKey = "identity" | "location" | "contact" | "worship" | "social"

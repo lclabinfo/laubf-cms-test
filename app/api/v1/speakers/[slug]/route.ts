@@ -34,7 +34,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
       )
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       data: {
         id: person.id,
@@ -46,6 +46,8 @@ export async function GET(_request: NextRequest, { params }: Params) {
         email: person.email,
       },
     })
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    return response
   } catch (error) {
     console.error('GET /api/v1/speakers/[slug] error:', error)
     return NextResponse.json(

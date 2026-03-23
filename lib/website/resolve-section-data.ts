@@ -212,7 +212,7 @@ export async function resolveSectionData(
       }
 
       case 'all-messages': {
-        const messagesResult = await getMessages(churchId, { pageSize: 5000, videoPublished: true })
+        const messagesResult = await getMessages(churchId, { pageSize: 50, videoPublished: true })
         const withVideo = messagesResult.data.filter((m) => m.youtubeId || m.videoUrl)
         return {
           content,
@@ -239,7 +239,7 @@ export async function resolveSectionData(
       }
 
       case 'all-events': {
-        const eventsResult = await getEvents(churchId, { pageSize: 5000 })
+        const eventsResult = await getEvents(churchId, { pageSize: 50 })
         return {
           content,
           resolvedData: {
@@ -266,7 +266,7 @@ export async function resolveSectionData(
       }
 
       case 'all-bible-studies': {
-        const result = await getBibleStudies(churchId, { pageSize: 5000 })
+        const result = await getBibleStudies(churchId, { pageSize: 50 })
         return {
           content,
           resolvedData: {
@@ -287,7 +287,7 @@ export async function resolveSectionData(
       }
 
       case 'all-videos': {
-        const result = await getVideos(churchId, { pageSize: 5000 })
+        const result = await getVideos(churchId, { pageSize: 50 })
         return {
           content,
           resolvedData: {

@@ -36,7 +36,9 @@ export async function GET() {
       email: p.email,
     }))
 
-    return NextResponse.json({ success: true, data })
+    const response = NextResponse.json({ success: true, data })
+    response.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    return response
   } catch (error) {
     console.error('GET /api/v1/speakers error:', error)
     return NextResponse.json(

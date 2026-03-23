@@ -4,7 +4,19 @@ import { getPageById, getPages } from "@/lib/dal/pages"
 import { resolveSectionData } from "@/lib/website/resolve-section-data"
 import { buildNavbarProps, buildFooterProps, buildThemeTokens } from "@/lib/website/build-layout-props"
 import { FontLoader } from "@/components/website/font-loader"
-import { BuilderShell } from "@/components/cms/website/builder/builder-shell"
+import dynamic from "next/dynamic"
+
+const BuilderShell = dynamic(
+  () => import("@/components/cms/website/builder/builder-shell").then((m) => m.BuilderShell),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-screen w-full items-center justify-center bg-muted/30">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    ),
+  },
+)
 import type { SectionType } from "@/lib/db/types"
 
 interface BuilderPageProps {
