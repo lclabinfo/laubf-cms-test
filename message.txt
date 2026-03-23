@@ -1,0 +1,106 @@
+                           
+  메모리 766MB 원인 분석                                                                                                           
+                                                                                                                                   
+  메모리 내역 (추정)                                                                                                               
+                                                                                                                                   
+  ┌────────────────────────────────┬─────────────┬─────────────────────────────────────┐                                           
+  │           구성 요소            │ 추정 메모리 │                설명                 │
+  ├────────────────────────────────┼─────────────┼─────────────────────────────────────┤                                           
+  │ Next.js 서버 기본              │      ~150MB │ v16.1.6 + 878개 서버 JS 파일        │
+  ├────────────────────────────────┼─────────────┼─────────────────────────────────────┤
+  │ Prisma Client + pg 어댑터      │       ~80MB │ 43 모델, 30 enum, PostgreSQL 어댑터 │                                           
+  ├────────────────────────────────┼─────────────┼─────────────────────────────────────┤                                           
+  │ V8 Heap (사용 중)              │       185MB │ PM2 메트릭 기준                     │                                           
+  ├────────────────────────────────┼─────────────┼─────────────────────────────────────┤                                           
+  │ V8 Heap 외 (버퍼, 외부 메모리) │      ~580MB │ RSS - Heap = 외부 메모리            │
+  ├────────────────────────────────┼─────────────┼─────────────────────────────────────┤                                           
+  │ 합계 RSS                       │      ~766MB │                                     │
+  └────────────────────────────────┴─────────────┴─────────────────────────────────────┘                                           
+                                                                     
+  핵심 원인                                                                                                                        
+                                                                     
+  1. standalone 모드를 빌드했지만 사용하지 않고 있음                                                                               
+  
+  // next.config.ts                                                                                                                
+  output: 'standalone'  // ✅ 빌드는 standalone으로 함               
+                                                                                                                                   
+  // ecosystem.config.js
+  script: "node_modules/.bin/next"  // ❌ 그런데 일반 모드로 실행 중!                                                              
+  args: "start -p 3012"                                                                                                            
+                                                                                                                                   
+  node_modules/.bin/next start는 전체 1.2GB node_modules를 로드합니다. standalone 서버는 필요한 것만 추출해서 훨씬 가볍습니다.     
+                                                                                                                                   
+  2. Prisma가 production에서 global 캐시 안 됨                                                                                     
+                                                                     
+  // lib/db/client.ts:18                                                                                                           
+  if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+                                                                                                                                   
+  이건 dev에서만 global에 저장합니다. Production에서는 매 요청마다 새 PrismaClient를 만들지는 않지만 (모듈 캐시가 있으므로), Pool이
+   여러 커넥션을 유지하면서 메모리를 씁니다.                                                                                       
+                                                                                                                                   
+  3. V8 힙 사용률 95.89%                                                                                                           
+  
+  힙 제한이 없어서 Node.js가 기본값(~2GB)까지 자유롭게 확장 중입니다. GC가 여유로워서 적극적으로 회수하지 않습니다.                
+                                                                     
+  ---                                                                                                                              
+  줄이는 방법 (효과 큰 순서)                                         
+                                                                                                                                   
+  1. standalone 서버로 실행 (예상 -200~300MB)
+                                                                                                                                   
+  // ecosystem.config.js — 변경                                      
+  module.exports = {                                                                                                               
+    apps: [{                                                         
+      name: "laubf_cms",                                                                                                           
+      script: ".next/standalone/server.js",  // ← standalone 서버    
+      cwd: "/home/ubfuser/digital_church/laubf_cms",                                                                               
+      env: {                                                                                                                       
+        NODE_ENV: "production",                                                                                                    
+        PORT: 3012,                                                                                                                
+        HOSTNAME: "0.0.0.0",                                         
+      },                                                                                                                           
+    }],
+  };                                                                                                                               
+                                                                     
+  그 전에 static/public 파일 심링크:                                                                                               
+  # standalone에는 static 파일이 안 들어가므로 복사 필요
+  cp -r public .next/standalone/public                                                                                             
+  cp -r .next/static .next/standalone/.next/static                                                                                 
+                                                                                                                                   
+  2. V8 힙 제한 설정 (예상 -100~200MB)                                                                                             
+                                                                     
+  // ecosystem.config.js에 추가                                                                                                    
+  node_args: "--max-old-space-size=256",                                                                                           
+                                                                                                                                   
+  256MB로 제한하면 GC가 더 적극적으로 메모리를 회수합니다. 이 규모의 앱이면 충분합니다.                                            
+                                                                                                                                   
+  3. Prisma global 캐시 활성화 (소폭 개선)                                                                                         
+                                                                     
+  // lib/db/client.ts:18 — 변경                                                                                                    
+  // production에서도 global에 저장                                                                                                
+  if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma                                                       
+  // ↓ 변경                                                                                                                        
+  globalForPrisma.prisma ??= prisma                                                                                                
+                                                                                                                                   
+  사실 모듈 캐시로 이미 싱글턴이 보장되지만, 명시적으로 하는 게 안전합니다.                                                        
+                                                                                                                                   
+  4. 미사용 PM2 프로세스 정리 (서버 전체 절약)                                                                                     
+                                                                     
+  laubf (포트 3011) — 237MB — 미사용, 30일간 방치                                                                                  
+                                                                                                                                   
+  pm2 stop laubf && pm2 delete laubf
+                                                                                                                                   
+  ---                                                                
+  적용 시 예상 결과
+                                                                                                                                   
+  ┌────────────────────┬──────────────────────┐
+  │        상태        │         RSS          │                                                                                    
+  ├────────────────────┼──────────────────────┤                                                                                    
+  │ 현재               │                766MB │
+  ├────────────────────┼──────────────────────┤                                                                                    
+  │ standalone 전환 후 │               ~450MB │                      
+  ├────────────────────┼──────────────────────┤                                                                                    
+  │ + heap 제한 256MB  │           ~300~350MB │
+  ├────────────────────┼──────────────────────┤                                                                                    
+  │ + laubf 제거       │ 서버 전체 237MB 절약 │                      
+  └────────────────────┴──────────────────────┘                                                                                    
+                                                           
