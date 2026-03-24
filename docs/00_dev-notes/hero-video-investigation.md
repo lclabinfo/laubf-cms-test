@@ -32,7 +32,7 @@ On the server:
 
 ```bash
 cd /home/ubfuser/digital_church/laubf_cms
-npx prisma db execute --stdin <<< "SELECT content->'backgroundVideo' FROM \"PageSection\" WHERE \"sectionType\" = 'HERO_BANNER' LIMIT 1;"
+
 ```
 
 - Returns `null` → mobile video was never saved to the server's database
