@@ -21,13 +21,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
+import { toast } from "sonner"
+import {
+  MAX_UPLOAD_SIZE,
+  ACCEPTED_IMAGE_TYPES,
+  ACCEPTED_VIDEO_TYPES,
+  ACCEPTED_ALL_MEDIA_TYPES,
+  formatFileSize,
+} from "@/lib/upload-constants"
 
-const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
-const VIDEO_TYPES = ["video/mp4", "video/webm"]
-const ALL_TYPES = [...IMAGE_TYPES, ...VIDEO_TYPES]
-
-const IMAGE_MAX_SIZE = 10 * 1024 * 1024 // 10 MB
-const VIDEO_MAX_SIZE = 15 * 1024 * 1024 // 15 MB
+const IMAGE_TYPES: string[] = [...ACCEPTED_IMAGE_TYPES]
+const VIDEO_TYPES: string[] = [...ACCEPTED_VIDEO_TYPES]
+const ALL_TYPES: string[] = [...ACCEPTED_ALL_MEDIA_TYPES]
 
 const FETCH_LIMIT = 200 // Fetch up to 200 items per folder view
 
@@ -60,9 +65,25 @@ interface MediaItem {
   folder?: string
 }
 
-function getImageDimensions(
+function getMediaDimensions(
   file: File
 ): Promise<{ width: number; height: number }> {
+  if (file.type.startsWith("video/")) {
+    return new Promise((resolve) => {
+      const video = document.createElement("video")
+      video.preload = "metadata"
+      const objectUrl = URL.createObjectURL(file)
+      video.onloadedmetadata = () => {
+        resolve({ width: video.videoWidth, height: video.videoHeight })
+        URL.revokeObjectURL(objectUrl)
+      }
+      video.onerror = () => {
+        resolve({ width: 0, height: 0 })
+        URL.revokeObjectURL(objectUrl)
+      }
+      video.src = objectUrl
+    })
+  }
   return new Promise((resolve) => {
     const img = new globalThis.Image()
     img.onload = () => {
@@ -75,12 +96,6 @@ function getImageDimensions(
     }
     img.src = URL.createObjectURL(file)
   })
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function formatDate(dateStr: string): string {
@@ -104,9 +119,7 @@ export function MediaPickerDialog({
 }: MediaPickerDialogProps) {
   const acceptedTypes = mediaTypeProp === "video" ? VIDEO_TYPES : mediaTypeProp === "all" ? ALL_TYPES : IMAGE_TYPES
   const acceptedTypesString = acceptedTypes.join(",")
-  const maxFileSize = mediaTypeProp === "video" ? VIDEO_MAX_SIZE : IMAGE_MAX_SIZE
-  const isVideoMode = mediaTypeProp === "video"
-  const mediaLabel = isVideoMode ? "video" : mediaTypeProp === "all" ? "media" : "image"
+  const mediaLabel = mediaTypeProp === "video" ? "video" : mediaTypeProp === "all" ? "media" : "image"
   // View
   const [viewMode, setViewMode] = useState<ViewMode>("grid")
   const [searchQuery, setSearchQuery] = useState("")
@@ -259,7 +272,13 @@ export function MediaPickerDialog({
     if (!acceptedTypes.includes(file.type)) {
       return
     }
-    if (file.size > maxFileSize) {
+    if (file.size > MAX_UPLOAD_SIZE) {
+      toast.error(`File exceeds ${formatFileSize(MAX_UPLOAD_SIZE)} limit`, {
+        action: {
+          label: "Try different file",
+          onClick: () => fileInputRef.current?.click(),
+        },
+      })
       return
     }
 
@@ -306,9 +325,8 @@ export function MediaPickerDialog({
         return
       }
 
-      // 3. Get image dimensions (skip for video)
-      const isVideo = file.type.startsWith("video/")
-      const dims = isVideo ? { width: 0, height: 0 } : await getImageDimensions(file)
+      // 3. Get media dimensions (images and videos)
+      const dims = await getMediaDimensions(file)
 
       // 4. Create media record
       const createRes = await fetch("/api/v1/media", {
@@ -484,13 +502,6 @@ export function MediaPickerDialog({
             </Button>
           </div>
         </div>
-
-        {/* Video file size guidance */}
-        {isVideoMode && (
-          <div className="px-5 py-1.5 border-b text-xs text-muted-foreground bg-muted/30 shrink-0">
-            Recommended: under 5 MB for fast loading. Max: {formatFileSize(maxFileSize)}.
-          </div>
-        )}
 
         {/* ---- Body ---- */}
         <div className="flex flex-1 min-h-0">

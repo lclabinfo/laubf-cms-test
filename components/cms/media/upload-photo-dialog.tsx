@@ -14,11 +14,7 @@ import {
 import { toast } from "sonner"
 import type { MediaItem } from "@/lib/media-data"
 import { mediaAssetToItem } from "@/lib/media-data"
-
-const ACCEPTED_TYPES =
-  "image/jpeg,image/png,image/webp,image/gif,audio/mpeg,video/mp4,application/pdf"
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
+import { MAX_UPLOAD_SIZE, ACCEPTED_ALL_MEDIA_TYPES_STRING, formatFileSize } from "@/lib/upload-constants"
 
 interface UploadPhotoDialogProps {
   open: boolean
@@ -35,15 +31,25 @@ interface TrackedFile {
   error?: string
 }
 
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function getImageDimensions(
+function getMediaDimensions(
   file: File
 ): Promise<{ width: number; height: number }> {
+  if (file.type.startsWith("video/")) {
+    return new Promise((resolve) => {
+      const video = document.createElement("video")
+      video.preload = "metadata"
+      const objectUrl = URL.createObjectURL(file)
+      video.onloadedmetadata = () => {
+        resolve({ width: video.videoWidth, height: video.videoHeight })
+        URL.revokeObjectURL(objectUrl)
+      }
+      video.onerror = () => {
+        resolve({ width: 0, height: 0 })
+        URL.revokeObjectURL(objectUrl)
+      }
+      video.src = objectUrl
+    })
+  }
   return new Promise((resolve) => {
     const img = new Image()
     img.onload = () => {
@@ -88,11 +94,11 @@ function UploadPhotoDialogInner({
     if (e.target.files) {
       const newFiles: TrackedFile[] = Array.from(e.target.files).map(
         (file) => {
-          if (file.size > MAX_FILE_SIZE) {
+          if (file.size > MAX_UPLOAD_SIZE) {
             return {
               file,
               status: "error" as const,
-              error: `File exceeds ${formatFileSize(MAX_FILE_SIZE)} limit`,
+              error: `File exceeds ${formatFileSize(MAX_UPLOAD_SIZE)} limit`,
             }
           }
           return { file, status: "pending" as const }
@@ -166,11 +172,11 @@ function UploadPhotoDialogInner({
           continue
         }
 
-        // 3. Get image dimensions (for images)
+        // 3. Get media dimensions (images and videos)
         let width: number | undefined
         let height: number | undefined
-        if (tf.file.type.startsWith("image/")) {
-          const dims = await getImageDimensions(tf.file)
+        if (tf.file.type.startsWith("image/") || tf.file.type.startsWith("video/")) {
+          const dims = await getMediaDimensions(tf.file)
           width = dims.width
           height = dims.height
         }
@@ -246,7 +252,7 @@ function UploadPhotoDialogInner({
             ref={inputRef}
             type="file"
             multiple
-            accept={ACCEPTED_TYPES}
+            accept={ACCEPTED_ALL_MEDIA_TYPES_STRING}
             onChange={handleFileChange}
             className="hidden"
             disabled={isUploading}
@@ -263,8 +269,8 @@ function UploadPhotoDialogInner({
                 setIsDragging(false)
                 if (e.dataTransfer.files?.length) {
                   const newFiles: TrackedFile[] = Array.from(e.dataTransfer.files).map(
-                    (file) => file.size > MAX_FILE_SIZE
-                      ? { file, status: "error" as const, error: `File exceeds ${formatFileSize(MAX_FILE_SIZE)} limit` }
+                    (file) => file.size > MAX_UPLOAD_SIZE
+                      ? { file, status: "error" as const, error: `File exceeds ${formatFileSize(MAX_UPLOAD_SIZE)} limit` }
                       : { file, status: "pending" as const }
                   )
                   setTrackedFiles(newFiles)
@@ -279,8 +285,7 @@ function UploadPhotoDialogInner({
                 {isDragging ? "Drop files here" : "Drag and drop or click to select files"}
               </span>
               <span className="text-xs text-muted-foreground mt-1">
-                Images, videos, audio, and PDFs supported (max{" "}
-                {formatFileSize(MAX_FILE_SIZE)} each)
+                Images and videos supported. Max file size: {formatFileSize(MAX_UPLOAD_SIZE)}
               </span>
             </button>
           ) : (

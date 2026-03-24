@@ -189,7 +189,7 @@ export function Toolbar({
           <DropdownMenuContent align="end" className="min-w-[200px]">
             <DropdownMenuItem onClick={onUploadPhotos}>
               <Upload />
-              Upload Photos
+              Upload Files
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onAddVideo}>
               <Video />

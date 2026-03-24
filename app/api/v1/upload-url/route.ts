@@ -24,6 +24,7 @@ const ALLOWED_MIME_TYPES: Record<string, string[]> = {
     'image/webp',
     'image/gif',
     'video/mp4',
+    'video/webm',
     'audio/mpeg',
     'application/pdf',
   ],
@@ -34,9 +35,9 @@ const ALLOWED_MIME_TYPES: Record<string, string[]> = {
 // ---------------------------------------------------------------------------
 
 function getMaxFileSize(contentType: string): number {
-  if (contentType.startsWith('image/')) return 10 * 1024 * 1024    // 10 MB
+  if (contentType.startsWith('image/')) return 15 * 1024 * 1024    // 15 MB
   if (contentType.startsWith('audio/')) return 100 * 1024 * 1024   // 100 MB
-  if (contentType.startsWith('video/')) return 200 * 1024 * 1024   // 200 MB
+  if (contentType.startsWith('video/')) return 15 * 1024 * 1024    // 15 MB
   return 50 * 1024 * 1024                                          // 50 MB (documents)
 }
 
