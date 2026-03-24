@@ -110,6 +110,41 @@ The 580 MB V8 external is the biggest offender. In non-standalone mode, Node loa
 
 ---
 
+### E. Newly identified optimizations
+
+#### E1. Exclude TypeScript compiler from standalone build
+- **Savings:** ~20-30 MB RSS (14.6 MB JS files loaded + V8 JIT compilation overhead)
+- **Risk:** Zero
+- **Why it's there:** Prisma Client lists `typescript` as an optional peer dependency. Since `typescript` is also a devDependency in `package.json`, npm installs it, and the standalone tracer pulls it into `.next/standalone/node_modules/typescript/` (20 MB on disk). The full TypeScript compiler + CLI are loaded into memory at runtime even though **nothing imports them**.
+- **Fix:** Add `'typescript'` to `serverExternalPackages` in `next.config.ts`. This tells the standalone tracer to skip it. Since no runtime code imports TypeScript, it simply won't be loaded.
+- **Side effects:** None. Verified: no source file imports `typescript` at runtime. Only `eslint.config.mjs` references it (build-time only, not in standalone). The TypeScript compiler is a dev tool -- it has no role in production.
+- **Quick fix?** Yes -- one line added to `next.config.ts`, git-tracked.
+- [ ] Add `'typescript'` to `serverExternalPackages` in `next.config.ts`
+- [ ] **Deploy:** Rebuild on server
+
+#### E2. Disable Next.js Image Optimization (remove sharp)
+- **Savings:** ~15-25 MB RSS (sharp loads a 15 MB native `libvips` binary into memory)
+- **Risk:** Zero for this project
+- **Why it's there:** Next.js bundles `sharp` for its `<Image>` component optimization (resizing, WebP conversion). However, **this project uses zero `next/image` imports** -- all images are served directly from R2 CDN URLs or `<img>` tags via section components.
+- **Fix:** Add `images: { unoptimized: true }` to `next.config.ts`. This tells Next.js to skip image optimization entirely and not load sharp.
+- **Side effects:** None. Verified with full codebase search: zero files import `next/image`. The `images.remotePatterns` config stays (it's harmless) but sharp won't be loaded. If you ever add `<Image>` components in the future, you'd remove this flag.
+- **Quick fix?** Yes -- one line in `next.config.ts`, git-tracked.
+- [ ] Add `unoptimized: true` to `images` config in `next.config.ts`
+- [ ] **Deploy:** Rebuild on server
+
+#### E3. Remove dead code: `lib/daily-bread-feed.ts`
+- **Savings:** ~1-3 MB RSS (removes `@xmldom/xmldom` from the module graph)
+- **Risk:** Zero
+- **Why it matters:** `@xmldom/xmldom` is imported at the top of this file, which means it gets loaded into memory if the module is traced by the bundler. However, **no file in the project imports `daily-bread-feed.ts`** -- it's completely dead code (no route, no component, no API handler references it).
+- **Fix:** Delete the file. If daily bread functionality is needed later, it can be re-implemented and properly connected to a route.
+- **Side effects:** None. Verified: zero imports across the entire codebase.
+- **Quick fix?** Yes -- delete one file, git-tracked.
+- [ ] Delete `lib/daily-bread-feed.ts`
+- [ ] Check if `@xmldom/xmldom` can be removed from `package.json` (verify no other file uses it)
+- [ ] **Deploy:** Rebuild on server
+
+---
+
 ### D. Skipped (not worth it)
 
 #### D1. TipTap server-side split -- SKIPPED
@@ -153,7 +188,7 @@ pm2 monit   # watch RSS drop over ~30s as GC kicks in
 
 ## Projected Memory After All Changes
 
-| Component | Before (766 MB) | After (~180-220 MB) |
+| Component | Before (766 MB) | After (~145-185 MB) |
 |-----------|-----------------|---------------------|
 | Node.js + V8 baseline | ~40 MB | ~30 MB |
 | Next.js runtime | ~150 MB (full node_modules) | ~25 MB (standalone) |
@@ -161,10 +196,13 @@ pm2 monit   # watch RSS drop over ~30s as GC kicks in
 | Prisma + pg pool | ~80 MB (10 connections) | ~30 MB (5 connections) |
 | TipTap server-side | ~30 MB | ~30 MB (kept as-is) |
 | AWS SDK | ~5 MB (eager) | ~2 MB (lazy) |
+| TypeScript compiler | ~20-30 MB (bundled by Prisma peer dep) | 0 MB (excluded) |
+| Sharp / libvips | ~15-25 MB (loaded for unused image optimization) | 0 MB (disabled) |
+| Dead code (@xmldom) | ~1-3 MB | 0 MB (removed) |
 | Application code | ~30 MB | ~15 MB (tree-shaken) |
-| **Total RSS** | **~766 MB** | **~180-220 MB** |
+| **Total RSS** | **~766 MB** | **~145-185 MB** |
 
-**Reduction: ~70-75%** -- all from safe configuration changes, zero functional changes.
+**Reduction: ~75-80%** -- all from safe configuration changes, zero functional changes.
 
 ---
 
