@@ -4,12 +4,14 @@
  *
  * Exports:
  *  - uploadImageToR2(file, folder?)        — upload image and create MediaAsset record (immediate promotion)
+ *  - uploadMediaToR2(file, folder?)        — upload image or video and create MediaAsset record (immediate promotion)
  *  - uploadImageToStaging(file)            — upload image to staging only (no MediaAsset, no promotion)
+ *  - uploadMediaToStaging(file)            — upload image or video to staging only (no MediaAsset, no promotion)
  *  - promoteStagingImages(entries, folder) — bulk promote staging URLs → permanent + create MediaAsset records
  *  - deleteImageFromR2(url)                — hard-delete from R2 + DB by public URL
  */
 
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024 // 10 MB
+import { MAX_UPLOAD_SIZE } from "@/lib/upload-constants"
 
 /**
  * Check whether a URL points to our R2 media storage.
@@ -60,27 +62,22 @@ export interface StagingImageEntry {
 }
 
 /**
- * Upload an image file to R2 and create a MediaAsset record.
- * Returns the permanent public URL and image metadata.
- *
- * Error handling: if the MediaAsset DB record fails to create, the API route
- * (`POST /api/v1/media`) rolls back by deleting the promoted R2 object.
- * The staging file is replaced by the promotion (moveObject), so no orphan
- * staging file remains.
+ * Upload a media file (image or video) to R2 and create a MediaAsset record.
+ * Returns the permanent public URL and media metadata.
  *
  * @throws Error with user-friendly message on failure
  */
-export async function uploadImageToR2(
+export async function uploadMediaToR2(
   file: File,
   folder = "Content"
 ): Promise<UploadResult> {
   // --- Validate ---
-  if (!file.type.startsWith("image/")) {
-    throw new Error("Only image files are allowed")
+  if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+    throw new Error("Only image and video files are allowed")
   }
-  if (file.size > MAX_IMAGE_SIZE) {
+  if (file.size > MAX_UPLOAD_SIZE) {
     throw new Error(
-      `Image exceeds ${MAX_IMAGE_SIZE / (1024 * 1024)} MB limit`
+      `File exceeds ${MAX_UPLOAD_SIZE / (1024 * 1024)} MB limit`
     )
   }
 
@@ -121,11 +118,10 @@ export async function uploadImageToR2(
     throw new Error("Failed to upload file to storage")
   }
 
-  // Step 3: Get image dimensions
-  const dims = await getImageDimensions(file)
+  // Step 3: Get media dimensions
+  const dims = await getMediaDimensions(file)
 
   // Step 4: Create MediaAsset record (promotes staging -> permanent)
-  // If this fails, the API route cleans up the promoted R2 object.
   const createRes = await fetch("/api/v1/media", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -159,24 +155,40 @@ export async function uploadImageToR2(
 }
 
 /**
- * Upload an image to R2 staging ONLY — no MediaAsset record, no promotion.
- * The staging URL is publicly accessible via R2 public URL, so the TipTap
- * editor can display it immediately. The file remains in staging until the
- * parent form saves (calls promoteStagingImages) or is abandoned (cleaned
- * up by the orphan cleanup script after 24h).
+ * Upload an image file to R2 and create a MediaAsset record.
+ * Validates that the file is an image, then delegates to uploadMediaToR2.
  *
  * @throws Error with user-friendly message on failure
  */
-export async function uploadImageToStaging(
-  file: File
-): Promise<StagingUploadResult> {
-  // --- Validate ---
+export async function uploadImageToR2(
+  file: File,
+  folder = "Content"
+): Promise<UploadResult> {
   if (!file.type.startsWith("image/")) {
     throw new Error("Only image files are allowed")
   }
-  if (file.size > MAX_IMAGE_SIZE) {
+  return uploadMediaToR2(file, folder)
+}
+
+/**
+ * Upload a media file (image or video) to R2 staging ONLY — no MediaAsset
+ * record, no promotion. The staging URL is publicly accessible via R2 public
+ * URL, so editors can display it immediately. The file remains in staging
+ * until the parent form saves (calls promoteStagingImages) or is abandoned
+ * (cleaned up by the orphan cleanup script after 24h).
+ *
+ * @throws Error with user-friendly message on failure
+ */
+export async function uploadMediaToStaging(
+  file: File
+): Promise<StagingUploadResult> {
+  // --- Validate ---
+  if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+    throw new Error("Only image and video files are allowed")
+  }
+  if (file.size > MAX_UPLOAD_SIZE) {
     throw new Error(
-      `Image exceeds ${MAX_IMAGE_SIZE / (1024 * 1024)} MB limit`
+      `File exceeds ${MAX_UPLOAD_SIZE / (1024 * 1024)} MB limit`
     )
   }
 
@@ -210,8 +222,8 @@ export async function uploadImageToStaging(
     throw new Error("Failed to upload file to storage")
   }
 
-  // Step 3: Get image dimensions
-  const dims = await getImageDimensions(file)
+  // Step 3: Get media dimensions
+  const dims = await getMediaDimensions(file)
 
   return {
     stagingUrl: urlJson.data.publicUrl,
@@ -222,6 +234,21 @@ export async function uploadImageToStaging(
     filename: file.name,
     mimeType: file.type,
   }
+}
+
+/**
+ * Upload an image to R2 staging ONLY.
+ * Validates that the file is an image, then delegates to uploadMediaToStaging.
+ *
+ * @throws Error with user-friendly message on failure
+ */
+export async function uploadImageToStaging(
+  file: File
+): Promise<StagingUploadResult> {
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Only image files are allowed")
+  }
+  return uploadMediaToStaging(file)
 }
 
 /**
@@ -288,9 +315,6 @@ export function replaceStagingUrls(
  * Hard-delete a media asset from R2 storage and the database by its public URL.
  * This permanently removes both the R2 object and the MediaAsset DB record.
  *
- * Use this when a content editor removes an image (e.g. from TipTap editor,
- * event cover, series image) — we want it gone from R2 immediately.
- *
  * @param url The R2 public URL of the media asset
  * @throws Error with user-friendly message on failure
  */
@@ -311,6 +335,34 @@ export async function deleteImageFromR2(url: string): Promise<void> {
     if (res.status === 404) return
     throw new Error(json?.error?.message || "Failed to delete media asset")
   }
+}
+
+// ---------------------------------------------------------------------------
+// Dimension helpers
+// ---------------------------------------------------------------------------
+
+function getMediaDimensions(file: File): Promise<{ width: number; height: number }> {
+  if (file.type.startsWith("video/")) {
+    return getVideoDimensions(file)
+  }
+  return getImageDimensions(file)
+}
+
+function getVideoDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const video = document.createElement("video")
+    video.preload = "metadata"
+    const objectUrl = URL.createObjectURL(file)
+    video.onloadedmetadata = () => {
+      resolve({ width: video.videoWidth, height: video.videoHeight })
+      URL.revokeObjectURL(objectUrl)
+    }
+    video.onerror = () => {
+      resolve({ width: 0, height: 0 })
+      URL.revokeObjectURL(objectUrl)
+    }
+    video.src = objectUrl
+  })
 }
 
 function getImageDimensions(

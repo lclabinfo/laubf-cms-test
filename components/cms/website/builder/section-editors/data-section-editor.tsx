@@ -1,18 +1,35 @@
 "use client"
 
-import { Input } from "@/components/ui/input"
+import { Lock } from "lucide-react"
 import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { Database } from "lucide-react"
 import type { SectionType } from "@/lib/db/types"
+import {
+  EditorInput,
+  EditorToggle,
+  EditorSelect,
+  EditorButtonGroup,
+  TwoColumnGrid,
+  DataDrivenBanner,
+  ArrayField,
+  LinkInput,
+} from "./shared"
+
+/** Visual lock overlay — shows controls as read-only with a lock icon */
+function LockedField({ children, label }: { children: React.ReactNode; label?: string }) {
+  return (
+    <div className="relative">
+      <div className="opacity-40 pointer-events-none select-none">{children}</div>
+      <div className="absolute inset-0 flex items-center justify-end pr-2">
+        <div className="flex items-center gap-1 rounded-md bg-muted/80 px-2 py-1">
+          <Lock className="size-3 text-muted-foreground" />
+          {label && <span className="text-[10px] text-muted-foreground font-medium">{label}</span>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 
 interface DataSectionEditorProps {
   sectionType: SectionType
@@ -20,42 +37,136 @@ interface DataSectionEditorProps {
   onChange: (content: Record<string, unknown>) => void
 }
 
-const DATA_SOURCE_LABELS: Partial<Record<SectionType, string>> = {
-  ALL_MESSAGES: "Messages from the CMS Messages module",
-  ALL_EVENTS: "Events from the CMS Events module",
-  ALL_BIBLE_STUDIES: "Bible studies from the CMS Bible Studies module",
-  ALL_VIDEOS: "Videos from the CMS Media module",
-  UPCOMING_EVENTS: "Upcoming events from the CMS Events module",
-  EVENT_CALENDAR: "Events displayed in calendar format from the CMS Events module",
-  RECURRING_MEETINGS: "Recurring meeting times from the CMS Events module",
-  MEDIA_GRID: "Videos from the CMS Media module",
-  QUICK_LINKS: "Quick links populated from recurring meetings",
-  DAILY_BREAD_FEATURE: "Daily devotional content",
-  SPOTLIGHT_MEDIA: "Latest sermon from the CMS Messages module",
-  HIGHLIGHT_CARDS: "Featured events from the CMS Events module",
-}
+// --- All Messages Editor (content panel — no editable fields, CMS-driven) ---
+// Tabs, search, filters are default features — not configurable.
+// The content panel only shows the DataDrivenBanner + Manage in CMS link.
 
-function DataSourceBanner({ sectionType }: { sectionType: SectionType }) {
-  const description =
-    DATA_SOURCE_LABELS[sectionType] ?? "Data loaded from the CMS database"
+// --- All Messages Layout Editor (registered separately in LAYOUT_EDITORS) ---
+
+export function AllMessagesLayoutEditor({
+  content,
+  onChange,
+}: {
+  content: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
+  const columns = (content.columns as { desktop?: number; tablet?: number; mobile?: number }) ?? {}
+  const desktopCols = columns.desktop ?? 3
+  const tabletCols = columns.tablet ?? 2
+  const mobileCols = columns.mobile ?? 1
+  const cardGap = (content.cardGap as string) ?? "default"
+  const itemsPerPage = (content.itemsPerPage as number) ?? 50
+
+  const showDate = (content.showDate as boolean) ?? true
+  const showSeriesPill = (content.showSeriesPill as boolean) ?? true
+  const showSpeaker = (content.showSpeaker as boolean) ?? true
+  const showPassage = (content.showPassage as boolean) ?? true
+  const showDuration = (content.showDuration as boolean) ?? true
+
+  function updateColumns(field: string, value: number) {
+    onChange({
+      ...content,
+      columns: { ...columns, [field]: value },
+    })
+  }
 
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
-      <Database className="mt-0.5 size-4 shrink-0 text-blue-600 dark:text-blue-400" />
-      <div className="space-y-1">
-        <p className="text-sm font-medium text-blue-900 dark:text-blue-200">
-          Data-Driven Section
-        </p>
-        <p className="text-xs text-blue-700 dark:text-blue-300">
-          {description}. Content is automatically populated from your CMS data.
-          You can customize the section heading and display options below.
-        </p>
-      </div>
-    </div>
+    <>
+      <LockedField>
+        <EditorButtonGroup
+          label="Columns (Desktop)"
+          value={String(desktopCols)}
+          onChange={(v) => updateColumns("desktop", parseInt(v))}
+          options={[
+            { value: "2", label: "2" },
+            { value: "3", label: "3" },
+            { value: "4", label: "4" },
+          ]}
+          size="sm"
+        />
+      </LockedField>
+
+      <LockedField>
+        <TwoColumnGrid>
+          <EditorButtonGroup
+            label="Tablet"
+            value={String(tabletCols)}
+            onChange={(v) => updateColumns("tablet", parseInt(v))}
+            options={[
+              { value: "1", label: "1" },
+              { value: "2", label: "2" },
+              { value: "3", label: "3" },
+            ]}
+            size="sm"
+          />
+          <EditorButtonGroup
+            label="Mobile"
+            value={String(mobileCols)}
+            onChange={(v) => updateColumns("mobile", parseInt(v))}
+            options={[
+              { value: "1", label: "1" },
+              { value: "2", label: "2" },
+            ]}
+            size="sm"
+          />
+        </TwoColumnGrid>
+      </LockedField>
+
+      <EditorSelect
+        label="Card Spacing"
+        value={cardGap}
+        onValueChange={(v) => onChange({ ...content, cardGap: v })}
+        options={[
+          { value: "tight", label: "Tight" },
+          { value: "default", label: "Default" },
+          { value: "spacious", label: "Spacious" },
+        ]}
+      />
+
+      <EditorInput
+        label="Items Per Page"
+        value={String(itemsPerPage)}
+        onChange={(val) => onChange({ ...content, itemsPerPage: parseInt(val) || 50 })}
+        placeholder="50"
+        type="number"
+        min={6}
+        max={100}
+      />
+
+      <Separator />
+
+      <Label className="text-sm font-medium">Card Elements</Label>
+
+      <EditorToggle
+        label="Date"
+        checked={showDate}
+        onCheckedChange={(checked) => onChange({ ...content, showDate: checked })}
+      />
+      <EditorToggle
+        label="Series Pill"
+        checked={showSeriesPill}
+        onCheckedChange={(checked) => onChange({ ...content, showSeriesPill: checked })}
+      />
+      <EditorToggle
+        label="Speaker"
+        checked={showSpeaker}
+        onCheckedChange={(checked) => onChange({ ...content, showSpeaker: checked })}
+      />
+      <EditorToggle
+        label="Bible Passage"
+        checked={showPassage}
+        onCheckedChange={(checked) => onChange({ ...content, showPassage: checked })}
+      />
+      <EditorToggle
+        label="Duration Badge"
+        checked={showDuration}
+        onCheckedChange={(checked) => onChange({ ...content, showDuration: checked })}
+      />
+    </>
   )
 }
 
-// --- Simple heading-only sections (ALL_MESSAGES, ALL_EVENTS, ALL_BIBLE_STUDIES, ALL_VIDEOS) ---
+// --- Simple heading-only sections (ALL_EVENTS, ALL_BIBLE_STUDIES, ALL_VIDEOS) ---
 
 function SimpleDataEditor({
   content,
@@ -74,42 +185,30 @@ function SimpleDataEditor({
 
   return (
     <>
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Section Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) => onChange({ ...content, heading: e.target.value })}
-          placeholder="Section heading"
-        />
-      </div>
+      <EditorInput
+        label="Section Heading"
+        value={heading}
+        onChange={(val) => onChange({ ...content, heading: val })}
+        placeholder="Section heading"
+      />
 
       {(ctaLabelPlaceholder || ctaHrefPlaceholder) && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              CTA Label (optional)
-            </Label>
-            <Input
-              value={ctaLabel}
-              onChange={(e) =>
-                onChange({ ...content, ctaLabel: e.target.value })
-              }
-              placeholder={ctaLabelPlaceholder ?? "View All"}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              CTA Link (optional)
-            </Label>
-            <Input
-              value={ctaHref}
-              onChange={(e) =>
-                onChange({ ...content, ctaHref: e.target.value })
-              }
-              placeholder={ctaHrefPlaceholder ?? "/page"}
-            />
-          </div>
-        </div>
+        <>
+          <EditorInput
+            label="CTA Label (optional)"
+            value={ctaLabel}
+            onChange={(val) => onChange({ ...content, ctaLabel: val })}
+            placeholder={ctaLabelPlaceholder ?? "View All"}
+            labelSize="xs"
+          />
+          <LinkInput
+            label="CTA Link (optional)"
+            value={ctaHref}
+            onChange={(val) => onChange({ ...content, ctaHref: val })}
+            placeholder={ctaHrefPlaceholder ?? "/page"}
+            labelSize="xs"
+          />
+        </>
       )}
     </>
   )
@@ -124,70 +223,97 @@ function UpcomingEventsEditor({
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const ctaButton = (content.ctaButton as {
     label: string
     href: string
   }) ?? { label: "", href: "" }
+  const maxCount = (content.maxCount as number) ?? 6
+  const includeRecurring = (content.includeRecurring as boolean) ?? false
+  const includePast = (content.includePast as boolean) ?? false
+  const pastDays = (content.pastDays as number) ?? 14
 
   return (
     <>
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Overline</Label>
-        <Input
-          value={overline}
-          onChange={(e) => onChange({ ...content, overline: e.target.value })}
-          placeholder="What's Coming Up"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Section Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) => onChange({ ...content, heading: e.target.value })}
-          placeholder="Upcoming Events"
-        />
-      </div>
+      <EditorInput
+        label="Section Heading"
+        value={heading}
+        onChange={(val) => onChange({ ...content, heading: val })}
+        placeholder="Upcoming Events"
+      />
 
       <Separator />
 
       <div className="space-y-3">
         <Label className="text-sm font-medium">CTA Button</Label>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              Button Label
-            </Label>
-            <Input
-              value={ctaButton.label}
-              onChange={(e) =>
-                onChange({
-                  ...content,
-                  ctaButton: { ...ctaButton, label: e.target.value },
-                })
-              }
-              placeholder="View All Events"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              Button Link
-            </Label>
-            <Input
-              value={ctaButton.href}
-              onChange={(e) =>
-                onChange({
-                  ...content,
-                  ctaButton: { ...ctaButton, href: e.target.value },
-                })
-              }
-              placeholder="/events"
-            />
-          </div>
-        </div>
+        <EditorInput
+          label="Button Label"
+          value={ctaButton.label}
+          onChange={(val) =>
+            onChange({
+              ...content,
+              ctaButton: { ...ctaButton, label: val },
+            })
+          }
+          placeholder="View All Events"
+          labelSize="xs"
+        />
+        <LinkInput
+          label="Button Link"
+          value={ctaButton.href}
+          onChange={(val) =>
+            onChange({
+              ...content,
+              ctaButton: { ...ctaButton, href: val },
+            })
+          }
+          placeholder="/events"
+          labelSize="xs"
+        />
       </div>
+
+      <Separator />
+
+      <EditorInput
+        label="Max Events"
+        value={String(maxCount)}
+        onChange={(val) => onChange({ ...content, maxCount: parseInt(val) || 6 })}
+        placeholder="6"
+        type="number"
+        min={1}
+        max={20}
+        labelSize="xs"
+      />
+
+      <EditorToggle
+        label="Include Recurring Meetings"
+        description="Show recurring meetings (e.g. Bible study, prayer) alongside one-off events."
+        checked={includeRecurring}
+        onCheckedChange={(checked) => onChange({ ...content, includeRecurring: checked })}
+        bordered
+      />
+
+      <EditorToggle
+        label="Include Past Events"
+        description="Show recently ended events."
+        checked={includePast}
+        onCheckedChange={(checked) => onChange({ ...content, includePast: checked })}
+        bordered
+      />
+
+      {includePast && (
+        <EditorSelect
+          label="Past Events Window"
+          value={String(pastDays)}
+          onValueChange={(val) => onChange({ ...content, pastDays: parseInt(val) })}
+          options={[
+            { value: "7", label: "Last 7 days" },
+            { value: "14", label: "Last 2 weeks" },
+            { value: "30", label: "Last 30 days" },
+          ]}
+          labelSize="xs"
+        />
+      )}
     </>
   )
 }
@@ -202,21 +328,54 @@ function EventCalendarEditor({
   onChange: (c: Record<string, unknown>) => void
 }) {
   const heading = (content.heading as string) ?? ""
+  const ctaButtons = (content.ctaButtons as { label: string; href: string; icon?: boolean }[]) ?? []
 
   return (
     <>
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Section Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) => onChange({ ...content, heading: e.target.value })}
-          placeholder="Schedule"
-        />
-      </div>
+      <EditorInput
+        label="Section Heading"
+        value={heading}
+        onChange={(val) => onChange({ ...content, heading: val })}
+        placeholder="Schedule"
+      />
 
-      <p className="text-xs text-muted-foreground">
-        CTA buttons for the calendar header are configured in the JSON content.
-      </p>
+      <Separator />
+
+      <ArrayField
+        label="CTA Buttons"
+        items={ctaButtons}
+        onItemsChange={(updated) => onChange({ ...content, ctaButtons: updated })}
+        createItem={() => ({ label: "", href: "", icon: false as boolean | undefined })}
+        addLabel="Add Button"
+        emptyMessage="No CTA buttons added yet."
+        emptyDescription='Click "Add Button" to add a call-to-action below the calendar.'
+        reorderable
+        maxItems={4}
+        renderItem={(item, _index, updateItem) => (
+          <div className="space-y-3">
+            <EditorInput
+              label="Button Label"
+              value={item.label}
+              onChange={(val) => updateItem({ ...item, label: val })}
+              placeholder="View All Events"
+              labelSize="xs"
+            />
+            <LinkInput
+              label="Button Link"
+              value={item.href}
+              onChange={(val) => updateItem({ ...item, href: val })}
+              placeholder="/events"
+              labelSize="xs"
+            />
+            <EditorToggle
+              label="Show Arrow Icon"
+              description="Display an arrow icon on the button (primary style)"
+              checked={item.icon ?? false}
+              onCheckedChange={(checked) => updateItem({ ...item, icon: checked })}
+            />
+          </div>
+        )}
+      />
     </>
   )
 }
@@ -236,50 +395,38 @@ function RecurringMeetingsEditor({
 
   return (
     <>
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Section Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) => onChange({ ...content, heading: e.target.value })}
-          placeholder="Weekly Meetings"
-        />
-      </div>
+      <EditorInput
+        label="Section Heading"
+        value={heading}
+        onChange={(val) => onChange({ ...content, heading: val })}
+        placeholder="Weekly Meetings"
+      />
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            Max Visible Items
-          </Label>
-          <Input
-            type="number"
-            min={1}
-            max={20}
-            value={maxVisible}
-            onChange={(e) =>
-              onChange({
-                ...content,
-                maxVisible: parseInt(e.target.value) || 4,
-              })
-            }
-            placeholder="4"
-          />
-          <p className="text-xs text-muted-foreground">
-            Number of meetings to show before &quot;View All&quot;
-          </p>
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            View All Link
-          </Label>
-          <Input
-            value={viewAllHref}
-            onChange={(e) =>
-              onChange({ ...content, viewAllHref: e.target.value })
-            }
-            placeholder="/events"
-          />
-        </div>
-      </div>
+      <TwoColumnGrid>
+        <EditorInput
+          label="Max Visible Items"
+          value={String(maxVisible)}
+          onChange={(val) =>
+            onChange({
+              ...content,
+              maxVisible: parseInt(val) || 4,
+            })
+          }
+          placeholder="4"
+          labelSize="xs"
+          type="number"
+          min={1}
+          max={20}
+          description='Number of meetings to show before "View All"'
+        />
+        <EditorInput
+          label="View All Link"
+          value={viewAllHref}
+          onChange={(val) => onChange({ ...content, viewAllHref: val })}
+          placeholder="/events"
+          labelSize="xs"
+        />
+      </TwoColumnGrid>
     </>
   )
 }
@@ -298,23 +445,19 @@ function QuickLinksEditor({
 
   return (
     <>
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Section Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) => onChange({ ...content, heading: e.target.value })}
-          placeholder="Quick Links"
-        />
-      </div>
+      <EditorInput
+        label="Section Heading"
+        value={heading}
+        onChange={(val) => onChange({ ...content, heading: val })}
+        placeholder="Quick Links"
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Subtitle</Label>
-        <Input
-          value={subtitle}
-          onChange={(e) => onChange({ ...content, subtitle: e.target.value })}
-          placeholder="Access your most important links at a glance."
-        />
-      </div>
+      <EditorInput
+        label="Subtitle"
+        value={subtitle}
+        onChange={(val) => onChange({ ...content, subtitle: val })}
+        placeholder="Access your most important links at a glance."
+      />
     </>
   )
 }
@@ -331,14 +474,12 @@ function DailyBreadEditor({
   const heading = (content.heading as string) ?? ""
 
   return (
-    <div className="space-y-1.5">
-      <Label className="text-sm font-medium">Section Heading</Label>
-      <Input
-        value={heading}
-        onChange={(e) => onChange({ ...content, heading: e.target.value })}
-        placeholder="Daily Bread"
-      />
-    </div>
+    <EditorInput
+      label="Section Heading"
+      value={heading}
+      onChange={(val) => onChange({ ...content, heading: val })}
+      placeholder="Daily Bread"
+    />
   )
 }
 
@@ -364,165 +505,136 @@ function HighlightCardsEditor({
 
   return (
     <>
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Section Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) => onChange({ ...content, heading: e.target.value })}
-          placeholder="Featured Events"
-        />
-      </div>
+      <EditorInput
+        label="Section Heading"
+        value={heading}
+        onChange={(val) => onChange({ ...content, heading: val })}
+        placeholder="Featured Events"
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Subheading</Label>
-        <Input
-          value={subheading}
-          onChange={(e) =>
-            onChange({ ...content, subheading: e.target.value })
-          }
-          placeholder="Highlights of what's happening in our community."
-        />
-      </div>
+      <EditorInput
+        label="Subheading"
+        value={subheading}
+        onChange={(val) => onChange({ ...content, subheading: val })}
+        placeholder="Highlights of what's happening in our community."
+      />
 
       <Separator />
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            CTA Label (optional)
-          </Label>
-          <Input
-            value={ctaLabel}
-            onChange={(e) =>
-              onChange({ ...content, ctaLabel: e.target.value })
-            }
-            placeholder="View All Events"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            CTA Link (optional)
-          </Label>
-          <Input
-            value={ctaHref}
-            onChange={(e) =>
-              onChange({ ...content, ctaHref: e.target.value })
-            }
-            placeholder="/events"
-          />
-        </div>
-      </div>
+      <EditorInput
+        label="CTA Label (optional)"
+        value={ctaLabel}
+        onChange={(val) => onChange({ ...content, ctaLabel: val })}
+        placeholder="View All Events"
+        labelSize="xs"
+      />
+      <LinkInput
+        label="CTA Link (optional)"
+        value={ctaHref}
+        onChange={(val) => onChange({ ...content, ctaHref: val })}
+        placeholder="/events"
+        labelSize="xs"
+      />
 
       <Separator />
 
-      <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">
-          Number of Events
-        </Label>
-        <Input
-          type="number"
-          min={1}
-          max={6}
-          value={count}
-          onChange={(e) =>
-            onChange({ ...content, count: parseInt(e.target.value) || 3 })
-          }
-          placeholder="3"
-          className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-        />
-      </div>
+      <EditorInput
+        label="Number of Events"
+        value={String(count)}
+        onChange={(val) =>
+          onChange({ ...content, count: parseInt(val) || 3 })
+        }
+        placeholder="3"
+        labelSize="xs"
+        type="number"
+        min={1}
+        max={6}
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-xs text-muted-foreground">
-          Sort Order
-        </Label>
-        <Select
-          value={sortOrder}
-          onValueChange={(val) => onChange({ ...content, sortOrder: val })}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="asc">Upcoming first</SelectItem>
-            <SelectItem value="desc">Most recent first</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <EditorSelect
+        label="Sort Order"
+        value={sortOrder}
+        onValueChange={(val) => onChange({ ...content, sortOrder: val })}
+        options={[
+          { value: "asc", label: "Upcoming first" },
+          { value: "desc", label: "Most recent first" },
+        ]}
+        labelSize="xs"
+      />
 
       <Separator />
 
-      <div className="flex items-center justify-between rounded-lg border p-3">
-        <div className="space-y-0.5">
-          <Label className="text-sm font-medium">Auto-Hide Past Featured</Label>
-          <p className="text-xs text-muted-foreground">
-            Automatically hide manually featured events after they&apos;ve passed.
-          </p>
-        </div>
-        <Switch
-          checked={autoHidePastFeatured}
-          onCheckedChange={(checked) =>
-            onChange({ ...content, autoHidePastFeatured: checked })
-          }
-        />
-      </div>
+      <EditorToggle
+        label="Auto-Hide Past Featured"
+        description="Automatically hide manually featured events after they've passed."
+        checked={autoHidePastFeatured}
+        onCheckedChange={(checked) =>
+          onChange({ ...content, autoHidePastFeatured: checked })
+        }
+        bordered
+      />
 
-      <div className="flex items-center justify-between rounded-lg border p-3">
-        <div className="space-y-0.5">
-          <Label className="text-sm font-medium">Include Recurring Meetings</Label>
-          <p className="text-xs text-muted-foreground">
-            Show recurring meetings (e.g. Bible study, prayer) alongside one-off events.
-          </p>
-        </div>
-        <Switch
-          checked={includeRecurring}
-          onCheckedChange={(checked) =>
-            onChange({ ...content, includeRecurring: checked })
-          }
-        />
-      </div>
+      <EditorToggle
+        label="Include Recurring Meetings"
+        description="Show recurring meetings (e.g. Bible study, prayer) alongside one-off events."
+        checked={includeRecurring}
+        onCheckedChange={(checked) =>
+          onChange({ ...content, includeRecurring: checked })
+        }
+        bordered
+      />
 
-      <div className="flex items-center justify-between rounded-lg border p-3">
-        <div className="space-y-0.5">
-          <Label className="text-sm font-medium">Show Past Events</Label>
-          <p className="text-xs text-muted-foreground">
-            Include recently ended events in the section.
-          </p>
-        </div>
-        <Switch
-          checked={showPastEvents}
-          onCheckedChange={(checked) =>
-            onChange({ ...content, showPastEvents: checked })
-          }
-        />
-      </div>
+      <EditorToggle
+        label="Show Past Events"
+        description="Include recently ended events in the section."
+        checked={showPastEvents}
+        onCheckedChange={(checked) =>
+          onChange({ ...content, showPastEvents: checked })
+        }
+        bordered
+      />
 
       {showPastEvents && (
-        <div className="space-y-1.5 pl-1">
-          <Label className="text-xs text-muted-foreground">
-            Past Events Window
-          </Label>
-          <Select
-            value={String(pastEventsWindow)}
-            onValueChange={(val) =>
-              onChange({ ...content, pastEventsWindow: parseInt(val) })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Last 7 days</SelectItem>
-              <SelectItem value="14">Last 2 weeks</SelectItem>
-              <SelectItem value="30">Last 30 days</SelectItem>
-              <SelectItem value="60">Last 60 days</SelectItem>
-              <SelectItem value="90">Last 90 days</SelectItem>
-              <SelectItem value="-1">All past events</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        <EditorSelect
+          label="Past Events Window"
+          value={String(pastEventsWindow)}
+          onValueChange={(val) =>
+            onChange({ ...content, pastEventsWindow: parseInt(val) })
+          }
+          options={[
+            { value: "7", label: "Last 7 days" },
+            { value: "14", label: "Last 2 weeks" },
+            { value: "30", label: "Last 30 days" },
+            { value: "60", label: "Last 60 days" },
+            { value: "90", label: "Last 90 days" },
+            { value: "-1", label: "All past events" },
+          ]}
+          labelSize="xs"
+          className="pl-1"
+        />
       )}
     </>
+  )
+}
+
+// --- Spotlight Media (Latest Message) ---
+
+function SpotlightMediaEditor({
+  content,
+  onChange,
+}: {
+  content: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
+  const sectionHeading = (content.sectionHeading as string) ?? ""
+
+  return (
+    <EditorInput
+      label="Section Heading"
+      value={sectionHeading}
+      onChange={(val) => onChange({ ...content, sectionHeading: val })}
+      placeholder="Latest Message"
+    />
   )
 }
 
@@ -535,7 +647,11 @@ export function DataSectionEditor({
 }: DataSectionEditorProps) {
   return (
     <div className="space-y-6">
-      <DataSourceBanner sectionType={sectionType} />
+      <DataDrivenBanner sectionType={sectionType} />
+
+      {sectionType === "SPOTLIGHT_MEDIA" && (
+        <SpotlightMediaEditor content={content} onChange={onChange} />
+      )}
 
       {sectionType === "HIGHLIGHT_CARDS" && (
         <HighlightCardsEditor content={content} onChange={onChange} />
@@ -561,14 +677,8 @@ export function DataSectionEditor({
         <DailyBreadEditor content={content} onChange={onChange} />
       )}
 
-      {sectionType === "ALL_MESSAGES" && (
-        <SimpleDataEditor
-          content={content}
-          onChange={onChange}
-          ctaLabelPlaceholder="View All"
-          ctaHrefPlaceholder="/messages"
-        />
-      )}
+      {/* ALL_MESSAGES has no content fields — everything is CMS-driven.
+          Layout controls are in the Layout panel via AllMessagesLayoutEditor. */}
 
       {sectionType === "ALL_EVENTS" && (
         <SimpleDataEditor
@@ -606,11 +716,6 @@ export function DataSectionEditor({
         />
       )}
 
-      <p className="text-xs text-muted-foreground">
-        The data displayed in this section is managed through the CMS content
-        modules. To add or edit the underlying content, use the relevant CMS
-        section (Messages, Events, Bible Studies, etc.).
-      </p>
     </div>
   )
 }

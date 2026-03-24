@@ -11,13 +11,21 @@ export async function GET(request: NextRequest) {
 
     if (today === 'true') {
       const entry = await getTodaysDailyBread(churchId)
-      return NextResponse.json({ success: true, data: entry })
+      return NextResponse.json({ success: true, data: entry }, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+        },
+      })
     }
 
     const limit = searchParams.get('limit') ? Number(searchParams.get('limit')) : 30
     const data = await getDailyBreads(churchId, limit)
 
-    return NextResponse.json({ success: true, data })
+    return NextResponse.json({ success: true, data }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300',
+      },
+    })
   } catch (error) {
     console.error('GET /api/v1/daily-bread error:', error)
     return NextResponse.json(

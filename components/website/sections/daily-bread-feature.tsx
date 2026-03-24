@@ -29,7 +29,7 @@ import DOMPurify from "isomorphic-dompurify"
 import { cn } from "@/lib/utils"
 import SectionContainer from "@/components/website/shared/section-container"
 import BibleCopyright from "@/components/website/shared/bible-copyright"
-import { themeTokens, type SectionTheme, type ThemeTokens } from "@/components/website/shared/theme-tokens"
+import { themeTokens, isDarkScheme, type SectionTheme, type ThemeTokens } from "@/components/website/shared/theme-tokens"
 
 /* ── Types ── */
 
@@ -324,7 +324,7 @@ export default function DailyBreadFeatureSection({
   )
 
   /* Token-derived inline style values for elements that need dynamic bg */
-  const surfaceBgStyle = colorScheme === "dark"
+  const surfaceBgStyle = isDarkScheme(colorScheme)
     ? { backgroundColor: "var(--color-black-1-5)" }
     : { backgroundColor: "var(--color-white-0)" }
 
@@ -530,7 +530,7 @@ export default function DailyBreadFeatureSection({
                           "hidden lg:flex items-center gap-2 px-4 py-2 rounded-lg transition-colors",
                           t.btnPrimaryBg,
                           t.btnPrimaryText,
-                          colorScheme === "dark" ? "hover:bg-white-2" : "hover:bg-black-2"
+                          isDarkScheme(colorScheme) ? "hover:bg-white-2" : "hover:bg-black-2"
                         )}
                       >
                         {showSidebar ? (

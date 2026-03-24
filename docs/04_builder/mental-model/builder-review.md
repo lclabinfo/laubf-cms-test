@@ -1,5 +1,7 @@
 # Website Builder: Critical Review, Section Audit & 4-Day Plan
 
+> **HISTORICAL (March 16, 2026)** — This document captures the original product design critique and 4-day plan. The plan has been fully executed. See `builder-roadmap.md` for current status.
+
 > Date: 2026-03-16
 > Author: Claude (product design + engineering review)
 > Audience: David (lead developer)

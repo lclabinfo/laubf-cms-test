@@ -4,6 +4,7 @@ import { getChurchId } from '@/lib/api/get-church-id'
 import { getPageBySlugOrId, updatePageSection, deletePageSection } from '@/lib/dal/pages'
 import { validateSectionContent, validateSectionUpdateFields } from '@/lib/api/validation'
 import { requireApiAuth } from '@/lib/api/require-auth'
+import { Prisma } from '@/lib/generated/prisma/client'
 
 type Params = { params: Promise<{ slug: string; id: string }> }
 
@@ -45,6 +46,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
+    // Return 404 when the section was deleted by another user
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2025'
+    ) {
+      return NextResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Section not found (may have been deleted by another user)' } },
+        { status: 404 },
+      )
+    }
     console.error('PATCH /api/v1/pages/[slug]/sections/[id] error:', error)
     return NextResponse.json(
       { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to update section' } },
@@ -72,6 +83,13 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {
+    // Prisma P2025 = record not found — treat double-delete as idempotent success
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2025'
+    ) {
+      return NextResponse.json({ success: true, data: { deleted: true } })
+    }
     console.error('DELETE /api/v1/pages/[slug]/sections/[id] error:', error)
     return NextResponse.json(
       { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to delete section' } },

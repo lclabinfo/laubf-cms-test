@@ -5,7 +5,12 @@ import { toast } from "sonner"
 import { Plus, Upload, FileText, AlertCircle, Paperclip, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import dynamic from "next/dynamic"
+
+const RichTextEditor = dynamic(
+  () => import("@/components/ui/rich-text-editor").then((m) => m.RichTextEditor),
+  { ssr: false, loading: () => <div className="h-64 animate-pulse rounded-md bg-muted" /> },
+)
 import {
   AlertDialog,
   AlertDialogAction,

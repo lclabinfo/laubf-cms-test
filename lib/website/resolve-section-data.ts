@@ -126,16 +126,26 @@ export async function resolveSectionData(
       }
 
       case 'upcoming-events': {
-        const events = await getUpcomingEvents(churchId, 100)
-        // For UPCOMING_EVENTS section, filter out recurring meetings (only show actual events)
+        const maxCount = (content.maxCount as number) ?? 100
+        const includeRecurring = content.includeRecurring === true
+        const includePast = content.includePast === true
+        const pastDays = (content.pastDays as number) ?? 14
+
+        const events = await getUpcomingEvents(churchId, maxCount, {
+          includeRecurring,
+          pastEventsDays: includePast ? pastDays : 0,
+        })
+
+        // For UPCOMING_EVENTS section, filter out recurring meetings unless explicitly included
         // EVENT_CALENDAR and RECURRING_MEETINGS sections also use this dataSource but handle their own filtering
-        const filteredEvents = sectionType === 'UPCOMING_EVENTS'
+        const filteredEvents = sectionType === 'UPCOMING_EVENTS' && !includeRecurring
           ? events.filter((e) => !e.isRecurring)
           : events
+
         return {
           content,
           resolvedData: {
-            events: filteredEvents.map((e) => ({
+            events: filteredEvents.slice(0, maxCount).map((e) => ({
               slug: e.slug,
               title: e.title,
               dateStart: toDateString(e.dateStart),
@@ -202,11 +212,12 @@ export async function resolveSectionData(
       }
 
       case 'all-messages': {
-        const messagesResult = await getMessages(churchId, { pageSize: 5000 })
+        const messagesResult = await getMessages(churchId, { pageSize: 50, videoPublished: true })
+        const withVideo = messagesResult.data.filter((m) => m.youtubeId || m.videoUrl)
         return {
           content,
           resolvedData: {
-            messages: messagesResult.data.map((m) => ({
+            messages: withVideo.map((m) => ({
               id: m.id,
               slug: m.slug,
               title: m.title,
@@ -228,7 +239,7 @@ export async function resolveSectionData(
       }
 
       case 'all-events': {
-        const eventsResult = await getEvents(churchId, { pageSize: 5000 })
+        const eventsResult = await getEvents(churchId, { pageSize: 50 })
         return {
           content,
           resolvedData: {
@@ -255,7 +266,7 @@ export async function resolveSectionData(
       }
 
       case 'all-bible-studies': {
-        const result = await getBibleStudies(churchId, { pageSize: 5000 })
+        const result = await getBibleStudies(churchId, { pageSize: 50 })
         return {
           content,
           resolvedData: {
@@ -276,7 +287,7 @@ export async function resolveSectionData(
       }
 
       case 'all-videos': {
-        const result = await getVideos(churchId, { pageSize: 5000 })
+        const result = await getVideos(churchId, { pageSize: 50 })
         return {
           content,
           resolvedData: {

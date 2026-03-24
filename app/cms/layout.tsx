@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { SessionProvider } from "next-auth/react"
 import { CmsThemeProvider } from "@/components/cms/theme-provider"
+import { UploadQueueProvider } from "@/components/cms/upload-queue-provider"
 
 export const metadata: Metadata = {
   title: {
@@ -16,9 +17,11 @@ export default function CmsRootLayout({ children }: { children: React.ReactNode 
   return (
     <SessionProvider>
       <CmsThemeProvider>
-        <div data-cms="" className="min-h-screen overflow-x-hidden bg-background text-foreground">
-          {children}
-        </div>
+        <UploadQueueProvider>
+          <div data-cms="" className="min-h-screen overflow-x-hidden bg-background text-foreground">
+            {children}
+          </div>
+        </UploadQueueProvider>
       </CmsThemeProvider>
     </SessionProvider>
   )

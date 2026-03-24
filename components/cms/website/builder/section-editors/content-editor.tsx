@@ -1,132 +1,28 @@
 "use client"
 
-import { useState } from "react"
-import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { ImageIcon, X } from "lucide-react"
-import type { SectionType } from "@/lib/db/types"
-import { MediaPickerDialog } from "@/components/cms/media/media-picker-dialog"
-
-// --- Image Picker Field (reusable) ---
-
-function ImagePickerField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (url: string) => void
-}) {
-  const [pickerOpen, setPickerOpen] = useState(false)
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-sm font-medium">{label}</Label>
-      {value ? (
-        <div className="relative group rounded-md border overflow-hidden h-20">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt="" className="size-full object-cover" />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setPickerOpen(true)}>
-              Replace
-            </Button>
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => onChange("")}>
-              <X className="size-3" />
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full justify-start gap-2 text-muted-foreground font-normal"
-          onClick={() => setPickerOpen(true)}
-        >
-          <ImageIcon className="size-3.5" />
-          Choose image...
-        </Button>
-      )}
-      <MediaPickerDialog
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        folder="Website"
-        onSelect={(url) => onChange(url)}
-      />
-    </div>
-  )
-}
-
-interface ContentEditorProps {
-  sectionType: SectionType
-  content: Record<string, unknown>
-  onChange: (content: Record<string, unknown>) => void
-}
-
-// --- Helper subcomponents ---
-
-function ButtonConfig({
-  id,
-  label,
-  buttonData,
-  onChange,
-}: {
-  id: string
-  label: string
-  buttonData: { label: string; href: string; visible: boolean }
-  onChange: (data: { label: string; href: string; visible: boolean }) => void
-}) {
-  return (
-    <div className="space-y-3 rounded-lg border p-4">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">{label}</Label>
-        <Switch
-          id={`${id}-visible`}
-          checked={buttonData.visible}
-          onCheckedChange={(v) => onChange({ ...buttonData, visible: v })}
-        />
-      </div>
-      {buttonData.visible && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Button Text</Label>
-            <Input
-              value={buttonData.label}
-              onChange={(e) =>
-                onChange({ ...buttonData, label: e.target.value })
-              }
-              placeholder="Learn More"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Link URL</Label>
-            <Input
-              value={buttonData.href}
-              onChange={(e) =>
-                onChange({ ...buttonData, href: e.target.value })
-              }
-              placeholder="/about"
-            />
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
+import {
+  EditorField,
+  EditorInput,
+  EditorTextarea,
+  EditorToggle,
+  EditorButtonGroup,
+  CarouselSpeedField,
+  ImagePickerField,
+  ImageListField,
+  ButtonConfig,
+} from "./shared"
 
 // --- Media Text Editor ---
 
-function MediaTextEditor({
+export function MediaTextEditor({
   content,
   onChange,
 }: {
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const body = (content.body as string) ?? ""
   const button = (content.button as {
@@ -134,36 +30,26 @@ function MediaTextEditor({
     href: string
     visible: boolean
   }) ?? { label: "", href: "", visible: false }
+  const images = (content.images as Array<{ src: string; alt: string }>) ?? []
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Overline</Label>
-        <Input
-          value={overline}
-          onChange={(e) => onChange({ ...content, overline: e.target.value })}
-          placeholder="Section label"
-        />
-      </div>
+      <EditorInput
+        label="Heading"
+        labelSize="sm"
+        value={heading}
+        onChange={(v) => onChange({ ...content, heading: v })}
+        placeholder="Section heading"
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) => onChange({ ...content, heading: e.target.value })}
-          placeholder="Section heading"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Body</Label>
-        <Textarea
-          value={body}
-          onChange={(e) => onChange({ ...content, body: e.target.value })}
-          placeholder="Section body text..."
-          className="min-h-[120px]"
-        />
-      </div>
+      <EditorTextarea
+        label="Body"
+        labelSize="sm"
+        value={body}
+        onChange={(v) => onChange({ ...content, body: v })}
+        placeholder="Section body text..."
+        rows={6}
+      />
 
       <Separator />
 
@@ -174,24 +60,52 @@ function MediaTextEditor({
         onChange={(b) => onChange({ ...content, button: b })}
       />
 
-      <p className="text-xs text-muted-foreground">
-        Rotating images are configured in the JSON content. An image gallery
-        editor is planned for a future update.
-      </p>
+      <Separator />
+
+      <ImageListField
+        label="Rotating Images"
+        images={images}
+        onChange={(imgs) => onChange({ ...content, images: imgs })}
+        maxImages={14}
+      />
     </div>
   )
 }
 
-// --- Quote Banner Editor ---
-
-function QuoteBannerEditor({
+/** Layout editor for MEDIA_TEXT — rendered in the Layout accordion panel */
+export function MediaTextLayoutEditor({
   content,
   onChange,
 }: {
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
+  const rotationSpeed = (content.rotationSpeed as number) ?? 50
+
+  return (
+    <div className="space-y-6">
+      <CarouselSpeedField
+        label="Rotation Speed"
+        value={rotationSpeed}
+        onChange={(v) => onChange({ ...content, rotationSpeed: v })}
+        min={10}
+        max={120}
+        step={5}
+        description="Duration in seconds for one full rotation. Higher = slower."
+      />
+    </div>
+  )
+}
+
+// --- Quote Banner Editor ---
+
+export function QuoteBannerEditor({
+  content,
+  onChange,
+}: {
+  content: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
   const heading = (content.heading as string) ?? ""
   const verse = (content.verse as { text: string; reference: string }) ?? {
     text: "",
@@ -200,55 +114,44 @@ function QuoteBannerEditor({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Overline</Label>
-        <Input
-          value={overline}
-          onChange={(e) => onChange({ ...content, overline: e.target.value })}
-          placeholder="Scripture"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) => onChange({ ...content, heading: e.target.value })}
-          placeholder="Our Foundation"
-        />
-      </div>
+      <EditorInput
+        label="Heading"
+        labelSize="sm"
+        value={heading}
+        onChange={(v) => onChange({ ...content, heading: v })}
+        placeholder="Our Foundation"
+      />
 
       <Separator />
 
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Quote / Verse</Label>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Text</Label>
-          <Textarea
-            value={verse.text}
-            onChange={(e) =>
-              onChange({
-                ...content,
-                verse: { ...verse, text: e.target.value },
-              })
-            }
-            placeholder="Enter the quote or verse text..."
-            className="min-h-[120px]"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Reference</Label>
-          <Input
-            value={verse.reference}
-            onChange={(e) =>
-              onChange({
-                ...content,
-                verse: { ...verse, reference: e.target.value },
-              })
-            }
-            placeholder="John 15:5"
-          />
-        </div>
+        <EditorField label="Quote / Verse" labelSize="sm">
+          <div className="space-y-3">
+            <EditorTextarea
+              label="Text"
+              value={verse.text}
+              onChange={(v) =>
+                onChange({
+                  ...content,
+                  verse: { ...verse, text: v },
+                })
+              }
+              placeholder="Enter the quote or verse text..."
+              rows={6}
+            />
+            <EditorInput
+              label="Reference"
+              value={verse.reference}
+              onChange={(v) =>
+                onChange({
+                  ...content,
+                  verse: { ...verse, reference: v },
+                })
+              }
+              placeholder="John 15:5"
+            />
+          </div>
+        </EditorField>
       </div>
     </div>
   )
@@ -256,14 +159,13 @@ function QuoteBannerEditor({
 
 // --- CTA Banner Editor ---
 
-function CTABannerEditor({
+export function CTABannerEditor({
   content,
   onChange,
 }: {
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const body = (content.body as string) ?? ""
   const primaryButton = (content.primaryButton as {
@@ -279,37 +181,27 @@ function CTABannerEditor({
   const bgImage = (content.backgroundImage as {
     src: string
     alt: string
+    objectPosition?: string
   }) ?? null
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Overline</Label>
-        <Input
-          value={overline}
-          onChange={(e) => onChange({ ...content, overline: e.target.value })}
-          placeholder="Section label"
-        />
-      </div>
+      <EditorInput
+        label="Heading"
+        labelSize="sm"
+        value={heading}
+        onChange={(v) => onChange({ ...content, heading: v })}
+  placeholder="Call to action heading"
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) => onChange({ ...content, heading: e.target.value })}
-          placeholder="Call to action heading"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Body</Label>
-        <Textarea
-          value={body}
-          onChange={(e) => onChange({ ...content, body: e.target.value })}
-          placeholder="Description text..."
-          className="min-h-[100px]"
-        />
-      </div>
+      <EditorTextarea
+        label="Body"
+        labelSize="sm"
+        value={body}
+        onChange={(v) => onChange({ ...content, body: v })}
+        placeholder="Description text..."
+        rows={5}
+      />
 
       <Separator />
 
@@ -320,36 +212,98 @@ function CTABannerEditor({
           onChange({
             ...content,
             backgroundImage: url
-              ? { src: url, alt: bgImage?.alt ?? "" }
+              ? { src: url, alt: bgImage?.alt ?? "", objectPosition: bgImage?.objectPosition }
               : undefined,
           })
         }
       />
 
+      {bgImage?.src && (
+        <EditorInput
+          label="Alt Text"
+          value={bgImage.alt ?? ""}
+          onChange={(v) =>
+            onChange({
+              ...content,
+              backgroundImage: { ...bgImage, alt: v },
+            })
+          }
+          placeholder="Describe the background image"
+        />
+      )}
+
       <Separator />
 
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Buttons</Label>
-        <ButtonConfig
-          id="cta-primary"
-          label="Primary Button"
-          buttonData={primaryButton}
-          onChange={(b) => onChange({ ...content, primaryButton: b })}
-        />
-        <ButtonConfig
-          id="cta-secondary"
-          label="Secondary Button"
-          buttonData={secondaryButton}
-          onChange={(b) => onChange({ ...content, secondaryButton: b })}
-        />
+        <EditorField label="Buttons" labelSize="sm">
+          <div className="space-y-3">
+            <ButtonConfig
+              id="cta-primary"
+              label="Primary Button"
+              buttonData={primaryButton}
+              onChange={(b) => onChange({ ...content, primaryButton: b })}
+            />
+            <ButtonConfig
+              id="cta-secondary"
+              label="Secondary Button"
+              buttonData={secondaryButton}
+              onChange={(b) => onChange({ ...content, secondaryButton: b })}
+            />
+          </div>
+        </EditorField>
       </div>
+    </div>
+  )
+}
+
+// --- CTA Banner Layout Editor ---
+
+export function CTABannerLayoutEditor({
+  content,
+  onChange,
+}: {
+  content: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
+  const bgImage = (content.backgroundImage as {
+    src: string
+    alt: string
+    objectPosition?: string
+  }) ?? null
+
+  if (!bgImage?.src) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        Add a background image in the Content tab to configure layout options.
+      </p>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <EditorButtonGroup
+        label="Image Focus Point"
+        value={bgImage.objectPosition ?? "center"}
+        onChange={(v) =>
+          onChange({
+            ...content,
+            backgroundImage: { ...bgImage, objectPosition: v },
+          })
+        }
+        options={[
+          { value: "top", label: "Top" },
+          { value: "center", label: "Center" },
+          { value: "bottom", label: "Bottom" },
+        ]}
+        size="sm"
+      />
     </div>
   )
 }
 
 // --- About Description Editor ---
 
-function AboutDescriptionEditor({
+export function AboutDescriptionEditor({
   content,
   onChange,
 }: {
@@ -370,53 +324,42 @@ function AboutDescriptionEditor({
         onChange={(url) => onChange({ ...content, logoSrc: url })}
       />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) =>
-            onChange({ ...content, heading: e.target.value })
-          }
-          placeholder="About Us"
-        />
-      </div>
+      <EditorInput
+        label="Heading"
+        labelSize="sm"
+        value={heading}
+        onChange={(v) => onChange({ ...content, heading: v })}
+        placeholder="About Us"
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Description</Label>
-        <Textarea
-          value={description}
-          onChange={(e) =>
-            onChange({ ...content, description: e.target.value })
-          }
-          placeholder="Tell your story..."
-          className="min-h-[160px]"
-        />
-      </div>
+      <EditorTextarea
+        label="Description"
+        labelSize="sm"
+        value={description}
+        onChange={(v) => onChange({ ...content, description: v })}
+        placeholder="Tell your story..."
+        rows={8}
+      />
 
       <Separator />
 
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Video (optional)</Label>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Embed URL</Label>
-          <Input
-            value={videoUrl}
-            onChange={(e) =>
-              onChange({ ...content, videoUrl: e.target.value })
-            }
-            placeholder="https://www.youtube.com/embed/..."
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Video Title</Label>
-          <Input
-            value={videoTitle}
-            onChange={(e) =>
-              onChange({ ...content, videoTitle: e.target.value })
-            }
-            placeholder="About video"
-          />
-        </div>
+        <EditorField label="Video (optional)" labelSize="sm">
+          <div className="space-y-3">
+            <EditorInput
+              label="Embed URL"
+              value={videoUrl}
+              onChange={(v) => onChange({ ...content, videoUrl: v })}
+              placeholder="https://www.youtube.com/embed/..."
+            />
+            <EditorInput
+              label="Video Title"
+              value={videoTitle}
+              onChange={(v) => onChange({ ...content, videoTitle: v })}
+              placeholder="About video"
+            />
+          </div>
+        </EditorField>
       </div>
     </div>
   )
@@ -424,14 +367,13 @@ function AboutDescriptionEditor({
 
 // --- Statement Editor ---
 
-function StatementEditor({
+export function StatementEditor({
   content,
   onChange,
 }: {
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
   const leadIn = (content.leadIn as string) ?? ""
   const showIcon = (content.showIcon as boolean) ?? false
@@ -459,46 +401,35 @@ function StatementEditor({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Overline</Label>
-        <Input
-          value={overline}
-          onChange={(e) => onChange({ ...content, overline: e.target.value })}
-          placeholder="Our Mission"
-        />
-      </div>
+      <EditorInput
+        label="Heading"
+        labelSize="sm"
+        value={heading}
+        onChange={(v) => onChange({ ...content, heading: v })}
+        placeholder="What We Believe"
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) => onChange({ ...content, heading: e.target.value })}
-          placeholder="What We Believe"
-        />
-      </div>
+      <EditorInput
+        label="Lead-In Text"
+        labelSize="sm"
+        value={leadIn}
+        onChange={(v) => onChange({ ...content, leadIn: v })}
+        placeholder="Sticky left column text"
+      />
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Lead-In Text</Label>
-        <Input
-          value={leadIn}
-          onChange={(e) => onChange({ ...content, leadIn: e.target.value })}
-          placeholder="Sticky left column text"
-        />
-      </div>
-
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">Show Cross Icon</Label>
-        <Switch
-          checked={showIcon}
-          onCheckedChange={(v) => onChange({ ...content, showIcon: v })}
-        />
-      </div>
+      <EditorToggle
+        label="Show Cross Icon"
+        checked={showIcon}
+        onCheckedChange={(v) => onChange({ ...content, showIcon: v })}
+      />
 
       <Separator />
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label className="text-sm font-medium">Paragraphs</Label>
+          <EditorField label="Paragraphs" labelSize="sm">
+            <></>
+          </EditorField>
           <button
             type="button"
             onClick={addParagraph}
@@ -549,144 +480,4 @@ function StatementEditor({
   )
 }
 
-// --- Spotlight Media Editor ---
 
-function SpotlightMediaEditor({
-  content,
-  onChange,
-}: {
-  content: Record<string, unknown>
-  onChange: (c: Record<string, unknown>) => void
-}) {
-  const sectionHeading = (content.sectionHeading as string) ?? ""
-  const sermon = (content.sermon as {
-    slug?: string
-    title: string
-    speaker: string
-    date: string
-    series?: string
-    thumbnailUrl?: string | null
-    videoUrl?: string
-  }) ?? {
-    title: "",
-    speaker: "",
-    date: "",
-  }
-
-  function updateSermon(field: string, value: string) {
-    onChange({
-      ...content,
-      sermon: { ...sermon, [field]: value },
-    })
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Section Heading</Label>
-        <Input
-          value={sectionHeading}
-          onChange={(e) =>
-            onChange({ ...content, sectionHeading: e.target.value })
-          }
-          placeholder="Latest Message"
-        />
-      </div>
-
-      <Separator />
-
-      <div className="space-y-3">
-        <Label className="text-sm font-medium">Featured Sermon</Label>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Title</Label>
-          <Input
-            value={sermon.title}
-            onChange={(e) => updateSermon("title", e.target.value)}
-            placeholder="Sermon title"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Speaker</Label>
-            <Input
-              value={sermon.speaker}
-              onChange={(e) => updateSermon("speaker", e.target.value)}
-              placeholder="Speaker name"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Date</Label>
-            <Input
-              value={sermon.date}
-              onChange={(e) => updateSermon("date", e.target.value)}
-              placeholder="January 1, 2026"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Series</Label>
-            <Input
-              value={sermon.series ?? ""}
-              onChange={(e) => updateSermon("series", e.target.value)}
-              placeholder="Series name"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Slug</Label>
-            <Input
-              value={sermon.slug ?? ""}
-              onChange={(e) => updateSermon("slug", e.target.value)}
-              placeholder="sermon-slug"
-            />
-          </div>
-        </div>
-
-        <ImagePickerField
-          label="Thumbnail"
-          value={sermon.thumbnailUrl ?? ""}
-          onChange={(url) => updateSermon("thumbnailUrl", url)}
-        />
-
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            Video URL
-          </Label>
-          <Input
-            value={sermon.videoUrl ?? ""}
-            onChange={(e) => updateSermon("videoUrl", e.target.value)}
-            placeholder="https://..."
-          />
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// --- Main export ---
-
-export function ContentEditor({
-  sectionType,
-  content,
-  onChange,
-}: ContentEditorProps) {
-  switch (sectionType) {
-    case "MEDIA_TEXT":
-      return <MediaTextEditor content={content} onChange={onChange} />
-    case "QUOTE_BANNER":
-      return <QuoteBannerEditor content={content} onChange={onChange} />
-    case "CTA_BANNER":
-      return <CTABannerEditor content={content} onChange={onChange} />
-    case "ABOUT_DESCRIPTION":
-      return <AboutDescriptionEditor content={content} onChange={onChange} />
-    case "STATEMENT":
-      return <StatementEditor content={content} onChange={onChange} />
-    case "SPOTLIGHT_MEDIA":
-      return <SpotlightMediaEditor content={content} onChange={onChange} />
-    default:
-      return null
-  }
-}

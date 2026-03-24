@@ -63,4 +63,10 @@ CLAUDE.md
 digital-church-platform-docs
 docx:html test
 laubf-test
-figma-cms-2:11:26
+figma-cms-2*
+
+# Database dumps, snapshots, and large data files
+db-snapshots/
+scripts/bible-study-content.json
+scripts/message-content/
+scripts/event-content/

@@ -23,7 +23,10 @@
  *   black-2   (secondary)  <->  white-2   (secondary)
  *   black-3   (muted)      <->  white-3   (muted)
  *
- * DB COLUMN: color_scheme ENUM('light','dark') DEFAULT 'light'
+ * -- "brand" -> primary-color bg, white-{1,2,3} text (dark-like, on brand bg)
+ * -- "muted" -> neutral-100 bg, black-{1,2,3} text  (light-like, subtler)
+ *
+ * DB COLUMN: color_scheme ENUM('LIGHT','DARK','BRAND','MUTED') DEFAULT 'LIGHT'
  * ============================================
  */
 "use client"
@@ -34,7 +37,7 @@ import { createContext, useContext } from "react"
  * Available color schemes for any section or component.
  * Maps 1-to-1 with ThemeTokens entries below.
  */
-export type SectionTheme = "dark" | "light"
+export type SectionTheme = "dark" | "light" | "brand" | "muted"
 
 /**
  * Complete set of design tokens resolved from a color scheme.
@@ -111,6 +114,38 @@ export const themeTokens: Record<SectionTheme, ThemeTokens> = {
     cardBg: "bg-black-1-5",
     cardBorder: "border-black-2-5",
   },
+  brand: {
+    bg: "bg-[var(--ws-color-primary,#1a1a2e)]",
+    surfaceBg: "bg-white-1/10",
+    surfaceBgSubtle: "bg-white-1/5",
+    textPrimary: "text-white-1",
+    textSecondary: "text-white-2",
+    textMuted: "text-white-3",
+    borderColor: "border-white-1/20",
+    borderSubtle: "border-white-1/10",
+    btnPrimaryBg: "bg-white-1",
+    btnPrimaryText: "text-black-1",
+    btnOutlineBorder: "border-white-1",
+    btnOutlineText: "text-white-1",
+    cardBg: "bg-white-1/10",
+    cardBorder: "border-white-1/15",
+  },
+  muted: {
+    bg: "bg-neutral-100",
+    surfaceBg: "bg-white",
+    surfaceBgSubtle: "bg-neutral-50",
+    textPrimary: "text-black-1",
+    textSecondary: "text-black-2",
+    textMuted: "text-black-3",
+    borderColor: "border-neutral-200",
+    borderSubtle: "border-neutral-100",
+    btnPrimaryBg: "bg-black-1",
+    btnPrimaryText: "text-white-1",
+    btnOutlineBorder: "border-black-1",
+    btnOutlineText: "text-black-1",
+    cardBg: "bg-white",
+    cardBorder: "border-neutral-200",
+  },
 }
 
 /* -- Event Type Tag Colors -- */
@@ -134,9 +169,14 @@ export function useSectionTheme(): ThemeTokens {
   return themeTokens[theme]
 }
 
-/** Returns the raw scheme name ("dark" | "light"). */
+/** Returns the raw scheme name ("dark" | "light" | "brand" | "muted"). */
 export function useRawSectionTheme(): SectionTheme {
   return useContext(SectionThemeContext)
+}
+
+/** Returns true for schemes with dark backgrounds that need light text/overlays. */
+export function isDarkScheme(theme: SectionTheme): boolean {
+  return theme === "dark" || theme === "brand"
 }
 
 /**

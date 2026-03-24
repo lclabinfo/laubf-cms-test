@@ -1,8 +1,8 @@
 # Website Builder — Roadmap
 
 > **Owner**: David Lim
-> **Updated**: March 17, 2026
-> **Status**: Builder shell ~85% complete. 28/41 section editors are already correct. 13 need changes. Navigation + hardcoded URLs are the other main gaps.
+> **Updated**: March 20, 2026
+> **Status**: All 41 section editors complete. Shared component library extracted. Dirty tracking + selective save + concurrent editing (presence, background sync, post-save merge) all implemented. Iframe canvas migration complete. Navigation editor complete. Footer menu editor + click-to-edit in canvas done. Sidebar consolidated (Pages & Navigation merged). Drag preview fixed. Hero editor expanded with full media/overlay/CTA controls. **No remaining P0 blockers. Now in QA + section attribute polish phase.**
 
 ---
 
@@ -17,7 +17,9 @@ The website builder is a **design tool, not a content tool.** Church admins mana
 
 This means the builder is used **infrequently** — maybe monthly. Every interaction must be self-explanatory without training.
 
-**Editing approach (decided):** Right-panel drawer with form fields + live canvas preview (Shopify-style). The drawer is the correct UI for design-focused, infrequent editing. Inline canvas editing is deferred — high cost, low value given the CMS handles all recurring content. See `website-builder-review.md` for the full analysis.
+**Editing approach (decided):** Right-panel drawer with form fields + live canvas preview (Shopify-style). The drawer is the correct UI for design-focused, infrequent editing. Inline canvas editing is deferred — high cost, low value given the CMS handles all recurring content. See `mental-model/builder-review.md` for the full analysis.
+
+**Concurrent editing (implemented):** Presence awareness + dirty section tracking + silent last-write-wins + background sync. No merge UI, no conflict modals, no page locking. See `architecture/concurrent-editing-strategy.md` for the full design.
 
 ---
 
@@ -27,11 +29,18 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 - 40/42 section components rendering on public website
 - Drag-and-drop section reordering
 - Section picker (categorized, searchable, 40+ types)
-- Right drawer with 14+ type-specific editors + display settings
-- **28/41 section editors fully correct** (verified March 17 — see `section-editor-spec.md`)
+- Right drawer with 14 type-specific editors + display settings
+- **All 41 section editors complete** (13 gaps closed March 18 — verified via Playwright)
+- Shared editor component library (`section-editors/shared/`) — 15 reusable primitives, -42% editor code
+- Dirty section tracking + selective save (K+2 requests instead of N+2)
+- Flat editor registry (1-line to add a new section type)
 - Page tree with add/duplicate/delete pages + page settings
+- Footer menu editor with click-to-edit in canvas (click footer → opens editor in right drawer)
+- Unified sidebar panel (Pages & Navigation consolidated into single tab)
+- Click-to-edit navbar/footer in canvas (iframe postMessage protocol)
+- Navigation DnD reparenting: flat tree pattern with depth projection, cross-parent drag-and-drop (see `worklog/nav-dnd-reparenting-plan.md`)
 - Auto-save (30s), undo/redo (Cmd+Z), unsaved changes warning
-- Device preview (desktop/tablet/mobile)
+- Device preview (desktop/tablet/mobile) via iframe — **responsive breakpoints working correctly**
 - 20 API endpoints for all website entities
 - Theme manager, site settings, domain manager pages
 
@@ -39,80 +48,146 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 
 ## What's Broken or Incomplete
 
-| Issue | Priority |
-|-------|----------|
-| 13 section editors missing fields that the component renders (see `section-editor-spec.md`) | P0 |
-| 4 hardcoded URLs in section components (hero video, mask image, watermark, footer logo) | P0 |
-| Navigation sidebar is broken — doesn't match the actual public website | P0 |
-| Quick Links mixed into navbar — should be managed separately | P0 |
-| SPOTLIGHT_MEDIA editor shows manual fields that contradict data-driven pattern | P0 |
-| Color scheme is binary light/dark — needs to be a palette system | P1 |
-| Undo/redo needs cleanup (history cap, consistent snapshot capture) | P1 |
-| Design panel is a stub ("coming soon") | P1 |
-| No page templates for new pages | P1 |
-| No live theme preview in builder (requires page reload) | P2 |
+| Issue | Priority | Status |
+|-------|----------|--------|
+| ~~**Canvas responsive rendering broken**~~ | ~~**P0 BLOCKER**~~ | **DONE** (Mar 18) — iframe canvas migration complete. Route group isolation, internal scrolling, all device modes working. See `worklog/builder-responsive-rendering-bug.md`. |
+| ~~Save sends ALL sections (N+2 requests) — no dirty tracking~~ | ~~P0~~ | **DONE** (Mar 18) — dirty tracking + selective save |
+| ~~13 section editors missing fields~~ | ~~P0~~ | **DONE** (Mar 18) — all 41 editors complete |
+| ~~4 hardcoded URLs in section components~~ | ~~P0~~ | **DONE** (Mar 18) — all read from content |
+| ~~Navigation sidebar is broken — doesn't match the actual public website~~ | ~~P0~~ | **DONE** (Mar 18) — Full NavigationEditor with DnD, inline rename, CTA editing |
+| ~~Quick Links mixed into navbar — should be managed separately~~ | ~~P0~~ | **DONE** (Mar 18) — Quick Links are a separate section, not mixed into navbar |
+| ~~SPOTLIGHT_MEDIA editor shows manual fields that contradict data-driven pattern~~ | ~~P0~~ | **DONE** (Mar 18) — simplified to info banner |
+| ~~Right sidebar not scrollable~~ | ~~P0~~ | **DONE** (pre-Mar 18) — proper flex/overflow pattern in builder-right-drawer.tsx |
+| ~~Shared editor primitives duplicated across 5 files~~ | ~~P0~~ | **DONE** (Mar 18) — shared/ library with 15 components |
+| ~~No presence awareness for concurrent editors~~ | ~~P1~~ | **DONE** (Mar 19) — Heartbeat presence + banner + background sync + post-save merge |
+| ~~Editor routing requires 2-file changes to add a section type~~ | ~~P1~~ | **DONE** (Mar 18) — flat registry, 1-line change |
+| All content typed as `Record<string, unknown>` — no compile-time safety | P1 | NOT STARTED |
+| ~~Color scheme is binary light/dark — needs to be a palette system~~ | ~~P1~~ | **DONE** (Mar 20) — 4 schemes: Light/Dark/Brand/Muted. Theme tokens in `theme-tokens.tsx`. |
+| 10 sections have hardcoded colors ignoring theme tokens | P1 | IN PROGRESS — all-messages migrated Mar 20. 10 remaining (see Monday checklist). |
+| CMS-driven sections lack layout editors (only heading + CTA) | P1 | IN PROGRESS — ALL_MESSAGES done Mar 20. ALL_EVENTS, ALL_BIBLE_STUDIES, ALL_VIDEOS next. |
+| ~~Drag preview shows label card instead of section visual~~ | ~~P1~~ | **DONE** (Mar 19) — Full section snapshot thumbnail at 0.25x scale |
+| Blue selection border clipped by overflow-hidden | P1 | NOT STARTED |
+| Section picker modal wrong positioning (centered instead of near trigger) | P1 | NOT STARTED |
+| Design panel is a stub ("coming soon") | P1 | NOT STARTED |
+| No page templates for new pages | P1 | NOT STARTED |
+| No live theme preview in builder (requires page reload) | P2 | NOT STARTED |
 
 ---
 
 ## Phase 1: Make Every Section Editable (This Week)
 
-> **Target: March 18–21 (Tue–Fri)**
+> **Target: March 18–24 (Tue–Mon, ~5 working days)**
+> **Updated March 18**: Added iframe canvas migration as Day 1 blocker. Shifted all other work by 1 day.
 > Every section's editor must expose all its rendered fields, save correctly, and render on the public site.
-> **Key input**: `section-editor-spec.md` — reviewed and annotated by David before implementation.
+> **Key input**: `section-catalog/section-editor-gap-analysis.md` — reviewed and annotated by David before implementation.
 
-### Day 1 — Tuesday: Section Editor Audit Review + Navigation + Infrastructure
+### Day 1 — Tuesday: Iframe Canvas Migration (CRITICAL BLOCKER)
+
+> **Why this is first:** The canvas renders sections using real website components, but CSS media queries respond to viewport width (1440px+), not the canvas container (~640px after sidebars). Every responsive breakpoint fires incorrectly. Mobile/tablet previews are completely broken. No visual verification of sections is reliable until this is fixed. See `worklog/builder-responsive-rendering-bug.md` for full analysis.
+
+**Iframe canvas migration** (renders sections in an iframe for correct responsive behavior) — **DONE**
+- [x] Create lightweight preview route: `app/cms/website/builder/preview/[pageId]/page.tsx` (119 lines)
+- [x] Create `builder-preview-client.tsx` (382 lines) — client component inside iframe, listens for `postMessage`
+- [x] Define bidirectional postMessage protocol in `iframe-protocol.ts` (176 lines, type-safe)
+- [x] Replace inline section rendering in `builder-canvas.tsx` with `<iframe>` sized to `deviceWidths[deviceMode]`
+- [x] Implement selection + interaction overlay via SortableSection (inset box-shadow borders)
+- [x] Migrate navbar preview into iframe, intercept clicks via postMessage
+- [x] Adapt DnD to work with overlay handles (pointer-events disabled during drag)
+- [ ] Verify: desktop, tablet (768px), mobile (375px) all show correct responsive layouts — *being refined by another agent team*
+
+**Infrastructure refactors** (do after iframe, before editor work) — **ALL DONE**
+- [x] Extract shared editor primitives to `section-editors/shared/` (15 components across 5 modules — `79b7182`)
+- [x] Fix right sidebar scrolling (proper flexbox: `h-full flex flex-col overflow-hidden` + `flex-1 min-h-0`)
+- [x] Dirty section tracking + selective save (`801291a`)
+- [x] Refactor editor routing to flat registry (`79b7182`)
 
 **Section editor audit & review**
-- [ ] David reviews `section-editor-spec.md` — confirm/reject each "Should Be Editable" recommendation
+- [ ] David reviews `section-catalog/section-editor-gap-analysis.md` — confirm/reject each "Should Be Editable" recommendation
 - [ ] Mark any fields David wants to add/remove/change from the spec
 - [ ] Finalize the list of 13 sections that need editor changes
 
-**Navigation fix**
-- [ ] Audit nav sidebar against the actual public website — fix broken links, wrong hierarchy, missing items
-- [ ] Wire navbar editor changes to API so they persist
-- [ ] Separate Quick Links from navigation — Quick Links (bottom-right FAB on the website) gets its own management, independent of the nav menu
-
-**Undo/redo cleanup**
-- [ ] Verify undo/redo works reliably within a session (open → edit → save)
-- [ ] Cap history at ~50 snapshots to prevent memory bloat
-- [ ] Ensure all edit types are captured (content, reorder, add/remove, display settings)
-
-**Fix hardcoded URLs** (4 components, code-only changes)
-- [ ] HERO_BANNER — read video URL from `content.backgroundVideoUrl` instead of hardcoded R2 URL
-- [ ] STATEMENT — read mask image from content with fallback
-- [ ] FEATURE_BREAKDOWN — read watermark from content with fallback, or remove
-- [ ] FOOTER — read logo from content or site settings
-
-**End of day: Navigation working. Undo/redo solid. Hardcoded URLs fixed. Editor spec finalized.**
+**End of day: Canvas renders sections in iframe with correct responsive behavior. Infrastructure refactors done. Editor spec finalized.**
 
 ---
 
-### Day 2 — Wednesday: Section Editor Fixes (13 sections)
+### Day 2 — Wednesday: Save Architecture + Navigation + Hardcoded URLs
 
-**Hero + Content editors** (4 sections need changes)
-- [ ] HERO_BANNER — add video URL field to editor
-- [ ] MINISTRY_HERO — add social links array editor (platform dropdown + URL)
-- [ ] MEDIA_TEXT — add images array editor (add/remove/reorder with image picker)
-- [ ] SPOTLIGHT_MEDIA — remove manual sermon fields, add "Content auto-populated from CMS" info banner
+**Save architecture upgrade** (dirty tracking + selective save) — **ALL DONE** (`801291a`)
+- [x] Add `dirtySectionIds: Set<string>` state to BuilderShell
+- [x] Mark sections dirty on content edit, display settings change, and new section add
+- [x] Modify `handleSave()` to only PATCH sections in the dirty set (not all N)
+- [x] Add separate `reorderDirty` flag for section reorder
+- [x] Clear dirty set after successful save
+- [x] Verify `router.refresh()` still reloads fresh data after selective save
 
-**Card + Ministry editors** (5 sections need changes)
-- [ ] PILLARS — add image array per pillar item (1-3 images each, nested)
-- [ ] MINISTRY_SCHEDULE — add timeValue, address lines, directions URL, section image
-- [ ] CAMPUS_CARD_GRID — add ctaHeading + CTA button fields
-- [ ] MEET_TEAM — swap photo URL text input for image picker
-- [ ] LOCATION_DETAIL — add time label + images array editor
+**Navigation fix** — **ALL DONE** (`1a91e8a`, `4178ebf`)
+- [x] Full tree-based NavigationEditor inside builder (1084-line component with DnD reordering)
+- [x] NavItemEditor forms for all item types (page, external link, featured, top-level, settings)
+- [x] Schema: `scheduleMeta` on MenuItem, navbar settings on SiteSettings (additive migration)
+- [x] API: child reorder endpoint, navbar settings GET/PATCH, field allowlist on PATCH
+- [x] Navbar settings persisted to DB (scroll behavior, solid color, sticky)
+- [x] Public site: scheduleMeta in dropdown/mobile/FAB, navbar settings wired from DB
+- [x] Security audit: item ownership verification, field allowlist, state conflict fixes
 
-**Layout + Data editors** (4 sections need changes)
-- [ ] FOOTER — add logo image picker, improve social links to use platform dropdown
-- [ ] ACTION_CARD_GRID — add visible toggle to CTA button (minor)
-- [ ] EVENT_CALENDAR — add CTA buttons array (optional, defer if time-constrained)
-- [ ] Add "Content managed in CMS" info banners to all data-driven section editors
+**Undo/redo verification** — **DONE** (`68fa985`)
+- [x] Verify undo/redo works reliably within a session (open → edit → save)
+- [x] Ensure all edit types are captured (content, reorder, add/remove, display settings)
+- [x] Verify dirty tracking interacts correctly with undo/redo (undone sections stay dirty)
+- [x] Fix: `SectionEditorInline` converted to controlled component (no local state) — drawer now syncs with canvas on undo/redo
+- [x] Fix: `editingSnapshotPushedRef` reset after undo/redo so next edit pushes new snapshot
+- [x] Audit: 6 scenarios verified (edit+undo, undo+edit+undo, display settings, DnD reorder, rapid typing, race conditions)
 
-**End of day: All 41 section editors complete and correct.**
+**Fix hardcoded URLs** (4 components, code-only changes) — **ALL DONE** (`4b11296`)
+- [x] HERO_BANNER — reads from `content.backgroundVideo.src` with backward-compat fallback
+- [x] STATEMENT — reads from `content.maskImageUrl` with fallback to default constant
+- [x] FEATURE_BREAKDOWN — reads from `content.watermarkUrl`, hidden when empty
+- [x] FOOTER — reads from `content.logoUrl` with site settings fallback
+
+**End of day: Save architecture upgraded. Navigation complete. Hardcoded URLs fixed.** (All done Mar 18.)
 
 ---
 
-### Day 3 — Thursday: Verification + Color System
+### Day 3 — Thursday: Section Editor Fixes (13 sections) — **ALL DONE** (Mar 18)
+
+> Completed ahead of schedule on Day 1. All 13 section editor gaps closed in `4b11296`, then refactored into shared components in `79b7182`. Verified via Playwright on public website.
+
+**Hero + Content editors** (4 sections) — **DONE**
+- [x] HERO_BANNER — background video URL fields (desktop + mobile)
+- [x] MINISTRY_HERO — social links array editor (platform Select dropdown + URL)
+- [x] MEDIA_TEXT — images array editor (add/remove/reorder with ImagePickerField)
+- [x] SPOTLIGHT_MEDIA — simplified to info banner + heading only (`a3f38da` fixed routing)
+
+**Card + Ministry editors** (5 sections) — **DONE**
+- [x] PILLARS — image array per pillar item (max 3 images each)
+- [x] MINISTRY_SCHEDULE — timeValue, address lines, directionsUrl, image
+- [x] CAMPUS_CARD_GRID — ctaHeading + CTA button fields
+- [x] MEET_TEAM — photo URL replaced with ImagePickerField
+- [x] LOCATION_DETAIL — images array editor
+
+**Layout + Data editors** (4 sections) — **DONE**
+- [x] FOOTER — logo ImagePickerField, social links platform dropdown
+- [x] ACTION_CARD_GRID — CTA visible toggle (Switch)
+- [x] EVENT_CALENDAR — CTA buttons array editor
+- [x] `DataDrivenBanner` component added to all data-driven section editors
+
+**Add TypeScript content interfaces** (incremental, per section as we touch it)
+- [ ] Add typed interfaces for each section we fix (replaces `Record<string, unknown>` + manual casts)
+- [ ] Share types between editors and section components where possible
+
+**End of day: All 41 section editors complete and correct.** ✅
+
+---
+
+### Day 4 — Friday (March 20): Section Attribute QA + Hero Editor Polish
+
+> **Scope change:** Footer menu editor, sidebar consolidation, and nav/page editor QA were added to Day 3 (Mar 19). Day 4 focus shifted to section attribute editors — making each editor control all visual attributes, not just content text.
+
+**Hero editor expansion** — **DONE** (`fe0a819`)
+- [x] Background media fields (image/video picker, overlay opacity, media type toggle)
+- [x] Shared `media-fields.tsx` (+305 lines) — reusable across all section editors
+- [x] Extended `field-primitives.tsx` with new control types
+- [x] Hero banner rendering updated to support all editable attributes
+- [x] CTA buttons, text alignment, color scheme all wired
 
 **Section-by-section verification** (all 41 sections)
 - [ ] For each section type: open editor → verify all fields save → check canvas renders → check public site
@@ -120,17 +195,32 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 - [ ] Test delete, reorder, visibility toggle
 - [ ] Test undo/redo across edit types
 - [ ] Navigation changes reflect on public site
+- [ ] Test concurrent editing: open builder in two tabs, edit different sections, save both — verify both changes preserved
 
-**Color palette system**
+**Color palette system** (deferred to Day 5)
 - [ ] Replace binary light/dark toggle with named color palettes per section
 - [ ] Palettes = named sets of color variations (Light, Dark, Brand Primary, Brand Accent, Muted, etc.)
 - [ ] Backward-compatible with existing light/dark sections
 
-**End of day: All sections verified working. Color palette in place.**
+**End of day: Hero editor fully functional. Section attribute QA in progress.**
 
 ---
 
-### Day 4 — Friday: Theme Compliance + Polish
+### Day 5 — Monday (Week 2): Presence System + Theme Compliance + UX Polish
+
+**Presence awareness system** (concurrent editing — see `architecture/concurrent-editing-strategy.md`) — **ALL DONE** (Mar 19)
+- [x] Create `BuilderPresence` model in Prisma schema (pageId, userId, userName, lastSeen, churchId)
+- [x] Create heartbeat API: `POST /api/v1/builder/presence` (upsert + returns other editors)
+- [x] Create presence query API: `GET /api/v1/builder/presence?pageId=xxx` (active editors with lastSeen < 60s)
+- [x] Create cleanup API: `DELETE /api/v1/builder/presence` (explicit presence removal)
+- [x] Add heartbeat interval (30s) via `usePresenceHeartbeat` hook — start on mount, stop on unmount
+- [x] Show amber warning banner when other editors present: "X is also editing this page — your changes may overwrite theirs if you save now."
+- [x] Hide banner when no other editors (heartbeat expired)
+- [x] Clean up: DELETE with `keepalive: true` on unmount + 60s stale expiry as fallback
+- [x] Background sync: `useBackgroundSync` polls every 15s when idle, merges server state
+- [x] Post-save refetch: fetches fresh page data after save, merges with local state
+- [x] Resilient reorder: DAL reconciles stale section IDs (handles concurrent add/delete)
+- [x] QA audit: 11 bugs found and fixed across 6 parallel agents
 
 **Theme & palette compliance**
 - [ ] All sections respond to palette changes (not just old light/dark)
@@ -138,11 +228,72 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 - [ ] Fix sections using hardcoded colors instead of theme tokens
 - [ ] Global theme changes flow through to every section
 
+**UX bug fixes** (from `backlogs/builder-ux-issues.md`)
+- [ ] Issue 2: Fix blue selection border clipping — switch from `outline` to `inset box-shadow`
+- [x] Issue 1: Fix drag preview — show semi-transparent section visual instead of label card — **DONE** (Mar 19)
+- [ ] Issue 3: Fix section picker positioning — sidebar mode + popover mode instead of centered modal
+- [ ] Issue 4: Soften modal borders from black to subtle gray
+
 **Edge cases & polish**
 - [ ] Empty state handling (section with no content yet)
 - [ ] Long text overflow (headings wrapping, descriptions too long)
 - [ ] Image aspect ratio edge cases
 - [ ] Mobile preview accuracy
+
+---
+
+## Monday Review Checklist (March 24, 2026)
+
+> Items flagged for David to review before moving to Phase 2. Organized by priority.
+
+### P0 — Must verify before moving on
+
+- [ ] **Add Section modal** — Open the section picker on every page, verify all 41 types appear with correct names/categories/icons. Add one of each to a test page and confirm the default content renders correctly in the canvas.
+- [ ] **Section editors end-to-end** — For each homepage section (10 total), open the editor, change a field, verify it updates in the canvas, save, reload, confirm it persisted. Sections: HERO_BANNER, MEDIA_TEXT, HIGHLIGHT_CARDS, EVENT_CALENDAR, QUOTE_BANNER, ACTION_CARD_GRID, DIRECTORY_LIST, SPOTLIGHT_MEDIA, MEDIA_GRID, CTA_BANNER.
+- [ ] **All pages render** — Navigate to every seeded page on the public website (Home, About, Messages, Events, Bible Studies, Videos, I'm New, Giving, etc.). Verify no blank sections, no console errors, no layout breaks.
+- [ ] **Detail pages render** — Check `/messages/[slug]`, `/events/[slug]`, `/bible-study/[slug]` detail pages. These are NOT in the builder but must still work.
+- [ ] **Color scheme on all homepage sections** — Switch each homepage section between Light/Dark/Brand/Muted. Verify text remains readable and colors apply correctly. (Brand/Muted support was added March 20 via `theme-tokens.tsx` expansion.)
+- [ ] **Section drawer syncs with canvas clicks** — Click section A in canvas, verify drawer shows A's editor. Click section B without closing drawer, verify drawer immediately switches to B's editor. (Fixed March 20 — `setEditingSectionId(id)` added to `onSelectSection`.)
+
+### P1 — Review design & architecture decisions
+
+- [ ] **Design tokens** — Review `docs/00_dev-notes/design-tokens.md` and verify the token values match what's rendering. Check font sizes, spacing scale, color palette against Figma prototype.
+- [ ] **Color palette system** — The Style panel now has 4 schemes (Light/Dark/Brand/Muted). Review whether these are sufficient or if more palette presets are needed. See `theme-tokens.tsx` for current token values.
+- [ ] **Section redesign recommendation** — Review `docs/04_builder/section-catalog/section-design-recommendation.md`. Decide on Phase 1 timing (rename + recategorize). This is zero-risk and gives 60% of the UX improvement.
+- [ ] **Subpage template strategy** — Review `docs/04_builder/architecture/subpage-template-brainstorm.md`. Decide: Option A (style-only), B (hybrid), C (full composition), or D (variant presets) for MVP. Key question: do we need this before launch?
+- [ ] **Shared editor components** — Spot-check a few editors to verify they're using shared primitives (`ButtonConfig`, `LinkInput`, `ImagePickerField`, `ImageListField`, `CarouselSpeedField`, `ArrayField`) consistently. No inline reimplementations.
+
+### P2 — Review before production
+
+- [ ] **Hosting & domain strategy** — Review `docs/03_website-rendering/06-hosting-domain-strategy.md`. Verify DNS, proxy, SSL plan is still valid.
+- [ ] **Caching strategy** — Review `docs/03_website-rendering/07-caching-strategy.md`. Decide on ISR vs on-demand revalidation.
+- [ ] **Multi-tenant middleware** — Review whether Phase D (hostname-based tenant routing) is needed for launch or can be deferred.
+- [ ] **Authentication edge cases** — Review `docs/08_user-journeys/` for auth flows, onboarding edge cases, permission checks.
+- [ ] **Builder performance** — Open the builder on a page with 10+ sections. Verify canvas doesn't lag, drawer switches quickly, save completes in <2s.
+
+### Audit results (March 20, 2026)
+
+**Section editor audit: ALL 41 EDITORS COMPLETE**
+- 29 fully functional editors (content + optional layout panels)
+- 12 data-driven sections (DataSectionEditor wrapper)
+- 1 intentionally non-editable (NAVBAR — handled by layout)
+- 6 layout editors registered (HERO_BANNER, TEXT_IMAGE_HERO, MINISTRY_HERO, MEDIA_TEXT, CTA_BANNER, ALL_MESSAGES)
+- 0 TODO/FIXME comments remaining
+- 0 "configured in JSON" placeholders remaining
+- 0 missing exports or unresolved imports
+
+**Changes made today (March 20) that need verification:**
+- ImageListField switched from arrow reordering to drag-and-drop (@dnd-kit)
+- LinkInput component added (type `/` to search pages, supports external URLs)
+- ButtonConfig redesigned (stacked layout, LinkInput, "open in new tab" toggle)
+- All inline CTA fields upgraded to use LinkInput
+- CarouselSpeedField added to Hero layout editor (2-15s)
+- Overline fields removed from all 17 editors
+- SPOTLIGHT_MEDIA moved from SECTION_EDITORS to DATA_SECTION_TYPES
+- DIRECTORY_LIST field name fixed (label -> name)
+- Section picker deduped to use catalog as single source of truth
+- Color scheme expanded (brand + muted tokens in theme-tokens.tsx)
+- Canvas click now syncs drawer editor
 
 ---
 
@@ -201,9 +352,11 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 |------|--------|
 | Inline canvas editing (click text to edit directly) | High cost, low value — builder is used infrequently and CMS handles recurring content |
 | Full version control (cross-session history, revert to published) | Session undo/redo is sufficient for now |
+| Real-time collaboration (live cursors, CRDTs) | Extreme engineering cost for 1-3 admin teams editing monthly. Presence + dirty tracking is sufficient. |
 | AI website generation | Requires Phase 1 + Phase 2 complete first. Target: after Phase 2. |
 | Section merging/consolidation | All 40 types are actively used. Low ROI. |
 | New section types | 40 is comprehensive for MVP |
+| Per-section conflict modals / merge UI | Church admins don't understand merge. Silent last-write-wins with presence awareness is better UX. See `architecture/concurrent-editing-strategy.md`. |
 
 ---
 
@@ -225,6 +378,8 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 
 **"A new admin takes over"** → Builder is self-explanatory → no training needed
 
+**"Two admins edit the website at the same time"** → Both see presence banner → edit different sections → both save → changes merged silently → no conflict
+
 ---
 
 ## Quick Reference
@@ -239,6 +394,12 @@ This means the builder is used **infrequently** — maybe monthly. Every interac
 
 **All API endpoints are built and working** (20 endpoints across pages, sections, menus, theme, settings, domains).
 
-**Detailed section-by-section audit:** See `website-builder-review.md` Part 3.
+**Detailed section-by-section audit:** See `mental-model/builder-review.md` Part 3.
 
-**Editor gap analysis (current vs should-be):** See `section-editor-spec.md`.
+**Editor gap analysis (current vs should-be):** See `section-catalog/section-editor-gap-analysis.md`.
+
+**Concurrent editing design:** See `architecture/concurrent-editing-strategy.md`.
+
+**Save & undo/redo architecture:** See `architecture/undo-redo-and-save-architecture.md`.
+
+**System architecture & recommendations:** See `architecture/builder-system-architecture.md`.

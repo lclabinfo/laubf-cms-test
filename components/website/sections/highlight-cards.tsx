@@ -1,5 +1,3 @@
-"use client"
-
 import SectionContainer from "@/components/website/shared/section-container"
 import SectionHeader from "@/components/website/shared/section-header"
 import EventCard from "@/components/website/shared/event-card"

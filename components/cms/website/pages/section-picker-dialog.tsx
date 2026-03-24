@@ -8,50 +8,15 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
+import { SECTION_TYPE_LABELS } from "@/components/cms/website/builder/section-catalog"
 
+// Merge catalog labels with extras for types not yet in the catalog
 const sectionTypeLabels: Record<string, string> = {
-  HERO_BANNER: "Hero Banner",
-  PAGE_HERO: "Page Hero",
-  TEXT_IMAGE_HERO: "Text & Image Hero",
-  EVENTS_HERO: "Events Hero",
-  MINISTRY_HERO: "Ministry Hero",
-  MEDIA_TEXT: "Media & Text",
-  MEDIA_GRID: "Media Grid",
-  SPOTLIGHT_MEDIA: "Spotlight Media",
-  PHOTO_GALLERY: "Photo Gallery",
-  QUOTE_BANNER: "Quote Banner",
-  CTA_BANNER: "Call to Action",
-  ABOUT_DESCRIPTION: "About Description",
-  STATEMENT: "Statement",
-  ACTION_CARD_GRID: "Action Card Grid",
-  HIGHLIGHT_CARDS: "Highlight Cards",
-  FEATURE_BREAKDOWN: "Feature Breakdown",
-  PATHWAY_CARD: "Pathway Cards",
-  PILLARS: "Pillars",
-  NEWCOMER: "Newcomer Welcome",
-  ALL_MESSAGES: "All Messages",
-  ALL_EVENTS: "All Events",
-  ALL_BIBLE_STUDIES: "Bible Studies",
-  ALL_VIDEOS: "All Videos",
-  UPCOMING_EVENTS: "Upcoming Events",
-  EVENT_CALENDAR: "Event Calendar",
-  RECURRING_MEETINGS: "Recurring Meetings",
-  RECURRING_SCHEDULE: "Recurring Schedule",
-  MINISTRY_INTRO: "Ministry Intro",
-  MINISTRY_SCHEDULE: "Ministry Schedule",
-  CAMPUS_CARD_GRID: "Campus Cards",
-  DIRECTORY_LIST: "Directory List",
-  MEET_TEAM: "Meet the Team",
-  LOCATION_DETAIL: "Location Detail",
-  FORM_SECTION: "Form",
-  FAQ_SECTION: "FAQ",
-  TIMELINE_SECTION: "Timeline",
+  ...SECTION_TYPE_LABELS,
+  // Types not in catalog (placeholders / future sections)
   NAVBAR: "Navigation Bar",
-  FOOTER: "Footer",
-  DAILY_BREAD_FEATURE: "Daily Bread",
   MAP_SECTION: "Map",
   GIVING_WIDGET: "Giving Widget",
-  CUSTOM_HTML: "Custom HTML",
 }
 
 interface SectionCategory {
@@ -86,7 +51,7 @@ const sectionCategories: SectionCategory[] = [
   },
   {
     label: "Layout",
-    types: ["NAVBAR", "FOOTER", "CUSTOM_HTML"],
+    types: ["NAVBAR", "FOOTER", "QUICK_LINKS", "CUSTOM_HTML", "CUSTOM_EMBED"],
   },
 ]
 

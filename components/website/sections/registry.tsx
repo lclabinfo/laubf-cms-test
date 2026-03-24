@@ -183,7 +183,7 @@ export function SectionRenderer({
   const anchorId = (content as Record<string, unknown>).anchorId as string | undefined
 
   // Map DB enum values to the component's expected lowercase format
-  const sectionColorScheme = colorScheme === 'DARK' ? 'dark' : 'light'
+  const sectionColorScheme = colorScheme?.toLowerCase() ?? 'dark'
   const sectionPaddingY = paddingY?.toLowerCase() as 'none' | 'compact' | 'default' | 'spacious'
   const sectionContainerWidth = containerWidth?.toLowerCase() as 'standard' | 'narrow' | 'full'
 

@@ -5,6 +5,8 @@ import SectionContainer from "@/components/website/shared/section-container"
 import MessageCard from "@/components/website/shared/message-card"
 import FilterToolbar from "@/components/website/shared/filter-toolbar"
 import { IconGrid, IconListView, IconBookOpen, IconUser, IconVideo, IconFileText, IconChevronRight, IconFolder } from "@/components/website/shared/icons"
+import { useSectionTheme } from "@/components/website/shared/theme-tokens"
+import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { resolveHref } from "@/lib/website/resolve-href"
 
@@ -37,8 +39,26 @@ interface MessageFilters {
   dateTo?: string
 }
 
-const INITIAL_COUNT = 50
-const LOAD_MORE_COUNT = 50
+// Column count → Tailwind grid class mapping
+const DESKTOP_COLS: Record<number, string> = {
+  2: 'lg:grid-cols-2',
+  3: 'lg:grid-cols-3',
+  4: 'lg:grid-cols-4',
+}
+const TABLET_COLS: Record<number, string> = {
+  1: 'md:grid-cols-1',
+  2: 'md:grid-cols-2',
+  3: 'md:grid-cols-3',
+}
+const MOBILE_COLS: Record<number, string> = {
+  1: 'grid-cols-1',
+  2: 'grid-cols-2',
+}
+const GAP_MAP: Record<string, string> = {
+  tight: 'gap-3',
+  default: 'gap-5',
+  spacious: 'gap-8',
+}
 
 function formatDate(dateStr: string) {
   const date = new Date(dateStr + "T00:00:00")
@@ -49,19 +69,41 @@ function formatDate(dateStr: string) {
   })
 }
 
-interface Props {
-  messages: SimpleMessage[]
-  heading: string
+interface LayoutConfig {
+  columns: { desktop: number; tablet: number; mobile: number }
+  cardGap: 'tight' | 'default' | 'spacious'
+  itemsPerPage: number
+  showDate: boolean
+  showSeriesPill: boolean
+  showSpeaker: boolean
+  showPassage: boolean
+  showDuration: boolean
 }
 
-export default function AllMessagesClient({ messages, heading }: Props) {
+interface Props {
+  messages: SimpleMessage[]
+  layout: LayoutConfig
+  colorScheme?: string
+  paddingY?: string
+  containerWidth?: string
+}
+
+export default function AllMessagesClient({
+  messages,
+  layout,
+  colorScheme = 'light',
+  paddingY = 'none',
+  containerWidth = 'standard',
+}: Props) {
+  const t = useSectionTheme()
+
   /* ---- State ---- */
   const [tab, setTab] = useState<TabView>("all")
   const [viewMode, setViewMode] = useState<ViewMode>("card")
   const [search, setSearch] = useState("")
   const [filters, setFilters] = useState<MessageFilters>({})
   const [yearFilter, setYearFilter] = useState("")
-  const [displayCount, setDisplayCount] = useState(INITIAL_COUNT)
+  const [displayCount, setDisplayCount] = useState(layout.itemsPerPage)
   const [sortField, setSortField] = useState("date")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
 
@@ -155,7 +197,7 @@ export default function AllMessagesClient({ messages, heading }: Props) {
   ) {
     setFilters((prev) => ({ ...prev, [key]: value }))
     if (key === "dateFrom" || key === "dateTo") setYearFilter("")
-    setDisplayCount(INITIAL_COUNT)
+    setDisplayCount(layout.itemsPerPage)
   }
 
   function handleYearChange(year: string) {
@@ -165,7 +207,7 @@ export default function AllMessagesClient({ messages, heading }: Props) {
     } else {
       setFilters((prev) => ({ ...prev, dateFrom: undefined, dateTo: undefined }))
     }
-    setDisplayCount(INITIAL_COUNT)
+    setDisplayCount(layout.itemsPerPage)
   }
 
   /** Switch to "all" tab with a specific filter pre-applied */
@@ -174,7 +216,7 @@ export default function AllMessagesClient({ messages, heading }: Props) {
     setFilters({ [key]: value })
     setYearFilter("")
     setSearch("")
-    setDisplayCount(INITIAL_COUNT)
+    setDisplayCount(layout.itemsPerPage)
   }
 
   const tabs: { key: string; label: string }[] = [
@@ -183,7 +225,12 @@ export default function AllMessagesClient({ messages, heading }: Props) {
   ]
 
   return (
-    <SectionContainer colorScheme="light" paddingY="none" className="pb-24 lg:pb-30">
+    <SectionContainer
+      colorScheme={colorScheme as 'light' | 'dark' | 'brand' | 'muted'}
+      paddingY={paddingY as 'none' | 'compact' | 'default' | 'spacious'}
+      containerWidth={containerWidth as 'standard' | 'narrow' | 'full'}
+      className="pb-24 lg:pb-30"
+    >
       {/* Filter toolbar */}
       <FilterToolbar
         tabs={{
@@ -193,7 +240,7 @@ export default function AllMessagesClient({ messages, heading }: Props) {
             setTab(key as TabView)
             setFilters({})
             setSearch("")
-            setDisplayCount(INITIAL_COUNT)
+            setDisplayCount(layout.itemsPerPage)
           },
         }}
         viewModes={tab === "all" ? {
@@ -208,7 +255,7 @@ export default function AllMessagesClient({ messages, heading }: Props) {
           value: search,
           onChange: (v) => {
             setSearch(v)
-            setDisplayCount(INITIAL_COUNT)
+            setDisplayCount(layout.itemsPerPage)
           },
           placeholder: "Search messages, speakers, passages...",
         } : undefined}
@@ -273,7 +320,7 @@ export default function AllMessagesClient({ messages, heading }: Props) {
           setSearch("")
           setFilters({})
           setYearFilter("")
-          setDisplayCount(INITIAL_COUNT)
+          setDisplayCount(layout.itemsPerPage)
         } : undefined}
         className="mb-8"
       />
@@ -283,14 +330,14 @@ export default function AllMessagesClient({ messages, heading }: Props) {
         <>
           {filteredMessages.length === 0 ? (
             <div className="flex flex-col items-center py-20">
-              <p className="text-body-1 text-black-2">
+              <p className={cn("text-body-1", t.textSecondary)}>
                 No messages found matching your criteria.
               </p>
               <button
                 onClick={() => {
                   setSearch("")
                   setFilters({})
-                  setDisplayCount(INITIAL_COUNT)
+                  setDisplayCount(layout.itemsPerPage)
                 }}
                 className="mt-4 text-accent-blue text-[14px] font-medium hover:underline"
               >
@@ -298,17 +345,20 @@ export default function AllMessagesClient({ messages, heading }: Props) {
               </button>
             </div>
           ) : viewMode === "card" ? (
-            <CardGrid messages={visibleMessages} />
+            <CardGrid messages={visibleMessages} columns={layout.columns} cardGap={layout.cardGap} />
           ) : (
-            <MessageListView messages={visibleMessages} />
+            <MessageListView messages={visibleMessages} t={t} />
           )}
 
           {/* Load more */}
           {hasMore && (
             <div className="flex justify-center mt-10">
               <button
-                onClick={() => setDisplayCount((c) => c + LOAD_MORE_COUNT)}
-                className="inline-flex items-center justify-center rounded-full border border-black-1/30 px-8 py-4 text-button-1 text-black-1 transition-colors hover:bg-black-1 hover:text-white-1"
+                onClick={() => setDisplayCount((c) => c + layout.itemsPerPage)}
+                className={cn(
+                  "inline-flex items-center justify-center rounded-full border px-8 py-4 text-button-1 transition-colors",
+                  t.btnOutlineBorder, t.btnOutlineText,
+                )}
               >
                 Load More Messages
               </button>
@@ -320,23 +370,26 @@ export default function AllMessagesClient({ messages, heading }: Props) {
       {/* ---- Series Tab ---- */}
       {tab === "series" && (
         <>
-          <h2 className="text-h2 text-black-1 mb-8">Series</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <h2 className={cn("text-h2 mb-8", t.textPrimary)}>Series</h2>
+          <div className={`grid ${MOBILE_COLS[layout.columns.mobile] ?? 'grid-cols-1'} ${TABLET_COLS[layout.columns.tablet] ?? 'md:grid-cols-2'} ${DESKTOP_COLS[layout.columns.desktop] ?? 'lg:grid-cols-3'} ${GAP_MAP[layout.cardGap] ?? 'gap-5'}`}>
             {seriesList.map((s) => (
               <button
                 key={s.name}
                 onClick={() => switchToAllWithFilter("series", s.name)}
-                className="group relative rounded-[20px] bg-white-0 p-7 min-h-[180px] flex flex-col text-left cursor-pointer transition-all hover:shadow-[0px_8px_16px_0px_rgba(0,0,0,0.06)]"
+                className={cn(
+                  "group relative rounded-[20px] p-7 min-h-[180px] flex flex-col text-left cursor-pointer transition-all hover:shadow-[0px_8px_16px_0px_rgba(0,0,0,0.06)]",
+                  t.surfaceBgSubtle,
+                )}
               >
                 <div className="mb-4">
-                  <div className="bg-white-1-5 inline-flex items-center p-[8px] rounded-[8px]">
-                    <IconFolder className="size-[16px] text-black-2" />
+                  <div className={cn("inline-flex items-center p-[8px] rounded-[8px]", t.surfaceBg)}>
+                    <IconFolder className={cn("size-[16px]", t.textSecondary)} />
                   </div>
                 </div>
-                <h3 className="text-[20px] font-medium text-black-1 tracking-[-0.4px] mb-2">
+                <h3 className={cn("text-[20px] font-medium tracking-[-0.4px] mb-2", t.textPrimary)}>
                   {s.name}
                 </h3>
-                <p className="text-[13px] text-black-3 mb-4">
+                <p className={cn("text-[13px] mb-4", t.textMuted)}>
                   {s.count} {s.count === 1 ? "Message" : "Messages"} · Last updated {formatDate(s.lastDate)}
                 </p>
                 <p className="mt-auto text-[12px] font-semibold text-accent-blue tracking-[0.24px] uppercase">
@@ -344,7 +397,10 @@ export default function AllMessagesClient({ messages, heading }: Props) {
                 </p>
                 <div
                   aria-hidden="true"
-                  className="absolute border border-white-2-5 inset-0 pointer-events-none rounded-[20px] shadow-[0px_4px_12px_0px_rgba(0,0,0,0.04)] transition-shadow group-hover:shadow-[0px_8px_16px_0px_rgba(0,0,0,0.06)]"
+                  className={cn(
+                    "absolute inset-0 pointer-events-none rounded-[20px] border shadow-[0px_4px_12px_0px_rgba(0,0,0,0.04)] transition-shadow group-hover:shadow-[0px_8px_16px_0px_rgba(0,0,0,0.06)]",
+                    t.cardBorder,
+                  )}
                 />
               </button>
             ))}
@@ -357,9 +413,24 @@ export default function AllMessagesClient({ messages, heading }: Props) {
 
 /* ---- Card Grid ---- */
 
-function CardGrid({ messages }: { messages: SimpleMessage[] }) {
+function CardGrid({
+  messages,
+  columns,
+  cardGap,
+}: {
+  messages: SimpleMessage[]
+  columns: { desktop: number; tablet: number; mobile: number }
+  cardGap: string
+}) {
+  const gridClass = [
+    MOBILE_COLS[columns.mobile] ?? 'grid-cols-1',
+    TABLET_COLS[columns.tablet] ?? 'md:grid-cols-2',
+    DESKTOP_COLS[columns.desktop] ?? 'lg:grid-cols-3',
+    GAP_MAP[cardGap] ?? 'gap-5',
+  ].join(' ')
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+    <div className={`grid ${gridClass}`}>
       {messages.map((message) => (
         <MessageCard key={message.id} message={message} />
       ))}
@@ -369,14 +440,14 @@ function CardGrid({ messages }: { messages: SimpleMessage[] }) {
 
 /* ---- List View ---- */
 
-function MessageListView({ messages }: { messages: SimpleMessage[] }) {
+function MessageListView({ messages, t }: { messages: SimpleMessage[]; t: import("@/components/website/shared/theme-tokens").ThemeTokens }) {
   return (
-    <div className="flex flex-col divide-y divide-white-2/50">
+    <div className={cn("flex flex-col divide-y", t.borderSubtle)}>
       {messages.map((message) => (
         <Link
           key={message.id}
           href={resolveHref(`/messages/${message.slug}`)}
-          className="group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-6 py-5 transition-colors hover:bg-white-1-5 -mx-4 px-4 rounded-[12px]"
+          className="group flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-6 py-5 transition-colors -mx-4 px-4 rounded-[12px]"
         >
           {/* Mini thumbnail -- desktop only */}
           <div className="relative w-[120px] aspect-video rounded-[8px] overflow-hidden bg-black-1 shrink-0 hidden sm:block">
@@ -414,31 +485,31 @@ function MessageListView({ messages }: { messages: SimpleMessage[] }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-1">
               {message.series && (
-                <span className="bg-white-2 px-[8px] py-[4px] rounded-[6px] text-[11px] font-medium text-black-3 tracking-[0.22px] shrink-0">
+                <span className={cn("px-[8px] py-[4px] rounded-[6px] text-[11px] font-medium tracking-[0.22px] shrink-0", t.surfaceBg, t.textMuted)}>
                   {message.series}
                 </span>
               )}
-              <span className="text-[13px] text-black-3 whitespace-nowrap">
+              <span className={cn("text-[13px] whitespace-nowrap", t.textMuted)}>
                 {formatDate(message.dateFor)}
               </span>
             </div>
-            <h3 className="text-[18px] font-medium text-black-1 mb-1 sm:truncate">
+            <h3 className={cn("text-[18px] font-medium mb-1 sm:truncate", t.textPrimary)}>
               {message.videoTitle || message.title}
             </h3>
             {message.videoTitle && message.videoTitle !== message.title && (
-              <p className="text-[13px] text-black-3 mb-1 sm:truncate">
+              <p className={cn("text-[13px] mb-1 sm:truncate", t.textMuted)}>
                 {message.title}
               </p>
             )}
             <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4">
               <div className="flex items-center gap-2">
-                <IconUser className="size-[14px] text-black-3 shrink-0" />
-                <span className="text-[14px] text-black-3">{message.speaker}</span>
+                <IconUser className={cn("size-[14px] shrink-0", t.textMuted)} />
+                <span className={cn("text-[14px]", t.textMuted)}>{message.speaker}</span>
               </div>
               {message.passage && (
                 <div className="flex items-center gap-2">
-                  <IconBookOpen className="size-[14px] text-black-3 shrink-0" />
-                  <span className="text-[14px] text-black-3">{message.passage}</span>
+                  <IconBookOpen className={cn("size-[14px] shrink-0", t.textMuted)} />
+                  <span className={cn("text-[14px]", t.textMuted)}>{message.passage}</span>
                 </div>
               )}
             </div>
@@ -447,16 +518,16 @@ function MessageListView({ messages }: { messages: SimpleMessage[] }) {
           {/* Icons + arrow */}
           <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0">
             <div className="flex gap-1.5">
-              <div className="bg-white-1-5 p-[6px] rounded-[6px]">
-                <IconVideo className="size-[14px] text-black-2" />
+              <div className={cn("p-[6px] rounded-[6px]", t.surfaceBg)}>
+                <IconVideo className={cn("size-[14px]", t.textSecondary)} />
               </div>
               {message.liveTranscript && (
-                <div className="bg-white-1-5 p-[6px] rounded-[6px]">
-                  <IconFileText className="size-[14px] text-black-2" />
+                <div className={cn("p-[6px] rounded-[6px]", t.surfaceBg)}>
+                  <IconFileText className={cn("size-[14px]", t.textSecondary)} />
                 </div>
               )}
             </div>
-            <IconChevronRight className="size-5 text-black-3 transition-transform group-hover:translate-x-1" />
+            <IconChevronRight className={cn("size-5 transition-transform group-hover:translate-x-1", t.textMuted)} />
           </div>
         </Link>
       ))}

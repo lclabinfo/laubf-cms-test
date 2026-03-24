@@ -1,9 +1,9 @@
-"use client"
-
-import { SectionThemeContext } from "@/components/website/shared/theme-tokens"
+import SectionContainer from "@/components/website/shared/section-container"
+import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import CTAButton from "@/components/website/shared/cta-button"
 import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import Image from "next/image"
+import { cn } from "@/lib/utils"
 
 interface CTABannerContent {
   overline: string
@@ -17,14 +17,18 @@ interface CTABannerContent {
 interface Props {
   content: CTABannerContent
   enableAnimations: boolean
+  colorScheme?: SectionTheme
+  paddingY?: "none" | "compact" | "default" | "spacious"
+  containerWidth?: "standard" | "narrow" | "full"
 }
 
-export default function CTABannerSection({ content, enableAnimations }: Props) {
+export default function CTABannerSection({ content, enableAnimations, colorScheme = "dark", paddingY, containerWidth }: Props) {
   const animate = enableAnimations !== false
+  const t = themeTokens[colorScheme]
 
   return (
-    <SectionThemeContext.Provider value="dark">
-      <section className="relative flex flex-col items-center gap-10 bg-black-1 px-4 pb-30 pt-20 text-center lg:px-30">
+    <SectionContainer colorScheme={colorScheme} paddingY={paddingY ?? "spacious"} containerWidth={containerWidth}>
+      <div className="relative flex flex-col items-center gap-10 text-center">
         {/* Background image at 10% opacity */}
         {content.backgroundImage && (
           <Image
@@ -39,10 +43,10 @@ export default function CTABannerSection({ content, enableAnimations }: Props) {
         {/* Content */}
         <AnimateOnScroll animation="fade-up" enabled={animate} className="relative flex flex-col items-center gap-5 text-center">
           <div className="flex flex-col items-center gap-3">
-            <p className="text-h4 text-white-1">{content.overline}</p>
-            <h2 className="text-h2 text-white-1">{content.heading}</h2>
+            <p className={cn("text-h4", t.textPrimary)}>{content.overline}</p>
+            <h2 className={cn("text-h2", t.textPrimary)}>{content.heading}</h2>
           </div>
-          <p className="text-body-1 text-white-2 max-w-[640px]">
+          <p className={cn("text-body-1 max-w-[640px]", t.textSecondary)}>
             {content.body}
           </p>
         </AnimateOnScroll>
@@ -64,7 +68,7 @@ export default function CTABannerSection({ content, enableAnimations }: Props) {
             />
           )}
         </AnimateOnScroll>
-      </section>
-    </SectionThemeContext.Provider>
+      </div>
+    </SectionContainer>
   )
 }

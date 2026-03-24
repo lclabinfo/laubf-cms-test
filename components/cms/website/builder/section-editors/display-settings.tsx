@@ -1,17 +1,13 @@
 "use client"
 
 import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
+import { cn } from "@/lib/utils"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+  EditorInput,
+  EditorToggle,
+  EditorSelect,
+} from "./shared"
 
 export interface DisplaySettingsData {
   colorScheme: string
@@ -37,110 +33,91 @@ export function DisplaySettings({ data, onChange }: DisplaySettingsProps) {
       {/* Color Scheme */}
       <div className="space-y-3">
         <Label className="text-sm font-medium">Color Scheme</Label>
-        <RadioGroup
-          value={data.colorScheme}
-          onValueChange={(v) => update("colorScheme", v)}
-          className="flex gap-4"
-        >
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="LIGHT" id="cs-light" />
-            <Label htmlFor="cs-light" className="cursor-pointer font-normal">
-              Light
-            </Label>
-          </div>
-          <div className="flex items-center gap-2">
-            <RadioGroupItem value="DARK" id="cs-dark" />
-            <Label htmlFor="cs-dark" className="cursor-pointer font-normal">
-              Dark
-            </Label>
-          </div>
-        </RadioGroup>
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { value: "LIGHT", label: "Light", bg: "bg-white", text: "bg-neutral-800" },
+            { value: "DARK", label: "Dark", bg: "bg-[#0d0d0d]", text: "bg-white" },
+            { value: "BRAND", label: "Brand", bg: "bg-[#1a1a2e]", text: "bg-white" },
+          ].map((scheme) => (
+            <button
+              key={scheme.value}
+              type="button"
+              onClick={() => update("colorScheme", scheme.value)}
+              className={cn(
+                "flex flex-col rounded-lg border-2 overflow-hidden transition-all cursor-pointer",
+                data.colorScheme === scheme.value
+                  ? "border-primary ring-1 ring-primary/20"
+                  : "border-muted-foreground/30 hover:border-muted-foreground/40"
+              )}
+            >
+              <div className={cn("p-2.5 flex flex-col gap-1", scheme.bg)}>
+                <div className={cn("h-1 w-3/4 rounded-full opacity-80", scheme.text)} />
+                <div className={cn("h-1 w-full rounded-full opacity-50", scheme.text)} />
+                <div className={cn("h-1 w-2/3 rounded-full opacity-30", scheme.text)} />
+              </div>
+              <div className="px-1 py-1 text-[10px] font-medium text-center border-t">
+                {scheme.label}
+              </div>
+            </button>
+          ))}
+        </div>
       </div>
 
       <Separator />
 
       {/* Vertical Padding */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Vertical Padding</Label>
-        <Select
-          value={data.paddingY}
-          onValueChange={(v) => update("paddingY", v)}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="NONE">None</SelectItem>
-            <SelectItem value="COMPACT">Compact</SelectItem>
-            <SelectItem value="DEFAULT">Default</SelectItem>
-            <SelectItem value="SPACIOUS">Spacious</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <EditorSelect
+        label="Vertical Padding"
+        value={data.paddingY}
+        onValueChange={(v) => update("paddingY", v)}
+        options={[
+          { value: "NONE", label: "None" },
+          { value: "COMPACT", label: "Compact" },
+          { value: "DEFAULT", label: "Default" },
+          { value: "SPACIOUS", label: "Spacious" },
+        ]}
+      />
 
       {/* Container Width */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Container Width</Label>
-        <Select
-          value={data.containerWidth}
-          onValueChange={(v) => update("containerWidth", v)}
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="NARROW">Narrow</SelectItem>
-            <SelectItem value="STANDARD">Standard</SelectItem>
-            <SelectItem value="FULL">Full</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      <EditorSelect
+        label="Container Width"
+        value={data.containerWidth}
+        onValueChange={(v) => update("containerWidth", v)}
+        options={[
+          { value: "NARROW", label: "Narrow" },
+          { value: "STANDARD", label: "Standard" },
+          { value: "FULL", label: "Full" },
+        ]}
+      />
 
       <Separator />
 
       {/* Animations */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-0.5">
-          <Label className="text-sm font-medium">Animations</Label>
-          <p className="text-xs text-muted-foreground">
-            Enable scroll and entrance animations
-          </p>
-        </div>
-        <Switch
-          checked={data.enableAnimations}
-          onCheckedChange={(v) => update("enableAnimations", v)}
-        />
-      </div>
+      <EditorToggle
+        label="Animations"
+        description="Enable scroll and entrance animations"
+        checked={data.enableAnimations}
+        onCheckedChange={(v) => update("enableAnimations", v)}
+      />
 
       {/* Visibility */}
-      <div className="flex items-center justify-between">
-        <div className="space-y-0.5">
-          <Label className="text-sm font-medium">Visible</Label>
-          <p className="text-xs text-muted-foreground">
-            Hidden sections are only visible in the builder
-          </p>
-        </div>
-        <Switch
-          checked={data.visible}
-          onCheckedChange={(v) => update("visible", v)}
-        />
-      </div>
+      <EditorToggle
+        label="Visible"
+        description="Hidden sections are only visible in the builder"
+        checked={data.visible}
+        onCheckedChange={(v) => update("visible", v)}
+      />
 
       <Separator />
 
       {/* Admin Label */}
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Section Label</Label>
-        <Input
-          value={data.label}
-          onChange={(e) => update("label", e.target.value)}
-          placeholder="Optional admin-only label"
-        />
-        <p className="text-xs text-muted-foreground">
-          An internal label to help you identify this section. Not shown on the
-          website.
-        </p>
-      </div>
+      <EditorInput
+        label="Section Label"
+        value={data.label}
+        onChange={(val) => update("label", val)}
+        placeholder="Optional admin-only label"
+        description="An internal label to help you identify this section. Not shown on the website."
+      />
     </div>
   )
 }

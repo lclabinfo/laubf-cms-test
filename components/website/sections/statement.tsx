@@ -3,9 +3,11 @@
 import { useRef, useState, useEffect, useCallback } from "react"
 import { motion } from "motion/react"
 import SectionContainer from "@/components/website/shared/section-container"
-import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
+import { themeTokens, isDarkScheme, type SectionTheme } from "@/components/website/shared/theme-tokens"
 
 const STICKY_TOP = 180
+const DEFAULT_MASK_IMAGE_URL =
+  "https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/initial-setup/compressed-cross.png"
 
 interface StatementParagraph {
   text: string
@@ -19,13 +21,14 @@ function StatementContent({
 }: {
   leadIn: string
   paragraphs: StatementParagraph[]
-  colorScheme: string
+  colorScheme: SectionTheme
 }) {
   const [activeIndex, setActiveIndex] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const activeColor = colorScheme === "dark" ? "#fafafa" : "#0d0d0d"
-  const mutedColor = colorScheme === "dark" ? "#9e9e9e" : "#9e9e9e"
+  const dark = isDarkScheme(colorScheme)
+  const activeColor = dark ? "#fafafa" : "#0d0d0d"
+  const mutedColor = dark ? "#9e9e9e" : "#9e9e9e"
 
   const handleScroll = useCallback(() => {
     if (!containerRef.current) return
@@ -94,6 +97,7 @@ interface StatementContent_ {
   heading: string
   leadIn: string
   showIcon?: boolean
+  maskImageUrl?: string
   paragraphs: StatementParagraph[]
 }
 
@@ -110,6 +114,7 @@ export default function StatementSection({ content, enableAnimations, colorSchem
 
   // Minimal mode: no leadIn + few paragraphs = centered layout (e.g., "coming soon" pages)
   const isMinimal = !content.leadIn && content.paragraphs.length <= 2
+  const maskUrl = content.maskImageUrl || DEFAULT_MASK_IMAGE_URL
 
   return (
     <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
@@ -121,11 +126,11 @@ export default function StatementSection({ content, enableAnimations, colorSchem
             role="img"
             aria-hidden="true"
             style={{
-              maskImage: "url(https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/initial-setup/compressed-cross.png)",
+              maskImage: `url(${maskUrl})`,
               maskSize: "contain",
               maskRepeat: "no-repeat",
               maskPosition: "center",
-              WebkitMaskImage: "url(https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf/initial-setup/compressed-cross.png)",
+              WebkitMaskImage: `url(${maskUrl})`,
               WebkitMaskSize: "contain",
               WebkitMaskRepeat: "no-repeat",
               WebkitMaskPosition: "center",

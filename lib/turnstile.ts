@@ -52,7 +52,7 @@ export async function verifyTurnstile(token: string | null | undefined, ip?: str
     return { success: false, error: 'Verification failed. Please try again.' }
   } catch (error) {
     console.error('[Turnstile] Verification error:', error)
-    // Fail open in case of network issues — honeypot + rate limiting still protect
-    return { success: true }
+    // Fail closed — rate limiting still protects against brute force
+    return { success: false, error: 'Verification service unavailable. Please try again.' }
   }
 }

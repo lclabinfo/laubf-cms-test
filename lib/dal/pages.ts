@@ -92,9 +92,9 @@ export async function updatePage(
 }
 
 export async function deletePage(churchId: string, id: string) {
-  return prisma.page.update({
+  // Hard delete — removes the page and all its sections (cascade)
+  return prisma.page.delete({
     where: { id, churchId },
-    data: { deletedAt: new Date() },
   })
 }
 
@@ -194,11 +194,35 @@ export async function reorderPageSections(
   pageId: string,
   sectionIds: string[],
 ) {
-  const updates = sectionIds.map((id, index) =>
-    prisma.pageSection.update({
-      where: { id, churchId },
-      data: { sortOrder: index },
-    }),
-  )
-  return prisma.$transaction(updates)
+  // Use an interactive transaction so the read + writes are atomic,
+  // preventing TOCTOU races when two users reorder simultaneously.
+  return prisma.$transaction(async (tx) => {
+    const dbSections = await tx.pageSection.findMany({
+      where: { pageId, churchId },
+      select: { id: true, sortOrder: true },
+      orderBy: { sortOrder: 'asc' },
+    })
+    const dbIdSet = new Set(dbSections.map((s) => s.id))
+
+    // 1. Keep only IDs that still exist in the DB (ignore stale/deleted ones)
+    const validClientIds = sectionIds.filter((id) => dbIdSet.has(id))
+
+    // 2. Append any DB sections the client didn't know about (added by another
+    //    user), preserving their existing relative order.
+    const clientIdSet = new Set(validClientIds)
+    const missingIds = dbSections
+      .filter((s) => !clientIdSet.has(s.id))
+      .map((s) => s.id)
+
+    const finalOrder = [...validClientIds, ...missingIds]
+
+    await Promise.all(
+      finalOrder.map((id, index) =>
+        tx.pageSection.update({
+          where: { id, churchId },
+          data: { sortOrder: index },
+        }),
+      ),
+    )
+  })
 }

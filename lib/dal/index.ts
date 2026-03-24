@@ -26,6 +26,9 @@ export * from './theme'
 // Form submissions
 export * from './form-submissions'
 
+// Builder feedback
+export * from './builder-feedback'
+
 // People & Member Management DAL modules
 export * from './people'
 export * from './households'

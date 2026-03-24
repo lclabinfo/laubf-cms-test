@@ -1,5 +1,3 @@
-"use client"
-
 import Link from "next/link"
 import { resolveHref } from "@/lib/website/resolve-href"
 import SectionContainer from "@/components/website/shared/section-container"

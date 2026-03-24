@@ -22,6 +22,7 @@ import { GoogleAlbumsTable } from "@/components/cms/media/google-albums-table"
 import { CreateFolderDialog } from "@/components/cms/media/create-folder-dialog"
 import { RenameFolderDialog } from "@/components/cms/media/rename-folder-dialog"
 import { UploadPhotoDialog } from "@/components/cms/media/upload-photo-dialog"
+import { useUploadQueue } from "@/components/cms/upload-queue-provider"
 import { AddVideoDialog } from "@/components/cms/media/add-video-dialog"
 import { ConnectAlbumDialog } from "@/components/cms/media/connect-album-dialog"
 import { MoveToDialog } from "@/components/cms/media/move-to-dialog"
@@ -55,6 +56,7 @@ type ApiFolderItem = { id: string; name: string; count: number }
 
 export default function MediaPage() {
   const { user } = useCmsSession()
+  const { onComplete } = useUploadQueue()
   const searchParams = useSearchParams()
   // Data state
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([])
@@ -193,6 +195,15 @@ export default function MediaPage() {
     fetchFolders()
     fetchStorageUsage()
   }, [fetchFolders, fetchStorageUsage])
+
+  // Subscribe to upload queue completions — refresh media grid when files finish uploading
+  useEffect(() => {
+    return onComplete(() => {
+      fetchMedia()
+      fetchFolders()
+      fetchStorageUsage()
+    })
+  }, [onComplete, fetchMedia, fetchFolders, fetchStorageUsage])
 
   // Deep-link: open a specific asset's preview dialog via ?assetId=
   const deepLinkHandled = useRef(false)
@@ -536,16 +547,8 @@ export default function MediaPage() {
     setSelectedFolderIds(new Set())
   }
 
-  // ---------------------------------------------------------------------------
-  // Upload handler — receives already-created MediaItems from the dialog
-  // ---------------------------------------------------------------------------
-  function handleUploadPhotos(items: MediaItem[]) {
-    setMediaItems((prev) => [...items, ...prev])
-    // Refetch to get accurate server state
-    fetchMedia()
-    fetchFolders()
-    fetchStorageUsage()
-  }
+  // Upload handler removed — uploads now go through the background upload queue.
+  // The onComplete subscription above handles refreshing the media grid.
 
   // ---------------------------------------------------------------------------
   // Video / Album handlers
@@ -896,7 +899,6 @@ export default function MediaPage() {
       <UploadPhotoDialog
         open={uploadPhotoOpen}
         onOpenChange={setUploadPhotoOpen}
-        onSubmit={handleUploadPhotos}
         currentFolder={currentUploadFolder}
       />
       <AddVideoDialog

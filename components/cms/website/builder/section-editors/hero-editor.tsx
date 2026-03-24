@@ -1,123 +1,123 @@
 "use client"
 
-import { useState } from "react"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
 import { Separator } from "@/components/ui/separator"
-import { ImageIcon, X } from "lucide-react"
-import { MediaPickerDialog } from "@/components/cms/media/media-picker-dialog"
-import type { SectionType } from "@/lib/db/types"
+import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
+import { ImageIcon } from "lucide-react"
+import {
+  EditorField,
+  EditorInput,
+  EditorTextarea,
+  EditorButtonGroup,
+  CarouselSpeedField,
+  ImagePickerField,
+  ImageListField,
+  VideoPickerField,
+  ButtonConfig,
+} from "./shared"
 
-interface HeroEditorProps {
-  sectionType: SectionType
-  content: Record<string, unknown>
-  onChange: (content: Record<string, unknown>) => void
-}
+// --- Layout Arrangement Picker (for split layout) ---
 
-// --- Helper subcomponents ---
-
-function ButtonConfig({
-  id,
-  label,
-  buttonData,
-  onChange,
-}: {
-  id: string
-  label: string
-  buttonData: { label: string; href: string; visible: boolean }
-  onChange: (data: { label: string; href: string; visible: boolean }) => void
-}) {
-  return (
-    <div className="space-y-3 rounded-lg border p-4">
-      <div className="flex items-center justify-between">
-        <Label className="text-sm font-medium">{label}</Label>
-        <Switch
-          id={`${id}-visible`}
-          checked={buttonData.visible}
-          onCheckedChange={(v) => onChange({ ...buttonData, visible: v })}
-        />
-      </div>
-      {buttonData.visible && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Button Text</Label>
-            <Input
-              value={buttonData.label}
-              onChange={(e) =>
-                onChange({ ...buttonData, label: e.target.value })
-              }
-              placeholder="Learn More"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Link URL</Label>
-            <Input
-              value={buttonData.href}
-              onChange={(e) =>
-                onChange({ ...buttonData, href: e.target.value })
-              }
-              placeholder="/about"
-            />
-          </div>
+const splitArrangements = [
+  {
+    value: "text-left",
+    label: "Text Left / Image Right",
+    renderThumb: () => (
+      <div className="flex h-full gap-1 p-1.5">
+        <div className="flex flex-1 flex-col justify-center gap-1 px-1">
+          <div className="h-1 w-3/4 rounded-full bg-current opacity-60" />
+          <div className="h-1 w-full rounded-full bg-current opacity-40" />
+          <div className="h-1 w-2/3 rounded-full bg-current opacity-40" />
         </div>
-      )}
-    </div>
-  )
-}
+        <div className="flex flex-1 items-center justify-center rounded bg-current opacity-15">
+          <ImageIcon className="size-3.5 opacity-40" />
+        </div>
+      </div>
+    ),
+  },
+  {
+    value: "image-left",
+    label: "Image Left / Text Right",
+    renderThumb: () => (
+      <div className="flex h-full gap-1 p-1.5">
+        <div className="flex flex-1 items-center justify-center rounded bg-current opacity-15">
+          <ImageIcon className="size-3.5 opacity-40" />
+        </div>
+        <div className="flex flex-1 flex-col justify-center gap-1 px-1">
+          <div className="h-1 w-3/4 rounded-full bg-current opacity-60" />
+          <div className="h-1 w-full rounded-full bg-current opacity-40" />
+          <div className="h-1 w-2/3 rounded-full bg-current opacity-40" />
+        </div>
+      </div>
+    ),
+  },
+  {
+    value: "text-top",
+    label: "Text Top / Image Bottom",
+    renderThumb: () => (
+      <div className="flex h-full flex-col gap-1 p-1.5">
+        <div className="flex flex-1 flex-col justify-center gap-0.5 px-1">
+          <div className="h-1 w-3/4 rounded-full bg-current opacity-60" />
+          <div className="h-1 w-full rounded-full bg-current opacity-40" />
+        </div>
+        <div className="flex flex-1 items-center justify-center rounded bg-current opacity-15">
+          <ImageIcon className="size-3 opacity-40" />
+        </div>
+      </div>
+    ),
+  },
+  {
+    value: "image-top",
+    label: "Image Top / Text Bottom",
+    renderThumb: () => (
+      <div className="flex h-full flex-col gap-1 p-1.5">
+        <div className="flex flex-1 items-center justify-center rounded bg-current opacity-15">
+          <ImageIcon className="size-3 opacity-40" />
+        </div>
+        <div className="flex flex-1 flex-col justify-center gap-0.5 px-1">
+          <div className="h-1 w-3/4 rounded-full bg-current opacity-60" />
+          <div className="h-1 w-full rounded-full bg-current opacity-40" />
+        </div>
+      </div>
+    ),
+  },
+] as const
 
-function ImagePickerField({
-  label,
+function LayoutArrangementPicker({
   value,
   onChange,
 }: {
-  label: string
   value: string
-  onChange: (url: string) => void
+  onChange: (v: string) => void
 }) {
-  const [pickerOpen, setPickerOpen] = useState(false)
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {value ? (
-        <div className="relative group rounded-md border overflow-hidden h-20">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt="" className="size-full object-cover" />
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100">
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => setPickerOpen(true)}>
-              Replace
-            </Button>
-            <Button size="sm" variant="secondary" className="h-7 text-xs" onClick={() => onChange("")}>
-              <X className="size-3" />
-            </Button>
-          </div>
-        </div>
-      ) : (
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full justify-start gap-2 text-muted-foreground font-normal"
-          onClick={() => setPickerOpen(true)}
-        >
-          <ImageIcon className="size-3.5" />
-          Choose image...
-        </Button>
-      )}
-      <MediaPickerDialog
-        open={pickerOpen}
-        onOpenChange={setPickerOpen}
-        folder="Website"
-        onSelect={(url) => onChange(url)}
-      />
+      <Label className="text-sm font-medium">Arrangement</Label>
+      <div className="grid grid-cols-2 gap-2">
+        {splitArrangements.map((arr) => (
+          <button
+            key={arr.value}
+            type="button"
+            onClick={() => onChange(arr.value)}
+            className={cn(
+              "h-14 w-full rounded-md border-2 transition-colors text-foreground",
+              value === arr.value
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-muted-foreground/40 text-muted-foreground"
+            )}
+            title={arr.label}
+          >
+            {arr.renderThumb()}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
 
 // --- Hero Banner Editor ---
 
-function HeroBannerEditor({
+export function HeroBannerEditor({
   content,
   onChange,
 }: {
@@ -144,139 +144,305 @@ function HeroBannerEditor({
     alt: string
     objectPosition?: string
   }) ?? { src: "", alt: "" }
+  const bgVideo = (content.backgroundVideo as {
+    src: string
+    mobileSrc?: string
+  }) ?? { src: "", mobileSrc: "" }
+  const legacyMobileVideo = (content.mobileVideo as { src?: string })?.src || ""
+  const posterImage = (content.posterImage as {
+    src: string
+    alt: string
+  }) ?? { src: "", alt: "" }
+
+  // Helper to detect video file URLs
+  const isVideoSrc = (src: string) => /\.(mp4|webm|mov|ogg)(\?|$)/i.test(src)
+
+  // Multi-image support: read images array, fall back to single backgroundImage
+  // Filter out video files — those belong in the video section
+  const rawImages = (content.images as Array<{ src: string; alt: string }>) ??
+    (bgImage.src && !isVideoSrc(bgImage.src) ? [{ src: bgImage.src, alt: bgImage.alt }] : [])
+  const images = rawImages.filter((img) => !isVideoSrc(img.src))
+
+  // Layout variant (needed to determine which image fields to show)
+  const layout = (content.layout as string) || "fullwidth"
+
+  // Trust saved mediaType once set; only infer from content when not saved
+  const mediaType = (content.mediaType as string) || (bgVideo.src ? "video" : "image")
 
   return (
     <div className="space-y-6">
+      {/* === Content (always visible) === */}
+
       {/* Heading */}
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Heading</Label>
-        <div className="space-y-2">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Line 1</Label>
-            <Input
+        <EditorField label="Heading" labelSize="sm">
+          <div className="space-y-2">
+            <EditorInput
+              label="Line 1"
               value={heading.line1}
-              onChange={(e) =>
+              onChange={(v) =>
                 onChange({
                   ...content,
-                  heading: { ...heading, line1: e.target.value },
+                  heading: { ...heading, line1: v },
                 })
               }
               placeholder="Welcome to"
             />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              Line 2 (accent)
-            </Label>
-            <Input
+            <EditorInput
+              label="Line 2 (accent)"
               value={heading.line2}
-              onChange={(e) =>
+              onChange={(v) =>
                 onChange({
                   ...content,
-                  heading: { ...heading, line2: e.target.value },
+                  heading: { ...heading, line2: v },
                 })
               }
               placeholder="Our Church"
             />
           </div>
-        </div>
+        </EditorField>
       </div>
 
       {/* Subheading */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Subheading</Label>
-        <Textarea
-          value={subheading}
-          onChange={(e) =>
-            onChange({ ...content, subheading: e.target.value })
-          }
-          placeholder="A brief description..."
-          className="min-h-[80px]"
-        />
-      </div>
+      <EditorTextarea
+        label="Subheading"
+        labelSize="sm"
+        value={subheading}
+        onChange={(v) => onChange({ ...content, subheading: v })}
+        placeholder="A brief description..."
+        rows={4}
+      />
 
       <Separator />
 
-      {/* Background Image */}
-      <div className="space-y-3">
-        <Label className="text-sm font-medium">Background Image</Label>
-        <ImagePickerField
-          label="Image"
-          value={bgImage.src}
-          onChange={(v) =>
-            onChange({
-              ...content,
-              backgroundImage: { ...bgImage, src: v },
-            })
-          }
-        />
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Alt Text</Label>
-            <Input
-              value={bgImage.alt}
-              onChange={(e) =>
-                onChange({
-                  ...content,
-                  backgroundImage: { ...bgImage, alt: e.target.value },
-                })
-              }
-              placeholder="Hero background"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              Object Position
-            </Label>
-            <Input
-              value={bgImage.objectPosition ?? ""}
-              onChange={(e) =>
-                onChange({
-                  ...content,
-                  backgroundImage: {
-                    ...bgImage,
-                    objectPosition: e.target.value,
-                  },
-                })
-              }
-              placeholder="center center"
-            />
-          </div>
+      {/* Media Type selector */}
+      <EditorButtonGroup
+        label="Media Type"
+        value={mediaType}
+        onChange={(v) => onChange({ ...content, mediaType: v })}
+        options={[
+          { value: "image", label: "Image" },
+          { value: "video", label: "Video" },
+        ]}
+        size="sm"
+      />
+
+      {/* Image fields */}
+      {mediaType === "image" && layout === "contained" && (
+        <div className="space-y-3">
+          <ImagePickerField
+            label="Featured Image"
+            value={bgImage.src}
+            onChange={(v) =>
+              onChange({
+                ...content,
+                backgroundImage: { ...bgImage, src: v },
+                images: v ? [{ src: v, alt: bgImage.alt || "" }] : [],
+              })
+            }
+          />
         </div>
-      </div>
+      )}
+      {mediaType === "image" && layout !== "contained" && (
+        <div className="space-y-3">
+          <ImageListField
+            label={layout === "split" ? "Images" : "Background Images"}
+            images={images}
+            onChange={(imgs) => {
+              // Write images array + backward-compat backgroundImage
+              const backgroundImage = imgs.length > 0
+                ? { ...bgImage, src: imgs[0].src, alt: imgs[0].alt }
+                : { src: "", alt: "" }
+              onChange({
+                ...content,
+                images: imgs,
+                backgroundImage,
+              })
+            }}
+            maxImages={10}
+          />
+        </div>
+      )}
+
+      {/* Video fields */}
+      {mediaType === "video" && (
+        <div className="space-y-4">
+          <VideoPickerField
+            label="Desktop Video"
+            description="1920×1080+  ·  Screens ≥ 1024px"
+            value={bgVideo.src || (isVideoSrc(bgImage.src) ? bgImage.src : "")}
+            onChange={(v) =>
+              onChange({
+                ...content,
+                backgroundVideo: { ...bgVideo, src: v },
+                // Clear the video from backgroundImage if it was stored there (legacy)
+                ...(isVideoSrc(bgImage.src) ? { backgroundImage: { ...bgImage, src: "" } } : {}),
+              })
+            }
+          />
+          <VideoPickerField
+            label="Mobile Video (optional)"
+            description="720×1280 portrait  ·  Screens < 1024px  ·  Uses desktop video if empty"
+            value={bgVideo.mobileSrc || legacyMobileVideo}
+            onChange={(v) =>
+              onChange({
+                ...content,
+                backgroundVideo: { ...bgVideo, mobileSrc: v },
+                mobileVideo: undefined, // clear legacy field
+              })
+            }
+          />
+          <ImagePickerField
+            label="Poster / Fallback Image"
+            value={posterImage.src}
+            onChange={(v) =>
+              onChange({
+                ...content,
+                posterImage: { ...posterImage, src: v },
+              })
+            }
+          />
+          {posterImage.src && (
+            <p className="text-[11px] text-muted-foreground/70 -mt-1">
+              Displays while loading or on playback failure
+            </p>
+          )}
+        </div>
+      )}
 
       <Separator />
 
       {/* Buttons */}
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Buttons</Label>
-        <ButtonConfig
-          id="hero-primary"
-          label="Primary Button"
-          buttonData={primaryButton}
-          onChange={(b) => onChange({ ...content, primaryButton: b })}
-        />
-        <ButtonConfig
-          id="hero-secondary"
-          label="Secondary Button"
-          buttonData={secondaryButton}
-          onChange={(b) => onChange({ ...content, secondaryButton: b })}
-        />
+        <EditorField label="Buttons" labelSize="sm">
+          <div className="space-y-3">
+            <ButtonConfig
+              id="hero-primary"
+              label="Primary Button"
+              buttonData={primaryButton}
+              onChange={(b) => onChange({ ...content, primaryButton: b })}
+            />
+            <ButtonConfig
+              id="hero-secondary"
+              label="Secondary Button"
+              buttonData={secondaryButton}
+              onChange={(b) => onChange({ ...content, secondaryButton: b })}
+            />
+          </div>
+        </EditorField>
       </div>
+
     </div>
   )
 }
 
-// --- Page Hero Editor ---
-
-function PageHeroEditor({
+/** Layout editor for HERO_BANNER — rendered in the Layout accordion panel */
+export function HeroBannerLayoutEditor({
   content,
   onChange,
 }: {
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
+  const layout = (content.layout as string) || "fullwidth"
+  const splitArrangement = (content.splitArrangement as string) || "text-left"
+  const textHAlign = (content.textHAlign as string) || "center"
+  const textVAlign = (content.textVAlign as string) || "middle"
+  const splitTextAlign = (content.textAlign as string) || "left"
+  const carouselSpeed = (content.carouselSpeed as number) ?? 5
+  const mediaType = (content.mediaType as string) || "image"
+  const images = (content.images as Array<{ src: string }>) ?? []
+  const hasCarousel = mediaType === "image" && images.length >= 2
+
+  return (
+    <div className="space-y-6">
+      <EditorButtonGroup
+        label="Layout"
+        value={layout}
+        onChange={(v) => onChange({ ...content, layout: v })}
+        options={[
+          { value: "fullwidth", label: "Full Width" },
+          { value: "split", label: "Split" },
+          { value: "contained", label: "Contained" },
+        ]}
+        size="sm"
+      />
+
+      {(layout === "split" || layout === "contained") && (
+        <LayoutArrangementPicker
+          value={splitArrangement}
+          onChange={(v) => onChange({ ...content, splitArrangement: v })}
+        />
+      )}
+
+      {layout === "fullwidth" && (
+        <>
+          <EditorButtonGroup
+            label="Horizontal Position"
+            value={textHAlign}
+            onChange={(v) => onChange({ ...content, textHAlign: v })}
+            options={[
+              { value: "left", label: "Left" },
+              { value: "center", label: "Center" },
+              { value: "right", label: "Right" },
+            ]}
+            size="sm"
+          />
+          <EditorButtonGroup
+            label="Vertical Position"
+            value={textVAlign}
+            onChange={(v) => onChange({ ...content, textVAlign: v })}
+            options={[
+              { value: "top", label: "Top" },
+              { value: "middle", label: "Middle" },
+              { value: "bottom", label: "Bottom" },
+            ]}
+            size="sm"
+          />
+        </>
+      )}
+
+      {(layout === "split" || layout === "contained") && (
+        <EditorButtonGroup
+          label="Text Alignment"
+          value={splitTextAlign}
+          onChange={(v) => onChange({ ...content, textAlign: v })}
+          options={[
+            { value: "left", label: "Left" },
+            { value: "center", label: "Center" },
+            { value: "right", label: "Right" },
+          ]}
+          size="sm"
+        />
+      )}
+
+      {hasCarousel && (
+        <>
+          <Separator />
+          <CarouselSpeedField
+            value={carouselSpeed}
+            onChange={(v) => onChange({ ...content, carouselSpeed: v })}
+            min={2}
+            max={15}
+            step={1}
+            description="Seconds between each image crossfade"
+          />
+        </>
+      )}
+
+    </div>
+  )
+}
+
+// --- Page Hero Editor ---
+
+export function PageHeroEditor({
+  content,
+  onChange,
+}: {
+  content: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
   const heading = (content.heading as string) ?? ""
   const primaryButton = (content.primaryButton as {
     label: string
@@ -291,44 +457,33 @@ function PageHeroEditor({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Overline</Label>
-        <Input
-          value={overline}
-          onChange={(e) =>
-            onChange({ ...content, overline: e.target.value })
-          }
-          placeholder="Church Name"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) =>
-            onChange({ ...content, heading: e.target.value })
-          }
-          placeholder="Welcome"
-        />
-      </div>
+      <EditorInput
+        label="Heading"
+        labelSize="sm"
+        value={heading}
+        onChange={(v) => onChange({ ...content, heading: v })}
+        placeholder="Welcome"
+      />
 
       <Separator />
 
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Buttons</Label>
-        <ButtonConfig
-          id="page-hero-primary"
-          label="Primary Button"
-          buttonData={primaryButton}
-          onChange={(b) => onChange({ ...content, primaryButton: b })}
-        />
-        <ButtonConfig
-          id="page-hero-secondary"
-          label="Secondary Button"
-          buttonData={secondaryButton}
-          onChange={(b) => onChange({ ...content, secondaryButton: b })}
-        />
+        <EditorField label="Buttons" labelSize="sm">
+          <div className="space-y-3">
+            <ButtonConfig
+              id="page-hero-primary"
+              label="Primary Button"
+              buttonData={primaryButton}
+              onChange={(b) => onChange({ ...content, primaryButton: b })}
+            />
+            <ButtonConfig
+              id="page-hero-secondary"
+              label="Secondary Button"
+              buttonData={secondaryButton}
+              onChange={(b) => onChange({ ...content, secondaryButton: b })}
+            />
+          </div>
+        </EditorField>
       </div>
 
       <p className="text-xs text-muted-foreground">
@@ -341,14 +496,13 @@ function PageHeroEditor({
 
 // --- Text Image Hero Editor ---
 
-function TextImageHeroEditor({
+export function TextImageHeroEditor({
   content,
   onChange,
 }: {
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const headingLine1 = (content.headingLine1 as string) ?? ""
   const headingAccent = (content.headingAccent as string) ?? ""
   const description = (content.description as string) ?? ""
@@ -357,88 +511,41 @@ function TextImageHeroEditor({
     alt: string
     objectPosition?: string
   }) ?? { src: "", alt: "" }
-  const textAlign =
-    (content.textAlign as "left" | "center" | "right") ?? "left"
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Overline</Label>
-        <Input
-          value={overline}
-          onChange={(e) =>
-            onChange({ ...content, overline: e.target.value })
-          }
-          placeholder="About Us"
-        />
-      </div>
-
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Heading</Label>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Line 1</Label>
-          <Input
-            value={headingLine1}
-            onChange={(e) =>
-              onChange({ ...content, headingLine1: e.target.value })
-            }
-            placeholder="Our Story"
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            Accent Line (optional)
-          </Label>
-          <Input
-            value={headingAccent}
-            onChange={(e) =>
-              onChange({ ...content, headingAccent: e.target.value })
-            }
-            placeholder="Since 1985"
-          />
-        </div>
+        <EditorField label="Heading" labelSize="sm">
+          <div className="space-y-2">
+            <EditorInput
+              label="Line 1"
+              value={headingLine1}
+              onChange={(v) => onChange({ ...content, headingLine1: v })}
+              placeholder="Our Story"
+            />
+            <EditorInput
+              label="Accent Line (optional)"
+              value={headingAccent}
+              onChange={(v) => onChange({ ...content, headingAccent: v })}
+              placeholder="Since 1985"
+            />
+          </div>
+        </EditorField>
       </div>
 
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Description</Label>
-        <Textarea
-          value={description}
-          onChange={(e) =>
-            onChange({ ...content, description: e.target.value })
-          }
-          placeholder="Tell visitors about this page..."
-          className="min-h-[100px]"
-        />
-      </div>
-
-      <Separator />
-
-      {/* Text Alignment */}
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Text Alignment</Label>
-        <div className="flex gap-2">
-          {(["left", "center", "right"] as const).map((align) => (
-            <button
-              key={align}
-              type="button"
-              onClick={() => onChange({ ...content, textAlign: align })}
-              className={`rounded-md border px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-                textAlign === align
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background hover:bg-accent"
-              }`}
-            >
-              {align}
-            </button>
-          ))}
-        </div>
-      </div>
+      <EditorTextarea
+        label="Description"
+        labelSize="sm"
+        value={description}
+        onChange={(v) => onChange({ ...content, description: v })}
+        placeholder="Tell visitors about this page..."
+        rows={5}
+      />
 
       <Separator />
 
       {/* Image */}
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Hero Image</Label>
         <ImagePickerField
           label="Image"
           value={image.src}
@@ -446,44 +553,51 @@ function TextImageHeroEditor({
             onChange({ ...content, image: { ...image, src: v } })
           }
         />
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Alt Text</Label>
-            <Input
-              value={image.alt}
-              onChange={(e) =>
-                onChange({
-                  ...content,
-                  image: { ...image, alt: e.target.value },
-                })
-              }
-              placeholder="Hero image"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              Object Position
-            </Label>
-            <Input
-              value={image.objectPosition ?? ""}
-              onChange={(e) =>
-                onChange({
-                  ...content,
-                  image: { ...image, objectPosition: e.target.value },
-                })
-              }
-              placeholder="center center"
-            />
-          </div>
-        </div>
+        <EditorInput
+          label="Alt Text"
+          value={image.alt}
+          onChange={(v) =>
+            onChange({
+              ...content,
+              image: { ...image, alt: v },
+            })
+          }
+          placeholder="Hero image"
+        />
       </div>
+
+    </div>
+  )
+}
+
+/** Layout editor for TEXT_IMAGE_HERO */
+export function TextImageHeroLayoutEditor({
+  content,
+  onChange,
+}: {
+  content: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
+  const textAlign = (content.textAlign as string) ?? "left"
+  return (
+    <div className="space-y-6">
+      <EditorButtonGroup
+        label="Text Alignment"
+        value={textAlign}
+        onChange={(v) => onChange({ ...content, textAlign: v })}
+        options={[
+          { value: "left", label: "Left" },
+          { value: "center", label: "Center" },
+          { value: "right", label: "Right" },
+        ]}
+      />
     </div>
   )
 }
 
 // --- Events Hero Editor ---
 
-function EventsHeroEditor({
+export function EventsHeroEditor({
   content,
   onChange,
 }: {
@@ -495,44 +609,35 @@ function EventsHeroEditor({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading</Label>
-        <Input
-          value={heading}
-          onChange={(e) =>
-            onChange({ ...content, heading: e.target.value })
-          }
-          placeholder="Events"
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Subtitle</Label>
-        <Textarea
-          value={subtitle}
-          onChange={(e) =>
-            onChange({ ...content, subtitle: e.target.value })
-          }
-          placeholder="Browse upcoming events..."
-          className="min-h-[80px]"
-        />
-      </div>
+      <EditorInput
+        label="Heading"
+        labelSize="sm"
+        value={heading}
+        onChange={(v) => onChange({ ...content, heading: v })}
+        placeholder="Events"
+      />
+      <EditorTextarea
+        label="Subtitle"
+        labelSize="sm"
+        value={subtitle}
+        onChange={(v) => onChange({ ...content, subtitle: v })}
+        placeholder="Browse upcoming events..."
+        rows={4}
+      />
     </div>
   )
 }
 
 // --- Ministry Hero Editor ---
 
-function MinistryHeroEditor({
+export function MinistryHeroEditor({
   content,
   onChange,
 }: {
   content: Record<string, unknown>
   onChange: (c: Record<string, unknown>) => void
 }) {
-  const overline = (content.overline as string) ?? ""
   const heading = (content.heading as string) ?? ""
-  const headingStyle =
-    (content.headingStyle as "display" | "sans") ?? "display"
   const ctaButton = (content.ctaButton as {
     label: string
     href: string
@@ -546,48 +651,15 @@ function MinistryHeroEditor({
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Overline</Label>
-        <Input
-          value={overline}
-          onChange={(e) =>
-            onChange({ ...content, overline: e.target.value })
-          }
-          placeholder="Ministry name"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading</Label>
-        <Textarea
-          value={heading}
-          onChange={(e) =>
-            onChange({ ...content, heading: e.target.value })
-          }
-          placeholder="Ministry heading (use newlines for line breaks)"
-          className="min-h-[80px]"
-        />
-      </div>
-
-      <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Heading Style</Label>
-        <div className="flex gap-2">
-          {(["display", "sans"] as const).map((style) => (
-            <button
-              key={style}
-              type="button"
-              onClick={() => onChange({ ...content, headingStyle: style })}
-              className={`rounded-md border px-3 py-1.5 text-xs font-medium capitalize transition-colors ${
-                headingStyle === style
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background hover:bg-accent"
-              }`}
-            >
-              {style}
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* === Content === */}
+      <EditorTextarea
+        label="Heading"
+        labelSize="sm"
+        value={heading}
+        onChange={(v) => onChange({ ...content, heading: v })}
+        placeholder="Ministry heading (use newlines for line breaks)"
+        rows={4}
+      />
 
       <Separator />
 
@@ -601,7 +673,6 @@ function MinistryHeroEditor({
       <Separator />
 
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Hero Image</Label>
         <ImagePickerField
           label="Image"
           value={heroImage.src}
@@ -609,39 +680,17 @@ function MinistryHeroEditor({
             onChange({ ...content, heroImage: { ...heroImage, src: v } })
           }
         />
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Alt Text</Label>
-            <Input
-              value={heroImage.alt}
-              onChange={(e) =>
-                onChange({
-                  ...content,
-                  heroImage: { ...heroImage, alt: e.target.value },
-                })
-              }
-              placeholder="Ministry banner"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">
-              Object Position
-            </Label>
-            <Input
-              value={heroImage.objectPosition ?? ""}
-              onChange={(e) =>
-                onChange({
-                  ...content,
-                  heroImage: {
-                    ...heroImage,
-                    objectPosition: e.target.value,
-                  },
-                })
-              }
-              placeholder="center center"
-            />
-          </div>
-        </div>
+        <EditorInput
+          label="Alt Text"
+          value={heroImage.alt}
+          onChange={(v) =>
+            onChange({
+              ...content,
+              heroImage: { ...heroImage, alt: v },
+            })
+          }
+          placeholder="Ministry banner"
+        />
       </div>
 
       <p className="text-xs text-muted-foreground">
@@ -652,21 +701,26 @@ function MinistryHeroEditor({
   )
 }
 
-// --- Main export ---
-
-export function HeroEditor({ sectionType, content, onChange }: HeroEditorProps) {
-  switch (sectionType) {
-    case "HERO_BANNER":
-      return <HeroBannerEditor content={content} onChange={onChange} />
-    case "PAGE_HERO":
-      return <PageHeroEditor content={content} onChange={onChange} />
-    case "TEXT_IMAGE_HERO":
-      return <TextImageHeroEditor content={content} onChange={onChange} />
-    case "EVENTS_HERO":
-      return <EventsHeroEditor content={content} onChange={onChange} />
-    case "MINISTRY_HERO":
-      return <MinistryHeroEditor content={content} onChange={onChange} />
-    default:
-      return null
-  }
+/** Layout editor for MINISTRY_HERO */
+export function MinistryHeroLayoutEditor({
+  content,
+  onChange,
+}: {
+  content: Record<string, unknown>
+  onChange: (c: Record<string, unknown>) => void
+}) {
+  const headingStyle = (content.headingStyle as string) ?? "display"
+  return (
+    <div className="space-y-6">
+      <EditorButtonGroup
+        label="Heading Style"
+        value={headingStyle}
+        onChange={(v) => onChange({ ...content, headingStyle: v })}
+        options={[
+          { value: "display", label: "Display" },
+          { value: "sans", label: "Sans" },
+        ]}
+      />
+    </div>
+  )
 }

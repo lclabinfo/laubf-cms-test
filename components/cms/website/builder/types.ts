@@ -1,6 +1,6 @@
 import type { SectionType, ColorScheme, PaddingSize, ContainerWidth, PageType, PageLayout } from "@/lib/db/types"
 
-export type BuilderTool = "add" | "pages" | "design" | "media" | null
+export type BuilderTool = "add" | "navigation" | "design" | "media" | null
 
 export type DeviceMode = "desktop" | "tablet" | "mobile"
 
@@ -47,33 +47,23 @@ export interface PageSummary {
 }
 
 // ---------------------------------------------------------------------------
-// Nav-driven page tree types
+// Navbar data (shared between builder shell, iframe protocol, preview route)
 // ---------------------------------------------------------------------------
 
-/** Serialized menu item passed from the server component. */
-export interface NavTreeMenuItem {
-  id: string
-  label: string
-  href: string | null
-  isExternal: boolean
-  groupLabel: string | null
-  sortOrder: number
-  children: NavTreeMenuItem[]
+export interface NavbarData {
+  menu: unknown
+  logoUrl: string | null
+  logoDarkUrl: string | null
+  logoAlt: string | null
+  siteName: string
+  ctaLabel: string | null
+  ctaHref: string | null
+  ctaVisible: boolean
+  memberLoginLabel: string
+  memberLoginHref: string
+  memberLoginVisible: boolean
+  scrollBehavior: string
+  solidColor: string
+  sticky: boolean
 }
 
-export type NavTreeNodeKind = "page" | "folder" | "link"
-
-/** A node in the navigation-driven page tree. */
-export interface NavTreeNode {
-  id: string
-  label: string
-  kind: NavTreeNodeKind
-  pageId: string | null
-  pageType: PageType | null
-  isHomepage: boolean
-  isPublished: boolean
-  href: string | null
-  isExternal: boolean
-  groupLabel: string | null
-  children: NavTreeNode[]
-}

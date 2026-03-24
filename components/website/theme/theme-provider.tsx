@@ -45,8 +45,17 @@ export async function ThemeProvider({ churchId, children }: ThemeProviderProps) 
 
   // Build token overrides using --ws- (website) prefix to avoid collisions
   // with Tailwind/shadcn variables (--color-primary, --color-background, etc.)
+  // Convert hex to "r,g,b" string for use in rgba() gradients
+  const hexToRgb = (hex: string): string => {
+    const h = hex.replace('#', '')
+    const n = parseInt(h.length === 3 ? h.split('').map(c => c + c).join('') : h, 16)
+    return `${(n >> 16) & 255},${(n >> 8) & 255},${n & 255}`
+  }
+
+  const primaryHex = customization?.primaryColor || defaultTokens['--color-primary'] || '#1a1a2e'
   const tokens: Record<string, string> = {
-    '--ws-color-primary': customization?.primaryColor || defaultTokens['--color-primary'] || '#1a1a2e',
+    '--ws-color-primary': primaryHex,
+    '--ws-color-primary-rgb': hexToRgb(primaryHex),
     '--ws-color-secondary': customization?.secondaryColor || defaultTokens['--color-secondary'] || '#16213e',
     '--ws-color-background': customization?.backgroundColor || defaultTokens['--color-background'] || '#ffffff',
     '--ws-color-text': customization?.textColor || defaultTokens['--color-text'] || '#1a1a1a',

@@ -8,6 +8,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/cms/app-sidebar"
+import { CmsFeedbackButton } from "@/components/cms/cms-feedback-button"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
 export type CmsSessionData = {
@@ -61,6 +62,7 @@ export function CmsShell({ session, children }: { session: CmsSessionData; child
             <CmsHeader />
             <main className="min-w-0 min-h-0 flex-1 flex flex-col overflow-y-auto overflow-x-hidden pb-5 px-6">{children}</main>
           </SidebarInset>
+          <CmsFeedbackButton />
         </SidebarProvider>
       </TooltipProvider>
     </CmsSessionContext.Provider>

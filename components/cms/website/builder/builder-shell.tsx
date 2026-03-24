@@ -4,22 +4,18 @@ import { useState, useCallback, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { useUnsavedChanges } from "@/lib/hooks/use-unsaved-changes"
 import { toast } from "sonner"
-import { BuilderTopbar } from "./builder-topbar"
-import { BuilderSidebar } from "./builder-sidebar"
-import { BuilderDrawer } from "./builder-drawer"
-import { BuilderCanvas } from "./builder-canvas"
-import { SectionPickerModal, type PickerMode } from "./section-picker-modal"
+import { BuilderTopbar } from "./layout/builder-topbar"
+import { BuilderSidebar } from "./layout/builder-sidebar"
+import { BuilderDrawer } from "./layout/builder-drawer"
+import { BuilderCanvas } from "./canvas/builder-canvas"
+import { SectionPickerModal, type PickerMode } from "./sections/section-picker-modal"
 import {
   BuilderRightDrawer,
   type SectionEditorData,
-} from "./builder-right-drawer"
-import {
-  type NavbarSettings,
-  defaultNavbarSettings,
-} from "./section-editors/navbar-editor"
-import { PageTree } from "./page-tree"
-import { PageSettingsModal, type PageSettingsData } from "./page-settings-modal"
-import { AddPageModal } from "./add-page-modal"
+} from "./layout/builder-right-drawer"
+import { NavigationEditor, type MenuItemData } from "./navigation/navigation-editor"
+import { PageSettingsModal, type PageSettingsData } from "./pages/page-settings-modal"
+import { AddPageModal } from "./pages/add-page-modal"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,13 +27,21 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { useBuilderHistory } from "./use-builder-history"
+import { useBackgroundSync } from "./use-background-sync"
+import { usePresenceHeartbeat } from "./use-presence-heartbeat"
+import { useActionLogger } from "./use-action-logger"
+import { BuilderFeedbackDialog } from "./feedback/builder-feedback-dialog"
+import { AlertTriangle, Check, FileText, Plus } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import type {
   BuilderTool,
   DeviceMode,
   BuilderPage,
   BuilderSection,
   PageSummary,
-  NavTreeMenuItem,
+
 } from "./types"
 import type { SectionType } from "@/lib/db/types"
 
@@ -58,16 +62,9 @@ function pagePathId(page: { slug: string; id: string }): string {
   return page.slug || page.id
 }
 
-export interface NavbarData {
-  menu: unknown
-  logoUrl: string | null
-  logoAlt: string | null
-  siteName: string
-  ctaLabel: string
-  ctaHref: string
-  ctaVisible: boolean
-  memberLoginVisible: boolean
-}
+// NavbarData is defined in types.ts — re-exported for backward compat
+import type { NavbarData } from "./types"
+export type { NavbarData } from "./types"
 
 interface BuilderShellProps {
   page: BuilderPage
@@ -76,12 +73,41 @@ interface BuilderShellProps {
   websiteThemeTokens?: Record<string, string>
   websiteCustomCss?: string
   navbarData?: NavbarData
-  headerMenuItems?: NavTreeMenuItem[]
+  headerMenuId?: string | null
+  headerMenuItemsFull?: MenuItemData[]
+  navbarSettings?: {
+    scrollBehavior?: string
+    solidColor?: string
+    sticky?: boolean
+    ctaLabel?: string
+    ctaHref?: string
+    ctaVisible?: boolean
+  }
+  footerMenuId?: string | null
+  footerMenuItemsFull?: MenuItemData[]
 }
 
-export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, websiteCustomCss, navbarData, headerMenuItems }: BuilderShellProps) {
+export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, websiteCustomCss, navbarData, headerMenuId: initialHeaderMenuId, headerMenuItemsFull: initialHeaderMenuItemsFull, navbarSettings: initialNavbarSettings, footerMenuId: initialFooterMenuId, footerMenuItemsFull: initialFooterMenuItemsFull }: BuilderShellProps) {
   const router = useRouter()
-  const [activeTool, setActiveTool] = useState<BuilderTool>(null)
+
+  // Persist activeTool in sessionStorage so it survives page navigations
+  const [activeTool, setActiveToolState] = useState<BuilderTool>(() => {
+    if (typeof window === "undefined") return null
+    const stored = sessionStorage.getItem("builder-active-tool")
+    if (stored === "navigation" || stored === "design" || stored === "media") {
+      return stored as BuilderTool
+    }
+    return null
+  })
+
+  const setActiveTool = useCallback((tool: BuilderTool) => {
+    setActiveToolState(tool)
+    if (tool) {
+      sessionStorage.setItem("builder-active-tool", tool)
+    } else {
+      sessionStorage.removeItem("builder-active-tool")
+    }
+  }, [])
   const [selectedSectionId, setSelectedSectionId] = useState<string | null>(null)
   const [deviceMode, setDeviceMode] = useState<DeviceMode>("desktop")
   const [sections, setSections] = useState<BuilderSection[]>(page.sections)
@@ -89,6 +115,11 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const [isDirty, setIsDirty] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [pages, setPages] = useState<PageSummary[]>(allPages)
+
+  // Granular dirty tracking — controls which parts of the save are actually sent
+  const [dirtySectionIds, setDirtySectionIds] = useState<Set<string>>(new Set())
+  const [reorderDirty, setReorderDirty] = useState(false)
+  const [pageDirty, setPageDirty] = useState(false)
 
   // Save button visual state: idle -> saving -> saved -> idle
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle")
@@ -114,11 +145,50 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   // Right drawer editing: track which section is being edited
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null)
 
-  // Navbar editor
+  // Navigation editor state
   const [editingNavbar, setEditingNavbar] = useState(false)
-  const [navbarSettings, setNavbarSettings] = useState<NavbarSettings>(
-    defaultNavbarSettings,
-  )
+  const [editingNavItemId, setEditingNavItemId] = useState<string | null>(null)
+  const [editingNavSettings, setEditingNavSettings] = useState(false)
+  const [headerMenuId] = useState<string | null>(initialHeaderMenuId ?? null)
+  const [menuItems, setMenuItems] = useState<MenuItemData[]>(initialHeaderMenuItemsFull ?? [])
+  const [previewRefreshKey, setPreviewRefreshKey] = useState(0)
+
+  // Footer editor state
+  const [editingFooter, setEditingFooter] = useState(false)
+  const [footerMenuId] = useState<string | null>(initialFooterMenuId ?? null)
+  const [footerMenuItems, setFooterMenuItems] = useState<MenuItemData[]>(initialFooterMenuItemsFull ?? [])
+
+  // Refresh menu data from the API after nav changes
+  const refreshMenu = useCallback(async () => {
+    if (!headerMenuId) return
+    try {
+      const res = await fetch(`/api/v1/menus/${headerMenuId}/items`)
+      if (res.ok) {
+        const { data } = await res.json()
+        setMenuItems(data.items ?? [])
+      }
+    } catch {
+      // Silently fail — the navigation editor has its own error handling
+    }
+    // Tell the iframe to reload so the navbar picks up the new menu data
+    setPreviewRefreshKey((k) => k + 1)
+  }, [headerMenuId])
+
+  // Refresh footer menu data from the API after footer edits
+  const refreshFooterMenu = useCallback(async () => {
+    if (!footerMenuId) return
+    try {
+      const res = await fetch(`/api/v1/menus/${footerMenuId}/items`)
+      if (res.ok) {
+        const { data } = await res.json()
+        setFooterMenuItems(data.items ?? [])
+      }
+    } catch {
+      // Silently fail — the footer editor has its own error handling
+    }
+    // Tell the iframe to reload so the footer picks up the new menu data
+    setPreviewRefreshKey((k) => k + 1)
+  }, [footerMenuId])
 
   // Page modals
   const [pageSettingsOpen, setPageSettingsOpen] = useState(false)
@@ -131,6 +201,12 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
 
   const history = useBuilderHistory<BuilderSnapshot>()
 
+  // Pristine snapshot — the state as loaded from the DB (or after save).
+  // Used to detect when undo/redo returns to the initial state.
+  const pristineRef = useRef<string>(
+    JSON.stringify({ sections: page.sections, pageTitle: page.title })
+  )
+
   /** Push the current state as a snapshot before mutating. */
   const pushSnapshot = useCallback(() => {
     history.push({ sections, pageTitle: pageData.title })
@@ -141,7 +217,23 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     if (snapshot) {
       setSections(snapshot.sections)
       setPageData((prev) => ({ ...prev, title: snapshot.pageTitle }))
-      setIsDirty(true)
+
+      // Check if undo restored us to the pristine (DB-loaded) state
+      const snapshotStr = JSON.stringify({ sections: snapshot.sections, pageTitle: snapshot.pageTitle })
+      if (snapshotStr === pristineRef.current) {
+        setIsDirty(false)
+        setDirtySectionIds(new Set())
+        setReorderDirty(false)
+        setPageDirty(false)
+      } else {
+        setIsDirty(true)
+        // After undo, any section could differ from the DB — mark all dirty
+        setDirtySectionIds(new Set(snapshot.sections.map((s) => s.id)))
+        setReorderDirty(true)
+        setPageDirty(true)
+      }
+      // Reset debounce so the next edit after undo gets its own snapshot
+      lastSnapshotTimeRef.current = 0
     }
   }, [history, sections, pageData.title])
 
@@ -150,7 +242,23 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     if (snapshot) {
       setSections(snapshot.sections)
       setPageData((prev) => ({ ...prev, title: snapshot.pageTitle }))
-      setIsDirty(true)
+
+      // Check if redo restored us to the pristine (DB-loaded) state
+      const snapshotStr = JSON.stringify({ sections: snapshot.sections, pageTitle: snapshot.pageTitle })
+      if (snapshotStr === pristineRef.current) {
+        setIsDirty(false)
+        setDirtySectionIds(new Set())
+        setReorderDirty(false)
+        setPageDirty(false)
+      } else {
+        setIsDirty(true)
+        // After redo, any section could differ from the DB — mark all dirty
+        setDirtySectionIds(new Set(snapshot.sections.map((s) => s.id)))
+        setReorderDirty(true)
+        setPageDirty(true)
+      }
+      // Reset debounce so the next edit after redo gets its own snapshot
+      lastSnapshotTimeRef.current = 0
     }
   }, [history, sections, pageData.title])
 
@@ -160,16 +268,29 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const handleRedoRef = useRef(handleRedo)
   handleRedoRef.current = handleRedo
 
-  // Reset state when page prop changes (navigating to different page)
-  // Note: history.reset is a stable useCallback ref, so we don't include
-  // `history` in deps (its object identity changes on every render).
+  // Track which page ID we're on so we can distinguish actual page
+  // navigation from router.refresh() re-renders (which also change `page`).
+  const currentPageIdRef = useRef(page.id)
+
+  // Reset state only when navigating to a DIFFERENT page (not on refresh)
   useEffect(() => {
+    if (page.id === currentPageIdRef.current) return
+    currentPageIdRef.current = page.id
+
     setSections(page.sections)
     setPageData(page)
     setSelectedSectionId(null)
     setEditingSectionId(null)
+    setEditingNavbar(false)
+    setEditingNavItemId(null)
+    setEditingNavSettings(false)
+    setEditingFooter(false)
     setIsDirty(false)
+    setDirtySectionIds(new Set())
+    setReorderDirty(false)
+    setPageDirty(false)
     setSaveState("idle")
+    pristineRef.current = JSON.stringify({ sections: page.sections, pageTitle: page.title })
     history.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page])
@@ -179,18 +300,14 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     setPages(allPages)
   }, [allPages])
 
+  // Action logger for feedback snapshot
+  const actionLogger = useActionLogger()
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+
   const openSectionPicker = useCallback((afterIndex: number) => {
     setPickerInsertIndex(afterIndex)
-    setPickerMode("popover")
+    setPickerMode("sidebar")
     setPickerTriggerRect(null)
-    setPickerOpen(true)
-  }, [])
-
-  /** Open section picker with trigger rect for popover positioning (from canvas "+" buttons) */
-  const openSectionPickerWithRect = useCallback((afterIndex: number, rect: DOMRect) => {
-    setPickerInsertIndex(afterIndex)
-    setPickerMode("popover")
-    setPickerTriggerRect(rect)
     setPickerOpen(true)
   }, [])
 
@@ -204,9 +321,10 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         setPickerOpen(true)
         return
       }
-      setActiveTool((prev) => (prev === tool ? null : tool))
+      actionLogger.log("tool_switch", tool ?? "none")
+      setActiveTool(activeTool === tool ? null : tool)
     },
-    [sections.length],
+    [sections.length, activeTool, setActiveTool, actionLogger],
   )
 
   // -------------------------------------------------------------------------
@@ -221,68 +339,188 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   // -------------------------------------------------------------------------
 
   const handleSave = useCallback(async () => {
+    // If nothing is dirty, skip the save entirely
+    if (!pageDirty && !reorderDirty && dirtySectionIds.size === 0) {
+      setIsDirty(false)
+      return
+    }
+
+    if (isSaving) return
+
     setIsSaving(true)
     setSaveState("saving")
     try {
-      // Save page metadata
-      const pageRes = await fetch(`/api/v1/pages/${pagePathId(pageData)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: pageData.title,
-          isPublished: pageData.isPublished,
-        }),
-      })
-      if (!pageRes.ok) throw new Error("Failed to save page metadata")
-
-      // Reorder sections
-      const sectionIds = sections.map((s) => s.id)
-      const reorderRes = await fetch(`/api/v1/pages/${pagePathId(pageData)}/sections`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sectionIds }),
-      })
-      if (!reorderRes.ok) throw new Error("Failed to reorder sections")
-
-      // Save each section's content and display settings
-      const sectionSaves = sections.map((s) =>
-        fetch(`/api/v1/pages/${pagePathId(pageData)}/sections/${s.id}`, {
+      // 1. Save page metadata — only if page-level fields changed
+      if (pageDirty) {
+        const pageRes = await fetch(`/api/v1/pages/${pagePathId(pageData)}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            content: s.content,
-            colorScheme: s.colorScheme,
-            paddingY: s.paddingY,
-            containerWidth: s.containerWidth,
-            enableAnimations: s.enableAnimations,
-            visible: s.visible,
-            label: s.label,
+            title: pageData.title,
           }),
-        }),
-      )
-      const results = await Promise.all(sectionSaves)
-
-      // Check each section result individually
-      const failedNames: string[] = []
-      results.forEach((res, i) => {
-        if (!res.ok) {
-          const s = sections[i]
-          failedNames.push(s.label || s.sectionType)
-        }
-      })
-
-      if (failedNames.length > 0) {
-        setSaveState("idle")
-        toast.error(
-          `Failed to save ${failedNames.length} section(s): ${failedNames.join(", ")}`,
-        )
-        return
+        })
+        if (!pageRes.ok) throw new Error("Failed to save page metadata")
       }
 
+      // 2. Reorder sections — only if order changed
+      if (reorderDirty) {
+        const sectionIds = sections.map((s) => s.id)
+        const reorderRes = await fetch(`/api/v1/pages/${pagePathId(pageData)}/sections`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sectionIds }),
+        })
+        if (!reorderRes.ok) throw new Error("Failed to reorder sections")
+      }
+
+      // 3. Save only dirty sections' content and display settings
+      const dirtySections = sections.filter((s) => dirtySectionIds.has(s.id))
+      if (dirtySections.length > 0) {
+        const sectionSaves = dirtySections.map((s) =>
+          fetch(`/api/v1/pages/${pagePathId(pageData)}/sections/${s.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              content: s.content,
+              colorScheme: s.colorScheme,
+              paddingY: s.paddingY,
+              containerWidth: s.containerWidth,
+              enableAnimations: s.enableAnimations,
+              visible: s.visible,
+              label: s.label,
+            }),
+          }),
+        )
+        const results = await Promise.all(sectionSaves)
+
+        // Check each section result individually
+        const failedNames: string[] = []
+        const deletedNames: string[] = []
+        results.forEach((res, i) => {
+          if (!res.ok) {
+            const s = dirtySections[i]
+            const name = s.label || s.sectionType
+            if (res.status === 404) {
+              deletedNames.push(name)
+            } else {
+              failedNames.push(name)
+            }
+          }
+        })
+
+        // Remove sections that were deleted by another user from local state
+        if (deletedNames.length > 0) {
+          const deletedIds = new Set(
+            dirtySections
+              .filter((_, i) => results[i].status === 404)
+              .map((s) => s.id),
+          )
+          setSections((prev) => prev.filter((s) => !deletedIds.has(s.id)))
+          setDirtySectionIds((prev) => {
+            const next = new Set(prev)
+            for (const id of deletedIds) next.delete(id)
+            return next
+          })
+          if (editingSectionId && deletedIds.has(editingSectionId)) {
+            setEditingSectionId(null)
+          }
+          if (selectedSectionId && deletedIds.has(selectedSectionId)) {
+            setSelectedSectionId(null)
+          }
+          toast.warning(
+            `${deletedNames.length} section(s) were deleted by another user: ${deletedNames.join(", ")}`,
+          )
+        }
+
+        if (failedNames.length > 0) {
+          setSaveState("idle")
+          toast.error(
+            `Failed to save ${failedNames.length} section(s): ${failedNames.join(", ")}`,
+          )
+          return
+        }
+      }
+
+      // Capture dirty state before clearing (needed for merge logic below)
+      const savedSectionIds = new Set(dirtySectionIds)
+      const wasPageDirty = pageDirty
+
+      setDirtySectionIds(new Set())
+      setReorderDirty(false)
+      setPageDirty(false)
       setIsDirty(false)
       setSaveState("saved")
-      router.refresh()
+      actionLogger.log("save", `${dirtySections.length} section(s)`)
       toast.success("Page saved")
+
+      // Silent background refetch to pick up other users' changes
+      try {
+        const freshRes = await fetch(`/api/v1/pages/${pagePathId(pageData)}`)
+        if (freshRes.ok) {
+          const { data: freshPage } = await freshRes.json()
+          const freshSections: BuilderSection[] = (freshPage.sections ?? []).map((s: Record<string, unknown>) => ({
+            id: s.id as string,
+            sectionType: s.sectionType as BuilderSection["sectionType"],
+            label: (s.label as string | null) ?? null,
+            sortOrder: s.sortOrder as number,
+            visible: s.visible as boolean,
+            colorScheme: s.colorScheme as BuilderSection["colorScheme"],
+            paddingY: s.paddingY as BuilderSection["paddingY"],
+            containerWidth: s.containerWidth as BuilderSection["containerWidth"],
+            enableAnimations: s.enableAnimations as boolean,
+            content: s.content as Record<string, unknown>,
+            resolvedData: s.resolvedData as Record<string, unknown> | undefined,
+          }))
+
+          // Merge: use server version for all sections, but keep local version
+          // for sections we just saved (they're authoritative).
+          // Also preserve any local-only sections added during the refetch window.
+          const freshIds = new Set(freshSections.map(s => s.id))
+          setSections(prev => {
+            const localMap = new Map(prev.map(s => [s.id, s]))
+
+            const merged = freshSections.map(fs => {
+              if (savedSectionIds.has(fs.id) && localMap.has(fs.id)) {
+                return localMap.get(fs.id)!
+              }
+              return fs
+            })
+
+            // Append any local-only sections (added during save) that the
+            // server doesn't know about yet
+            for (const local of prev) {
+              if (!freshIds.has(local.id)) {
+                merged.push(local)
+              }
+            }
+
+            return merged
+          })
+
+          // Clear selection/editing if the section was removed by another user
+          setSelectedSectionId(prev => (prev && !freshIds.has(prev) ? null : prev))
+          setEditingSectionId(prev => (prev && !freshIds.has(prev) ? null : prev))
+
+          // Update page title if we didn't just save it
+          if (!wasPageDirty) {
+            setPageData(prev => ({ ...prev, title: freshPage.title }))
+          }
+
+          // Update pristine ref to match the new server state
+          pristineRef.current = JSON.stringify({
+            sections: freshSections,
+            pageTitle: freshPage.title,
+          })
+        }
+      } catch {
+        // Silent failure — user still has their saved state
+      }
+
+      // Keep undo/redo history intact across saves so users can still
+      // undo after auto-save. The pristine ref was already updated above
+      // so dirty detection stays correct.
+
+      router.refresh()
 
       // Revert to idle after brief "Saved" display
       setTimeout(() => setSaveState("idle"), 2000)
@@ -295,7 +533,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     } finally {
       setIsSaving(false)
     }
-  }, [pageData, sections, router])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageData, sections, router, pageDirty, reorderDirty, dirtySectionIds])
 
   // Use a ref to always have the latest handleSave without re-subscribing the effect
   const handleSaveRef = useRef(handleSave)
@@ -327,12 +566,66 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     }
   }, [isDirty, isSaving, sections, pageData.title])
 
+  // -------------------------------------------------------------------------
+  // Background sync — poll for other users' changes every 15s when idle
+  // -------------------------------------------------------------------------
+
+  const handleBackgroundSync = useCallback((freshPage: Record<string, unknown>) => {
+    const freshSections: BuilderSection[] = ((freshPage.sections as unknown[]) ?? []).map((s: unknown) => {
+      const sec = s as Record<string, unknown>
+      return {
+        id: sec.id as string,
+        sectionType: sec.sectionType as BuilderSection["sectionType"],
+        label: (sec.label as string | null) ?? null,
+        sortOrder: sec.sortOrder as number,
+        visible: sec.visible as boolean,
+        colorScheme: sec.colorScheme as BuilderSection["colorScheme"],
+        paddingY: sec.paddingY as BuilderSection["paddingY"],
+        containerWidth: sec.containerWidth as BuilderSection["containerWidth"],
+        enableAnimations: sec.enableAnimations as boolean,
+        content: sec.content as Record<string, unknown>,
+        resolvedData: sec.resolvedData as Record<string, unknown> | undefined,
+      }
+    })
+
+    const freshIds = new Set(freshSections.map(s => s.id))
+
+    setSections(freshSections)
+    setPageData(prev => ({ ...prev, title: freshPage.title as string }))
+    pristineRef.current = JSON.stringify({
+      sections: freshSections,
+      pageTitle: freshPage.title,
+    })
+    // Don't reset undo/redo history — background sync shouldn't wipe user's undo stack
+
+    // Clear selection/editing if the section was removed by another user
+    setSelectedSectionId(prev => (prev && !freshIds.has(prev) ? null : prev))
+    setEditingSectionId(prev => (prev && !freshIds.has(prev) ? null : prev))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useBackgroundSync({
+    pageSlug: pageData.slug,
+    pageId: pageData.id,
+    isDirty,
+    isSaving,
+    onSync: handleBackgroundSync,
+  })
+
+  const { otherEditors } = usePresenceHeartbeat({ pageId: pageData.id })
+
   // Handle keyboard shortcuts
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === "Escape") {
-        if (editingNavbar) {
+        if (editingNavItemId) {
+          setEditingNavItemId(null)
+        } else if (editingNavSettings) {
+          setEditingNavSettings(false)
+        } else if (editingNavbar) {
           setEditingNavbar(false)
+        } else if (editingFooter) {
+          setEditingFooter(false)
         } else if (editingSectionId) {
           setEditingSectionId(null)
         } else if (selectedSectionId) {
@@ -348,13 +641,20 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
       }
       // Cmd/Ctrl+Z to undo, Cmd/Ctrl+Shift+Z to redo
       if ((e.metaKey || e.ctrlKey) && e.key === "z") {
-        // Don't intercept when focus is inside an input/textarea/contenteditable
+        // Only defer to native undo for text-like inputs where it makes sense
         const active = document.activeElement
-        if (
-          active instanceof HTMLInputElement ||
-          active instanceof HTMLTextAreaElement ||
-          (active instanceof HTMLElement && active.isContentEditable)
-        ) {
+        if (active instanceof HTMLTextAreaElement) {
+          return
+        }
+        if (active instanceof HTMLInputElement) {
+          const textTypes = new Set([
+            "text", "email", "url", "search", "tel", "password", "number",
+          ])
+          if (textTypes.has(active.type || "text")) {
+            return
+          }
+        }
+        if (active instanceof HTMLElement && active.isContentEditable) {
           return
         }
         e.preventDefault()
@@ -367,7 +667,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     }
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [selectedSectionId, activeTool, editingSectionId, editingNavbar])
+  }, [selectedSectionId, activeTool, editingSectionId, editingNavbar, editingNavItemId, editingNavSettings, editingFooter])
 
   // -------------------------------------------------------------------------
   // Publish toggle
@@ -407,7 +707,9 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const handlePickerSelect = useCallback(
     async (sectionType: SectionType, defaultContent: Record<string, unknown>) => {
       try {
-        const sortOrder = pickerInsertIndex + 1
+        // Clamp insert index to current sections length (sync may have changed sections)
+        const clampedIndex = Math.min(pickerInsertIndex, sections.length - 1)
+        const sortOrder = clampedIndex + 1
         const res = await fetch(`/api/v1/pages/${pagePathId(pageData)}/sections`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -441,19 +743,22 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         pushSnapshot()
         setSections((prev) => {
           const updated = [...prev]
-          updated.splice(pickerInsertIndex + 1, 0, newSection)
+          const safeIndex = Math.min(clampedIndex + 1, updated.length)
+          updated.splice(safeIndex, 0, newSection)
           return updated.map((s, i) => ({ ...s, sortOrder: i }))
         })
         setSelectedSectionId(newSection.id)
         setEditingSectionId(newSection.id)
+        setReorderDirty(true)
         setIsDirty(true)
+        actionLogger.log("section_add", `${sectionType} at index ${clampedIndex + 1}`)
         toast.success("Section added")
       } catch (err) {
         console.error("Add section error:", err)
         toast.error("Failed to add section")
       }
     },
-    [pageData.slug, pageData.id, pickerInsertIndex, pushSnapshot],
+    [pageData.slug, pageData.id, pickerInsertIndex, sections.length, pushSnapshot],
   )
 
   /** Opens the confirmation dialog before deleting a section. */
@@ -488,7 +793,15 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         if (editingSectionId === sectionId) {
           setEditingSectionId(null)
         }
+        // Remove deleted section from dirty set (it's already deleted via API)
+        setDirtySectionIds((prev) => {
+          const next = new Set(prev)
+          next.delete(sectionId)
+          return next
+        })
+        setReorderDirty(true)
         setIsDirty(true)
+        actionLogger.log("section_delete", sections.find((s) => s.id === sectionId)?.sectionType)
         toast.success("Section deleted")
       } catch (err) {
         console.error("Delete section error:", err)
@@ -506,8 +819,10 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const handleReorderSections = useCallback((reordered: BuilderSection[]) => {
     pushSnapshot()
     setSections(reordered)
+    setReorderDirty(true)
     setIsDirty(true)
-  }, [pushSnapshot])
+    actionLogger.log("section_reorder")
+  }, [pushSnapshot, actionLogger])
 
   // -------------------------------------------------------------------------
   // Section editing (inline right drawer)
@@ -516,10 +831,15 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const handleEditSection = useCallback(
     (sectionId: string) => {
       setEditingNavbar(false)
+      setEditingNavItemId(null)
+      setEditingNavSettings(false)
+      setEditingFooter(false)
       setEditingSectionId(sectionId)
       setSelectedSectionId(sectionId)
+      const sType = sections.find((s) => s.id === sectionId)?.sectionType
+      actionLogger.log("section_select", sType)
     },
-    [],
+    [sections, actionLogger],
   )
 
   const handleCloseEditor = useCallback(() => {
@@ -544,23 +864,23 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
     }
   })()
 
-  // Track whether we've pushed a snapshot for the current editing "gesture"
-  const editingSnapshotPushedRef = useRef(false)
-
-  // Reset the flag when the editing section changes
-  useEffect(() => {
-    editingSnapshotPushedRef.current = false
-  }, [editingSectionId])
+  // Track when we last pushed a snapshot so rapid-fire changes (e.g. typing)
+  // are batched (~500ms), while discrete changes (padding, toggles) each get
+  // their own undo entry.
+  const lastSnapshotTimeRef = useRef(0)
 
   // Handle inline changes from the right drawer (updates local state immediately)
   const handleSectionEditorChange = useCallback(
     (data: Partial<SectionEditorData>) => {
       if (!editingSectionId) return
 
-      // Push a snapshot once per editing "session" (when editor opens and user starts changing)
-      if (!editingSnapshotPushedRef.current) {
+      // Push a snapshot before applying the change, debounced by 500ms so
+      // rapid keystrokes are batched but discrete property changes (padding,
+      // color scheme, visibility) each get their own undo entry.
+      const now = Date.now()
+      if (now - lastSnapshotTimeRef.current >= 500) {
         pushSnapshot()
-        editingSnapshotPushedRef.current = true
+        lastSnapshotTimeRef.current = now
       }
 
       setSections((prev) =>
@@ -587,32 +907,77 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
             : s,
         ),
       )
+      setDirtySectionIds((prev) => new Set(prev).add(editingSectionId))
       setIsDirty(true)
     },
     [editingSectionId, pushSnapshot],
   )
 
   // -------------------------------------------------------------------------
-  // Navbar editing
+  // Navbar / Navigation editing
   // -------------------------------------------------------------------------
 
   const handleNavbarClick = useCallback(() => {
-    // Close any section editor and open navbar editor
+    // Close any section/footer editor and open navbar settings
     setEditingSectionId(null)
+    setEditingNavItemId(null)
+    setEditingNavSettings(true)
     setEditingNavbar(true)
+    setEditingFooter(false)
   }, [])
 
   const handleNavbarClose = useCallback(() => {
     setEditingNavbar(false)
+    setEditingNavSettings(false)
   }, [])
 
-  const handleNavbarSettingsChange = useCallback(
-    (settings: NavbarSettings) => {
-      setNavbarSettings(settings)
-      // TODO: persist navbar settings via API when site-settings supports it
-    },
-    [],
-  )
+  const handleFooterClick = useCallback(() => {
+    // Close any section/navbar editor and open footer editor
+    setEditingSectionId(null)
+    setEditingNavbar(false)
+    setEditingNavItemId(null)
+    setEditingNavSettings(false)
+    setEditingFooter(true)
+  }, [])
+
+  const handleFooterClose = useCallback(() => {
+    setEditingFooter(false)
+  }, [])
+
+  const handleFooterUpdated = useCallback(() => {
+    refreshFooterMenu()
+  }, [refreshFooterMenu])
+
+  /** Open the NavSettingsForm in the right drawer (triggered by CTA "Edit" button) */
+  const handleEditCTA = useCallback(() => {
+    setEditingSectionId(null)
+    setEditingNavItemId(null)
+    setEditingNavSettings(true)
+    setEditingNavbar(true)
+    setEditingFooter(false)
+  }, [])
+
+  const handleEditNavItem = useCallback((itemId: string) => {
+    setEditingSectionId(null)
+    setEditingNavSettings(false)
+    setEditingNavItemId(itemId)
+  }, [])
+
+  const handleCloseNavItemEditor = useCallback(() => {
+    setEditingNavItemId(null)
+  }, [])
+
+  const handleNavItemUpdated = useCallback(() => {
+    setEditingNavItemId(null)
+    refreshMenu()
+  }, [refreshMenu])
+
+  const handleNavSettingsUpdated = useCallback(() => {
+    setEditingNavSettings(false)
+    setEditingNavbar(false)
+    // Reload the iframe so the navbar picks up updated settings (CTA, scroll behavior, etc.)
+    setPreviewRefreshKey((k) => k + 1)
+  }, [])
 
   // -------------------------------------------------------------------------
   // Page title
@@ -621,6 +986,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   const handleTitleChange = useCallback((title: string) => {
     pushSnapshot()
     setPageData((prev) => ({ ...prev, title }))
+    setPageDirty(true)
     setIsDirty(true)
   }, [pushSnapshot])
 
@@ -791,6 +1157,18 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
       const target = pages.find((p) => p.id === pageId)
       if (!target) return
 
+      // Fetch full page data before deleting so we can undo
+      let fullPageData: Record<string, unknown> | null = null
+      try {
+        const fetchRes = await fetch(`/api/v1/pages/${target.slug || target.id}`)
+        if (fetchRes.ok) {
+          const { data } = await fetchRes.json()
+          fullPageData = data
+        }
+      } catch {
+        // Continue with delete even if we can't fetch for undo
+      }
+
       try {
         const res = await fetch(`/api/v1/pages/${target.slug || target.id}`, {
           method: "DELETE",
@@ -810,13 +1188,83 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           }
         }
 
-        toast.success("Page deleted")
+        toast.success(`"${target.title}" deleted`, {
+          action: fullPageData
+            ? {
+                label: "Undo",
+                onClick: async () => {
+                  try {
+                    // Recreate the page
+                    const createRes = await fetch("/api/v1/pages", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        title: fullPageData!.title,
+                        slug: fullPageData!.slug,
+                        pageType: fullPageData!.pageType,
+                        layout: fullPageData!.layout,
+                        isPublished: fullPageData!.isPublished,
+                        isHomepage: fullPageData!.isHomepage,
+                        sortOrder: fullPageData!.sortOrder,
+                        parentId: fullPageData!.parentId,
+                        metaTitle: fullPageData!.metaTitle,
+                        metaDescription: fullPageData!.metaDescription,
+                      }),
+                    })
+                    if (!createRes.ok) throw new Error("Failed to restore page")
+                    const { data: newPage } = await createRes.json()
+
+                    // Recreate all sections
+                    const oldSections = (fullPageData!.sections as Array<Record<string, unknown>>) ?? []
+                    for (let i = 0; i < oldSections.length; i++) {
+                      const s = oldSections[i]
+                      await fetch(`/api/v1/pages/${newPage.slug || newPage.id}/sections`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          sectionType: s.sectionType,
+                          sortOrder: s.sortOrder ?? i,
+                          content: s.content,
+                          visible: s.visible,
+                          colorScheme: s.colorScheme,
+                          paddingY: s.paddingY,
+                          containerWidth: s.containerWidth,
+                          enableAnimations: s.enableAnimations,
+                          label: s.label,
+                          dataSource: s.dataSource,
+                        }),
+                      })
+                    }
+
+                    // Add restored page to local list
+                    setPages((prev) => [
+                      ...prev,
+                      {
+                        id: newPage.id,
+                        slug: newPage.slug,
+                        title: newPage.title,
+                        pageType: newPage.pageType,
+                        isHomepage: newPage.isHomepage,
+                        isPublished: newPage.isPublished,
+                        sortOrder: newPage.sortOrder,
+                        parentId: newPage.parentId,
+                      },
+                    ])
+                    router.refresh()
+                    toast.success(`"${target.title}" restored`)
+                  } catch {
+                    toast.error("Failed to restore page")
+                  }
+                },
+              }
+            : undefined,
+        })
       } catch (err) {
         console.error("Delete page error:", err)
         toast.error("Failed to delete page")
       }
     },
-    [pendingDeletePageId, pages, pageData.id, navigateAway],
+    [pendingDeletePageId, pages, pageData.id, navigateAway, router],
   )
 
   const cancelDeletePage = useCallback(() => {
@@ -903,12 +1351,31 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   )
 
   const handlePageCreated = useCallback(
-    (newPage: PageSummary) => {
+    async (newPage: PageSummary) => {
       setPages((prev) => [...prev, newPage])
+
+      // Auto-create a MenuItem for the new page in the header menu
+      if (headerMenuId) {
+        try {
+          await fetch(`/api/v1/menus/${headerMenuId}/items`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              label: newPage.title,
+              href: `/${newPage.slug}`,
+            }),
+          })
+          await refreshMenu()
+        } catch {
+          // MenuItem creation failed — page still exists, just not in nav
+          console.error("Failed to auto-create menu item for new page")
+        }
+      }
+
       navigateAway(`/cms/website/builder/${newPage.id}`)
       toast.success("Page created")
     },
-    [navigateAway],
+    [navigateAway, headerMenuId, refreshMenu],
   )
 
   // -------------------------------------------------------------------------
@@ -916,8 +1383,8 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
   // -------------------------------------------------------------------------
 
   const drawerTitle =
-    activeTool === "pages"
-      ? "Site Pages"
+    activeTool === "navigation"
+      ? "Pages & Navigation"
       : activeTool === "design"
         ? "Design"
         : activeTool === "media"
@@ -930,18 +1397,88 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
 
   const renderDrawerContent = () => {
     switch (activeTool) {
-      case "pages":
-        return (
-          <PageTree
+      case "navigation":
+        return headerMenuId ? (
+          <NavigationEditor
+            churchId={churchId}
+            menuId={headerMenuId}
+            menuItems={menuItems}
             pages={pages}
+            ctaLabel={initialNavbarSettings?.ctaLabel ?? null}
+            ctaHref={initialNavbarSettings?.ctaHref ?? null}
+            ctaVisible={initialNavbarSettings?.ctaVisible ?? false}
+            onEditItem={handleEditNavItem}
+            onMenuChange={refreshMenu}
+            onEditCTA={handleEditCTA}
             activePageId={pageData.id}
             onPageSelect={handlePageSelect}
             onPageSettings={handlePageSettings}
             onAddPage={() => setAddPageOpen(true)}
             onDeletePage={handleDeletePage}
             onDuplicatePage={handleDuplicatePage}
-            headerMenuItems={headerMenuItems}
           />
+        ) : (
+          // No-menu fallback: show a flat list of all pages with click-to-navigate
+          <div className="flex flex-col h-full">
+            <div className="flex flex-col gap-2 p-4 pb-2 border-b shrink-0">
+              <h3 className="text-sm font-semibold text-foreground">Pages</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full justify-start text-xs h-8 gap-2"
+                onClick={() => setAddPageOpen(true)}
+              >
+                <Plus className="size-3.5" />
+                Add Page
+              </Button>
+            </div>
+            <ScrollArea className="flex-1">
+              <div className="p-3">
+                {pages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                    <FileText className="size-10 mb-3 opacity-30" />
+                    <p className="text-sm font-medium">No pages yet</p>
+                    <p className="text-xs mt-1">Create your first page to get started.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-0.5">
+                    {pages.map((p) => {
+                      const isActive = p.id === pageData.id
+                      return (
+                        <div
+                          key={p.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => handlePageSelect(p.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault()
+                              handlePageSelect(p.id)
+                            }
+                          }}
+                          className={cn(
+                            "group flex items-center gap-2 px-2 py-2 rounded-md transition-colors cursor-pointer",
+                            isActive
+                              ? "bg-sidebar-accent border-l-2 border-primary text-primary"
+                              : "hover:bg-muted/50 text-foreground",
+                          )}
+                        >
+                          <FileText className="size-3.5 shrink-0 opacity-70" />
+                          <span className={cn(
+                            "text-xs truncate flex-1",
+                            isActive ? "font-semibold" : "font-medium",
+                          )}>
+                            {p.title}
+                          </span>
+                          {isActive && <Check className="size-3 text-primary shrink-0" />}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
         )
       case "design":
         return (
@@ -967,7 +1504,10 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         page={pageData}
         allPages={pages}
         deviceMode={deviceMode}
-        onDeviceChange={setDeviceMode}
+        onDeviceChange={(mode: DeviceMode) => {
+          setDeviceMode(mode)
+          actionLogger.log("device_mode_change", mode)
+        }}
         onSave={handleSave}
         onPublishToggle={handlePublishToggle}
         onTitleChange={handleTitleChange}
@@ -980,6 +1520,35 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
         saveState={saveState}
       />
 
+      {/* Presence warning banner */}
+      {otherEditors.length > 0 && (
+        <div role="status" className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 shrink-0">
+          <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 shrink-0" aria-hidden="true" />
+          <p className="text-amber-800 dark:text-amber-200 text-sm">
+            {otherEditors.length === 1 ? (
+              <>
+                <strong>{otherEditors[0].userName}</strong> is also editing this
+                page &mdash; your changes may overwrite theirs if you save now.
+              </>
+            ) : otherEditors.length === 2 ? (
+              <>
+                <strong>{otherEditors[0].userName}</strong> and{" "}
+                <strong>{otherEditors[1].userName}</strong> are also editing this
+                page &mdash; your changes may overwrite theirs if you save now.
+              </>
+            ) : (
+              <>
+                <strong>{otherEditors[0].userName}</strong>,{" "}
+                <strong>{otherEditors[1].userName}</strong>, and{" "}
+                {otherEditors.length - 2} other
+                {otherEditors.length - 2 > 1 ? "s" : ""} are also editing this
+                page &mdash; your changes may overwrite theirs if you save now.
+              </>
+            )}
+          </p>
+        </div>
+      )}
+
       {/* Main content area */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left sidebar (60px) */}
@@ -987,6 +1556,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           activeTool={activeTool}
           onToolClick={handleToolClick}
           pageType={pageData.pageType}
+          onFeedback={() => setFeedbackOpen(true)}
         />
 
         {/* Drawer (320px, animated) */}
@@ -994,6 +1564,7 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           activeTool={activeTool}
           title={drawerTitle}
           onClose={() => setActiveTool(null)}
+          hideHeader={activeTool === "navigation"}
         >
           {renderDrawerContent()}
         </BuilderDrawer>
@@ -1004,38 +1575,57 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           selectedSectionId={selectedSectionId}
           onSelectSection={(id) => {
             setSelectedSectionId(id)
+            setEditingSectionId(id)
             setEditingNavbar(false)
+            setEditingNavItemId(null)
+            setEditingNavSettings(false)
+            setEditingFooter(false)
           }}
           onDeselectSection={() => {
             setSelectedSectionId(null)
             setEditingSectionId(null)
             setEditingNavbar(false)
+            setEditingFooter(false)
           }}
           onAddSection={openSectionPicker}
-          onAddSectionWithRect={openSectionPickerWithRect}
           onDeleteSection={handleDeleteSection}
           onEditSection={handleEditSection}
           onReorderSections={handleReorderSections}
           deviceMode={deviceMode}
-          churchId={churchId}
-          pageSlug={pageData.slug}
-          websiteThemeTokens={websiteThemeTokens}
-          websiteCustomCss={websiteCustomCss}
-          navbarData={navbarData}
+          pageId={pageData.id}
           onNavbarClick={handleNavbarClick}
           onNavbarLinkClick={handleNavbarLinkClick}
           isNavbarEditing={editingNavbar}
+          onFooterClick={handleFooterClick}
+          isFooterEditing={editingFooter}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          onSave={handleSave}
+          previewRefreshKey={previewRefreshKey}
         />
 
-        {/* Right Drawer (320px, animated) — inline section / navbar editor */}
+        {/* Right Drawer (320px, animated) — inline section / navbar / nav item editor */}
         <BuilderRightDrawer
-          section={editingSection}
+          section={editingNavItemId || editingNavSettings || editingFooter ? null : editingSection}
           onClose={handleCloseEditor}
           onChange={handleSectionEditorChange}
           onDelete={handleDeleteSection}
-          navbarSettings={editingNavbar ? navbarSettings : null}
-          onNavbarClose={handleNavbarClose}
-          onNavbarChange={handleNavbarSettingsChange}
+          editingNavItemId={editingNavItemId}
+          editingNavSettings={editingNavSettings}
+          menuItems={menuItems}
+          menuId={headerMenuId}
+          pages={pages}
+          churchId={churchId}
+          initialNavbarSettings={initialNavbarSettings}
+          onCloseNavItem={handleCloseNavItemEditor}
+          onNavItemUpdated={handleNavItemUpdated}
+          onNavSettingsClose={handleNavbarClose}
+          onNavSettingsUpdated={handleNavSettingsUpdated}
+          editingFooter={editingFooter}
+          footerMenuId={footerMenuId}
+          footerMenuItems={footerMenuItems}
+          onFooterClose={handleFooterClose}
+          onFooterUpdated={handleFooterUpdated}
         />
       </div>
 
@@ -1135,6 +1725,20 @@ export function BuilderShell({ page, allPages, churchId, websiteThemeTokens, web
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Feedback Dialog */}
+      <BuilderFeedbackDialog
+        open={feedbackOpen}
+        onOpenChange={setFeedbackOpen}
+        pageId={pageData.id}
+        pageSlug={pageData.slug}
+        pageTitle={pageData.title}
+        editingSectionId={editingSectionId}
+        editingSectionType={editingSection?.sectionType ?? null}
+        deviceMode={deviceMode}
+        activeTool={activeTool}
+        getActionHistory={actionLogger.getHistory}
+      />
     </div>
   )
 }

@@ -1,6 +1,9 @@
 # Website Builder Issues — 2026-02-25
 
-This document tracks 8 specific issues reported by the user, with detailed requirements for each fix. Each issue has a dedicated agent working on it. All agents must cross-reference the Figma prototype at `figma-cms-2:25:26/` for the correct implementation patterns.
+> **Last verified:** March 19, 2026 (QA audit)
+> **Result:** 7 of 8 issues FIXED. Issue 8 partially fixed (UI done, DnD not wired).
+
+This document tracks 8 specific issues reported by the user, with detailed requirements for each fix. All agents must cross-reference the Figma prototype at `figma-cms-2:25:26/` for the correct implementation patterns.
 
 **General rule:** Use shadcn/ui components, but match the Figma prototype's UX, flows, positioning, and interactions exactly.
 
@@ -8,7 +11,7 @@ This document tracks 8 specific issues reported by the user, with detailed requi
 
 ## Issue 1: Drag Preview — Gap + Wrong Visual
 
-**Status:** TODO
+**Status:** FIXED (March 19 — commit `239cb19`)
 **Files:** `components/cms/website/builder/builder-canvas.tsx`, `components/cms/website/builder/sortable-section.tsx`
 
 ### Problem
@@ -41,7 +44,7 @@ However, the user explicitly wants a **visual preview of the actual section**, n
 
 ## Issue 2: Blue Selection Border — Clipping / Only Top Visible
 
-**Status:** TODO
+**Status:** FIXED (March 19 — commit `239cb19`). Uses inset box-shadow, immune to overflow-hidden.
 **Files:** `components/cms/website/builder/sortable-section.tsx`, `components/cms/website/builder/builder-canvas.tsx`
 
 ### Problem
@@ -93,8 +96,8 @@ The Figma prototype uses `border-2 border-blue-600` on an absolute overlay div. 
 
 ## Issue 3: Section Picker Modal — Wrong Positioning
 
-**Status:** TODO
-**Files:** `components/cms/website/pages/section-picker-dialog.tsx`, `components/cms/website/builder/builder-shell.tsx`, `components/cms/website/builder/builder-canvas.tsx`
+**Status:** FIXED. Three positioning modes (dialog/sidebar/popover), transparent backdrop, smart placement. Builder defaults to sidebar mode.
+**Files:** `components/cms/website/builder/sections/section-picker-modal.tsx`, `components/cms/website/builder/builder-shell.tsx`
 
 ### Problem
 - The section picker opens as a **centered modal with blurred background** (standard Dialog behavior).
@@ -140,8 +143,8 @@ top = triggerRect.bottom + OFFSET // or above if no space below
 
 ## Issue 4: Modal Section Preview Borders — Black Outline Too Strong
 
-**Status:** TODO
-**Files:** `components/cms/website/pages/section-picker-dialog.tsx`, `components/cms/website/builder/section-preview.tsx`
+**Status:** FIXED. All borders now use `border-slate-200` or `border-border` token. No black borders.
+**Files:** `components/cms/website/builder/sections/section-picker-modal.tsx`
 
 ### Problem
 - In the section picker modal, each section preview card has a **black/dark border** that looks "really silly" in light mode.
@@ -167,8 +170,8 @@ top = triggerRect.bottom + OFFSET // or above if no space below
 
 ## Issue 5: Right Sidebar Not Scrollable
 
-**Status:** TODO
-**Files:** `components/cms/website/builder/builder-right-drawer.tsx`
+**Status:** FIXED. Proper flex pattern: `h-full overflow-hidden flex flex-col` + `flex-1 min-h-0` + ScrollArea.
+**Files:** `components/cms/website/builder/layout/builder-right-drawer.tsx`
 
 ### Problem
 - The right sidebar (section editor drawer) content is not scrollable.
@@ -195,8 +198,8 @@ The drawer already uses `<ScrollArea className="flex-1">` (line 234 of builder-r
 
 ## Issue 6: Section Documentation
 
-**Status:** TODO
-**Output:** `docs/04_builder/section-catalog-reference.md`
+**Status:** FIXED. 1,504-line catalog at `docs/04_builder/section-catalog/section-catalog-reference.md` covering all 41 types.
+**Output:** `docs/04_builder/section-catalog/section-catalog-reference.md`
 
 ### Requirement
 Create comprehensive documentation of:
@@ -222,8 +225,8 @@ Create comprehensive documentation of:
 
 ## Issue 7: Navbar Link Navigation + Selective Click Handling
 
-**Status:** TODO
-**Files:** `components/cms/website/builder/builder-canvas.tsx`, `components/cms/website/builder/builder-shell.tsx`
+**Status:** FIXED. iframe protocol distinguishes NAVBAR_CLICKED vs NAVBAR_LINK_CLICKED. Links navigate to builder page, background clicks open editor.
+**Files:** `components/cms/website/builder/canvas/builder-preview-client.tsx`, `components/cms/website/builder/canvas/builder-canvas.tsx`, `components/cms/website/builder/canvas/iframe-protocol.ts`
 
 ### Problem
 - Currently, ALL clicks inside the navbar open the navbar settings panel (because the entire navbar has `pointer-events-none` with a wrapper handling all clicks).
@@ -252,8 +255,8 @@ Create comprehensive documentation of:
 
 ## Issue 8: Pages/Navigation Sidebar — Complete Rewrite
 
-**Status:** TODO
-**Files:** `components/cms/website/builder/builder-shell.tsx`, new/refactored sidebar components
+**Status:** PARTIALLY FIXED. Tree UI complete (hierarchy, icons, collapsible groups, context menus, active highlighting). DnD reordering NOT wired — grip handles are visual only.
+**Files:** `components/cms/website/builder/pages/page-tree.tsx`, `components/cms/website/builder/builder-shell.tsx`
 
 ### Problem
 - The current pages sidebar is basic — flat list, not draggable, wrong icons, no hierarchy.

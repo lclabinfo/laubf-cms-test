@@ -1,10 +1,9 @@
-"use client"
-
 import SectionContainer from "@/components/website/shared/section-container"
 import ImageCard from "@/components/website/shared/image-card"
 import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import CTAButton from "@/components/website/shared/cta-button"
-import type { SectionTheme } from "@/components/website/shared/theme-tokens"
+import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
+import { cn } from "@/lib/utils"
 
 interface ImageCardData {
   id: string
@@ -18,7 +17,7 @@ interface ImageCardData {
 interface ActionCardGridContent {
   heading: { line1: string; line2: string; line3: string }
   subheading: string
-  ctaButton?: { label: string; href: string }
+  ctaButton?: { label: string; href: string; visible?: boolean }
   cards: ImageCardData[]
 }
 
@@ -32,13 +31,14 @@ interface Props {
 
 export default function ActionCardGridSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const animate = enableAnimations !== false
+  const t = themeTokens[colorScheme]
 
   return (
     <SectionContainer colorScheme={colorScheme} paddingY={paddingY} containerWidth={containerWidth}>
       <div className="flex flex-col gap-10 min-[1100px]:flex-row min-[1100px]:gap-10">
         {/* Left header — horizontal layout kicks in at 1100px to avoid text clipping near 1024px */}
         <AnimateOnScroll animation="fade-left" enabled={animate} className="flex flex-col gap-5 min-[1100px]:w-[280px] min-[1100px]:shrink-0">
-          <h2 className="text-h2 text-black-1 leading-none">
+          <h2 className={cn("text-h2 leading-none", t.textPrimary)}>
             <span>{content.heading.line1}</span>
             <br />
             <span className="font-display italic font-normal">
@@ -47,8 +47,8 @@ export default function ActionCardGridSection({ content, enableAnimations, color
             <br />
             <span>{content.heading.line3}</span>
           </h2>
-          <p className="text-h4 text-black-2">{content.subheading}</p>
-          {content.ctaButton && (
+          <p className={cn("text-h4", t.textSecondary)}>{content.subheading}</p>
+          {content.ctaButton && content.ctaButton.visible !== false && (
             <CTAButton
               label={content.ctaButton.label}
               href={content.ctaButton.href}

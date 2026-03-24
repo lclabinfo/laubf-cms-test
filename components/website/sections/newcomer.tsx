@@ -1,5 +1,3 @@
-"use client"
-
 import Image from "next/image"
 import { Users } from "lucide-react"
 import SectionContainer from "@/components/website/shared/section-container"
@@ -50,7 +48,7 @@ export default function NewcomerSection({ content, enableAnimations, colorScheme
             label={content.buttonLabel}
             href={content.buttonHref}
             variant="primary"
-            theme={colorScheme === "dark" ? "dark" : "light"}
+            theme={colorScheme}
           />
         </AnimateOnScroll>
 

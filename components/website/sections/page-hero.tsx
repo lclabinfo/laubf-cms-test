@@ -2,7 +2,7 @@
 
 import SectionContainer from "@/components/website/shared/section-container"
 import CTAButton from "@/components/website/shared/cta-button"
-import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
+import { themeTokens, isDarkScheme, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
 
@@ -66,7 +66,7 @@ interface Props {
 
 export default function PageHeroSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth }: Props) {
   const t = themeTokens[colorScheme]
-  const gradientColor = colorScheme === "dark" ? "rgba(13,13,13," : "rgba(250,250,250,"
+  const gradientColor = isDarkScheme(colorScheme) ? "rgba(13,13,13," : "rgba(250,250,250,"
   const animate = enableAnimations !== false
   const images = (content.floatingImages ?? []).slice(0, MAX_IMAGES)
   const total = images.length

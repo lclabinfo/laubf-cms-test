@@ -91,8 +91,18 @@ export async function deleteMenuItem(churchId: string, id: string) {
     where: { id, menu: { churchId } },
   })
   if (!item) throw new Error('Menu item not found')
-  // Delete children first, then parent
-  await prisma.menuItem.deleteMany({ where: { parentId: id } })
+  // Recursively delete all descendants, then the item itself
+  async function deleteDescendants(parentId: string) {
+    const children = await prisma.menuItem.findMany({
+      where: { parentId },
+      select: { id: true },
+    })
+    for (const child of children) {
+      await deleteDescendants(child.id)
+    }
+    await prisma.menuItem.deleteMany({ where: { parentId } })
+  }
+  await deleteDescendants(id)
   return prisma.menuItem.delete({ where: { id } })
 }
 
@@ -106,8 +116,33 @@ export async function reorderMenuItems(
     where: { id: menuId, churchId },
   })
   if (!menu) throw new Error('Menu not found')
+  // Verify all items belong to this menu (prevents cross-tenant manipulation)
   const updates = itemIds.map((id, index) =>
-    prisma.menuItem.update({ where: { id }, data: { sortOrder: index } }),
+    prisma.menuItem.updateMany({
+      where: { id, menuId, parentId: null },
+      data: { sortOrder: index },
+    }),
+  )
+  return prisma.$transaction(updates)
+}
+
+export async function reorderChildMenuItems(
+  churchId: string,
+  parentId: string,
+  itemIds: string[],
+) {
+  // Verify parent belongs to a menu owned by this church
+  const parent = await prisma.menuItem.findFirst({
+    where: { id: parentId, menu: { churchId } },
+  })
+  if (!parent) throw new Error('Parent menu item not found')
+
+  // Verify all items belong to this parent (prevents cross-tenant manipulation)
+  const updates = itemIds.map((id, index) =>
+    prisma.menuItem.updateMany({
+      where: { id, parentId, menuId: parent.menuId },
+      data: { sortOrder: index },
+    }),
   )
   return prisma.$transaction(updates)
 }

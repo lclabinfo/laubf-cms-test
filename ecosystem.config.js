@@ -2,12 +2,13 @@ module.exports = {
   apps: [
     {
       name: "laubf_cms",
-      script: "node_modules/.bin/next",
-      args: "start -p 3012",
+      script: ".next/standalone/server.js",
       cwd: "/home/ubfuser/digital_church/laubf_cms",
+      node_args: "--max-old-space-size=256 --max-semi-space-size=8 --optimize-for-size",
       env: {
         NODE_ENV: "production",
         PORT: 3012,
+        HOSTNAME: "0.0.0.0",
       },
     },
   ],

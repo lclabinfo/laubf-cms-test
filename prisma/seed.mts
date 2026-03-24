@@ -424,8 +424,14 @@ const CAMPUSES: { slug: string; name: string; shortName?: string }[] = [
 async function main() {
   console.log('Clearing existing data...')
 
-  // Delete in reverse dependency order
-  // Website builder tables first
+  // Delete in reverse dependency order (leaf tables first, root tables last)
+
+  // Auth & session tables
+  await prisma.session.deleteMany()
+  await prisma.account.deleteMany()
+
+  // Builder tables
+  await prisma.builderPresence.deleteMany()
   await prisma.menuItem.deleteMany()
   await prisma.menu.deleteMany()
   await prisma.pageSection.deleteMany()
@@ -433,83 +439,115 @@ async function main() {
   await prisma.themeCustomization.deleteMany()
   await prisma.theme.deleteMany()
   await prisma.siteSettings.deleteMany()
+  await prisma.customDomain.deleteMany()
+
+  // People & membership tables (leaf → parent)
+  await prisma.personNote.deleteMany()
+  await prisma.communicationPreference.deleteMany()
+  await prisma.personRoleAssignment.deleteMany()
+  await prisma.customFieldValue.deleteMany()
+  await prisma.customFieldDefinition.deleteMany()
+  await prisma.householdMember.deleteMany()
+  await prisma.household.deleteMany()
+  await prisma.accessRequest.deleteMany()
+  await prisma.churchMember.deleteMany()
+  await prisma.person.deleteMany()
+  await prisma.user.deleteMany()
+  await prisma.personRoleDefinition.deleteMany()
+
   // CMS content tables
   await prisma.messageSeries.deleteMany()
   await prisma.bibleStudyAttachment.deleteMany()
+  await prisma.bibleVerse.deleteMany()
   await prisma.eventLink.deleteMany()
   await prisma.tag.deleteMany()
+  await prisma.contactSubmission.deleteMany()
+  await prisma.announcement.deleteMany()
   await prisma.message.deleteMany()
   await prisma.bibleStudy.deleteMany()
   await prisma.event.deleteMany()
   await prisma.video.deleteMany()
   await prisma.dailyBread.deleteMany()
-  await prisma.speaker.deleteMany()
+  await prisma.mediaAsset.deleteMany()
+  await prisma.mediaFolder.deleteMany()
   await prisma.series.deleteMany()
   await prisma.ministry.deleteMany()
   await prisma.campus.deleteMany()
+
+  // System tables
+  await prisma.auditLog.deleteMany()
+  await prisma.subscription.deleteMany()
   await prisma.role.deleteMany()
   await prisma.church.deleteMany()
 
   // ── 1. Create Church ──────────────────────────────────────
+  // Use upsert so partial re-runs don't create duplicates (slug has a unique constraint)
   console.log('Creating LA UBF church...')
-  const church = await prisma.church.create({
-    data: {
-      name: 'LA UBF',
-      slug: 'la-ubf',
-      email: 'laubf.downey@gmail.com',
-      phone: '(562) 396-6350',
-      address: '11625 Paramount Blvd',
-      city: 'Downey',
-      state: 'CA',
-      zipCode: '90241',
-      country: 'US',
-      timezone: 'America/Los_Angeles',
-      locale: 'en-US',
-      websiteUrl: 'https://laubf.org',
-      facebookUrl: 'https://facebook.com/losangelesubf',
-      instagramUrl: 'https://instagram.com/la.ubf',
-      youtubeUrl: 'https://www.youtube.com/channel/UC1SRAeGrnVlvoEEMZ-htVlA',
-      settings: {
-        description: 'LA UBF (Los Angeles University Bible Fellowship) is a Bible-centered community raising lifelong disciples on college campuses and beyond.',
-        emails: [{ label: 'General', value: 'laubf.downey@gmail.com' }],
-        phones: [{ label: 'Main', value: '(562) 396-6350' }],
-        worshipServices: [
-          { day: 'Sunday', startTime: '11:00', endTime: '12:30', description: 'Sunday Worship Service' },
-        ],
-        extraSocialLinks: [
-          { platform: 'tiktok', url: 'https://www.tiktok.com/@la.ubf' },
-        ],
-        savedAddresses: [
-          {
-            id: '00000000-0000-0000-0000-000000000001',
-            label: 'LA UBF Main Center',
-            address: '11625 Paramount Blvd',
-            city: 'Downey',
-            state: 'CA',
-            zip: '90241',
-            isPrimary: true,
-          },
-        ],
-      },
+  const churchData = {
+    name: 'LA UBF',
+    slug: 'la-ubf',
+    email: 'laubf.downey@gmail.com',
+    phone: '(562) 396-6350',
+    address: '11625 Paramount Blvd',
+    city: 'Downey',
+    state: 'CA',
+    zipCode: '90241',
+    country: 'US',
+    timezone: 'America/Los_Angeles',
+    locale: 'en-US',
+    websiteUrl: 'https://laubf.org',
+    facebookUrl: 'https://facebook.com/losangelesubf',
+    instagramUrl: 'https://instagram.com/la.ubf',
+    youtubeUrl: 'https://www.youtube.com/channel/UC1SRAeGrnVlvoEEMZ-htVlA',
+    settings: {
+      description: 'LA UBF (Los Angeles University Bible Fellowship) is a Bible-centered community raising lifelong disciples on college campuses and beyond.',
+      emails: [{ label: 'General', value: 'laubf.downey@gmail.com' }],
+      phones: [{ label: 'Main', value: '(562) 396-6350' }],
+      worshipServices: [
+        { day: 'Sunday', startTime: '11:00', endTime: '12:30', description: 'Sunday Worship Service' },
+      ],
+      extraSocialLinks: [
+        { platform: 'tiktok', url: 'https://www.tiktok.com/@la.ubf' },
+      ],
+      savedAddresses: [
+        {
+          id: '00000000-0000-0000-0000-000000000001',
+          label: 'LA UBF Main Center',
+          address: '11625 Paramount Blvd',
+          city: 'Downey',
+          state: 'CA',
+          zip: '90241',
+          isPrimary: true,
+        },
+      ],
     },
+  } as const
+  const church = await prisma.church.upsert({
+    where: { slug: 'la-ubf' },
+    create: churchData,
+    update: churchData,
   })
   const churchId = church.id
 
-  // ── 2. Create Speakers ────────────────────────────────────
+  // ── 2. Create Speakers (as Person records) ───────────────
   console.log('Creating speakers...')
   const speakerNames = new Set<string>()
   for (const m of MESSAGES) speakerNames.add(m.speaker)
 
   const speakerMap = new Map<string, string>() // name -> id
   for (const name of speakerNames) {
-    const speaker = await prisma.speaker.create({
+    const parts = name.trim().split(/\s+/)
+    const firstName = parts[0] || name
+    const lastName = parts.slice(1).join(' ') || ''
+    const person = await prisma.person.create({
       data: {
         churchId,
-        name,
+        firstName,
+        lastName,
         slug: slugify(name),
       },
     })
-    speakerMap.set(name, speaker.id)
+    speakerMap.set(name, person.id)
   }
   console.log(`  Created ${speakerMap.size} speakers`)
 
@@ -1072,6 +1110,9 @@ async function main() {
       navCtaLabel: "I'm New",
       navCtaHref: '/im-new',
       navCtaVisible: true,
+      navScrollBehavior: 'transparent-to-solid',
+      navSolidColor: 'white',
+      navSticky: true,
     },
   })
   console.log('  Created site settings')
@@ -1163,7 +1204,8 @@ async function main() {
       menuId: headerMenu.id,
       parentId: ourChurchItem.id,
       label: 'Daily Bread & Prayer',
-      description: 'Mon-Fri @ 6 AM',
+      description: 'Start your morning in the Word',
+      scheduleMeta: 'Mon-Fri @ 6 AM',
       href: 'https://us02web.zoom.us/j/86540458764?pwd=ZDVUUjZDOVZ4WlJFc1VvNVlzd2tkQT09',
       iconName: 'book-open',
       isExternal: true,
@@ -1177,7 +1219,8 @@ async function main() {
       menuId: headerMenu.id,
       parentId: ourChurchItem.id,
       label: 'Evening Prayer',
-      description: 'Every Day @ 7:30 PM',
+      description: 'A daily evening prayer meeting',
+      scheduleMeta: 'Every Day @ 7:30 PM',
       href: 'https://meet.google.com/pgm-trah-moc',
       iconName: 'hand-heart',
       isExternal: true,
@@ -1191,7 +1234,8 @@ async function main() {
       menuId: headerMenu.id,
       parentId: ourChurchItem.id,
       label: "Men's Bible Study",
-      description: 'Sat @ 8 AM',
+      description: 'A weekly gathering for men to study Scripture',
+      scheduleMeta: 'Sat @ 8 AM',
       href: 'https://zoom.us',
       iconName: 'users',
       isExternal: true,
@@ -1205,7 +1249,8 @@ async function main() {
       menuId: headerMenu.id,
       parentId: ourChurchItem.id,
       label: 'Sunday Livestream',
-      description: 'Sun @ 11 AM',
+      description: 'Join our Sunday worship service livestream',
+      scheduleMeta: 'Sun @ 11 AM',
       href: 'https://www.youtube.com/@LAUBF/streams',
       iconName: 'radio',
       isExternal: true,

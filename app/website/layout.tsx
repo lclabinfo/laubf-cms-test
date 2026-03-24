@@ -5,8 +5,8 @@ import { WebsiteNavbar } from '@/components/website/layout/website-navbar'
 import { WebsiteFooter } from '@/components/website/layout/website-footer'
 import QuickLinksFAB from '@/components/website/layout/quick-links-fab'
 import { getChurchId } from '@/lib/tenant/context'
+import { buildLayoutData } from '@/lib/website/build-layout-props'
 import { getSiteSettings } from '@/lib/dal/site-settings'
-import { getMenuByLocation } from '@/lib/dal/menus'
 
 /* ── SEO Metadata ── */
 
@@ -49,7 +49,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * These are children of the first top-level item whose groupLabel contains
  * items with groupLabel === "Quick Links".
  */
-function extractQuickLinks(headerMenu: Awaited<ReturnType<typeof getMenuByLocation>>) {
+function extractQuickLinks(headerMenu: Awaited<ReturnType<typeof buildLayoutData>>['headerMenu']) {
   if (!headerMenu) return []
 
   for (const topItem of headerMenu.items) {
@@ -62,6 +62,7 @@ function extractQuickLinks(headerMenu: Awaited<ReturnType<typeof getMenuByLocati
         href: c.href || '',
         icon: c.iconName || 'link',
         description: c.description || undefined,
+        scheduleMeta: c.scheduleMeta || undefined,
       }))
     }
   }
@@ -75,11 +76,7 @@ export default async function WebsiteLayout({
 }) {
   const churchId = await getChurchId()
 
-  const [siteSettings, headerMenu, footerMenu] = await Promise.all([
-    getSiteSettings(churchId),
-    getMenuByLocation(churchId, 'HEADER'),
-    getMenuByLocation(churchId, 'FOOTER'),
-  ])
+  const { navbarProps, headerMenu, footerMenu, siteSettings } = await buildLayoutData(churchId)
 
   const quickLinks = extractQuickLinks(headerMenu)
 
@@ -87,19 +84,7 @@ export default async function WebsiteLayout({
     <>
       <FontLoader churchId={churchId} />
       <ThemeProvider churchId={churchId}>
-        <WebsiteNavbar
-          menu={headerMenu}
-          logoUrl={siteSettings?.logoUrl ?? null}
-          logoDarkUrl={siteSettings?.logoDarkUrl ?? null}
-          logoAlt={siteSettings?.logoAlt ?? null}
-          siteName={siteSettings?.siteName ?? 'Church'}
-          ctaLabel={siteSettings?.navCtaLabel ?? null}
-          ctaHref={siteSettings?.navCtaHref ?? null}
-          ctaVisible={siteSettings?.navCtaVisible ?? false}
-          memberLoginLabel="Member Login"
-          memberLoginHref="/member-login"
-          memberLoginVisible={siteSettings?.enableMemberLogin ?? false}
-        />
+        <WebsiteNavbar {...navbarProps} />
         <main>{children}</main>
         <QuickLinksFAB
           visible={quickLinks.length > 0}

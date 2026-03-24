@@ -27,6 +27,7 @@ import {
   HardDriveIcon,
   InboxIcon,
   EyeOffIcon,
+  MessageSquareWarningIcon,
   type LucideIcon,
 } from "lucide-react"
 
@@ -81,6 +82,8 @@ type NavItem = {
   devOnly?: boolean
   /** Short hint shown to dev users explaining why this item is hidden from others. */
   devHint?: string
+  /** Minimum role priority required to see this item (e.g. 1000 = owner only). */
+  minRolePriority?: number
 }
 
 type NavGroup = {
@@ -216,6 +219,12 @@ const navGroups: NavGroup[] = [
         icon: ShieldIcon,
         requiredPermission: "roles.view",
       },
+      {
+        title: "Feedback",
+        href: "/cms/admin/builder-feedback",
+        icon: MessageSquareWarningIcon,
+        minRolePriority: 1000,
+      },
     ],
   },
 ]
@@ -312,7 +321,8 @@ export function AppSidebar({ session, ...props }: { session: CmsSessionData } & 
           const visibleItems = group.items.filter(
             (item) =>
               (!item.requiredPermission || userPerms.has(item.requiredPermission)) &&
-              (!item.devOnly || isDev),
+              (!item.devOnly || isDev) &&
+              (!item.minRolePriority || session.rolePriority >= item.minRolePriority),
           )
           if (visibleItems.length === 0) return null
           const isGroupActive = activeGroup?.label === group.label
