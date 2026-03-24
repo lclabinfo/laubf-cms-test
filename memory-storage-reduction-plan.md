@@ -338,22 +338,24 @@ The correct comparison is:
 
 ---
 
-## Priority Order
+## Priority Checklist
 
-| # | Action | Impact | Effort | Phase |
-|---|--------|--------|--------|-------|
-| 1 | Switch to standalone server | -300 MB RSS | 5 min | 1 |
-| 2 | Set heap limit 256 MB | -100 MB RSS | 1 line | 1 |
-| 3 | Kill stale PM2 process | -237 MB server | 1 min | 1 |
-| 4 | Untrack dump files + update .gitignore | Stops growth | 10 min | 1 |
-| 5 | git filter-repo purge | -500 MB clone | 30 min | 2 |
-| 6 | Code split TipTap/motion/dnd-kit | -50 MB bundle | 2 hr | 3 |
-| 7 | Paginate 5000-record fetches | -memory spikes | 1 hr | 3 |
-| 8 | Fix SSG blocker (remove headers()) | Static pages | 30 min | 3 |
-| 9 | Convert 33 sections to RSC | -60% client JS | 3 hr | 3 |
-| 10 | Add cache headers to API routes | Fewer DB hits | 1 hr | 3 |
-| 11 | Replace in-memory rate limiter | Multi-instance safe | 1 hr | 4 |
-| 12 | Add security headers | Security | 15 min | 1 |
-| 13 | Fix Turnstile fail-open | Security | 5 min | 1 |
+- [x] **1. Switch to standalone server** — `ecosystem.config.js` updated (commit `2df19a0`) — -300 MB RSS
+- [x] **2. Set heap limit 256 MB** — `--max-old-space-size=256` in ecosystem.config.js (commit `2df19a0`)
+- [ ] **3. Kill stale PM2 process** — Run `pm2 stop laubf && pm2 delete laubf` on server — -237 MB
+- [x] **4. Untrack dump files + update .gitignore** — 131 files untracked (commit `2fe9053`)
+- [ ] **5. git filter-repo purge** — See `docs/00_dev-notes/git-history-purge-plan.md` — -784 MB clone
+- [x] **6. Code split TipTap/dnd-kit** — BuilderShell, RichTextEditor, QuickLinksEditor (commit `2df19a0`)
+- [x] **7. Paginate 5000-record fetches** — pageSize 5000 → 50 in 5 places (commit `2df19a0`)
+- [ ] **8. Fix SSG blocker (remove headers())** — Remove `headers()` from tenant context for single-tenant
+- [ ] **9. Convert ~33 sections to RSC** — Remove `"use client"` from presentational sections
+- [x] **10. Add cache headers to API routes** — daily-bread, speakers, speakers/[slug] (commit `2df19a0`)
+- [ ] **11. Replace in-memory rate limiter** — Switch to Upstash Redis
+- [x] **12. Add security headers** — 5 headers in next.config.ts (commit `2df19a0`)
+- [x] **13. Fix Turnstile fail-open** — Changed to fail-closed (commit `2df19a0`)
+- [ ] **14. Deploy to server** — Rebuild, copy static files, restart PM2
+
+**Progress: 8/14 done** — remaining items need server access or are larger refactors.
 
 *Reviewed: 2026-03-23*
+*Last updated: 2026-03-24*
