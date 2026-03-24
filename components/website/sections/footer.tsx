@@ -1,5 +1,3 @@
-"use client"
-
 import { SectionThemeContext, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import Link from "next/link"
 import Image from "next/image"

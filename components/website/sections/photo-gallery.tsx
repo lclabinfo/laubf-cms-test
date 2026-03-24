@@ -1,5 +1,3 @@
-"use client"
-
 import { SectionThemeContext, themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"
 import Image from "next/image"

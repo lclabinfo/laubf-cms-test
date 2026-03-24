@@ -1,5 +1,3 @@
-"use client"
-
 import SectionContainer from "@/components/website/shared/section-container"
 import OverlineLabel from "@/components/website/shared/overline-label"
 import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"

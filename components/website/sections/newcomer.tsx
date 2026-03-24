@@ -1,5 +1,3 @@
-"use client"
-
 import Image from "next/image"
 import { Users } from "lucide-react"
 import SectionContainer from "@/components/website/shared/section-container"

@@ -1,5 +1,3 @@
-"use client"
-
 import SectionContainer from "@/components/website/shared/section-container"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import { cn } from "@/lib/utils"

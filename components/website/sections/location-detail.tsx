@@ -1,5 +1,3 @@
-"use client"
-
 import SectionContainer from "@/components/website/shared/section-container"
 import OverlineLabel from "@/components/website/shared/overline-label"
 import CTAButton from "@/components/website/shared/cta-button"

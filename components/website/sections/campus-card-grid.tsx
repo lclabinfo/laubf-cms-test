@@ -1,5 +1,3 @@
-"use client"
-
 import SectionContainer from "@/components/website/shared/section-container"
 import CTAButton from "@/components/website/shared/cta-button"
 import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"

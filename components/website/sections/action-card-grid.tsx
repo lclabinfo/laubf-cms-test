@@ -1,5 +1,3 @@
-"use client"
-
 import SectionContainer from "@/components/website/shared/section-container"
 import ImageCard from "@/components/website/shared/image-card"
 import AnimateOnScroll from "@/components/website/shared/animate-on-scroll"

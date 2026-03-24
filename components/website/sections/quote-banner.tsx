@@ -1,5 +1,3 @@
-"use client"
-
 import type { ReactNode } from "react"
 import SectionContainer from "@/components/website/shared/section-container"
 import OverlineLabel from "@/components/website/shared/overline-label"
