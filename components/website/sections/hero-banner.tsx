@@ -145,7 +145,7 @@ function HeroBannerFullwidth({
   return (
     <SectionThemeContext.Provider value={theme}>
       <section id="hero-section" className={cn(
-        "relative flex min-h-screen overflow-hidden -mt-[76px]",
+        "relative flex min-h-dvh overflow-hidden -mt-[76px]",
         bgClass,
         isDefaultPosition ? "" : "flex-col",
         sectionAlignClass,
@@ -252,7 +252,7 @@ function HeroBannerSplit({
           {mediaType === "video" && (content.backgroundVideo?.src || content.backgroundImage?.src) ? (
             <HeroVideo
               desktopSrc={content.backgroundVideo?.src ?? content.backgroundImage.src}
-              mobileSrc={content.backgroundVideo?.mobileSrc ?? content.mobileVideo?.src ?? content.backgroundVideo?.src ?? content.backgroundImage.src}
+              mobileSrc={content.backgroundVideo?.mobileSrc || content.mobileVideo?.src || content.backgroundVideo?.src || content.backgroundImage.src}
               animate={animate}
             />
           ) : content.backgroundImage?.src ? (
@@ -341,7 +341,7 @@ function HeroBannerContained({
             )}>
               <HeroVideo
                 desktopSrc={content.backgroundVideo?.src ?? content.backgroundImage.src}
-                mobileSrc={content.backgroundVideo?.mobileSrc ?? content.mobileVideo?.src ?? content.backgroundVideo?.src ?? content.backgroundImage.src}
+                mobileSrc={content.backgroundVideo?.mobileSrc || content.mobileVideo?.src || content.backgroundVideo?.src || content.backgroundImage.src}
                 animate={false}
               />
             </div>
@@ -571,7 +571,7 @@ function HeroBackgroundMedia({ content, animate, mediaType, theme }: { content: 
     return (
       <HeroVideo
         desktopSrc={content.backgroundVideo.src}
-        mobileSrc={content.backgroundVideo.mobileSrc ?? content.mobileVideo?.src ?? content.backgroundVideo.src}
+        mobileSrc={content.backgroundVideo.mobileSrc || content.mobileVideo?.src || content.backgroundVideo.src}
         animate={animate}
       />
     )
@@ -590,7 +590,7 @@ function HeroBackgroundMedia({ content, animate, mediaType, theme }: { content: 
       return (
         <HeroVideo
           desktopSrc={singleImage.src}
-          mobileSrc={content.mobileVideo?.src ?? singleImage.src}
+          mobileSrc={content.mobileVideo?.src || singleImage.src}
           animate={animate}
         />
       )
