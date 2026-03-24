@@ -7,7 +7,7 @@ import CTAButton from "@/components/website/shared/cta-button"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
 
-const LG_BREAKPOINT = 1024
+const MOBILE_BREAKPOINT = 640
 
 interface HeroBannerContent {
   heading: { line1: string; line2: string }
@@ -688,7 +688,7 @@ function HeroVideo({ desktopSrc, mobileSrc, animate }: { desktopSrc: string; mob
     if (!video) return
 
     const applySrc = () => {
-      const isDesktop = window.innerWidth >= LG_BREAKPOINT
+      const isDesktop = window.innerWidth >= MOBILE_BREAKPOINT
       const next = isDesktop ? desktopSrc : mobileSrc
       if (video.src.endsWith(next)) return
       video.src = next
@@ -698,7 +698,7 @@ function HeroVideo({ desktopSrc, mobileSrc, animate }: { desktopSrc: string; mob
 
     applySrc()
 
-    const mql = window.matchMedia(`(min-width: ${LG_BREAKPOINT}px)`)
+    const mql = window.matchMedia(`(min-width: ${MOBILE_BREAKPOINT}px)`)
     mql.addEventListener("change", applySrc)
 
     const observer = new IntersectionObserver(

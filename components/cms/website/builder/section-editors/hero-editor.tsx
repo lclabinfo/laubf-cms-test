@@ -269,7 +269,7 @@ export function HeroBannerEditor({
         <div className="space-y-4">
           <VideoPickerField
             label="Desktop Video"
-            description="1920×1080+  ·  Screens ≥ 1024px"
+            description="1920×1080+  ·  Screens ≥ 640px"
             value={bgVideo.src || (isVideoSrc(bgImage.src) ? bgImage.src : "")}
             onChange={(v) =>
               onChange({
@@ -282,7 +282,7 @@ export function HeroBannerEditor({
           />
           <VideoPickerField
             label="Mobile Video (optional)"
-            description="720×1280 portrait  ·  Screens < 1024px  ·  Uses desktop video if empty"
+            description="720×1280 portrait  ·  Screens < 640px  ·  Uses desktop video if empty"
             value={bgVideo.mobileSrc || legacyMobileVideo}
             onChange={(v) =>
               onChange({
