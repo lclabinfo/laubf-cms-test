@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { SectionThemeContext, themeTokens, isDarkScheme, type SectionTheme } from "@/components/website/shared/theme-tokens"
+import { SectionThemeContext } from "@/components/website/shared/theme-context"
+import { themeTokens, isDarkScheme, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import CTAButton from "@/components/website/shared/cta-button"
 import { cn } from "@/lib/utils"
 import Image from "next/image"

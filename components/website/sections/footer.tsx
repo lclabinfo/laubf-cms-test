@@ -1,4 +1,6 @@
-import { SectionThemeContext, type SectionTheme } from "@/components/website/shared/theme-tokens"
+"use client"
+import { SectionThemeContext } from "@/components/website/shared/theme-context"
+import type { SectionTheme } from "@/components/website/shared/theme-tokens"
 import Link from "next/link"
 import Image from "next/image"
 import { resolveHref } from "@/lib/website/resolve-href"

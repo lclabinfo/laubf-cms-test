@@ -12,7 +12,7 @@ import {
   IconBookOpen,
   IconUser,
 } from "@/components/website/shared/icons"
-import { useSectionTheme } from "@/components/website/shared/theme-tokens"
+import { useSectionTheme } from "@/components/website/shared/theme-context"
 import { cn } from "@/lib/utils"
 
 interface Message {

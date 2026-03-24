@@ -4,7 +4,7 @@
  */
 "use client"
 
-import { useSectionTheme } from "./theme-tokens"
+import { useSectionTheme } from "./theme-context"
 import { cn } from "@/lib/utils"
 
 interface OverlineLabelProps {
