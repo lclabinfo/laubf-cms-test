@@ -8,7 +8,7 @@
  */
 "use client"
 
-import { useSectionTheme } from "@/components/website/shared/theme-tokens"
+import { useSectionTheme } from "@/components/website/shared/theme-context"
 import { cn } from "@/lib/utils"
 import CTAButton from "./cta-button"
 

@@ -2,7 +2,8 @@
 
 import { useRef, useEffect, useCallback } from "react"
 import { useMotionValue, useSpring, motion } from "motion/react"
-import { SectionThemeContext, themeTokens, isDarkScheme, type SectionTheme } from "@/components/website/shared/theme-tokens"
+import { SectionThemeContext } from "@/components/website/shared/theme-context"
+import { themeTokens, isDarkScheme, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import { cn } from "@/lib/utils"
 import CTAButton from "@/components/website/shared/cta-button"
 import Image from "next/image"

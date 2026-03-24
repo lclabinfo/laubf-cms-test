@@ -9,7 +9,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { useResolvedTheme, type SectionTheme } from "./theme-tokens"
+import { useResolvedTheme, type SectionTheme } from "./theme-context"
 import { cn } from "@/lib/utils"
 import { resolveHref } from "@/lib/website/resolve-href"
 import Link from "next/link"

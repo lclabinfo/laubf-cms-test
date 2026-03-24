@@ -7,7 +7,8 @@
  */
 "use client"
 
-import { SectionThemeContext, themeTokens, type SectionTheme } from "./theme-tokens"
+import { SectionThemeContext } from "./theme-context"
+import { themeTokens, type SectionTheme } from "./theme-tokens"
 import { cn } from "@/lib/utils"
 
 const paddingYMap = {

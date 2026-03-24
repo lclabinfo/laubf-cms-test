@@ -1,5 +1,6 @@
 import type { ColorScheme, PaddingSize, ContainerWidth } from '@/lib/db/types'
-import { SectionThemeContext, themeTokens, type SectionTheme } from '@/components/website/shared/theme-tokens'
+import { SectionThemeContext } from "@/components/website/shared/theme-context"
+import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
 import { cn } from '@/lib/utils'
 
 const paddingYMap: Record<PaddingSize, string> = {

@@ -29,9 +29,6 @@
  * DB COLUMN: color_scheme ENUM('LIGHT','DARK','BRAND','MUTED') DEFAULT 'LIGHT'
  * ============================================
  */
-"use client"
-
-import { createContext, useContext } from "react"
 
 /**
  * Available color schemes for any section or component.
@@ -159,31 +156,7 @@ export const eventTypeColors: Record<string, string> = {
 
 export const EVENT_TYPE_FALLBACK_COLOR = "bg-black-3"
 
-/* -- React Context -- */
-
-export const SectionThemeContext = createContext<SectionTheme>("light")
-
-/** Returns resolved ThemeTokens for the current section's color scheme. */
-export function useSectionTheme(): ThemeTokens {
-  const theme = useContext(SectionThemeContext)
-  return themeTokens[theme]
-}
-
-/** Returns the raw scheme name ("dark" | "light" | "brand" | "muted"). */
-export function useRawSectionTheme(): SectionTheme {
-  return useContext(SectionThemeContext)
-}
-
 /** Returns true for schemes with dark backgrounds that need light text/overlays. */
 export function isDarkScheme(theme: SectionTheme): boolean {
   return theme === "dark" || theme === "brand"
-}
-
-/**
- * Resolve tokens from an explicit scheme override or fall back to context.
- * Use this in components that accept an optional `colorScheme` prop.
- */
-export function useResolvedTheme(override?: SectionTheme): ThemeTokens {
-  const contextTheme = useContext(SectionThemeContext)
-  return themeTokens[override ?? contextTheme]
 }
