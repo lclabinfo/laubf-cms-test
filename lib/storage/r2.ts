@@ -21,17 +21,24 @@ export const MEDIA_BUCKET = process.env.R2_MEDIA_BUCKET_NAME!;
 export const MEDIA_PUBLIC_URL = (process.env.R2_MEDIA_PUBLIC_URL || "").replace(/\/+$/, "");
 
 // ---------------------------------------------------------------------------
-// S3-compatible client (singleton)
+// S3-compatible client (lazy singleton — created on first use)
 // ---------------------------------------------------------------------------
 
-const client = new S3Client({
-  region: "auto",
-  endpoint: `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-});
+let _client: S3Client | null = null;
+
+function getClient(): S3Client {
+  if (!_client) {
+    _client = new S3Client({
+      region: "auto",
+      endpoint: `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      credentials: {
+        accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+      },
+    });
+  }
+  return _client;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -58,7 +65,7 @@ export async function getUploadUrl(
     ContentType: contentType,
     ...(fileSize != null && { ContentLength: fileSize }),
   });
-  return getSignedUrl(client, command, { expiresIn: opts?.expiresIn ?? 3600 });
+  return getSignedUrl(getClient(), command, { expiresIn: opts?.expiresIn ?? 3600 });
 }
 
 /**
@@ -68,7 +75,7 @@ export async function deleteObject(
   key: string,
   bucket = ATTACHMENTS_BUCKET,
 ): Promise<void> {
-  await client.send(
+  await getClient().send(
     new DeleteObjectCommand({
       Bucket: bucket,
       Key: key,
@@ -98,7 +105,7 @@ export async function moveObject(
   bucket = ATTACHMENTS_BUCKET,
 ): Promise<void> {
   // 1. Download the source object
-  const getResponse = await client.send(
+  const getResponse = await getClient().send(
     new GetObjectCommand({
       Bucket: bucket,
       Key: srcKey,
@@ -113,7 +120,7 @@ export async function moveObject(
   const bodyBytes = await getResponse.Body.transformToByteArray();
 
   // 2. Upload to the destination key
-  await client.send(
+  await getClient().send(
     new PutObjectCommand({
       Bucket: bucket,
       Key: destKey,
@@ -127,7 +134,7 @@ export async function moveObject(
   let verified = false;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const headResponse = await client.send(
+      const headResponse = await getClient().send(
         new HeadObjectCommand({
           Bucket: bucket,
           Key: destKey,
@@ -152,7 +159,7 @@ export async function moveObject(
   }
 
   // 4. Safe to delete the source
-  await client.send(
+  await getClient().send(
     new DeleteObjectCommand({
       Bucket: bucket,
       Key: srcKey,
@@ -202,7 +209,7 @@ export async function uploadFile(
   contentType: string,
   bucket = ATTACHMENTS_BUCKET,
 ): Promise<void> {
-  await client.send(
+  await getClient().send(
     new PutObjectCommand({
       Bucket: bucket,
       Key: key,
@@ -223,7 +230,7 @@ export async function* listObjects(
   let continuationToken: string | undefined;
 
   do {
-    const response = await client.send(
+    const response = await getClient().send(
       new ListObjectsV2Command({
         Bucket: bucket,
         Prefix: prefix,

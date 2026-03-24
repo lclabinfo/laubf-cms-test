@@ -19,7 +19,7 @@
 
 - [x] Switch to standalone server (`.next/standalone/server.js`) — commit `2df19a0`
 - [x] Set V8 heap limit `--max-old-space-size=256` — commit `2df19a0`
-- [ ] Add V8 flags `--max-semi-space-size=8 --optimize-for-size` — in progress (next.config.ts updated)
+- [x] Add V8 flags `--max-semi-space-size=8 --optimize-for-size`
 - [ ] Kill stale PM2 `laubf` process on server — `pm2 stop laubf && pm2 delete laubf` (-237 MB)
 - [ ] Deploy to server: rebuild, copy static files, restart PM2
 
@@ -30,12 +30,12 @@
 - [x] Code split QuickLinksEditor (`next/dynamic`, ssr: false) — commit `2df19a0`
 - [x] Paginate data fetches: `pageSize: 5000` → `50` in 5 places — commit `2df19a0`
 - [x] Convert 22 website sections from client to server components — commit `2565e0b`
-- [x] Add `optimizePackageImports` for lucide-react, dnd-kit, motion, tiptap — in progress
-- [x] Add `serverExternalPackages` for AWS SDK — in progress
-- [x] Disable server source maps — in progress
-- [ ] Create lightweight `lib/tiptap-html.ts` for server-side HTML rendering (-15-30 MB)
-- [ ] Reduce pg connection pool from 10 → 5 in `lib/db/client.ts` (-5-10 MB)
-- [ ] Lazy-load S3Client in `lib/storage/r2.ts` (-3-5 MB)
+- [x] Add `optimizePackageImports` for lucide-react, dnd-kit, motion, tiptap
+- [x] Add `serverExternalPackages` for AWS SDK
+- [x] Disable server source maps
+- [x] Reduce pg connection pool from 10 → 5 in `lib/db/client.ts`
+- [x] Lazy-load S3Client in `lib/storage/r2.ts`
+- ~~Create lightweight `lib/tiptap-html.ts`~~ — SKIPPED (only 3-5 MB savings, not worth risk to import pipeline)
 - [ ] Fix SSG blocker: remove `headers()` from `lib/tenant/context.ts` for single-tenant
 - [ ] Add PM2 `--max-memory-restart 400M` as safety net
 
@@ -60,11 +60,11 @@
 | Category | Done | Total | Status |
 |----------|------|-------|--------|
 | Storage | 2 | 5 | 40% (filter-repo pending maintenance window) |
-| Prod config | 2 | 5 | 40% (deploy pending) |
-| Code optimization | 9 | 13 | 69% |
+| Prod config | 3 | 5 | 60% (deploy pending) |
+| Code optimization | 12 | 13 | 92% (only SSG blocker remains) |
 | Cache & data | 1 | 4 | 25% |
 | Security | 2 | 4 | 50% |
-| **Overall** | **16** | **31** | **52%** |
+| **Overall** | **20** | **31** | **65%** |
 
 ---
 

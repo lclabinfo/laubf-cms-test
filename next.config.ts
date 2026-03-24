@@ -2,6 +2,18 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: 'standalone',
+  serverExternalPackages: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      '@dnd-kit/core',
+      '@dnd-kit/sortable',
+      'motion',
+      '@tiptap/core',
+      '@tiptap/pm',
+    ],
+    serverSourceMaps: false,
+  },
   images: {
     remotePatterns: [
       {
