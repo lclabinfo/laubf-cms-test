@@ -21,6 +21,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { useUploadQueue } from "@/components/cms/upload-queue-provider"
 
 const TYPES = [
   { value: "bug", label: "Bug Report", icon: Bug },
@@ -30,6 +31,8 @@ const TYPES = [
 
 export function CmsFeedbackButton() {
   const pathname = usePathname()
+  const { jobs } = useUploadQueue()
+  const hasUploadJobs = jobs.length > 0
   const [open, setOpen] = useState(false)
   const [type, setType] = useState<string>("bug")
   const [title, setTitle] = useState("")
@@ -92,7 +95,7 @@ export function CmsFeedbackButton() {
 
   return (
     <>
-      <div className="fixed bottom-5 right-5 z-50">
+      <div className={cn("fixed right-5 z-50 transition-all duration-300", hasUploadJobs ? "bottom-72" : "bottom-5")}>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
