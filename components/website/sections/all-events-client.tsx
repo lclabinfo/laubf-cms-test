@@ -28,6 +28,7 @@ interface SimpleEvent {
   thumbnailUrl: string
   isFeatured: boolean
   isRecurring: boolean
+  recurrenceSchedule: string
 }
 
 type TabView = "event" | "meeting" | "program"
@@ -338,6 +339,8 @@ function CardView({ events }: { events: SimpleEvent[] }) {
             location: event.location,
             thumbnailUrl: event.thumbnailUrl || undefined,
             isFeatured: event.isFeatured,
+            isRecurring: event.isRecurring,
+            recurrenceSchedule: event.recurrenceSchedule,
           }}
         />
       ))}

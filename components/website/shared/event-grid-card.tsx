@@ -16,6 +16,8 @@ interface EventGridCardEvent {
   location: string
   thumbnailUrl?: string
   isFeatured: boolean
+  isRecurring?: boolean
+  recurrenceSchedule?: string
   image?: { src: string; alt: string; objectPosition?: string }
 }
 
@@ -113,12 +115,18 @@ export default function EventGridCard({ event }: { event: EventGridCardEvent }) 
           <div className="flex items-center gap-2">
             <IconClock className="size-4 text-black-2 shrink-0" />
             <span className="text-body-3 text-black-2">
-              {fmtDate(event.dateStart)}
-              {event.dateEnd && event.dateEnd !== event.dateStart && (
-                <> – {fmtDate(event.dateEnd)}</>
-              )}
-              {formatTime(event.timeStart) && (
-                <> @ {formatTime(event.timeStart)}</>
+              {event.isRecurring && event.recurrenceSchedule ? (
+                event.recurrenceSchedule
+              ) : (
+                <>
+                  {fmtDate(event.dateStart)}
+                  {event.dateEnd && event.dateEnd !== event.dateStart && (
+                    <> – {fmtDate(event.dateEnd)}</>
+                  )}
+                  {formatTime(event.timeStart) && (
+                    <> @ {formatTime(event.timeStart)}</>
+                  )}
+                </>
               )}
             </span>
           </div>

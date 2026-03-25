@@ -39,6 +39,7 @@ export default async function AllEventsSection({ content, churchId }: Props) {
       thumbnailUrl: e.coverImage || '',
       isFeatured: e.isFeatured,
       isRecurring: e.isRecurring,
+      recurrenceSchedule: e.recurrenceSchedule || '',
     }))
 
     return <AllEventsClient events={events} heading={content.heading} />
