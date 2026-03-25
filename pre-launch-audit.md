@@ -261,6 +261,7 @@ Other error handling fixes:
 - **Root cause:** mammoth.js converts embedded DOCX images to base64 `<img>` tags, but TipTap Image extension has `allowBase64: false` — images discarded during `generateJSON()`
 - **Files:** `lib/docx-import.ts`, `lib/tiptap.ts` (line 772)
 - **Test case:** "A Wise and Discerning Heart" study — has embedded image in Introduction section
+- **CMS link:** `/cms/messages/d136bf80-94d0-4167-ac82-c73ee6ea4b90?tab=study`
 
 ### P1: Image Display Options (Alignment, Float, Resize)
 - [ ] Add width/height attributes on Image node (for resizing)

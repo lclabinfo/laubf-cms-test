@@ -1,55 +1,136 @@
-# Hero Mobile Video Investigation
+# Hero Mobile Video Investigation & Resolution
 
 > Mobile video works on localhost but not on hosted server.
-> 7-agent investigation conducted 2026-03-24.
+> 7-agent investigation conducted 2026-03-24. Resolved 2026-03-25.
 
 ---
 
-## Root Cause Found
+## Resolution (2026-03-25)
 
-The **seeded homepage hero section** (`prisma/seed.mts`) was created with only
-`backgroundImage` — no `backgroundVideo` field at all. When you open this section
-in the editor:
+**Status: FIXED** across 4 commits.
 
-1. `content.backgroundVideo` is `undefined`
-2. Editor falls back to `{ src: "", mobileSrc: "" }`
-3. You set the desktop video → saves `backgroundVideo: { src: "desktop-url", mobileSrc: "" }`
-4. You set the mobile video → spreads `{ ...bgVideo, mobileSrc: "mobile-url" }`
+### The actual root cause (4 bugs forming a chain)
 
-This works correctly IF both steps run in order. But the critical question is
-**which database** the content was saved to.
+The 7-agent investigation on 2026-03-24 correctly identified the data format mismatch but missed the **full chain of failures** that made the mobile video unreachable:
 
-Local dev and the hosted server use separate `.env` files pointing to potentially
-different PostgreSQL instances. If you uploaded the mobile video through the
-**local builder** (localhost:3000), that content only exists in your local database.
-The server's database still has the old hero content without the mobile video.
+**Bug 1: Legacy seed stores video in `backgroundImage.src`, not `backgroundVideo`**
 
----
+`prisma/seed.mts` (and `reset-website-seed.mts`) created the hero section as:
+```json
+{ "backgroundImage": { "src": "compressed-hero-vid.mp4" } }
+```
+No `backgroundVideo` field existed in the DB at all. No `mediaType` field either.
 
-## How to Verify
+**Bug 2: Editor shows a display-only fallback that never gets saved**
 
-On the server:
+`hero-editor.tsx:272` — The desktop video picker displayed:
+```tsx
+value={bgVideo.src || (isVideoSrc(bgImage.src) ? bgImage.src : "")}
+```
+Since `backgroundVideo` didn't exist, `bgVideo = { src: "", mobileSrc: "" }`. The UI fell back to showing `backgroundImage.src`, so the user saw the video and thought it was configured. But `backgroundVideo.src` remained `""` in the data.
+
+**Bug 3: Saving mobile video didn't auto-migrate the desktop video**
+
+`hero-editor.tsx:287-290` — When picking a mobile video:
+```tsx
+onChange({ ...content, backgroundVideo: { ...bgVideo, mobileSrc: v } })
+```
+This wrote `backgroundVideo: { src: "", mobileSrc: "phone_dimension.webm" }`. The desktop URL from `backgroundImage.src` was never migrated to `backgroundVideo.src`.
+
+**Bug 4 (THE KILLER): Renderer ignores `mobileSrc` when `backgroundVideo.src` is falsy**
+
+`hero-banner.tsx:568`:
+```tsx
+if (content.backgroundVideo?.src) {  // "" is FALSY → entire block skipped!
+  return <HeroVideo
+    desktopSrc={content.backgroundVideo.src}
+    mobileSrc={content.backgroundVideo.mobileSrc || content.backgroundVideo.src}
+  />
+}
+```
+Since `backgroundVideo.src` was `""`, this block was skipped entirely. It fell through to the legacy path which used `backgroundImage.src` for BOTH desktop AND mobile — `mobileSrc` was never read.
+
+### The full chain
+
+1. User switches to Video mode → editor shows `hero-vid.mp4` from `backgroundImage` (display fallback)
+2. User picks mobile video → saved as `backgroundVideo: { src: "", mobileSrc: "phone.webm" }`
+3. Renderer checks `backgroundVideo.src` → empty string → skips the whole video block
+4. Falls back to `backgroundImage.src` (the old hero-vid.mp4) for both desktop AND mobile
+5. `mobileSrc` exists in the database but is never read by the renderer
+
+### Why it worked locally but not on server
+
+On local dev, the builder preview uses React state (which has the correct video). The public website reads from the DB. When the user saved through the builder, it wrote the broken format to the DB. Locally, the user was seeing the builder preview (correct). On the server, the public website read the DB (broken).
+
+### Fixes applied
+
+| File | Fix |
+|------|-----|
+| `hero-editor.tsx` | Resolve `bgVideo.src` from `backgroundImage` on load, so spreads preserve the desktop video. Set `mediaType: "video"` on mobile video save. Clear legacy `backgroundImage` video on save. |
+| `hero-banner.tsx` | Infer `mediaType="video"` when `backgroundImage` has a video URL. Resolve `desktopVideoSrc` from `backgroundImage` fallback in fullwidth layout. |
+| `apply-hero-mobile-video.mts` | Normalize both legacy and current formats: always set `backgroundVideo.src` + `mobileSrc` + `mediaType`. |
+| `reset-website-seed.mts` | Uses `backgroundVideo` format with `mediaType: 'video'`. |
+| `prisma/seed.mts` | Same fix as reset-website-seed. |
+
+### Deploy steps after fix
 
 ```bash
-cd /home/ubfuser/digital_church/laubf_cms
-
+git pull
+npm run build
+cp -r public .next/standalone/public
+cp -r .next/static .next/standalone/.next/static
+cp .env .next/standalone/.env
+pm2 restart laubf_cms
 ```
 
-- Returns `null` → mobile video was never saved to the server's database
-- Returns `{"src": "...", "mobileSrc": ""}` → saved but mobileSrc is empty
-- Returns `{"src": "...", "mobileSrc": "..."}` → data exists, issue is elsewhere
+Also run the deploy script to fix existing DB data:
+```bash
+npx tsx scripts/deploy-data/apply-hero-mobile-video.mts
+```
+
+### Also fixed: legacy `mobileVideo` field
+
+A separate legacy issue — the old seed wrote a `mobileVideo: { src: "..." }` field which the deploy script was writing to instead of `backgroundVideo.mobileSrc`. All references to `mobileVideo` have been removed from the codebase. The deploy script strips this field from the DB.
 
 ---
 
-## 7-Agent Investigation Results
+## Debugging timeline
+
+### 2026-03-24: Initial investigation (4+ hours)
+
+- User reported mobile video not updating on server despite saving in CMS builder
+- 7 parallel agents investigated data flow, DB config, RSC conversion, standalone server, hydration, save vs render, and build verification
+- Investigation correctly identified separate databases and missing `backgroundVideo` field but didn't trace the full 4-bug chain
+- `??` vs `||` fix applied (commit `9a15204`) — real but not the root cause
+
+### 2026-03-25: Resolution (2+ hours)
+
+- Created `apply-hero-mobile-video.mts` deploy script — initially wrote to wrong field (`mobileVideo` instead of `backgroundVideo.mobileSrc`)
+- Removed all legacy `mobileVideo` references from codebase
+- Discovered `backgroundVideo.src` was empty via DB query — the actual killer bug
+- Fixed editor to resolve and migrate legacy `backgroundImage` video URLs
+- Fixed renderer to handle legacy format with video in `backgroundImage`
+- Fixed seed scripts to use correct format
+
+### Lessons learned
+
+1. **Display-only fallbacks in editors are dangerous.** If the UI shows a value from a fallback source, the user assumes it's configured. When they save, the fallback source isn't included. The editor should resolve/migrate legacy data on load, not just display it.
+2. **Falsy checks on strings skip empty strings.** `if (obj?.src)` skips `""`. The renderer should have checked for the presence of the key, or the editor should never have written `src: ""`.
+3. **Deploy scripts must handle all data formats.** The initial script assumed `backgroundVideo` existed as a top-level key. It didn't, so the `WHERE content ? 'backgroundVideo'` condition matched nothing.
+4. **Always query the actual DB** when debugging data issues. Hours were spent debugging code paths when a single SQL query would have shown `backgroundVideo.src` was empty.
+
+---
+
+## Previous investigation details (2026-03-24)
+
+### 7-Agent Investigation Results
+
+*(Preserved for reference — findings were correct but incomplete)*
 
 ### Agent 1: Data Flow Trace
 
-**Task:** Trace the complete path from database to rendered video element.
-
 **Findings:**
-- `getPageBySlug()` returns `content` as Prisma JSONB — no `select` clause, all
-  nested fields preserved
+- `getPageBySlug()` returns `content` as Prisma JSONB — no `select` clause, all nested fields preserved
 - `resolveSectionData()` returns HERO_BANNER content **unchanged** (no dataSource)
 - `SectionRenderer` passes content directly to `HeroBannerSection` as a prop
 - Hero component reads `content.backgroundVideo.mobileSrc` via optional chaining
@@ -58,136 +139,38 @@ cd /home/ubfuser/digital_church/laubf_cms
 - API validation checks depth/size only — does NOT strip or modify fields
 - Prisma `update()` does a full JSON replace (not merge) — builder sends complete object
 
-**Verdict:** No data loss anywhere in the pipeline. Content JSON passes through
-untouched from DB → page → component.
+**Verdict:** No data loss anywhere in the pipeline. Content JSON passes through untouched from DB → page → component.
 
 ### Agent 2: Database Configuration
 
-**Task:** Determine if local and server share the same PostgreSQL instance.
-
 **Findings:**
 - Both use `process.env.DATABASE_URL` — no environment branching in code
-- `.env` exists locally, `.env.production` may exist on server (deploy script copies it)
-- No `.env.production` is checked into git
-- `prisma.config.ts` reads from single `DATABASE_URL` variable
-- Deploy script (`scripts/deploy.sh`) uploads `.env.production` as `.env` if it exists
+- `.env` exists locally, `.env.production` may exist on server
 - No PgBouncer or Supavisor configured
 
-**Verdict:** Local and server use separate `.env` files. If `DATABASE_URL` differs,
-they have separate databases. **This is the most likely explanation.**
+**Verdict:** Local and server use separate `.env` files with separate databases.
 
 ### Agent 3: RSC Conversion Impact
 
-**Task:** Check if the 22-section RSC conversion broke the hero banner.
-
-**Findings:**
-- `hero-banner.tsx` still has `"use client"` at line 1 — NOT converted
-- `registry.tsx` has no `"use client"` — it's a Server Component importing Client Components
-  (this is valid per Next.js rules)
-- Props from Server → Client boundary serialize automatically for plain JSON objects
-- `SectionThemeContext` works correctly across boundary (primitive string values)
-- All import paths verified correct after theme-tokens split
-- No missing exports or renamed files
-
-**Verdict:** RSC conversion did NOT break hero banner rendering.
+**Verdict:** RSC conversion did NOT break hero banner rendering. `hero-banner.tsx` still has `"use client"`.
 
 ### Agent 4: Standalone Server Differences
-
-**Task:** Check if `.next/standalone/server.js` behaves differently than `next start`.
-
-**Findings:**
-- `serverExternalPackages` only affects AWS SDK — not related to rendering
-- `optimizePackageImports` for motion doesn't affect hero-banner (it doesn't import motion)
-- `.env` file is present in standalone directory
-- No environment variable mismatch detected
-- `output: 'standalone'` doesn't change rendering behavior — same React code runs
-- `serverSourceMaps: false` only affects error stack traces, not rendering
 
 **Verdict:** No rendering differences between standalone and normal mode.
 
 ### Agent 5: HeroVideo Hydration & Mobile Playback
 
-**Task:** Audit the HeroVideo component for client-side issues on real phones.
-
-**Findings (9 potential issues identified):**
-
-| Issue | Severity | Description |
-|-------|----------|-------------|
-| No src on server render | MEDIUM | Video element renders empty, useEffect sets src after hydration |
-| iOS autoplay rejection | HIGH | Low Power Mode or slow networks can prevent playback silently |
-| `play().catch(() => {})` swallows errors | HIGH | No fallback UI when video fails to play |
-| `preload="auto"` on mobile | MEDIUM | May download large file before playing on slow networks |
-| `window.innerWidth` vs `matchMedia` disagreement | MEDIUM | Safari URL bar can cause different readings |
-| IntersectionObserver timing | MEDIUM | Video might not play if initially off-screen |
-| matchMedia change events unreliable | LOW | Older mobile browsers may not fire on orientation change |
-| No fallback for empty src | MEDIUM | Component renders blank video if both sources are empty |
-| Breakpoint was 1024, now 640 | INFO | Changed per David's request — tablets now get desktop video |
-
-**Verdict:** These are real mobile issues but don't explain the local-vs-server
-difference. They should be addressed separately for mobile UX quality.
+**9 potential issues identified** — real mobile UX issues but don't explain local-vs-server difference. Should be addressed separately.
 
 ### Agent 6: Builder Save vs Public Render
 
-**Task:** Check if the builder shows cached state that wasn't actually persisted.
-
-**Findings:**
-- Builder editor shows **local React state** (thumbnails, field values)
-- Builder does NOT re-fetch from API after save to confirm persistence
-- The seeded HERO_BANNER (`prisma/seed.mts`) has NO `backgroundVideo` field — only
-  `backgroundImage`
-- When editor loads this section: `content.backgroundVideo` is `undefined`
-- Editor fallback: `bgVideo = { src: "", mobileSrc: "" }`
-- When you update mobileSrc: `{ ...bgVideo, mobileSrc: v }` → produces
-  `{ src: "", mobileSrc: "mobile-url" }` IF desktop video wasn't set first
-- The builder preview reads from **local state** (shows video), but the public
-  website reads from **database** (may have different content)
-
-**Verdict:** If you uploaded the mobile video on local, it only exists in the
-local database. The server's database still has the seeded content without
-`backgroundVideo`.
+**Key finding:** Builder preview reads from local React state (shows video), public website reads from database (may have different content). This was the closest to the actual root cause.
 
 ### Agent 7: Import & Build Verification
-
-**Task:** Verify imports, build output, and Prisma JSON behavior.
-
-**Findings:**
-- All hero-banner imports resolve correctly:
-  - `@/components/website/shared/theme-context` → exists
-  - `@/components/website/shared/theme-tokens` → exists (.ts file)
-- No stale `theme-tokens.tsx` file exists
-- Build cache is fresh (Mar 24)
-- Section catalog default content includes `backgroundVideo: { src: "", mobileSrc: "" }`
-- Prisma does full JSON replace (not deep merge) on `content` field — correct
-  since builder sends complete object
-- No Prisma middleware processes content before writes
-- API validation is permissive — checks structure, doesn't strip fields
 
 **Verdict:** All imports correct, build is clean, data handling is sound.
 
 ---
 
-## Code Fix Applied (Separate from Root Cause)
-
-Changed `??` to `||` for mobileSrc fallback in `hero-banner.tsx` (commit `9a15204`).
-
-`??` (nullish coalescing) only triggers on `null`/`undefined`, NOT on empty string `""`.
-The default content template has `mobileSrc: ""`, so `??` would pass through the empty
-string instead of falling through to the desktop video fallback. `||` correctly falls
-through on any falsy value including `""`.
-
-Fixed in all 4 HeroVideo call sites (fullwidth, split, contained, legacy fallback).
-
----
-
-## Action Items
-
-- [ ] **Verify databases** — compare `DATABASE_URL` in local `.env` vs server `.env`
-- [ ] **Query server DB** — check if `backgroundVideo.mobileSrc` exists in the hero section
-- [ ] **Upload mobile video on server** — if databases differ, upload through admin.laubf.lclab.io
-- [ ] **Address HeroVideo mobile issues** — add fallback UI for failed autoplay, consider poster image
-- [ ] **Add logging to HeroVideo** — log which video source is selected and whether play() succeeds
-
----
-
 *Investigation: 2026-03-24, 7 parallel agents*
-*Agents: data-flow-trace, db-config-check, rsc-impact-check, standalone-diff-check, hydration-audit, save-vs-render-check, import-build-verify*
+*Resolution: 2026-03-25, 4 commits*

@@ -20,6 +20,8 @@
 The 580 MB V8 external is the biggest offender. In non-standalone mode, Node loads all 683 packages into memory (native binaries, JIT-compiled code, module metadata) even if most are unused. Standalone mode reduces this to ~50-80 packages.
 
 ---
+<!-- prisma / database query amount -->
+<!-- static files? -->
 
 ## Optimization Checklist
 
