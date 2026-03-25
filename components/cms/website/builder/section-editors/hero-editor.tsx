@@ -148,7 +148,6 @@ export function HeroBannerEditor({
     src: string
     mobileSrc?: string
   }) ?? { src: "", mobileSrc: "" }
-  const legacyMobileVideo = (content.mobileVideo as { src?: string })?.src || ""
   const posterImage = (content.posterImage as {
     src: string
     alt: string
@@ -283,12 +282,11 @@ export function HeroBannerEditor({
           <VideoPickerField
             label="Mobile Video (optional)"
             description="720×1280 portrait  ·  Screens < 640px  ·  Uses desktop video if empty"
-            value={bgVideo.mobileSrc || legacyMobileVideo}
+            value={bgVideo.mobileSrc || ""}
             onChange={(v) =>
               onChange({
                 ...content,
                 backgroundVideo: { ...bgVideo, mobileSrc: v },
-                mobileVideo: undefined, // clear legacy field
               })
             }
           />

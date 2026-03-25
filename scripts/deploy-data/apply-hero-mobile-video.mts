@@ -22,7 +22,7 @@ const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
 const client = await pool.connect()
 
 const CDN = 'https://pub-91add7d8455848c9a871477af3249f9e.r2.dev/la-ubf'
-const MOBILE_VIDEO_URL = `${CDN}/initial-setup/compressed-hero-vid-mobile.webm`
+const MOBILE_VIDEO_URL = `${CDN}/initial-setup/phone_dimension.webm`
 
 try {
   // Resolve church ID
@@ -32,22 +32,28 @@ try {
   if (!church) { console.error('Church not found'); process.exit(1) }
   const churchId = church.id
 
-  // 1. Update hero banner content
+  // 1. Update hero banner content — write to backgroundVideo.mobileSrc (current field)
+  // and clear legacy mobileVideo field
   const { rowCount: updated } = await client.query(`
     UPDATE "PageSection" ps
-    SET content = ps.content || $1::jsonb
+    SET content = jsonb_set(
+      ps.content #- '{mobileVideo}',
+      '{backgroundVideo,mobileSrc}',
+      $1::jsonb
+    )
     FROM "Page" p
     WHERE ps."pageId" = p.id
       AND p."churchId" = $2
       AND p.slug = ''
       AND ps."sectionType" = 'HERO_BANNER'
-  `, [JSON.stringify({ mobileVideo: { src: MOBILE_VIDEO_URL } }), churchId])
+      AND ps.content ? 'backgroundVideo'
+  `, [JSON.stringify(MOBILE_VIDEO_URL), churchId])
   console.log(`Hero banner: ${updated ? 'updated' : 'already up to date'}`)
 
   // 2. Add to media library
   const { rowCount: inserted } = await client.query(`
     INSERT INTO "MediaAsset" (id, "churchId", filename, url, "mimeType", "fileSize", alt, folder, "createdAt", "updatedAt")
-    SELECT gen_random_uuid(), $1, 'compressed-hero-vid-mobile.webm', $2, 'video/webm', 6027195, 'Hero banner mobile video', 'initial-setup', now(), now()
+    SELECT gen_random_uuid(), $1, 'phone_dimension.webm', $2, 'video/webm', 6027195, 'Hero banner mobile video', 'initial-setup', now(), now()
     WHERE NOT EXISTS (SELECT 1 FROM "MediaAsset" WHERE url = $2)
   `, [churchId, MOBILE_VIDEO_URL])
   console.log(`Media library: ${inserted ? 'added' : 'already exists'}`)
