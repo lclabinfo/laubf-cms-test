@@ -1556,7 +1556,9 @@ async function main() {
           subheading: "Where people find their community.\nWhere disciples are raised.\nWhere the Word of God is lived.",
           primaryButton: { label: "I'm new", href: '/im-new', visible: true },
           secondaryButton: { label: 'Upcoming events', href: '/events', visible: true },
-          backgroundImage: { src: `${CDN}/compressed-hero-vid.mp4`, alt: 'LA UBF community gathering' },
+          backgroundImage: { src: '', alt: 'LA UBF community gathering' },
+          backgroundVideo: { src: `${CDN}/compressed-hero-vid.mp4`, mobileSrc: `${CDN}/phone_dimension.webm` },
+          mediaType: 'video',
         },
       },
       {
