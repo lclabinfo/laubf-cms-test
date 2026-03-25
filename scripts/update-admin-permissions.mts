@@ -9,12 +9,36 @@
 import 'dotenv/config'
 import pg from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
-import { DEFAULT_ROLES } from '../lib/permissions.ts'
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL })
 const adapter = new PrismaPg(pool)
 const mod = await import('../lib/generated/prisma/client.ts')
 const prisma = new mod.PrismaClient({ adapter })
+
+// Inline the Admin permissions to avoid tsx ESM import issues with lib/permissions.ts
+const ADMIN_PERMISSIONS = [
+  'messages.view', 'messages.create', 'messages.edit_own', 'messages.edit_all',
+  'messages.delete', 'messages.publish',
+  'events.view', 'events.create', 'events.edit_own', 'events.edit_all',
+  'events.delete', 'events.publish',
+  'media.view', 'media.upload', 'media.edit_own', 'media.edit_all',
+  'media.delete', 'media.manage_folders',
+  'submissions.view', 'submissions.manage',
+  'storage.view',
+  'people.view', 'people.create', 'people.edit', 'people.delete',
+  'groups.view', 'groups.manage',
+  'ministries.view', 'ministries.manage',
+  'campuses.view', 'campuses.manage',
+  'website.pages.view',
+  'website.navigation.view', 'website.navigation.edit',
+  'website.theme.view',
+  'website.settings.view',
+  'website.domains.view',
+  'users.view', 'users.invite', 'users.edit_roles', 'users.remove',
+  'users.deactivate', 'users.approve_requests',
+  'roles.view', 'roles.manage',
+  'church.profile.view', 'church.profile.edit',
+]
 
 const slug = process.env.CHURCH_SLUG || 'la-ubf'
 const church = await prisma.church.findUnique({ where: { slug } })
@@ -33,7 +57,7 @@ if (!adminRole) {
 }
 
 const oldPerms = adminRole.permissions as string[]
-const newPerms = DEFAULT_ROLES.ADMIN.permissions as string[]
+const newPerms = ADMIN_PERMISSIONS
 
 const added = newPerms.filter(p => !oldPerms.includes(p))
 const removed = oldPerms.filter(p => !newPerms.includes(p))
