@@ -487,6 +487,107 @@ const getCachedStudy = cache((churchId: string, slug: string) =>
 
 ---
 
+## Part 7c: Non-Obvious Insights (V8 GC, PostgreSQL TOAST, Architecture)
+
+> These are findings a typical developer would miss. From deep research into V8 garbage collection, PostgreSQL internals, and how Ghost/Payload achieve their low memory footprints.
+
+### 7c.1 The 1 GB is Node.js Only — PostgreSQL Is Separate
+
+The ~1 GB RSS (Resident Set Size) is the **Node.js process only**. PostgreSQL runs as separate processes with their own memory. This means the entire 1 GB is V8 heap + compiled code + native modules. No PostgreSQL shared_buffers are included.
+
+### 7c.2 Growing Data Does NOT Grow Idle Memory
+
+This is the most important insight: **the 342K BibleVerse rows, 1170 bible studies, and 500 messages do NOT increase Node.js baseline memory.** They sit in PostgreSQL on disk. Node.js only allocates memory when actively processing a request, and that memory is bounded by pagination limits.
+
+The implication: the 1 GB is **not caused by data volume**. It's caused by the **runtime footprint** (Prisma engine, compiled routes, TipTap, loaded modules) and **per-request allocation patterns** (how much data each query loads and how long GC takes to reclaim it).
+
+### 7c.3 RSC Serialization Doubles Memory Briefly
+
+When React Server Components render a page, the data exists in memory **twice** simultaneously:
+1. The original Prisma query result objects
+2. The RSC wire format (JSON-like serialization for streaming to client)
+
+For a page loading 50 messages with 50 KB transcripts: the 2.5 MB result becomes **5 MB briefly** during render. This is why `select` to exclude unused fields has outsized impact — you're preventing both the query allocation AND the serialization copy.
+
+### 7c.4 Prisma Creates Duplicate Relation Objects
+
+When you `include: { speaker: true }` on 50 messages, Prisma creates **50 separate Speaker objects** even if 40 messages share the same speaker. There's no deduplication. For a list of messages from 5 unique speakers, you get 50 Speaker objects instead of 5.
+
+**Fix**: For list views, fetch messages without speaker includes, extract unique `speakerId` values, batch-fetch speakers separately, join in application code. Creates 5 objects instead of 50.
+
+### 7c.5 PostgreSQL TOAST: The Biggest Hidden Win
+
+When a column is marked `@db.Text` and exceeds ~2 KB, PostgreSQL stores it in a separate TOAST table. The critical fact:
+
+**If you `SELECT id, title FROM message` without selecting any TOASTed columns, PostgreSQL NEVER reads the TOAST table.** The main table row only contains a small pointer.
+
+This means `select` in Prisma doesn't just save Node.js memory — it prevents PostgreSQL from doing I/O on large text data entirely. The performance difference is not 2x; it can be 10-50x for tables with large text columns because you avoid:
+- TOAST table I/O
+- Decompression CPU (pglz by default)
+- Buffer pool pollution (TOAST chunks evict useful cached data)
+
+### 7c.6 Partial Indexes on `deletedAt IS NULL`
+
+Almost every query in the app filters `deletedAt: null`. But the indexes include deleted rows too, making them larger than necessary. Partial indexes only index live rows:
+
+```sql
+CREATE INDEX idx_message_active ON "Message" ("churchId", "dateFor" DESC)
+  WHERE "deletedAt" IS NULL;
+
+CREATE INDEX idx_bible_study_active ON "BibleStudy" ("churchId", "dateFor" DESC)
+  WHERE "deletedAt" IS NULL;
+```
+
+Smaller indexes = fewer pages in PostgreSQL shared_buffers = faster lookups. This is free performance with zero Node.js code changes.
+
+Note: Prisma does not natively support partial indexes in schema.prisma. These would be added via a raw SQL migration.
+
+### 7c.7 Pre-Render HTML at CMS Save Time
+
+Currently, TipTap JSON is stored in the database and converted to HTML **on every page render** server-side. TipTap imports are heavy (~10-20 MB of dependencies).
+
+**Alternative**: When the CMS user saves content, convert TipTap JSON → HTML immediately and store **both** in the database. The website reads the pre-rendered HTML (a simple string) and never imports TipTap.
+
+This eliminates TipTap from the server-side entirely — **15-30 MB of permanently loaded modules removed** from production memory. The CMS admin pages still load TipTap for editing, but website rendering becomes zero-dependency string templating.
+
+### 7c.8 How Ghost and Payload Actually Achieve Low Memory
+
+Neither Ghost (80-120 MB) nor Payload (180-250 MB) use streaming, cursors, or clever caching tricks. They achieve low memory through:
+
+1. **Smaller runtime footprint**: Knex.js is 858 KB vs Prisma's 4.7 MB generated client. Drizzle is ~30 MB runtime vs Prisma's ~50 MB. Less code loaded = less V8 compiled code cache.
+
+2. **Thinner query results**: Knex and Drizzle return plain `Object.assign` row objects. Prisma creates nested relation objects with metadata. Fewer intermediate objects per query.
+
+3. **Hard pagination limits**: Ghost enforces max 100 per request at the API level. No way to accidentally load all records.
+
+4. **No transformation pipeline**: Ghost stores HTML directly. Payload stores blocks as JSON. Neither runs a heavy serialization library (like TipTap) on every page render.
+
+### 7c.9 PostgreSQL Tuning for TOAST Performance
+
+For columns that ARE read (detail pages), LZ4 compression decompresses 3-5x faster than the default pglz:
+
+```sql
+ALTER TABLE "Message" ALTER COLUMN "rawTranscript" SET COMPRESSION lz4;
+ALTER TABLE "BibleStudy" ALTER COLUMN "transcript" SET COMPRESSION lz4;
+ALTER TABLE "BibleStudy" ALTER COLUMN "questions" SET COMPRESSION lz4;
+ALTER TABLE "BibleStudy" ALTER COLUMN "answers" SET COMPRESSION lz4;
+```
+
+For `PageSection.content` which is usually small (<2 KB) and read on every page load, `STORAGE MAIN` keeps it inline (no TOAST lookup):
+
+```sql
+ALTER TABLE "PageSection" ALTER COLUMN "content" SET STORAGE MAIN;
+```
+
+### 7c.10 React `cache()` vs `unstable_cache()` — Memory Implications
+
+- **`cache()`** (from `react`): Per-request only. Memory freed after response. Safe.
+- **`unstable_cache()`**: Stored in Next.js Data Cache with **warm copy in memory**. Data stays in memory until revalidated. Growing cache keys = growing memory.
+
+The `getFrequentSpeakers` endpoint uses `unstable_cache` — this data is permanently held in memory. For small datasets this is fine, but never use `unstable_cache` for large content (messages with transcripts, bible study content).
+
+---
+
 ## Part 7b: Implementation Roadmap (Revised — Permanent Wins Only)
 
 > Excludes temporary/config tricks. Every item below provides steady-state savings assuming all features are in active use.
