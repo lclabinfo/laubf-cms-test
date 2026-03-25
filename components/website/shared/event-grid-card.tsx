@@ -44,50 +44,52 @@ export default function EventGridCard({ event }: { event: EventGridCardEvent }) 
       href={resolveHref(`/events/${event.slug}`)}
       className="group flex flex-col bg-white-0 rounded-[20px] border border-white-2-5 shadow-[0px_12px_20px_0px_rgba(0,0,0,0.05)] overflow-clip transition-shadow hover:shadow-[0px_16px_32px_0px_rgba(0,0,0,0.10)] h-full"
     >
-      {/* Image */}
-      <div className="relative h-[160px] w-full overflow-clip shrink-0 bg-white-2">
-        {imageSrc ? (
-          <Image
-            src={imageSrc}
-            alt={imageAlt}
-            fill
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
-            style={{ objectPosition: event.image?.objectPosition }}
-          />
-        ) : (
-          <div className="w-full h-full bg-[#1a1a2e]">
-            <div
-              className="absolute inset-0 opacity-80"
-              style={{
-                backgroundImage:
-                  'radial-gradient(ellipse 60% 50% at 15% 80%, rgba(99,102,241,0.25) 0%, transparent 70%),' +
-                  'radial-gradient(ellipse 50% 60% at 85% 20%, rgba(168,85,247,0.2) 0%, transparent 70%),' +
-                  'radial-gradient(ellipse 40% 40% at 50% 50%, rgba(59,130,246,0.12) 0%, transparent 60%)',
-              }}
+      {/* Image — hide placeholder for meetings without a real image */}
+      {(imageSrc || event.type !== "meeting") && (
+        <div className="relative h-[160px] w-full overflow-clip shrink-0 bg-white-2">
+          {imageSrc ? (
+            <Image
+              src={imageSrc}
+              alt={imageAlt}
+              fill
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              style={{ objectPosition: event.image?.objectPosition }}
             />
-            {/* Calendar icon watermark */}
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30%] text-white/[0.06]"
-            >
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-          </div>
-        )}
-        {badge && (
-          <span className="absolute top-4 right-4 bg-black-1 border-[0.5px] border-white-2 text-white-1 text-[12px] tracking-[0.24px] font-medium leading-none px-5 py-3 rounded-full uppercase">
-            {badge}
-          </span>
-        )}
-      </div>
+          ) : (
+            <div className="w-full h-full bg-[#1a1a2e]">
+              <div
+                className="absolute inset-0 opacity-80"
+                style={{
+                  backgroundImage:
+                    'radial-gradient(ellipse 60% 50% at 15% 80%, rgba(99,102,241,0.25) 0%, transparent 70%),' +
+                    'radial-gradient(ellipse 50% 60% at 85% 20%, rgba(168,85,247,0.2) 0%, transparent 70%),' +
+                    'radial-gradient(ellipse 40% 40% at 50% 50%, rgba(59,130,246,0.12) 0%, transparent 60%)',
+                }}
+              />
+              {/* Calendar icon watermark */}
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[30%] text-white/[0.06]"
+              >
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <line x1="16" y1="2" x2="16" y2="6" />
+                <line x1="8" y1="2" x2="8" y2="6" />
+                <line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+            </div>
+          )}
+          {badge && (
+            <span className="absolute top-4 right-4 bg-black-1 border-[0.5px] border-white-2 text-white-1 text-[12px] tracking-[0.24px] font-medium leading-none px-5 py-3 rounded-full uppercase">
+              {badge}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Details */}
       <div className="flex flex-col gap-3 pt-[18px] pb-5 px-5 lg:px-7 flex-1">
