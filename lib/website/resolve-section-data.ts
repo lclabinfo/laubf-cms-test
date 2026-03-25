@@ -372,8 +372,11 @@ export async function resolveSectionData(
 
 function formatEventDate(date: Date | string | null): string {
   if (!date) return ''
-  const d = date instanceof Date ? date : new Date(date)
-  return d.toLocaleDateString('en-US', {
+  // Extract YYYY-MM-DD string, then parse without timezone shift
+  const iso = date instanceof Date ? date.toISOString().split('T')[0] : String(date).split('T')[0]
+  const [y, m, d] = iso.split('-').map(Number)
+  const local = new Date(y, m - 1, d)
+  return local.toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
     day: 'numeric',
