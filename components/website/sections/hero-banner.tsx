@@ -59,7 +59,8 @@ export default function HeroBannerSection({ content, enableAnimations, colorSche
   const splitArrangement = (content.splitArrangement as string) || "text-left"
   const textHAlign = (content.textHAlign as string) || "center"
   const textVAlign = (content.textVAlign as string) || "middle"
-  const mediaType = (content.mediaType as string) || (content.backgroundVideo?.src ? "video" : "image")
+  const isVideoUrl = (s: string) => /\.(mp4|webm|mov|ogg)(\?|$)/i.test(s)
+  const mediaType = (content.mediaType as string) || (content.backgroundVideo?.src ? "video" : isVideoUrl(content.backgroundImage?.src ?? "") ? "video" : "image")
   const textAlign = (content.textAlign as string) || "left"
   const overlayType = (content.overlayType as string) || "gradient"
   const overlayOpacity = (content.overlayOpacity as number) ?? 0.6
@@ -565,11 +566,12 @@ function HeroBackgroundMedia({ content, animate, mediaType, theme }: { content: 
   }
 
   // Video mode: render video if available
-  if (content.backgroundVideo?.src) {
+  const desktopVideoSrc = content.backgroundVideo?.src || (isVideoUrl(content.backgroundImage?.src ?? "") ? content.backgroundImage.src : "")
+  if (desktopVideoSrc) {
     return (
       <HeroVideo
-        desktopSrc={content.backgroundVideo.src}
-        mobileSrc={content.backgroundVideo.mobileSrc || content.backgroundVideo.src}
+        desktopSrc={desktopVideoSrc}
+        mobileSrc={content.backgroundVideo?.mobileSrc || desktopVideoSrc}
         animate={animate}
       />
     )

@@ -32,22 +32,29 @@ try {
   if (!church) { console.error('Church not found'); process.exit(1) }
   const churchId = church.id
 
-  // 1. Update hero banner content — write to backgroundVideo.mobileSrc (current field)
-  // and clear legacy mobileVideo field
+  // 1. Normalize hero banner: ensure backgroundVideo has src + mobileSrc,
+  //    set mediaType to 'video', and remove legacy mobileVideo field.
+  //    Handles both legacy format (video in backgroundImage) and current format.
   const { rowCount: updated } = await client.query(`
     UPDATE "PageSection" ps
     SET content = jsonb_set(
-      ps.content #- '{mobileVideo}',
-      '{backgroundVideo,mobileSrc}',
-      $1::jsonb
+      jsonb_set(
+        ps.content #- '{mobileVideo}',
+        '{backgroundVideo}',
+        jsonb_build_object(
+          'src', COALESCE(ps.content->'backgroundVideo'->>'src', ps.content->'backgroundImage'->>'src', ''),
+          'mobileSrc', $1
+        )
+      ),
+      '{mediaType}',
+      '"video"'::jsonb
     )
     FROM "Page" p
     WHERE ps."pageId" = p.id
       AND p."churchId" = $2
       AND p.slug = ''
       AND ps."sectionType" = 'HERO_BANNER'
-      AND ps.content ? 'backgroundVideo'
-  `, [JSON.stringify(MOBILE_VIDEO_URL), churchId])
+  `, [MOBILE_VIDEO_URL, churchId])
   console.log(`Hero banner: ${updated ? 'updated' : 'already up to date'}`)
 
   // 2. Add to media library

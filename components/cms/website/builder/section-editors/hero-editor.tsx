@@ -144,17 +144,23 @@ export function HeroBannerEditor({
     alt: string
     objectPosition?: string
   }) ?? { src: "", alt: "" }
-  const bgVideo = (content.backgroundVideo as {
+  const rawBgVideo = (content.backgroundVideo as {
     src: string
     mobileSrc?: string
   }) ?? { src: "", mobileSrc: "" }
+
+  // Helper to detect video file URLs (hoisted before bgVideo resolution)
+  const isVideoSrc = (src: string) => /\.(mp4|webm|mov|ogg)(\?|$)/i.test(src)
+
+  // Resolve legacy: if backgroundVideo.src is empty but backgroundImage has a video, use that
+  const bgVideo = {
+    ...rawBgVideo,
+    src: rawBgVideo.src || (isVideoSrc(bgImage.src) ? bgImage.src : ""),
+  }
   const posterImage = (content.posterImage as {
     src: string
     alt: string
   }) ?? { src: "", alt: "" }
-
-  // Helper to detect video file URLs
-  const isVideoSrc = (src: string) => /\.(mp4|webm|mov|ogg)(\?|$)/i.test(src)
 
   // Multi-image support: read images array, fall back to single backgroundImage
   // Filter out video files — those belong in the video section
@@ -269,7 +275,7 @@ export function HeroBannerEditor({
           <VideoPickerField
             label="Desktop Video"
             description="1920×1080+  ·  Screens ≥ 640px"
-            value={bgVideo.src || (isVideoSrc(bgImage.src) ? bgImage.src : "")}
+            value={bgVideo.src}
             onChange={(v) =>
               onChange({
                 ...content,
@@ -287,6 +293,9 @@ export function HeroBannerEditor({
               onChange({
                 ...content,
                 backgroundVideo: { ...bgVideo, mobileSrc: v },
+                // Migrate legacy: clear video from backgroundImage now that it's in backgroundVideo
+                ...(isVideoSrc(bgImage.src) ? { backgroundImage: { ...bgImage, src: "" } } : {}),
+                mediaType: "video",
               })
             }
           />
