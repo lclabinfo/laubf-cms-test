@@ -380,42 +380,150 @@ Moves the Prisma query engine to Prisma's cloud infrastructure. Your server only
 
 ---
 
-## Part 7: Implementation Roadmap
+## Part 7: Content Storage Deep Dive (Bible Studies & Messages)
 
-### Phase 1: Config Fixes (Day 1, ~2 hours)
-1. Add `preloadEntriesOnStart: false` to next.config.ts
-2. Add `@prisma/adapter-pg` and `pg` to `serverExternalPackages`
-3. Add `webpackMemoryOptimizations: true`
-4. Add `--max-old-space-size=512` to start script
-5. Reduce connection pool from 5 to 3
-6. Reduce dev Prisma logging to `['error', 'warn']`
-7. **Measure**: Build + start + load pages + check RSS
+> 11-agent investigation revealed the biggest permanent memory wins are in how content is stored and queried, not in config flags.
 
-### Phase 2: Prisma Query Fixes (Days 2-3, ~1 day)
-1. Add `omit` config for all large text/JSON fields
-2. Replace `include` with `select` in message, event, and people list queries
-3. Add `take` limits to all nested 1:many includes
-4. Refactor `getPeopleByRole()` and `getRoleDefinitions()` to avoid cartesian
-5. **Measure**: Check per-request memory delta
+### 7.1 Data Duplication: Message ↔ BibleStudy
 
-### Phase 3: ISR Implementation (Days 4-5, ~1 day)
+**Critical finding:** Study content is stored TWICE — once as JSON on Message, once normalized in BibleStudy.
+
+```
+Message table (denormalized copy):
+  studySections  (JsonB, ~25 KB)  ← TipTap JSON
+  attachments    (JsonB, ~5 KB)   ← file references as JSON array
+
+      │  syncMessageStudy() copies and converts
+      ▼
+
+BibleStudy table (normalized copy):
+  questions      (Text, ~7 KB)    ← Same content, converted to HTML
+  answers        (Text, ~15 KB)   ← Same content, converted to HTML
+  transcript     (Text, ~80 KB)   ← Same content, converted to HTML
+  + BibleStudyAttachment rows     ← Same attachments as DB rows
+```
+
+**Impact**: ~30 KB duplication per message with study. With ~500 messages → **~15 MB of pure duplicate data**.
+
+**Fix**: Stop populating `Message.studySections` and `Message.attachments`. Always read study content from the BibleStudy table via `relatedStudyId`. The website already falls back to `relatedStudy.transcript` when message-level transcripts are missing.
+
+**Affected files**:
+- `lib/dal/sync-message-study.ts` — the sync function that creates the duplication
+- `lib/dal/messages.ts` — stop selecting these fields
+- `app/api/v1/messages/route.ts` — stop setting these fields on create/update
+- `app/website/messages/[slug]/page.tsx` — use relatedStudy exclusively
+
+### 7.2 Dead Field: `transcriptSegments`
+
+`Message.transcriptSegments` (JsonB, ~5 KB per record) is loaded on every Message query but **never rendered anywhere in the app**. Grep of the entire codebase shows zero rendering usage — only schema definitions and media URL tracking.
+
+**Fix**: Remove the column entirely via migration. Saves ~2.5 MB across 500 messages.
+
+### 7.3 List Queries Load Full Text Content
+
+**Bible studies**: `resolve-section-data.ts` calls `getBibleStudies()` which loads full records including `questions` (7 KB), `answers` (15 KB), `transcript` (80 KB) per study. It then only uses 7 metadata fields. For 50 studies → **~5 MB of text loaded and immediately discarded**.
+
+**Messages**: List API returns 50 messages with transcripts (50 KB each) = **2.5 MB per list request** that the UI never displays.
+
+**Fix for both**: Create `bibleStudyListSelect` and `messageListSelect` that explicitly exclude heavy text fields:
+
+```typescript
+// Bible study list — only metadata needed
+const bibleStudyListSelect = {
+  id: true, slug: true, title: true, passage: true, book: true,
+  dateFor: true, hasQuestions: true, hasAnswers: true, hasTranscript: true,
+  speaker: { select: { id: true, firstName: true, lastName: true } },
+  series: { select: { id: true, name: true } },
+  // EXCLUDED: questions, answers, transcript, bibleText, keyVerseText
+}
+```
+
+### 7.4 Bible Study Storage Profile
+
+| Item | Records | Avg Size | Total |
+|------|---------|----------|-------|
+| BibleStudy (text fields) | ~1,170 | ~102 KB | **~119 MB** |
+| BibleStudy (metadata only) | ~1,170 | ~500 bytes | ~600 KB |
+| BibleStudyAttachment | ~3,000 | ~200 bytes | ~600 KB |
+| BibleVerse (global) | ~341,000 | ~100 bytes | **~34 MB** |
+| Message.studySections (DUPLICATE) | ~500 | ~25 KB | **~12.5 MB** |
+| Message.attachments (DUPLICATE) | ~500 | ~5 KB | ~2.5 MB |
+| Message.transcriptSegments (DEAD) | ~500 | ~5 KB | ~2.5 MB |
+
+**Total content storage**: ~171 MB, of which **~17.5 MB is duplicate/dead data**.
+
+### 7.5 Detail Page Double-Query
+
+`app/website/bible-study/[slug]/page.tsx` calls `getBibleStudyBySlug()` **twice** — once in `generateMetadata()` for SEO, once in the page component for rendering. Each call loads the full ~100 KB record.
+
+Same pattern in `app/website/messages/[slug]/page.tsx`.
+
+**Fix**: Use React `cache()` to deduplicate within a single request:
+```typescript
+const getCachedStudy = cache((churchId: string, slug: string) =>
+  getBibleStudyBySlug(churchId, slug)
+)
+```
+
+### 7.6 BibleVerse Queries Not Cached
+
+`fetchBibleText()` in `lib/bible-api.ts` queries the BibleVerse table on every detail page render. For a passage like "John 3:14-21, 1-3" it runs multiple queries. No caching between requests.
+
+**Fix options**:
+- Short-TTL ISR on detail pages eliminates most queries
+- Or: preload frequently-accessed verses into a Map at startup (~34 MB in memory, but eliminates all BibleVerse DB queries permanently)
+- Recommended: ISR first (zero memory cost), preload only if needed
+
+### 7.7 Permanent Wins Summary (Content-Level)
+
+| Fix | Permanent? | Savings | Effort |
+|-----|-----------|---------|--------|
+| Remove studySections/attachments duplication | YES — 15 MB less DB data | 15 MB storage + ~30 KB less per message query | MEDIUM |
+| Use `select` in list queries (messages + studies) | YES — every list request loads less | ~5 MB less per homepage, ~2.5 MB less per list API | LOW |
+| Remove `transcriptSegments` dead field | YES — 2.5 MB less DB data | 2.5 MB + ~5 KB less per message query | LOW |
+| Deduplicate detail page queries with `cache()` | YES — halves DB round-trips | ~100 KB less per detail page | LOW |
+| ISR on website routes | YES — disk cache, not memory | Eliminates most DB queries entirely | MEDIUM |
+| Lazy-load transcripts on demand | YES — only load when user opens panel | ~100 KB less per detail page initial load | HIGH |
+
+---
+
+## Part 7b: Implementation Roadmap (Revised — Permanent Wins Only)
+
+> Excludes temporary/config tricks. Every item below provides steady-state savings assuming all features are in active use.
+
+### Phase 1: Query Optimization (Days 1-2)
+1. Create `messageListSelect` — exclude transcripts, studySections, attachments from list queries
+2. Create `bibleStudyListSelect` — exclude questions, answers, transcript from list queries
+3. Update `resolve-section-data.ts` to use selective queries for all-messages and all-bible-studies
+4. Add `take` limits to all nested 1:many includes
+5. Deduplicate detail page queries with React `cache()`
+6. **Measure**: Compare per-request memory before/after
+
+### Phase 2: Data Cleanup (Days 3-4)
+1. Stop populating `Message.studySections` and `Message.attachments` on create/update
+2. Update website to read study content exclusively from `relatedStudy`
+3. Remove `transcriptSegments` column via migration
+4. Reduce connection pool from 5 to 3
+5. **Measure**: DB size before/after, query response sizes
+
+### Phase 3: ISR + Caching (Days 5-6)
 1. Add `revalidate = 60` to website catch-all page
 2. Add `revalidate = 300` to website layout
 3. Add `revalidateTag`/`revalidatePath` calls in CMS save handlers
 4. **Measure**: Website routes should show near-zero DB queries after first load
 
-### Phase 4: Schema Consolidation (Week 2-3, optional)
+### Phase 4: Schema Consolidation (Week 2-3)
 1. Remove Tag model (unused)
 2. Merge EventLink → Event.links JSON
-3. Merge BibleStudyAttachment → BibleStudy.attachments JSON
-4. Merge Event recurrence/registration/location columns into JSON blobs
+3. Event: consolidate recurrence/registration/location columns into JSON blobs
+4. Person: consolidate phones + address duplicates
 5. Evaluate SiteSettings → Church.siteSettings JSON merge
-6. **Measure**: Check generated client size reduction
+6. **Measure**: Generated client size reduction
 
 ### Phase 5: Architecture (Month 2+, if needed)
-1. Evaluate process splitting (CMS + Website)
-2. Evaluate Drizzle for website reads
-3. Evaluate Prisma Accelerate
+1. Evaluate Drizzle for website read paths (6x lighter than Prisma)
+2. Evaluate process splitting (CMS + Website separate deployments)
+3. Evaluate Prisma Accelerate (offload engine to cloud)
 
 ---
 
