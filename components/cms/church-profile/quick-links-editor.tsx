@@ -293,7 +293,11 @@ export function QuickLinksEditor({
             isExternal: true,
           }),
         })
-        if (!res.ok) throw new Error("Failed to update quick link")
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => null)
+          if (res.status === 403) throw new Error(errJson?.error?.message ?? "Insufficient permissions")
+          throw new Error(errJson?.error?.message ?? "Failed to update quick link")
+        }
         const json = await res.json()
         if (!json.success) throw new Error(json.error?.message ?? "Update failed")
 
@@ -318,7 +322,11 @@ export function QuickLinksEditor({
             parentId,
           }),
         })
-        if (!res.ok) throw new Error("Failed to create quick link")
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => null)
+          if (res.status === 403) throw new Error(errJson?.error?.message ?? "Insufficient permissions")
+          throw new Error(errJson?.error?.message ?? "Failed to create quick link")
+        }
         const json = await res.json()
         if (!json.success) throw new Error(json.error?.message ?? "Create failed")
 
@@ -328,7 +336,16 @@ export function QuickLinksEditor({
       setDialogOpen(false)
     } catch (err) {
       console.error("Save quick link error:", err)
-      toast.error(editingId ? "Failed to update quick link" : "Failed to add quick link")
+      const msg = err instanceof Error ? err.message : ""
+      if (msg.includes("permissions") || msg.includes("FORBIDDEN")) {
+        toast.error("Permission denied", {
+          description: "You don't have permission to edit quick links. Please contact the site owner.",
+        })
+      } else {
+        toast.error(editingId ? "Failed to update quick link" : "Failed to add quick link", {
+          description: msg || undefined,
+        })
+      }
     } finally {
       setSaving(false)
     }
@@ -344,7 +361,11 @@ export function QuickLinksEditor({
         `/api/v1/menus/${menuId}/items/${deleteTarget.id}`,
         { method: "DELETE" }
       )
-      if (!res.ok) throw new Error("Failed to delete quick link")
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => null)
+        if (res.status === 403) throw new Error(errJson?.error?.message ?? "Insufficient permissions")
+        throw new Error(errJson?.error?.message ?? "Failed to delete quick link")
+      }
       const json = await res.json()
       if (!json.success) throw new Error(json.error?.message ?? "Delete failed")
 
@@ -352,7 +373,16 @@ export function QuickLinksEditor({
       toast.success("Quick link deleted")
     } catch (err) {
       console.error("Delete quick link error:", err)
-      toast.error("Failed to delete quick link")
+      const msg = err instanceof Error ? err.message : ""
+      if (msg.includes("permissions") || msg.includes("FORBIDDEN")) {
+        toast.error("Permission denied", {
+          description: "You don't have permission to delete quick links. Please contact the site owner.",
+        })
+      } else {
+        toast.error("Failed to delete quick link", {
+          description: msg || undefined,
+        })
+      }
     } finally {
       setDeleting(false)
       setDeleteTarget(null)
@@ -379,10 +409,23 @@ export function QuickLinksEditor({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ itemIds: reordered.map((i) => i.id) }),
         })
-        if (!res.ok) throw new Error("Failed to reorder")
+        if (!res.ok) {
+          const errJson = await res.json().catch(() => null)
+          if (res.status === 403) throw new Error(errJson?.error?.message ?? "Insufficient permissions")
+          throw new Error(errJson?.error?.message ?? "Failed to reorder")
+        }
       } catch (err) {
         console.error("Reorder error:", err)
-        toast.error("Failed to reorder quick links")
+        const msg = err instanceof Error ? err.message : ""
+        if (msg.includes("permissions") || msg.includes("FORBIDDEN")) {
+          toast.error("Permission denied", {
+            description: "You don't have permission to reorder quick links. Please contact the site owner.",
+          })
+        } else {
+          toast.error("Failed to reorder quick links", {
+            description: msg || undefined,
+          })
+        }
         setItems(items)
       }
     },

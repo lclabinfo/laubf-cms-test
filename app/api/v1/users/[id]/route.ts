@@ -113,6 +113,16 @@ export async function DELETE(
     )
   }
 
+  // Can't remove users at or above your level (unless OWNER)
+  const actorLevel = ROLE_LEVEL[authResult.role]
+  const targetLevel = ROLE_LEVEL[target.role]
+  if (actorLevel < ROLE_LEVEL.OWNER && targetLevel >= actorLevel) {
+    return NextResponse.json(
+      { success: false, error: { code: 'FORBIDDEN', message: 'Cannot remove a user with a role equal to or above your own.' } },
+      { status: 403 },
+    )
+  }
+
   // Protect last OWNER
   if (target.role === 'OWNER') {
     const ownerCount = await getChurchOwnerCount(authResult.churchId)
