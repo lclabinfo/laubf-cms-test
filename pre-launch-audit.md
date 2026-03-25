@@ -153,6 +153,17 @@ Other error handling fixes:
 - [ ] Unify `ROLE_LEVEL` (hardcoded 0-3) vs `Role.priority` (0-1000) hierarchy checks
 - [ ] Extract `ROLE_LEVEL` to `lib/permissions.ts` (currently duplicated in 5 files)
 
+### 14. HERO BANNER: Dead fields and missing poster rendering
+
+**Background:** The hero banner content JSON has legacy/dead fields from the original seed format. The editor has a "Poster / Fallback Image" picker that saves to `posterImage` but the renderer never uses it.
+
+- [ ] Wire up `posterImage.src` as the `poster` attribute on `<video>` in `HeroVideo` component (`hero-banner.tsx`) — displays while video loads or if playback fails
+- [ ] Evaluate removing `backgroundImage` from video-mode hero sections — currently a legacy sync field that caused a 6-hour debug session (see `docs/00_dev-notes/hero-video-investigation.md`)
+- [ ] If keeping `backgroundImage`, use it as the poster/fallback image instead of a separate `posterImage` field (consolidate)
+- [ ] Clean up any remaining hero sections in DB where `backgroundImage.src` still contains a `.mp4`/`.webm` URL (legacy format — video should only be in `backgroundVideo`)
+
+**Context:** The legacy seed stored the desktop video URL in `backgroundImage.src` instead of `backgroundVideo.src`. This caused a chain of 4 bugs where the editor displayed a fallback value that was never persisted on save, and the renderer skipped `mobileSrc` entirely. Fixed 2026-03-25 but `backgroundImage` remains as dead weight in video-mode sections.
+
 ---
 
 ## P2: Fix Soon After Launch
@@ -251,6 +262,32 @@ Other error handling fixes:
 | 8 | Add `requireApiAuth()` to remaining unprotected routes | 45 min | Closes all security holes |
 | 9 | Add toasts to 14 silent-failure operations | 30 min | Users get feedback on all actions |
 | 10 | Add `RoleGuard` to 10 unprotected CMS pages | 30 min | Direct URL access shows proper "no permission" state |
+
+---
+
+## Videos CMS — Missing Feature (added 2026-03-25)
+
+### P1: Videos Management Page
+
+The CMS has no dedicated page to manage videos. The current state:
+- Videos are visible on the website (`/website/videos`) and render correctly
+- The CMS media library handles images/files but not video content entries
+- There is no way to create, edit, delete, or archive a Video record from the CMS
+- Video records exist in the DB (from seed/migration) but can only be managed via direct DB access
+
+What's needed:
+- [ ] Create `/cms/videos` page (or integrate into existing `/cms/messages` as a tab) with CRUD for Video records
+- [ ] List view showing all videos with title, thumbnail, YouTube URL, publish status, date
+- [ ] Create/edit form: title, slug, description, YouTube video ID, thumbnail, speaker, series, publish status, date
+- [ ] Delete/archive functionality
+- [ ] Bulk actions (publish, unpublish, delete)
+- [ ] Add sidebar navigation item for Videos under Contents
+
+**Files involved:**
+- `lib/dal/videos.ts` — DAL already exists with full CRUD
+- `app/api/v1/videos/route.ts` — API routes already exist (GET, POST)
+- `app/api/v1/videos/[slug]/route.ts` — API routes already exist (GET, PATCH, DELETE)
+- Missing: CMS page, form component, table/list component
 
 ---
 
