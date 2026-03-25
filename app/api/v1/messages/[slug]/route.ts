@@ -98,7 +98,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
         const effectiveAttachments = 'attachments' in body
           ? body.attachments
-          : (existing.attachments as { id: string; name: string; url?: string; type?: string }[] | null)
+          : (existing.relatedStudy?.attachments ?? []).map((att: { id: string; name: string; url: string; type: string; fileSize: number | null }) => ({
+              id: att.id,
+              name: att.name,
+              url: att.url,
+              type: att.type,
+            }))
 
         await syncMessageStudy({
           messageId: updated.id,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { requireApiAuth } from '@/lib/api/require-auth'
 import { createMediaAsset } from '@/lib/dal/media'
-import { moveObject, deleteObject, isStagingKey, keyFromMediaUrl, getMediaPublicUrl, MEDIA_BUCKET } from '@/lib/storage/r2'
+import { moveObject, deleteObject, isStagingKey, keyFromMediaUrl, getMediaPublicUrl, buildContentDisposition, MEDIA_BUCKET } from '@/lib/storage/r2'
 
 // ---------------------------------------------------------------------------
 // POST /api/v1/media/promote — Bulk promote staging images to permanent
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       // Promote in R2
       let permanentUrl: string
       try {
-        await moveObject(srcKey, destKey, MEDIA_BUCKET)
+        await moveObject(srcKey, destKey, MEDIA_BUCKET, buildContentDisposition(filename))
         permanentUrl = getMediaPublicUrl(destKey)
       } catch (moveError) {
         console.error(`Failed to promote ${srcKey}:`, moveError)

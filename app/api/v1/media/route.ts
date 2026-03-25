@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { requireApiAuth } from '@/lib/api/require-auth'
 import { listMedia, createMediaAsset } from '@/lib/dal/media'
-import { moveObject, deleteObject, isStagingKey, keyFromMediaUrl, getMediaPublicUrl, MEDIA_BUCKET } from '@/lib/storage/r2'
+import { moveObject, deleteObject, isStagingKey, keyFromMediaUrl, getMediaPublicUrl, buildContentDisposition, MEDIA_BUCKET } from '@/lib/storage/r2'
 
 // ---------------------------------------------------------------------------
 // GET /api/v1/media — List media assets (cursor-paginated)
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
       const churchSlug = process.env.CHURCH_SLUG || 'la-ubf'
       promotedDestKey = `${churchSlug}/${category}/${year}/${uuidFilename}`
 
-      await moveObject(srcKey, promotedDestKey, MEDIA_BUCKET)
+      await moveObject(srcKey, promotedDestKey, MEDIA_BUCKET, buildContentDisposition(filename))
       permanentUrl = getMediaPublicUrl(promotedDestKey)
     }
 

@@ -187,14 +187,12 @@ async function collectAllDbUrls(churchId: string): Promise<Set<string>> {
       thumbnailUrl: true,
       audioUrl: true,
       studySections: true,
-      attachments: true,
     },
   })
   for (const m of messages) {
     addUrl(m.thumbnailUrl)
     addUrl(m.audioUrl)
     extractUrlsFromJson(m.studySections)
-    extractUrlsFromJson(m.attachments)
   }
   console.log(`    Found ${messages.length} Message records`)
 

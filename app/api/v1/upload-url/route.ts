@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: { uploadUrl, key, publicUrl },
+      data: { uploadUrl, key, publicUrl, filename },
     })
   } catch (error) {
     console.error('POST /api/v1/upload-url error:', error)

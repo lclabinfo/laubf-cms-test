@@ -107,7 +107,7 @@ function synthesizeStudySections(relatedStudy: any): StudySection[] | undefined 
   ]
 }
 
-// Synthesize attachments from BibleStudy.attachments when Message.attachments is null
+// Synthesize attachments from BibleStudyAttachment relational table (via relatedStudy.attachments)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function synthesizeAttachments(relatedStudy: any): Attachment[] | undefined {
   if (!relatedStudy?.attachments?.length) return undefined
@@ -189,8 +189,7 @@ function apiMessageToCms(apiMsg: any): Message {
     liveTranscript: apiMsg.liveTranscript ?? undefined,
     transcriptSegments: apiMsg.transcriptSegments ?? undefined,
     studySections,
-    attachments: apiMsg.attachments
-      ?? synthesizeAttachments(apiMsg.relatedStudy)
+    attachments: synthesizeAttachments(apiMsg.relatedStudy)
       ?? synthesizeAttachmentCount(apiMsg.relatedStudy),
   }
 }

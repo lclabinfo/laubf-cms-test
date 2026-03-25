@@ -103,6 +103,7 @@ export async function moveObject(
   srcKey: string,
   destKey: string,
   bucket = ATTACHMENTS_BUCKET,
+  contentDisposition?: string,
 ): Promise<void> {
   // 1. Download the source object
   const getResponse = await getClient().send(
@@ -119,13 +120,16 @@ export async function moveObject(
   // Read the full body into a buffer
   const bodyBytes = await getResponse.Body.transformToByteArray();
 
-  // 2. Upload to the destination key
+  // 2. Upload to the destination key.
+  // Use explicit contentDisposition if provided, otherwise preserve the source's value.
+  const finalDisposition = contentDisposition || getResponse.ContentDisposition;
   await getClient().send(
     new PutObjectCommand({
       Bucket: bucket,
       Key: destKey,
       Body: bodyBytes,
       ContentType: getResponse.ContentType,
+      ...(finalDisposition && { ContentDisposition: finalDisposition }),
     }),
   );
 
@@ -165,6 +169,16 @@ export async function moveObject(
       Key: srcKey,
     }),
   );
+}
+
+/**
+ * Build a Content-Disposition header value from an original filename.
+ * Uses RFC 5987 encoding for non-ASCII filenames.
+ */
+export function buildContentDisposition(filename: string): string {
+  const safeFilename = filename.replace(/[\r\n"]/g, '_');
+  const encodedFilename = encodeURIComponent(filename).replace(/'/g, '%27');
+  return `inline; filename="${safeFilename}"; filename*=UTF-8''${encodedFilename}`;
 }
 
 /**

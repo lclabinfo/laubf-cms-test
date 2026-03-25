@@ -1,6 +1,8 @@
 export interface VerseRange {
   start: number
   end: number
+  startSuffix?: string  // e.g., "a", "b" — cosmetic, preserved for display
+  endSuffix?: string
 }
 
 export interface BibleReference {
@@ -9,6 +11,8 @@ export interface BibleReference {
   /** undefined means "whole chapter" (e.g. "Acts 2") */
   verseStart?: number
   verseEnd?: number
+  verseStartSuffix?: string  // e.g., "a", "b" — cosmetic, preserved for display
+  verseEndSuffix?: string
   /** Multiple verse ranges for comma-separated passages like "John 1:1-3, 10, 20". Sorted by start. */
   ranges?: VerseRange[]
 }
@@ -57,10 +61,17 @@ function normalizeInput(input: string): string {
   s = s.replace(/~/g, "-")
   s = s.replace(/\s+/g, " ")
   s = s.replace(/\s*:\s*/g, ":")
-  s = s.replace(/(\d)\s*-\s*(\d)/g, "$1-$2")
+  s = s.replace(/(\d[a-zA-Z]?)\s*-\s*(\d)/g, "$1-$2")
   // Insert space between numbered prefix and book name: "1Kings 3:1" → "1 Kings 3:1"
   s = s.replace(/^(\d)([A-Za-z])/, "$1 $2")
   return s
+}
+
+/** Extracts a single trailing letter suffix from a verse string like "3a" → "a", "12" → undefined */
+function extractVerseSuffix(verseStr: string | undefined): string | undefined {
+  if (!verseStr) return undefined
+  const m = verseStr.match(/[a-zA-Z]$/)
+  return m ? m[0].toLowerCase() : undefined
 }
 
 export function parseBibleReference(input: string): BibleReference | null {
@@ -76,7 +87,7 @@ export function parseBibleReference(input: string): BibleReference | null {
   }
 
   // Detect trailing dash: "John 1:22-" means "verse 22 to end of chapter"
-  const hasTrailingDash = /\d+-$/.test(cleanInput)
+  const hasTrailingDash = /\d+[a-zA-Z]?-$/.test(cleanInput)
 
   // Strip trailing non-alphanumeric chars (like : or -) so partial input
   // like "Romans 1:" parses as "Romans 1"
@@ -84,14 +95,16 @@ export function parseBibleReference(input: string): BibleReference | null {
     cleanInput = cleanInput.slice(0, -1).trim()
   }
 
-  // Regex: Book (lazy) + Chapter + optional :VerseStart + optional -VerseEnd
-  const match = cleanInput.match(/^(.+?)\s+(\d+)(?::(\d+)(?:-(\d+))?)?$/)
+  // Regex: Book (lazy) + Chapter + optional :VerseStart[letter] + optional -VerseEnd[letter]
+  const match = cleanInput.match(/^(.+?)\s+(\d+)(?::(\d+[a-zA-Z]?)(?:-(\d+[a-zA-Z]?))?)?$/)
   if (!match) return null
 
   const bookStr = match[1]
   const chapter = parseInt(match[2], 10)
   const verseStart = match[3] ? parseInt(match[3], 10) : undefined
+  const verseStartSuffix = extractVerseSuffix(match[3])
   let verseEnd = match[4] ? parseInt(match[4], 10) : undefined
+  const verseEndSuffix = extractVerseSuffix(match[4])
 
   const foundBook = findBook(bookStr)
   if (!foundBook) return null
@@ -108,7 +121,9 @@ export function parseBibleReference(input: string): BibleReference | null {
     book: foundBook,
     chapter,
     verseStart,
-    verseEnd
+    verseEnd,
+    ...(verseStartSuffix && { verseStartSuffix }),
+    ...(verseEndSuffix && { verseEndSuffix }),
   }
 }
 
@@ -153,24 +168,31 @@ function parseMultiRangeReference(input: string): BibleReference | null {
   for (const seg of segments) {
     // Strip trailing non-alnum (handles trailing comma, dash, etc.)
     let s = seg
-    const segHasTrailingDash = /\d+-$/.test(s)
-    while (s.length > 0 && /[^0-9]$/.test(s)) {
+    const segHasTrailingDash = /\d+[a-zA-Z]?-$/.test(s)
+    while (s.length > 0 && /[^0-9a-zA-Z]$/.test(s)) {
       s = s.slice(0, -1).trim()
     }
     if (!s) continue
 
-    const rangeMatch = s.match(/^(\d+)(?:-(\d+))?$/)
+    const rangeMatch = s.match(/^(\d+[a-zA-Z]?)(?:-(\d+[a-zA-Z]?))?$/)
     if (!rangeMatch) continue
 
     let start = parseInt(rangeMatch[1], 10)
+    const startSuffix = extractVerseSuffix(rangeMatch[1])
     let end = rangeMatch[2] ? parseInt(rangeMatch[2], 10) : start
+    const endSuffix = rangeMatch[2] ? extractVerseSuffix(rangeMatch[2]) : startSuffix
 
     // Trailing dash means "to end of chapter"
     if (segHasTrailingDash && !rangeMatch[2] && maxVerse) {
       end = maxVerse
     }
 
-    ranges.push({ start, end })
+    ranges.push({
+      start,
+      end,
+      ...(startSuffix && { startSuffix }),
+      ...(endSuffix && { endSuffix }),
+    })
   }
 
   if (ranges.length === 0) return null
@@ -180,13 +202,17 @@ function parseMultiRangeReference(input: string): BibleReference | null {
 
   // For backward compat, set verseStart/verseEnd from first/last range
   const verseStart = sorted[0].start
+  const verseStartSuffix = sorted[0].startSuffix
   const verseEnd = sorted[sorted.length - 1].end
+  const verseEndSuffix = sorted[sorted.length - 1].endSuffix
 
   return {
     book: foundBook,
     chapter,
     verseStart,
     verseEnd,
+    ...(verseStartSuffix && { verseStartSuffix }),
+    ...(verseEndSuffix && { verseEndSuffix }),
     ranges: sorted.length > 1 ? sorted : undefined,
   }
 }
@@ -196,16 +222,19 @@ function parseMultiRangeReference(input: string): BibleReference | null {
  */
 function sortAndMergeRanges(ranges: VerseRange[]): VerseRange[] {
   const sorted = [...ranges].sort((a, b) => a.start - b.start)
-  const merged: VerseRange[] = [sorted[0]]
+  const merged: VerseRange[] = [{ ...sorted[0] }]
 
   for (let i = 1; i < sorted.length; i++) {
     const last = merged[merged.length - 1]
     const curr = sorted[i]
     if (curr.start <= last.end + 1) {
-      // Overlapping or adjacent — merge
-      last.end = Math.max(last.end, curr.end)
+      // Overlapping or adjacent — merge, keep the suffix of the higher end
+      if (curr.end > last.end) {
+        last.end = curr.end
+        last.endSuffix = curr.endSuffix
+      }
     } else {
-      merged.push(curr)
+      merged.push({ ...curr })
     }
   }
 
@@ -254,13 +283,19 @@ export function suggestPassage(input: string): string | null {
   }
 
   // Try to parse chapter:verse from remaining
-  const cvMatch = remaining.match(/^(\d+)(?::(\d+)(?:-(\d+))?)?/)
+  const cvMatch = remaining.match(/^(\d+)(?::(\d+[a-zA-Z]?)(?:-(\d+[a-zA-Z]?))?)?/)
   if (cvMatch) {
     const chapter = parseInt(cvMatch[1], 10)
     const verseStart = cvMatch[2] ? parseInt(cvMatch[2], 10) : undefined
+    const verseStartSuffix = extractVerseSuffix(cvMatch[2])
     const verseEnd = cvMatch[3] ? parseInt(cvMatch[3], 10) : undefined
+    const verseEndSuffix = extractVerseSuffix(cvMatch[3])
 
-    const ref: BibleReference = { book: foundBook, chapter, verseStart, verseEnd }
+    const ref: BibleReference = {
+      book: foundBook, chapter, verseStart, verseEnd,
+      ...(verseStartSuffix && { verseStartSuffix }),
+      ...(verseEndSuffix && { verseEndSuffix }),
+    }
     const clamped = clampReference(ref)
     if (clamped) return formatReference(clamped)
   }
@@ -285,37 +320,52 @@ function clampReference(ref: BibleReference): BibleReference | null {
 
   // Clamp multi-range
   if (ref.ranges && ref.ranges.length > 0) {
-    const clamped: VerseRange[] = ref.ranges.map(r => ({
-      start: Math.max(1, Math.min(r.start, maxVerse)),
-      end: Math.max(1, Math.min(r.end, maxVerse)),
-    })).map(r => ({
-      start: r.start,
-      end: Math.max(r.start, r.end),
-    }))
+    const clamped: VerseRange[] = ref.ranges.map(r => {
+      const s = Math.max(1, Math.min(r.start, maxVerse))
+      const e = Math.max(s, Math.max(1, Math.min(r.end, maxVerse)))
+      return {
+        start: s,
+        end: e,
+        // Preserve suffix if verse number wasn't clamped
+        ...(r.startSuffix && s === r.start && { startSuffix: r.startSuffix }),
+        ...(r.endSuffix && e === r.end && { endSuffix: r.endSuffix }),
+      }
+    })
     const sorted = sortAndMergeRanges(clamped)
     return {
       book: ref.book,
       chapter,
       verseStart: sorted[0].start,
       verseEnd: sorted[sorted.length - 1].end,
+      ...(sorted[0].startSuffix && { verseStartSuffix: sorted[0].startSuffix }),
+      ...(sorted[sorted.length - 1].endSuffix && { verseEndSuffix: sorted[sorted.length - 1].endSuffix }),
       ranges: sorted.length > 1 ? sorted : undefined,
     }
   }
 
   let verseStart = ref.verseStart
+  let verseStartSuffix = ref.verseStartSuffix
   let verseEnd = ref.verseEnd
+  let verseEndSuffix = ref.verseEndSuffix
 
   if (verseStart !== undefined) {
-    if (verseStart < 1) verseStart = 1
-    if (verseStart > maxVerse) verseStart = maxVerse
+    if (verseStart < 1) { verseStart = 1; verseStartSuffix = undefined }
+    if (verseStart > maxVerse) { verseStart = maxVerse; verseStartSuffix = undefined }
   }
 
   if (verseEnd !== undefined) {
-    if (verseEnd > maxVerse) verseEnd = maxVerse
-    if (verseStart !== undefined && verseEnd < verseStart) verseEnd = verseStart
+    if (verseEnd > maxVerse) { verseEnd = maxVerse; verseEndSuffix = undefined }
+    if (verseStart !== undefined && verseEnd < verseStart) { verseEnd = verseStart; verseEndSuffix = verseStartSuffix }
   }
 
-  return { book: ref.book, chapter, verseStart, verseEnd }
+  return {
+    book: ref.book,
+    chapter,
+    verseStart,
+    verseEnd,
+    ...(verseStartSuffix && { verseStartSuffix }),
+    ...(verseEndSuffix && { verseEndSuffix }),
+  }
 }
 
 export function findBook(query: string): string | null {
@@ -350,15 +400,17 @@ export function formatReference(ref: BibleReference): string {
   let text = `${ref.book} ${ref.chapter}`
 
   if (ref.ranges && ref.ranges.length > 1) {
-    // Multi-range: "John 1:1-3, 10, 20-25"
-    const parts = ref.ranges.map(r =>
-      r.start === r.end ? `${r.start}` : `${r.start}-${r.end}`
-    )
+    // Multi-range: "John 1:1a-3b, 10, 20-25"
+    const parts = ref.ranges.map(r => {
+      const startStr = `${r.start}${r.startSuffix || ''}`
+      const endStr = `${r.end}${r.endSuffix || ''}`
+      return startStr === endStr ? startStr : `${startStr}-${endStr}`
+    })
     text += `:${parts.join(", ")}`
   } else if (ref.verseStart !== undefined) {
-    text += `:${ref.verseStart}`
-    if (ref.verseEnd !== undefined && ref.verseEnd !== ref.verseStart) {
-      text += `-${ref.verseEnd}`
+    text += `:${ref.verseStart}${ref.verseStartSuffix || ''}`
+    if (ref.verseEnd !== undefined && (ref.verseEnd !== ref.verseStart || ref.verseEndSuffix !== ref.verseStartSuffix)) {
+      text += `-${ref.verseEnd}${ref.verseEndSuffix || ''}`
     }
   }
   return text
@@ -385,6 +437,10 @@ export function validateReference(ref: BibleReference): string | null {
       if (range.start > maxVerse) return `${ref.book} ${ref.chapter} has ${maxVerse} verses`
       if (range.end < range.start) return `End verse must be after start verse`
       if (range.end > maxVerse) return `${ref.book} ${ref.chapter} has ${maxVerse} verses`
+      // Same verse but backwards suffixes (e.g., 3b-3a)
+      if (range.start === range.end && range.startSuffix && range.endSuffix && range.startSuffix > range.endSuffix) {
+        return `Start verse suffix must come before end verse suffix`
+      }
     }
     return null
   }
@@ -401,6 +457,14 @@ export function validateReference(ref: BibleReference): string | null {
     if (ref.verseEnd > maxVerse) {
       return `${ref.book} ${ref.chapter} has ${maxVerse} verses`
     }
+  }
+
+  // Same verse but backwards suffixes (e.g., "3b-3a")
+  if (ref.verseStart !== undefined && ref.verseEnd !== undefined &&
+      ref.verseStart === ref.verseEnd &&
+      ref.verseStartSuffix && ref.verseEndSuffix &&
+      ref.verseStartSuffix > ref.verseEndSuffix) {
+    return `Start verse suffix must come before end verse suffix`
   }
 
   return null

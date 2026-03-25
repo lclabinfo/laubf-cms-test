@@ -231,9 +231,10 @@ export async function ensureUniqueSlug(churchId: string, baseSlug: string, exclu
 const NON_MESSAGE_FIELDS = [
   'seriesId',
   'description', // removed from schema — strip for safety
+  'attachments', // attachments now live in BibleStudyAttachment table, not JSON column
 ] as const
 
-function stripNonMessageFields<T extends Record<string, unknown>>(data: T): Omit<T, 'seriesId' | 'description'> {
+function stripNonMessageFields<T extends Record<string, unknown>>(data: T): Omit<T, 'seriesId' | 'description' | 'attachments'> {
   const cleaned = { ...data }
   for (const key of NON_MESSAGE_FIELDS) {
     delete (cleaned as Record<string, unknown>)[key]

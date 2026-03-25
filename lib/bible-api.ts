@@ -45,6 +45,16 @@ export function parsePassage(passage: string): ParsedPassage | null {
   // Normalize ~ to -
   trimmed = trimmed.replace(/~/g, '-')
 
+  // Strip letter suffixes from verse numbers (e.g., "28a" → "28", "40d" → "40")
+  // These letters indicate sub-verse divisions but our DB stores whole verses only.
+  // Only strip letters that follow digits in the verse portion (after the colon).
+  const colonPos = trimmed.indexOf(':')
+  if (colonPos !== -1) {
+    const beforeColon = trimmed.substring(0, colonPos + 1)
+    const afterColon = trimmed.substring(colonPos + 1)
+    trimmed = beforeColon + afterColon.replace(/(\d+)[a-zA-Z]+/g, '$1')
+  }
+
   const book = parseBookFromPassage(trimmed)
   if (!book) return null
 

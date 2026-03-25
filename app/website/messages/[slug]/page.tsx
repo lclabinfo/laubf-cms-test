@@ -192,26 +192,16 @@ export default async function MessageDetailPage({ params }: PageProps) {
             </div>
           )}
 
-          {/* Attachments — merge message-level JSON attachments + related study DB attachments */}
+          {/* Attachments — from related study's BibleStudyAttachment records */}
           {(() => {
-            // Message-level attachments (JSON field)
-            const msgAttachments = Array.isArray(message.attachments)
-              ? (message.attachments as { id: string; name: string; type: string; url?: string }[]).filter((a) => a.url)
-              : []
-            // Related study attachments (DB relation)
-            const studyAttachments = (message.relatedStudy?.attachments ?? []).map((att) => ({
-              id: att.id,
-              name: att.name,
-              type: att.type,
-              url: att.url,
-            }))
-            // De-duplicate by URL
-            const seen = new Set<string>()
-            const allAttachments = [...msgAttachments, ...studyAttachments].filter((a) => {
-              if (!a.url || seen.has(a.url)) return false
-              seen.add(a.url)
-              return true
-            })
+            const allAttachments = (message.relatedStudy?.attachments ?? [])
+              .filter((att) => att.url)
+              .map((att) => ({
+                id: att.id,
+                name: att.name,
+                type: att.type,
+                url: att.url,
+              }))
             if (allAttachments.length === 0) return null
             return (
               <div className="mt-8 pt-6 border-t border-white-2">

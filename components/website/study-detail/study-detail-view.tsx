@@ -268,7 +268,9 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
   /* ── Helpers ── */
 
   const getBibleGatewayUrl = (passage: string) => {
-    const formatted = passage.replace(/ /g, "+").replace(/~/g, "-")
+    // Strip letter suffixes from verse numbers (e.g., "16a" → "16") so BibleGateway gets clean references
+    const clean = passage.replace(/(\d+)[a-zA-Z]+/g, '$1')
+    const formatted = clean.replace(/ /g, "+").replace(/~/g, "-")
     return `https://www.biblegateway.com/passage/?search=${formatted}&version=${bibleVersion}&interface=print`
   }
 

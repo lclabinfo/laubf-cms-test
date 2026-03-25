@@ -3,7 +3,7 @@ import { ContentStatus, type AttachmentType, type BibleBook } from '@/lib/genera
 // ContentStatus still used for BibleStudy model (which retains its own status column)
 import { tiptapJsonToHtml } from '@/lib/tiptap'
 import { fetchBibleText } from '@/lib/bible-api'
-import { deleteObject, moveObject, isStagingKey, keyFromUrl, getPublicUrl, PUBLIC_URL } from '@/lib/storage/r2'
+import { deleteObject, moveObject, isStagingKey, keyFromUrl, getPublicUrl } from '@/lib/storage/r2'
 
 /**
  * Maps passage strings like "John 3:16", "1 Corinthians 13:1-8", "Genesis 12"
@@ -299,14 +299,10 @@ async function promoteFromStaging(
   // Extract the {uuid}-{filename} portion after "staging/"
   const uuidFilename = srcKey.replace(/^[^/]+\/staging\//, '')
   const destKey = `${ctx.churchSlug}/${ctx.year}/${ctx.studySlug}/${uuidFilename}`
+  const destUrl = getPublicUrl(destKey)
 
-  try {
-    await moveObject(srcKey, destKey)
-    return getPublicUrl(destKey)
-  } catch (err) {
-    console.error(`[syncStudyAttachments] Failed to move "${srcKey}" → "${destKey}":`, err)
-    throw new Error(`Failed to promote staging file: ${srcKey}`)
-  }
+  await moveObject(srcKey, destKey)
+  return destUrl
 }
 
 /**
@@ -321,7 +317,7 @@ async function syncStudyAttachments(
   studyId: string,
   attachments: SyncAttachment[],
   ctx: SyncAttachmentContext,
-) {
+): Promise<void> {
   // Get existing attachment IDs
   const existing = await prisma.bibleStudyAttachment.findMany({
     where: { bibleStudyId: studyId },

@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
           hasStudy: message.hasStudy,
           publishedAt: message.publishedAt,
           studySections,
-          attachments: message.attachments as { id: string; name: string; url?: string; type?: string }[] | null,
+          attachments: body.attachments as { id: string; name: string; url?: string; type?: string }[] | null,
           bibleVersion: message.bibleVersion,
           existingStudyId: null,
         })
