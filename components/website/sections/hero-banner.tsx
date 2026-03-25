@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils"
 import Image from "next/image"
 
 const MOBILE_BREAKPOINT = 640
+const isVideoUrl = (s: string) => /\.(mp4|webm|mov|ogg)(\?|$)/i.test(s)
 
 interface HeroBannerContent {
   heading: { line1: string; line2: string }
@@ -59,7 +60,6 @@ export default function HeroBannerSection({ content, enableAnimations, colorSche
   const splitArrangement = (content.splitArrangement as string) || "text-left"
   const textHAlign = (content.textHAlign as string) || "center"
   const textVAlign = (content.textVAlign as string) || "middle"
-  const isVideoUrl = (s: string) => /\.(mp4|webm|mov|ogg)(\?|$)/i.test(s)
   const mediaType = (content.mediaType as string) || (content.backgroundVideo?.src ? "video" : isVideoUrl(content.backgroundImage?.src ?? "") ? "video" : "image")
   const textAlign = (content.textAlign as string) || "left"
   const overlayType = (content.overlayType as string) || "gradient"
