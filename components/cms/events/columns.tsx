@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal, MapPin, Globe, Pencil, Copy, Trash2, Clock, Repeat, Star, TriangleAlert, Eye, EyeOff, Archive, ArchiveRestore } from "lucide-react"
+import { MoreHorizontal, MapPin, Globe, Pencil, Copy, Trash2, Clock, Repeat, TriangleAlert, Eye, EyeOff, Archive, ArchiveRestore } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { SortableHeader } from "@/components/ui/sortable-header"
@@ -26,11 +26,6 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import type { ChurchEvent } from "@/lib/events-data"
 import { eventTypeDisplay, recurrenceDisplay, ministryDisplay, computeRecurrenceSchedule } from "@/lib/events-data"
 import { statusDisplay } from "@/lib/status"
@@ -295,14 +290,12 @@ function EventActionsCell({
 
 export function createColumns(options?: {
   onDelete?: (id: string) => void
-  onToggleFeatured?: (event: ChurchEvent) => void
   onPublish?: (id: string) => void
   onUnpublish?: (id: string) => void
   onArchive?: (id: string) => void
   onUnarchive?: (id: string) => void
 }): ColumnDef<ChurchEvent>[] {
   const onDelete = options?.onDelete
-  const onToggleFeatured = options?.onToggleFeatured
   const onPublish = options?.onPublish
   const onUnpublish = options?.onUnpublish
   const onArchive = options?.onArchive
@@ -343,30 +336,6 @@ export function createColumns(options?: {
       const isArchived = row.original.status === "archived"
       return (
         <div className={cn("flex items-center gap-2 min-w-0", (past || isArchived) && "opacity-60")}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="shrink-0 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded-sm"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onToggleFeatured?.(row.original)
-                }}
-              >
-                <Star
-                  className={cn(
-                    "size-3.5",
-                    row.original.isFeatured
-                      ? "text-warning fill-warning"
-                      : "text-muted-foreground/40 hover:text-muted-foreground"
-                  )}
-                />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top">
-              {row.original.isFeatured ? "Manually featured" : "Click to feature"}
-            </TooltipContent>
-          </Tooltip>
           <span className="min-w-0 shrink font-medium truncate">{row.getValue("title")}</span>
           {isRecurring && (
             <Badge variant="outline" className="shrink-0 text-[10px] h-4 text-muted-foreground">

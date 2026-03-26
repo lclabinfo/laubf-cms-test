@@ -48,6 +48,7 @@ interface DailyBreadData {
 interface DailyBreadContent {
   dataSource?: string
   dailyBread?: DailyBreadData | null
+  defaultBibleVersion?: string
 }
 
 interface Props {
@@ -291,6 +292,7 @@ export default function DailyBreadFeatureSection({
   }, [])
 
   const entry = content.dailyBread
+  const bibleVersion = content.defaultBibleVersion || "ESV"
 
   /* ── Lock body scroll & hide footer (reader-mode layout) ── */
   useEffect(() => {
@@ -389,7 +391,7 @@ export default function DailyBreadFeatureSection({
                       }}
                     />
                     <div className="mt-6 pt-4 border-t border-white-2">
-                      <BibleCopyright versionCode="ESV" className={t.textMuted} />
+                      <BibleCopyright versionCode={bibleVersion} className={t.textMuted} />
                     </div>
                   </div>
                 </div>
@@ -563,7 +565,7 @@ export default function DailyBreadFeatureSection({
                           }}
                         />
                         <div className={cn("mt-4 pt-3 border-t", t.borderColor)}>
-                          <BibleCopyright versionCode="ESV" className={t.textMuted} />
+                          <BibleCopyright versionCode={bibleVersion} className={t.textMuted} />
                         </div>
                       </div>
                     </div>

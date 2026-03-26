@@ -88,7 +88,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         ? body.studySections
         : (existing.studySections as { id: string; title: string; content: string }[] | null)
 
-      if (effectiveHasStudy && effectiveStudySections && effectiveStudySections.length > 0) {
+      // Resolve the effective rawTranscript (Video tab transcript) for the sync
+      const effectiveRawTranscript = 'rawTranscript' in body
+        ? body.rawTranscript
+        : (updated.rawTranscript ?? null)
+
+      const hasStudySections = effectiveStudySections && effectiveStudySections.length > 0
+      const hasRawTranscript = effectiveRawTranscript && effectiveRawTranscript.trim()
+
+      // Sync when there's study content OR a transcript from the Video tab
+      if (effectiveHasStudy && (hasStudySections || hasRawTranscript)) {
         // Resolve the series ID for the linked BibleStudy
         const effectiveSeriesId = hasSeriesId
           ? (seriesId ?? null)
@@ -120,9 +129,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           attachments: effectiveAttachments,
           bibleVersion: updated.bibleVersion,
           existingStudyId: updated.relatedStudyId,
+          rawTranscript: effectiveRawTranscript,
         })
-      } else if (effectiveHasStudy && (!effectiveStudySections || effectiveStudySections.length === 0)) {
-        // hasStudy=true but no study sections — auto-correct to hasStudy=false
+      } else if (effectiveHasStudy && !hasStudySections && !hasRawTranscript) {
+        // hasStudy=true but no study sections and no transcript — auto-correct to hasStudy=false
         await updateMessage(churchId, updated.id, { hasStudy: false })
         if (updated.relatedStudyId) {
           await unlinkMessageStudy(updated.id, updated.relatedStudyId)

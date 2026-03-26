@@ -130,15 +130,21 @@ function SimpleDropdown({
 
 /* ── Main Component ── */
 
-export default function StudyDetailView({ study }: { study: BibleStudyDetail }) {
+export default function StudyDetailView({ study, churchDefaultVersion = "ESV" }: { study: BibleStudyDetail; churchDefaultVersion?: string }) {
   const [fontSize, setFontSize] = useState(100)
   const [isDesktop, setIsDesktop] = useState(true)
-  const [bibleVersion, setBibleVersion] = useState<string>(() => {
-    const stored = study.bibleVersion || "ESV"
+  // Per-pane Bible version state (keyed by pane ID: "left", "right", or any future pane)
+  // Priority: study-specific version > church default > hardcoded fallback
+  const defaultBibleVersion = (() => {
+    const stored = study.bibleVersion || churchDefaultVersion || "ESV"
     return API_AVAILABLE_VERSIONS.some(v => v.code === stored) ? stored : "ESV"
-  })
-  const [fetchedBibleText, setFetchedBibleText] = useState<string | null>(null)
-  const [bibleTextLoading, setBibleTextLoading] = useState(false)
+  })()
+  const [paneVersions, setPaneVersions] = useState<Record<string, string>>(() => ({
+    left: defaultBibleVersion,
+    right: defaultBibleVersion,
+  }))
+  const [paneBibleText, setPaneBibleText] = useState<Record<string, string | null>>({})
+  const [paneBibleLoading, setPaneBibleLoading] = useState<Record<string, boolean>>({})
 
   // Filter tabs based on available content — hide tabs with no data
   const visibleTabs = TABS_CONFIG.filter((tab) => {
@@ -215,69 +221,103 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
     }
   }, [])
 
-  /* ── Bible version switching ── */
+  /* ── Bible version switching (per-pane) ── */
 
-  const handleVersionChange = useCallback(async (version: string) => {
-    setBibleVersion(version)
+  const handleVersionChange = useCallback(async (paneId: string, version: string) => {
+    setPaneVersions(prev => ({ ...prev, [paneId]: version }))
 
     if (!study.passage) return
 
-    setBibleTextLoading(true)
+    setPaneBibleLoading(prev => ({ ...prev, [paneId]: true }))
     try {
       const res = await fetch(
         `/api/v1/bible?passage=${encodeURIComponent(study.passage)}&version=${encodeURIComponent(version)}`
       )
       const json = await res.json()
       if (json.success && json.data?.html) {
-        setFetchedBibleText(json.data.html)
+        setPaneBibleText(prev => ({ ...prev, [paneId]: json.data.html }))
       }
       // If API fails, keep showing whatever text we already have
     } catch {
       // Silently fall back to existing text
     } finally {
-      setBibleTextLoading(false)
+      setPaneBibleLoading(prev => ({ ...prev, [paneId]: false }))
     }
   }, [study.passage])
 
-  /* ── Fetch bible text on mount ── */
+  /* ── Fetch bible text on mount for the default pane ── */
   // Always fetch from the BibleVerse database to ensure version-accurate text.
   // study.bibleText (backfilled ESV) is only used as fallback if the API fails.
 
   useEffect(() => {
     if (!study.passage) return
 
-    setBibleTextLoading(true)
+    setPaneBibleLoading(prev => ({ ...prev, left: true }))
     fetch(
-      `/api/v1/bible?passage=${encodeURIComponent(study.passage)}&version=${encodeURIComponent(bibleVersion)}`
+      `/api/v1/bible?passage=${encodeURIComponent(study.passage)}&version=${encodeURIComponent(defaultBibleVersion)}`
     )
       .then((res) => res.json())
       .then((json) => {
         if (json.success && json.data?.html) {
-          setFetchedBibleText(json.data.html)
+          setPaneBibleText(prev => ({ ...prev, left: json.data.html }))
         }
       })
       .catch(() => {
         // Silently fail — study.bibleText fallback will be used
       })
       .finally(() => {
-        setBibleTextLoading(false)
+        setPaneBibleLoading(prev => ({ ...prev, left: false }))
       })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  /* ── Fetch bible text when a pane switches to scripture tab ── */
+  // When the right pane opens a scripture tab (or any pane switches to it),
+  // fetch Bible text for that pane if it hasn't been loaded yet.
+
+  useEffect(() => {
+    if (!study.passage) return
+
+    const panesToCheck: { paneId: string; tab: ResourceType | null }[] = [
+      { paneId: "left", tab: leftTab },
+      { paneId: "right", tab: rightTab },
+    ]
+
+    for (const { paneId, tab } of panesToCheck) {
+      if (tab === "scripture" && paneBibleText[paneId] === undefined && !paneBibleLoading[paneId]) {
+        const version = paneVersions[paneId] || defaultBibleVersion
+        setPaneBibleLoading(prev => ({ ...prev, [paneId]: true }))
+        fetch(
+          `/api/v1/bible?passage=${encodeURIComponent(study.passage)}&version=${encodeURIComponent(version)}`
+        )
+          .then((res) => res.json())
+          .then((json) => {
+            if (json.success && json.data?.html) {
+              setPaneBibleText(prev => ({ ...prev, [paneId]: json.data.html }))
+            }
+          })
+          .catch(() => {
+            // Silently fail — study.bibleText fallback will be used
+          })
+          .finally(() => {
+            setPaneBibleLoading(prev => ({ ...prev, [paneId]: false }))
+          })
+      }
+    }
+  }, [leftTab, rightTab, study.passage, defaultBibleVersion, paneVersions, paneBibleText, paneBibleLoading])
+
   /* ── Helpers ── */
 
-  const getBibleGatewayUrl = (passage: string) => {
+  const getBibleGatewayUrl = (passage: string, paneId: string) => {
     // Strip letter suffixes from verse numbers (e.g., "16a" → "16") so BibleGateway gets clean references
     const clean = passage.replace(/(\d+)[a-zA-Z]+/g, '$1')
     const formatted = clean.replace(/ /g, "+").replace(/~/g, "-")
-    return `https://www.biblegateway.com/passage/?search=${formatted}&version=${bibleVersion}&interface=print`
+    const version = paneVersions[paneId] || defaultBibleVersion
+    return `https://www.biblegateway.com/passage/?search=${formatted}&version=${version}&interface=print`
   }
 
   const increaseFont = () => setFontSize((p) => Math.min(p + 10, 150))
   const decreaseFont = () => setFontSize((p) => Math.max(p - 10, 80))
-
-  const displayBibleText = fetchedBibleText || study.bibleText || ""
 
   /* ── Format date ── */
 
@@ -357,7 +397,13 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
 
   /* ── Content Renderers ── */
 
-  const renderContent = (type: ResourceType | null) => {
+  const renderContent = (type: ResourceType | null, paneId: string) => {
+    // Per-pane Bible state
+    const paneVersion = paneVersions[paneId] || defaultBibleVersion
+    const paneFetchedText = paneBibleText[paneId] ?? null
+    const paneLoading = paneBibleLoading[paneId] ?? false
+    const displayBibleText = paneFetchedText || study.bibleText || ""
+
     switch (type) {
       case "scripture":
         return (
@@ -370,7 +416,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                 <SimpleDropdown
                   trigger={
                     <button className="text-xs font-medium text-black-3 hover:text-black-1 px-2 py-1 hover:bg-white-1-5 rounded transition-colors flex items-center gap-1 border border-white-2">
-                      {bibleVersion}{" "}
+                      {paneVersion}{" "}
                       <ChevronDown className="w-3 h-3" />
                     </button>
                   }
@@ -379,10 +425,10 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                     {API_AVAILABLE_VERSIONS.map((v) => (
                       <button
                         key={v.code}
-                        onClick={() => handleVersionChange(v.code)}
+                        onClick={() => handleVersionChange(paneId, v.code)}
                         className={cn(
                           "w-full text-left px-3 py-2 text-sm hover:bg-white-1-5 transition-colors",
-                          bibleVersion === v.code ? "font-semibold text-brand-1" : "font-medium"
+                          paneVersion === v.code ? "font-semibold text-brand-1" : "font-medium"
                         )}
                       >
                         {v.abbreviation} - {v.name}
@@ -391,7 +437,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                   </div>
                 </SimpleDropdown>
                 <a
-                  href={getBibleGatewayUrl(study.passage)}
+                  href={getBibleGatewayUrl(study.passage, paneId)}
                   target="_blank"
                   rel="noreferrer"
                   className="text-xs font-medium text-black-3 hover:text-brand-1 px-2 py-1 hover:bg-white-1-5 rounded transition-colors flex items-center gap-2 border border-white-2"
@@ -401,11 +447,11 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                 </a>
               </div>
             </div>
-            {bibleTextLoading ? (
+            {paneLoading ? (
               <div className="flex items-center justify-center py-16">
                 <div className="flex items-center gap-3 text-sm text-black-3">
                   <div className="size-4 border-2 border-black-3/30 border-t-black-3 rounded-full animate-spin" />
-                  Loading {bibleVersion} text...
+                  Loading {paneVersion} text...
                 </div>
               </div>
             ) : displayBibleText ? (
@@ -420,9 +466,9 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
               </div>
             )}
             <div className="mt-8 pt-8 border-t border-white-2 flex flex-col items-center gap-4">
-              <BibleCopyright versionCode={bibleVersion} className="text-center" />
+              <BibleCopyright versionCode={paneVersion} className="text-center" />
               <a
-                href={getBibleGatewayUrl(study.passage)}
+                href={getBibleGatewayUrl(study.passage, paneId)}
                 target="_blank"
                 rel="noreferrer"
                 className="text-xs font-medium text-white-3 hover:text-brand-1 uppercase tracking-wide transition-colors inline-flex items-center gap-2"
@@ -479,7 +525,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                 )}
                 {study.passage && (
                   <a
-                    href={getBibleGatewayUrl(study.passage)}
+                    href={getBibleGatewayUrl(study.passage, paneId)}
                     target="_blank"
                     rel="noreferrer"
                     className="flex items-center gap-1 text-brand-1 hover:text-brand-2 transition-colors"
@@ -795,7 +841,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                   id={`mobile-${tab.id}`}
                   className="min-h-[50vh] pb-12 border-b-8 border-white-1-5 last:border-0"
                 >
-                  {renderContent(tab.id)}
+                  {renderContent(tab.id, "left")}
                 </div>
               ))}
             </div>
@@ -821,7 +867,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                   activePane === "left" ? "bg-white-0" : "bg-white-1/30"
                 )}
               >
-                {renderContent(leftTab)}
+                {renderContent(leftTab, "left")}
               </div>
             </div>
 
@@ -861,7 +907,7 @@ export default function StudyDetailView({ study }: { study: BibleStudyDetail }) 
                         : "bg-white-1/30"
                     )}
                   >
-                    {renderContent(rightTab)}
+                    {renderContent(rightTab, "right")}
                   </div>
                 </div>
               </>

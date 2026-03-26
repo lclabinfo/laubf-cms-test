@@ -124,7 +124,6 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (body.registrationRequired !== undefined) data.registrationRequired = body.registrationRequired
     if (body.maxParticipants !== undefined) data.maxParticipants = body.maxParticipants != null ? Number(body.maxParticipants) : null
     if (body.registrationDeadline !== undefined) data.registrationDeadline = body.registrationDeadline ? new Date(body.registrationDeadline) : null
-    if (body.isFeatured !== undefined) data.isFeatured = body.isFeatured
     if (body.isPinned !== undefined) data.isPinned = body.isPinned
     if (body.isRecurring !== undefined) data.isRecurring = body.isRecurring
     if (body.recurrence !== undefined) data.recurrence = body.recurrence

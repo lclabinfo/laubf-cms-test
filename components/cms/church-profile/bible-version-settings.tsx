@@ -27,7 +27,7 @@ export type BibleVersionConfig = {
 
 const DEFAULT_CONFIG: BibleVersionConfig = {
   enabledVersions: CHURCH_BIBLE_VERSIONS.map((v) => v.code),
-  defaultVersion: "NIV",
+  defaultVersion: "ESV",
 }
 
 export function BibleVersionSettings() {
@@ -46,7 +46,7 @@ export function BibleVersionSettings() {
             enabledVersions:
               settings.bibleVersions ??
               CHURCH_BIBLE_VERSIONS.map((v) => v.code),
-            defaultVersion: settings.defaultBibleVersion ?? "NIV",
+            defaultVersion: settings.defaultBibleVersion ?? "ESV",
           })
         }
       })
@@ -262,7 +262,7 @@ export function useBibleVersionConfig() {
             enabledVersions:
               settings.bibleVersions ??
               CHURCH_BIBLE_VERSIONS.map((v) => v.code),
-            defaultVersion: settings.defaultBibleVersion ?? "NIV",
+            defaultVersion: settings.defaultBibleVersion ?? "ESV",
           })
         } else {
           setConfig(DEFAULT_CONFIG)

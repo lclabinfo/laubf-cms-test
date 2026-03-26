@@ -6,6 +6,13 @@ interface AllBibleStudiesContent {
   heading: string
 }
 
+interface PaginationInfo {
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
 interface Props {
   content: AllBibleStudiesContent
   churchId?: string
@@ -25,6 +32,7 @@ interface Props {
     hasTranscript: boolean
     book?: string
   }[]
+  pagination?: PaginationInfo
 }
 
 /**
@@ -36,13 +44,15 @@ function toDateString(date: Date | string | null): string {
   return String(date)
 }
 
-export default async function AllBibleStudiesSection({ content, churchId, studies: preloadedStudies }: Props) {
+export default async function AllBibleStudiesSection({ content, churchId, studies: preloadedStudies, pagination: preloadedPagination }: Props) {
   try {
     // If studies are already resolved (via resolve-section-data or direct prop), use them.
     // Otherwise fetch from DB directly (for when used as a standalone server component).
     let studies = preloadedStudies
+    let pagination = preloadedPagination
     if (!studies && churchId) {
-      const result = await getBibleStudies(churchId, { pageSize: 200 })
+      const PAGE_SIZE = 50
+      const result = await getBibleStudies(churchId, { pageSize: PAGE_SIZE })
       studies = result.data.map((s) => ({
         id: s.id,
         slug: s.slug,
@@ -55,9 +65,10 @@ export default async function AllBibleStudiesSection({ content, churchId, studie
         hasTranscript: s.hasTranscript,
         book: s.book ? bibleBookLabel(s.book) : undefined,
       }))
+      pagination = { total: result.total, page: result.page, pageSize: result.pageSize, totalPages: result.totalPages }
     }
 
-    return <AllBibleStudiesClient studies={studies ?? []} heading={content.heading} />
+    return <AllBibleStudiesClient studies={studies ?? []} heading={content.heading} pagination={pagination} />
   } catch (error) {
     console.error('[AllBibleStudiesSection] Failed to load Bible studies:', error)
     return (

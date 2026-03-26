@@ -45,6 +45,7 @@ function slugify(text: string): string {
 async function resolveKeyVerse(
   passage: string,
   keyVerseRef: string,
+  bibleVersion = 'ESV',
 ): Promise<string | null> {
   if (!keyVerseRef) return null
 
@@ -58,7 +59,7 @@ async function resolveKeyVerse(
   // Fetch the single verse from the database
   const verse = await prisma.bibleVerse.findFirst({
     where: {
-      version: 'ESV',
+      version: bibleVersion,
       book: parsed.book,
       chapter: parsed.chapter,
       verse: verseNum,
@@ -111,7 +112,7 @@ async function resolveKeyVerse(
  * resolves bible text from the local database, and returns
  * a shaped object matching the DailyBreadData interface.
  */
-export async function fetchDailyBreadFromFeed(): Promise<DailyBreadFeedEntry | null> {
+export async function fetchDailyBreadFromFeed(bibleVersion = 'ESV'): Promise<DailyBreadFeedEntry | null> {
   try {
     const res = await fetch(UBF_DAILY_BREAD_XML, {
       next: { revalidate: 3600 }, // cache for 1 hour
@@ -140,11 +141,11 @@ export async function fetchDailyBreadFromFeed(): Promise<DailyBreadFeedEntry | n
     // Parse date — format: "2026-03-12 00:00:00"
     const date = rawDate.split(' ')[0] || new Date().toISOString().split('T')[0]
 
-    // Fetch bible text from local DB
-    const bibleResult = await fetchBibleText(passage, 'ESV')
+    // Fetch bible text from local DB using the church's configured version
+    const bibleResult = await fetchBibleText(passage, bibleVersion)
 
     // Resolve key verse text — extract "Book Chapter" from passage for reference
-    const keyVerseText = await resolveKeyVerse(passage, keyVerseRef)
+    const keyVerseText = await resolveKeyVerse(passage, keyVerseRef, bibleVersion)
     let keyVerse: string | null = null
     if (keyVerseText) {
       // Extract "Exodus 19" from "Exodus 19:1-6"

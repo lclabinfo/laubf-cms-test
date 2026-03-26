@@ -23,9 +23,11 @@ function toDateString(date: Date | string | null): string {
 export default async function BibleStudyListingPage() {
   const churchId = await getChurchId()
 
-  // Fetch all published bible studies (paginated at 200 to match
-  // the pattern used by resolve-section-data for all-bible-studies)
-  const result = await getBibleStudies(churchId, { pageSize: 50 })
+  // Fetch first page of published bible studies (server-side).
+  // The client component fetches additional pages via the API as the user
+  // clicks "Load More", so we don't need to fetch everything up front.
+  const PAGE_SIZE = 50
+  const result = await getBibleStudies(churchId, { pageSize: PAGE_SIZE })
 
   // Transform Prisma models into the shape expected by AllBibleStudiesSection
   const studies = result.data.map((s) => ({
@@ -57,6 +59,7 @@ export default async function BibleStudyListingPage() {
         enableAnimations={true}
         colorScheme="light"
         studies={studies}
+        pagination={{ total: result.total, page: result.page, pageSize: result.pageSize, totalPages: result.totalPages }}
       />
     </>
   )

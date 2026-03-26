@@ -20,7 +20,7 @@ const hostPattern = `(?!admin\\.)(.+)\\.${escapedDomain}`
 
 const nextConfig: NextConfig = {
   output: 'standalone',
-  serverExternalPackages: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner'],
+  serverExternalPackages: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner', 'typescript'],
   experimental: {
     optimizePackageImports: [
       'lucide-react',
@@ -33,6 +33,7 @@ const nextConfig: NextConfig = {
     serverSourceMaps: false,
   },
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",

@@ -4,7 +4,7 @@ import Link from "next/link"
 import { getChurchId } from "@/lib/tenant/context"
 import { getMessageBySlug } from "@/lib/dal/messages"
 import { resolveHref } from "@/lib/website/resolve-href"
-import { contentToHtml } from "@/lib/tiptap"
+import { contentToHtml } from "@/lib/tiptap-server"
 import {
   IconChevronLeft,
   IconCalendar,

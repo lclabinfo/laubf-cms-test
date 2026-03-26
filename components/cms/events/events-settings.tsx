@@ -28,7 +28,6 @@ type HighlightCardsContent = {
   showPastEvents: boolean
   pastEventsWindow: number
   sortOrder: string
-  autoHidePastFeatured: boolean
 }
 
 const DEFAULT_CONTENT: HighlightCardsContent = {
@@ -43,7 +42,6 @@ const DEFAULT_CONTENT: HighlightCardsContent = {
   showPastEvents: true,
   pastEventsWindow: 14,
   sortOrder: "asc",
-  autoHidePastFeatured: false,
 }
 
 export function EventsSettings() {
@@ -84,7 +82,6 @@ export function EventsSettings() {
           showPastEvents: raw.showPastEvents !== undefined ? (raw.showPastEvents as boolean) : DEFAULT_CONTENT.showPastEvents,
           pastEventsWindow: (raw.pastEventsWindow as number) ?? DEFAULT_CONTENT.pastEventsWindow,
           sortOrder: (raw.sortOrder as string) ?? DEFAULT_CONTENT.sortOrder,
-          autoHidePastFeatured: (raw.autoHidePastFeatured as boolean) ?? DEFAULT_CONTENT.autoHidePastFeatured,
         })
       } catch (err) {
         console.error("Failed to load events settings:", err)
@@ -168,19 +165,6 @@ export function EventsSettings() {
             <p className="text-xs text-muted-foreground">
               Maximum number of events to show (1-6). Empty slots are auto-filled from upcoming events.
             </p>
-          </div>
-
-          <div className="flex items-center justify-between rounded-lg border p-3">
-            <div className="space-y-0.5">
-              <Label className="text-sm font-medium">Auto-hide past featured events</Label>
-              <p className="text-xs text-muted-foreground">
-                Automatically hide manually featured events after they&apos;ve passed.
-              </p>
-            </div>
-            <Switch
-              checked={content.autoHidePastFeatured}
-              onCheckedChange={(checked) => updateField("autoHidePastFeatured", checked)}
-            />
           </div>
 
           <div className="flex items-center justify-between rounded-lg border p-3">

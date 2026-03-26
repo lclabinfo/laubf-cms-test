@@ -346,10 +346,13 @@ export default function EventActions({ event, shareUrl }: { event: EventData; sh
     if (navigator.share) {
       try {
         await navigator.share(shareData)
-      } catch {
-        // User cancelled or share failed — fall through to clipboard
+        setShareToast(true)
+        setTimeout(() => setShareToast(false), 2000)
+        return // Only return on successful share
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return // User cancelled — exit silently
+        // Other error — fall through to clipboard fallback
       }
-      return
     }
 
     // Fallback: copy to clipboard

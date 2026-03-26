@@ -78,9 +78,13 @@ export async function POST(request: NextRequest) {
 
     const message = await createMessage(churchId, messageData, seriesId ?? null)
 
-    // Sync study content to BibleStudy table if this message has study material
+    // Sync study content to BibleStudy table if this message has study material or a transcript
     const studySections = message.studySections as { id: string; title: string; content: string }[] | null
-    if (message.hasStudy && studySections && studySections.length > 0) {
+    const hasStudySections = studySections && studySections.length > 0
+    const rawTranscript = (message.rawTranscript as string) ?? null
+    const hasRawTranscript = rawTranscript && rawTranscript.trim()
+
+    if (message.hasStudy && (hasStudySections || hasRawTranscript)) {
       try {
         await syncMessageStudy({
           messageId: message.id,
@@ -97,13 +101,14 @@ export async function POST(request: NextRequest) {
           attachments: body.attachments as { id: string; name: string; url?: string; type?: string }[] | null,
           bibleVersion: message.bibleVersion,
           existingStudyId: null,
+          rawTranscript,
         })
       } catch (syncErr) {
         console.error('POST /api/v1/messages: bible study sync warning:', syncErr)
         // Don't fail the message creation if sync fails
       }
-    } else if (message.hasStudy && (!studySections || studySections.length === 0)) {
-      // hasStudy=true but no study sections — auto-correct to hasStudy=false
+    } else if (message.hasStudy && !hasStudySections && !hasRawTranscript) {
+      // hasStudy=true but no study sections and no transcript — auto-correct to hasStudy=false
       try {
         await updateMessageRecord(churchId, message.id, { hasStudy: false })
       } catch (correctErr) {

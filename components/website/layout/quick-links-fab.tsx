@@ -45,6 +45,16 @@ export default function QuickLinksFAB({
   const [isMobile, setIsMobile] = useState(false)
   const [showScrollTop, setShowScrollTop] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Clean up close timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 1023px)")
@@ -101,15 +111,28 @@ export default function QuickLinksFAB({
       window.scrollTo({ top: 0, behavior: "smooth" })
       return
     }
-    if (isMobile) setIsOpen((prev) => !prev)
+    setIsOpen((prev) => !prev)
   }, [isMobile, showScrollTop])
 
   const handleMouseEnter = useCallback(() => {
-    if (!isMobile) setIsOpen(true)
+    if (isMobile) return
+    // Cancel any pending close so the panel stays open when the mouse
+    // crosses the gap between the button and the panel
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current)
+      closeTimeoutRef.current = null
+    }
+    setIsOpen(true)
   }, [isMobile])
 
   const handleMouseLeave = useCallback(() => {
-    if (!isMobile) setIsOpen(false)
+    if (isMobile) return
+    // Delay closing to give the user time to cross the visual gap
+    // between the panel and the FAB button
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsOpen(false)
+      closeTimeoutRef.current = null
+    }, 150)
   }, [isMobile])
 
   if (!visible || links.length === 0) return null
@@ -118,16 +141,19 @@ export default function QuickLinksFAB({
     <div
       ref={containerRef}
       className="fixed bottom-6 right-4 lg:bottom-8 lg:right-8 z-40 flex flex-col items-end gap-3 pointer-events-none"
-      onMouseLeave={handleMouseLeave}
     >
-      {/* Expanded link list */}
+      {/* Expanded link list – pb-3 + -mb-3 creates an invisible hover bridge
+           that overlaps the gap between panel and FAB so the mouse never
+           leaves a pointer-events-auto surface while crossing between them. */}
       <div
         className={cn(
-          "flex flex-col gap-1.5 origin-bottom-right transition-all duration-300 ease-smooth",
+          "origin-bottom-right transition-all duration-300 ease-smooth pb-3 -mb-3",
           isOpen
             ? "opacity-100 translate-y-0 scale-100 pointer-events-auto"
-            : "opacity-0 translate-y-2 scale-95",
+            : "opacity-0 translate-y-2 scale-95 pointer-events-none",
         )}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         <div className="bg-white-1 border border-white-2-5 rounded-2xl shadow-[0px_12px_24px_0px_rgba(0,0,0,0.08),0px_4px_8px_0px_rgba(0,0,0,0.04)] p-2 min-w-[240px]">
           {/* Section title */}
@@ -199,6 +225,7 @@ export default function QuickLinksFAB({
       <button
         onClick={handleToggle}
         onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         aria-label={
           isMobile && showScrollTop
             ? "Scroll to top"

@@ -3,7 +3,7 @@ import { ContentStatus, type AttachmentType, type BibleBook } from '@/lib/genera
 // ContentStatus still used for BibleStudy model (which retains its own status column)
 import { tiptapJsonToHtml } from '@/lib/tiptap'
 import { fetchBibleText } from '@/lib/bible-api'
-import { deleteObject, moveObject, isStagingKey, keyFromUrl, getPublicUrl } from '@/lib/storage/r2'
+import { deleteObject, moveObject, isStagingKey, keyFromUrl, getPublicUrl, buildContentDisposition } from '@/lib/storage/r2'
 
 /**
  * Maps passage strings like "John 3:16", "1 Corinthians 13:1-8", "Genesis 12"
@@ -121,6 +121,9 @@ interface SyncParams {
   bibleVersion?: string | null
   /** Existing relatedStudyId on the Message (if updating) */
   existingStudyId?: string | null
+  /** Message.rawTranscript — used as fallback for BibleStudy.transcript
+   *  when no study section has "transcript" in its title */
+  rawTranscript?: string | null
 }
 
 /**
@@ -145,6 +148,7 @@ export async function syncMessageStudy(params: SyncParams): Promise<string> {
     attachments,
     bibleVersion,
     existingStudyId,
+    rawTranscript,
   } = params
 
   // Extract questions, answers, transcript from study sections by title.
@@ -178,6 +182,13 @@ export async function syncMessageStudy(params: SyncParams): Promise<string> {
         .join('\n')
       questions = questions ? `${questions}\n${extra}` : extra
     }
+  }
+
+  // Fallback: if no study section provided a transcript, use Message.rawTranscript
+  // (the transcript entered on the Video tab in the CMS). rawTranscript is stored
+  // as TipTap JSON — convert to HTML for the public website.
+  if (!transcript && rawTranscript && rawTranscript.trim()) {
+    transcript = tiptapJsonToHtml(rawTranscript)
   }
 
   const book = passage ? parseBookFromPassage(passage) : null
@@ -292,6 +303,7 @@ interface SyncAttachmentContext {
 async function promoteFromStaging(
   url: string,
   ctx: SyncAttachmentContext,
+  filename: string,
 ): Promise<string> {
   const srcKey = keyFromUrl(url)
   if (!srcKey || !isStagingKey(srcKey)) return url
@@ -301,7 +313,7 @@ async function promoteFromStaging(
   const destKey = `${ctx.churchSlug}/${ctx.year}/${ctx.studySlug}/${uuidFilename}`
   const destUrl = getPublicUrl(destKey)
 
-  await moveObject(srcKey, destKey)
+  await moveObject(srcKey, destKey, undefined, buildContentDisposition(filename))
   return destUrl
 }
 
@@ -356,7 +368,7 @@ async function syncStudyAttachments(
   for (let i = 0; i < attachments.length; i++) {
     const att = attachments[i]
     const attType = resolveAttachmentType(att.type, att.name)
-    const url = att.url ? await promoteFromStaging(att.url, ctx) : ''
+    const url = att.url ? await promoteFromStaging(att.url, ctx, att.name) : ''
     await prisma.bibleStudyAttachment.upsert({
       where: { id: att.id },
       update: {

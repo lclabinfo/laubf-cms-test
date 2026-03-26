@@ -1,10 +1,11 @@
 import { getLatestMessage, getMessages } from '@/lib/dal/messages'
-import { getUpcomingEvents, getEvents, getHybridFeaturedEvents } from '@/lib/dal/events'
+import { getUpcomingEvents, getEvents } from '@/lib/dal/events'
 import { getVideos } from '@/lib/dal/videos'
 import { getBibleStudies } from '@/lib/dal/bible-studies'
 import { getTodaysDailyBread } from '@/lib/dal/daily-bread'
 import { fetchDailyBreadFromFeed } from '@/lib/daily-bread-feed'
 import { getCampuses } from '@/lib/dal/campuses'
+import { getChurchDefaultBibleVersion } from '@/lib/dal/church'
 import { bibleBookLabel } from '@/lib/website/bible-book-labels'
 import { formatTime } from '@/lib/website/format-time'
 import type { SectionType } from '@/lib/db/types'
@@ -99,11 +100,8 @@ export async function resolveSectionData(
         const showPastEvents = content.showPastEvents !== false // default true
         const pastEventsWindow = (content.pastEventsWindow as number) ?? 14 // default 2 weeks
         const sortOrder = (content.sortOrder as 'asc' | 'desc') ?? 'asc'
-        const autoHidePastFeatured = content.autoHidePastFeatured === true
 
-        const events = await getHybridFeaturedEvents(churchId, {
-          maxCount: count,
-          autoHidePastFeatured,
+        const events = await getUpcomingEvents(churchId, count, {
           includeRecurring,
           pastEventsDays: showPastEvents ? pastEventsWindow : 0,
           sortOrder,
@@ -119,7 +117,6 @@ export async function resolveSectionData(
               location: e.location || '',
               imageUrl: e.coverImage || null,
               slug: e.slug,
-              featuredMode: e.featuredMode,
             })),
           },
         }
@@ -332,12 +329,16 @@ export async function resolveSectionData(
       }
 
       case 'latest-daily-bread': {
-        const bread = await getTodaysDailyBread(churchId)
+        const [bread, defaultBibleVersion] = await Promise.all([
+          getTodaysDailyBread(churchId),
+          getChurchDefaultBibleVersion(churchId),
+        ])
 
         if (bread) {
           return {
             content: {
               ...content,
+              defaultBibleVersion,
               dailyBread: {
                 slug: bread.slug,
                 title: bread.title,
@@ -354,10 +355,11 @@ export async function resolveSectionData(
         }
 
         // Fall back to UBF.org XML feed when no local DB entry exists
-        const feedEntry = await fetchDailyBreadFromFeed()
+        const feedEntry = await fetchDailyBreadFromFeed(defaultBibleVersion)
         return {
           content: {
             ...content,
+            defaultBibleVersion,
             dailyBread: feedEntry ?? null,
           },
         }

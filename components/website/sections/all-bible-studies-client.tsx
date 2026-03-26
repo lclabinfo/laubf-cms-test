@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useRef, useTransition, useEffect } from "react"
 import SectionContainer from "@/components/website/shared/section-container"
 import BibleStudyCard from "@/components/website/shared/bible-study-card"
 import FilterToolbar from "@/components/website/shared/filter-toolbar"
@@ -8,6 +8,7 @@ import { IconGrid, IconListView, IconBookOpen, IconFileText, IconHelpCircle, Ico
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { resolveHref } from "@/lib/website/resolve-href"
+import { bibleBookLabel } from "@/lib/website/bible-book-labels"
 
 interface BibleStudy {
   id: string
@@ -32,8 +33,15 @@ interface BibleStudyFilters {
   dateTo?: string
 }
 
-const INITIAL_COUNT = 48
-const LOAD_MORE_COUNT = 48
+interface PaginationInfo {
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+const INITIAL_DISPLAY = 48
+const DISPLAY_INCREMENT = 48
 
 /* ---- Bible books data for Books tab ---- */
 
@@ -126,18 +134,87 @@ function formatDate(dateStr: string) {
 interface Props {
   studies: BibleStudy[]
   heading: string
+  pagination?: PaginationInfo
 }
 
-export default function AllBibleStudiesClient({ studies, heading }: Props) {
+/**
+ * Fetch additional pages of bible studies from the API and transform them
+ * into the shape this component expects. Returns the new studies array.
+ */
+async function fetchStudiesPage(page: number, pageSize: number): Promise<BibleStudy[]> {
+  const res = await fetch(`/api/v1/bible-studies?page=${page}&pageSize=${pageSize}`)
+  if (!res.ok) return []
+  const json = await res.json()
+  if (!json.success || !json.data) return []
+  return json.data.map((s: Record<string, unknown>) => ({
+    id: s.id as string,
+    slug: s.slug as string,
+    title: s.title as string,
+    passage: (s.passage as string) || '',
+    series: (s.series as { name?: string } | null)?.name || '',
+    dateFor: s.dateFor ? String(s.dateFor).split('T')[0] : '',
+    hasQuestions: s.hasQuestions as boolean,
+    hasAnswers: s.hasAnswers as boolean,
+    hasTranscript: s.hasTranscript as boolean,
+    book: s.book ? bibleBookLabel(s.book as string) : undefined,
+  }))
+}
+
+export default function AllBibleStudiesClient({ studies: initialStudies, heading, pagination }: Props) {
   /* ---- State ---- */
   const [tab, setTab] = useState<TabView>("all")
   const [viewMode, setViewMode] = useState<ViewMode>("card")
   const [search, setSearch] = useState("")
   const [filters, setFilters] = useState<BibleStudyFilters>({})
   const [yearFilter, setYearFilter] = useState("")
-  const [displayCount, setDisplayCount] = useState(INITIAL_COUNT)
+  const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY)
   const [sortField, setSortField] = useState("date")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
+
+  /* ---- Server-side pagination state ---- */
+  const [allStudies, setAllStudies] = useState<BibleStudy[]>(initialStudies)
+  const [serverPage, setServerPage] = useState(pagination?.page ?? 1)
+  const [isLoadingMore, startLoadingMore] = useTransition()
+  const totalServerStudies = pagination?.total ?? initialStudies.length
+  const serverPageSize = pagination?.pageSize ?? initialStudies.length
+  const hasMoreServerPages = allStudies.length < totalServerStudies
+
+  // On mount, eagerly fetch all remaining pages in the background so that
+  // series/book counts are accurate and client-side filtering covers everything.
+  const hasFetchedAll = useRef(false)
+  useEffect(() => {
+    if (hasFetchedAll.current) return
+    if (!hasMoreServerPages) return
+    hasFetchedAll.current = true
+
+    async function fetchAllRemaining() {
+      const totalPages = pagination?.totalPages ?? 1
+      let currentPage = (pagination?.page ?? 1) + 1
+      const pageSize = pagination?.pageSize ?? 50
+      const accumulated: BibleStudy[] = []
+
+      while (currentPage <= totalPages) {
+        const batch = await fetchStudiesPage(currentPage, pageSize)
+        if (batch.length === 0) break
+        accumulated.push(...batch)
+        currentPage++
+      }
+
+      if (accumulated.length > 0) {
+        setAllStudies((prev) => {
+          const existingIds = new Set(prev.map((s) => s.id))
+          const unique = accumulated.filter((s) => !existingIds.has(s.id))
+          return [...prev, ...unique]
+        })
+        setServerPage(totalPages)
+      }
+    }
+
+    fetchAllRemaining()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Use allStudies instead of the prop for all derived data
+  const studies = allStudies
 
   /* ---- Derived data ---- */
   const seriesList = useMemo(() => {
@@ -227,7 +304,8 @@ export default function AllBibleStudiesClient({ studies, heading }: Props) {
   }, [studies, filters, search, sortField, sortDirection])
 
   const visibleStudies = filteredStudies.slice(0, displayCount)
-  const hasMore = displayCount < filteredStudies.length
+  // Show "Load More" if there are more studies to display OR more pages to fetch from the server
+  const hasMore = displayCount < filteredStudies.length || hasMoreServerPages
 
   function updateFilter<K extends keyof BibleStudyFilters>(
     key: K,
@@ -235,7 +313,7 @@ export default function AllBibleStudiesClient({ studies, heading }: Props) {
   ) {
     setFilters((prev) => ({ ...prev, [key]: value }))
     if (key === "dateFrom" || key === "dateTo") setYearFilter("")
-    setDisplayCount(INITIAL_COUNT)
+    setDisplayCount(INITIAL_DISPLAY)
   }
 
   function handleYearChange(year: string) {
@@ -245,7 +323,7 @@ export default function AllBibleStudiesClient({ studies, heading }: Props) {
     } else {
       setFilters((prev) => ({ ...prev, dateFrom: undefined, dateTo: undefined }))
     }
-    setDisplayCount(INITIAL_COUNT)
+    setDisplayCount(INITIAL_DISPLAY)
   }
 
   /** Switch to "all" tab with a specific filter pre-applied */
@@ -254,7 +332,7 @@ export default function AllBibleStudiesClient({ studies, heading }: Props) {
     setFilters({ [key]: value })
     setYearFilter("")
     setSearch("")
-    setDisplayCount(INITIAL_COUNT)
+    setDisplayCount(INITIAL_DISPLAY)
   }, [])
 
   const tabs: { key: string; label: string }[] = [
@@ -274,7 +352,7 @@ export default function AllBibleStudiesClient({ studies, heading }: Props) {
             setTab(key as TabView)
             setFilters({})
             setSearch("")
-            setDisplayCount(INITIAL_COUNT)
+            setDisplayCount(INITIAL_DISPLAY)
           },
         }}
         viewModes={tab === "all" ? {
@@ -289,7 +367,7 @@ export default function AllBibleStudiesClient({ studies, heading }: Props) {
           value: search,
           onChange: (v) => {
             setSearch(v)
-            setDisplayCount(INITIAL_COUNT)
+            setDisplayCount(INITIAL_DISPLAY)
           },
           placeholder: "Search studies, passages, series...",
         } : undefined}
@@ -350,7 +428,7 @@ export default function AllBibleStudiesClient({ studies, heading }: Props) {
           setSearch("")
           setFilters({})
           setYearFilter("")
-          setDisplayCount(INITIAL_COUNT)
+          setDisplayCount(INITIAL_DISPLAY)
         } : undefined}
         className="mb-8"
       />
@@ -367,7 +445,7 @@ export default function AllBibleStudiesClient({ studies, heading }: Props) {
                 onClick={() => {
                   setSearch("")
                   setFilters({})
-                  setDisplayCount(INITIAL_COUNT)
+                  setDisplayCount(INITIAL_DISPLAY)
                 }}
                 className="mt-4 text-accent-blue text-[14px] font-medium hover:underline"
               >
@@ -384,10 +462,30 @@ export default function AllBibleStudiesClient({ studies, heading }: Props) {
           {hasMore && (
             <div className="flex justify-center mt-10">
               <button
-                onClick={() => setDisplayCount((c) => c + LOAD_MORE_COUNT)}
-                className="inline-flex items-center justify-center rounded-full border border-black-1/30 px-8 py-4 text-button-1 text-black-1 transition-colors hover:bg-black-1 hover:text-white-1"
+                disabled={isLoadingMore}
+                onClick={() => {
+                  // If we have more items already loaded from the server, just show more
+                  if (displayCount < filteredStudies.length) {
+                    setDisplayCount((c) => c + DISPLAY_INCREMENT)
+                  } else if (hasMoreServerPages) {
+                    // Fetch the next page from the server and append
+                    const nextPage = serverPage + 1
+                    startLoadingMore(async () => {
+                      const newStudies = await fetchStudiesPage(nextPage, serverPageSize)
+                      if (newStudies.length > 0) {
+                        // Deduplicate by id before appending
+                        const existingIds = new Set(allStudies.map((s) => s.id))
+                        const unique = newStudies.filter((s) => !existingIds.has(s.id))
+                        setAllStudies((prev) => [...prev, ...unique])
+                        setServerPage(nextPage)
+                        setDisplayCount((c) => c + DISPLAY_INCREMENT)
+                      }
+                    })
+                  }
+                }}
+                className="inline-flex items-center justify-center rounded-full border border-black-1/30 px-8 py-4 text-button-1 text-black-1 transition-colors hover:bg-black-1 hover:text-white-1 disabled:opacity-50"
               >
-                Load More Studies
+                {isLoadingMore ? 'Loading...' : 'Load More Studies'}
               </button>
             </div>
           )}

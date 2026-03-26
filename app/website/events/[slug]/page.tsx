@@ -15,7 +15,7 @@ import {
   IconVideo,
 } from "@/components/website/shared/icons"
 import { resolveHref } from "@/lib/website/resolve-href"
-import { contentToHtml } from "@/lib/tiptap"
+import { contentToHtml } from "@/lib/tiptap-server"
 import EventActions from "@/components/website/shared/event-actions"
 
 interface PageProps {

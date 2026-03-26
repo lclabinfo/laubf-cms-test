@@ -84,7 +84,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useEvents } from "@/lib/events-context"
-import { FeaturedToggleDialog, determineFeaturedScenario, type FeaturedToggleScenario } from "@/components/cms/events/featured-toggle-dialog"
 import { statusDisplay } from "@/lib/status"
 import type { ContentStatus } from "@/lib/status"
 import {
@@ -245,8 +244,6 @@ export function EventForm({ mode, event }: EventFormProps) {
   const [eventType, setEventType] = useState<EventType>(event?.type ?? "event")
   const [ministry, setMinistry] = useState<MinistryTag>(event?.ministry ?? "church-wide")
   const [campus, setCampus] = useState<CampusTag | undefined>(event?.campus)
-  const [isFeatured, setIsFeatured] = useState(event?.isFeatured ?? false)
-  const [featuredScenario, setFeaturedScenario] = useState<FeaturedToggleScenario | null>(null)
   const [contacts, setContacts] = useState<EventContact[]>(event?.contacts ?? [])
   const [coverImage, setCoverImage] = useState(event?.coverImage ?? "")
   const pendingImageDeletionsRef = useRef<string[]>([])
@@ -313,7 +310,7 @@ export function EventForm({ mode, event }: EventFormProps) {
     recurrenceEndType, recurrenceEndDate, customRecurrence: JSON.stringify(customRecurrence),
     monthlyType, locationType, location, address, locationInstructions, meetingUrl,
     description, welcomeMessage, links: JSON.stringify(links),
-    status, eventType, ministry, campus: campus ?? "", isFeatured,
+    status, eventType, ministry, campus: campus ?? "",
     contacts: JSON.stringify(contacts), coverImage, imageAlt,
     costType, costAmount, registrationRequired, registrationUrl,
     maxParticipants: maxParticipants ?? "", registrationDeadline,
@@ -321,7 +318,7 @@ export function EventForm({ mode, event }: EventFormProps) {
     title, shortDescription, startDate, endDate, startTime, endTime,
     recurrence, recurrenceDays, recurrenceEndType, recurrenceEndDate, customRecurrence,
     monthlyType, locationType, location, address, locationInstructions, meetingUrl,
-    description, welcomeMessage, links, status, eventType, ministry, campus, isFeatured,
+    description, welcomeMessage, links, status, eventType, ministry, campus,
     contacts, coverImage, imageAlt, costType, costAmount, registrationRequired,
     registrationUrl, maxParticipants, registrationDeadline,
   ])
@@ -531,7 +528,7 @@ export function EventForm({ mode, event }: EventFormProps) {
       ministry,
       campus: campus || undefined,
       status: saveStatus,
-      isFeatured,
+      isFeatured: event?.isFeatured ?? false,
       shortDescription: shortDescription.trim(),
       description: finalDescription,
       welcomeMessage: welcomeMessage || "",
@@ -1170,63 +1167,6 @@ export function EventForm({ mode, event }: EventFormProps) {
                   </Select>
                 </div>
               </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Featured Event</Label>
-                  <p className="text-xs text-muted-foreground">Display this event in the featured section on your website</p>
-                </div>
-                <Switch
-                  checked={isFeatured}
-                  onCheckedChange={(checked) => {
-                    // Build a temporary ChurchEvent for scenario determination
-                    const tempEvent: ChurchEvent = {
-                      id: event?.id ?? "",
-                      slug: event?.slug ?? "",
-                      title: title || "This event",
-                      type: eventType,
-                      date: startDate || today,
-                      endDate: endDate || startDate || today,
-                      startTime: startTime,
-                      endTime: endTime,
-                      recurrence: recurrence,
-                      recurrenceDays: recurrenceDays,
-                      recurrenceEndType: recurrenceEndType,
-                      locationType: locationType,
-                      location: location,
-                      ministry: ministry,
-                      campus: campus,
-                      status: status,
-                      isFeatured: isFeatured,
-                      links: links,
-                    }
-                    if (checked) {
-                      // Trying to feature
-                      const otherFeatured = allEvents.filter((e) => e.isFeatured && e.id !== event?.id)
-                      if (otherFeatured.length >= 3) {
-                        setFeaturedScenario({ type: "replace", event: tempEvent, currentFeatured: otherFeatured })
-                      } else {
-                        setIsFeatured(true)
-                      }
-                    } else {
-                      setIsFeatured(false)
-                    }
-                  }}
-                />
-              </div>
-
-              <FeaturedToggleDialog
-                scenario={featuredScenario}
-                onConfirm={(eventToFeature, eventToUnfeature) => {
-                  if (eventToUnfeature) {
-                    // Unfeature the replaced event via context
-                    updateEvent(eventToUnfeature.id, { isFeatured: false })
-                  }
-                  setIsFeatured(true)
-                  setFeaturedScenario(null)
-                }}
-                onCancel={() => setFeaturedScenario(null)}
-              />
 
               {/* Links (up to 3) */}
               <div className="space-y-2">

@@ -7,7 +7,7 @@ import { useCmsSession } from "@/components/cms/cms-shell"
 import { PageHeader } from "@/components/cms/page-header"
 import Link from "next/link"
 import { toast } from "sonner"
-import { Loader2, Star, MapPin, Globe, CalendarDays, ImageIcon, Settings } from "lucide-react"
+import { Loader2, MapPin, Globe, CalendarDays, ImageIcon, Settings } from "lucide-react"
 import {
   useReactTable,
   getCoreRowModel,
@@ -28,7 +28,6 @@ import { Toolbar } from "@/components/cms/events/toolbar"
 import { useEvents } from "@/lib/events-context"
 import { eventTypeDisplay, computeRecurrenceSchedule, ministryDisplay } from "@/lib/events-data"
 import type { ChurchEvent } from "@/lib/events-data"
-import { FeaturedToggleDialog, determineFeaturedScenario, type FeaturedToggleScenario } from "@/components/cms/events/featured-toggle-dialog"
 import { statusDisplay } from "@/lib/status"
 import { EventsSettings } from "@/components/cms/events/events-settings"
 import { cn } from "@/lib/utils"
@@ -281,40 +280,13 @@ export default function EventsPage() {
     toast.success(`${ids.length} ${ids.length === 1 ? "event" : "events"} unarchived`)
   }, [bulkAction])
 
-  // Featured toggle
-  const [featuredScenario, setFeaturedScenario] = useState<FeaturedToggleScenario | null>(null)
-
-  const handleToggleFeatured = useCallback((event: ChurchEvent) => {
-    const scenario = determineFeaturedScenario(event, events)
-    if (scenario) setFeaturedScenario(scenario)
-  }, [events])
-
-  const handleFeaturedConfirm = useCallback((eventToFeature: ChurchEvent, eventToUnfeature?: ChurchEvent) => {
-    // Scenario C: Replace — unfeature the old one first
-    if (eventToUnfeature) {
-      updateEvent(eventToUnfeature.id, { isFeatured: false })
-    }
-    // Toggle the target event
-    const newValue = !eventToFeature.isFeatured
-    updateEvent(eventToFeature.id, { isFeatured: newValue })
-    toast.success(newValue ? "Event featured" : "Event unfeatured", {
-      description: `"${eventToFeature.title}" has been ${newValue ? "added to" : "removed from"} featured events.`,
-    })
-    setFeaturedScenario(null)
-  }, [updateEvent])
-
-  const handleFeaturedCancel = useCallback(() => {
-    setFeaturedScenario(null)
-  }, [])
-
   const columns = useMemo(() => createColumns({
     onDelete: handleDelete,
-    onToggleFeatured: handleToggleFeatured,
     onPublish: handlePublish,
     onUnpublish: handleUnpublish,
     onArchive: handleArchive,
     onUnarchive: handleUnarchive,
-  }), [handleDelete, handleToggleFeatured, handlePublish, handleUnpublish, handleArchive, handleUnarchive])
+  }), [handleDelete, handlePublish, handleUnpublish, handleArchive, handleUnarchive])
 
   const [sorting, setSorting] = useSessionState<SortingState>("cms:events:sorting", [
     { id: "date", desc: true },
@@ -340,12 +312,8 @@ export default function EventsPage() {
     })
   }, [events, dateFrom, dateTo])
 
-  // Sort: featured events pinned to top, then by date descending
-  const sortedEvents = useMemo(() => {
-    const featured = filteredByDate.filter((e) => e.isFeatured)
-    const nonFeatured = filteredByDate.filter((e) => !e.isFeatured)
-    return [...featured, ...nonFeatured]
-  }, [filteredByDate])
+  // Pass events through (no featured pinning)
+  const sortedEvents = filteredByDate
 
   // Reset page index when filters change (replaces TanStack's autoResetPageIndex
   // which uses microtasks that fire before mount in React 19 strict mode)
@@ -553,9 +521,6 @@ export default function EventsPage() {
                                 <CardContent className="flex items-center gap-3">
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2">
-                                      {event.isFeatured && (
-                                        <Star className="size-3.5 shrink-0 text-warning fill-warning" />
-                                      )}
                                       <span className="font-medium text-sm truncate">
                                         {event.title}
                                       </span>
@@ -598,11 +563,6 @@ export default function EventsPage() {
         </TabsContent>
       </Tabs>
 
-      <FeaturedToggleDialog
-        scenario={featuredScenario}
-        onConfirm={handleFeaturedConfirm}
-        onCancel={handleFeaturedCancel}
-      />
     </div>
   )
 }
@@ -651,12 +611,6 @@ function EventCard({ event }: { event: ChurchEvent }) {
           <div className="absolute top-2 right-2">
             <Badge variant={config.variant}>{config.label}</Badge>
           </div>
-          {/* Featured star overlay */}
-          {event.isFeatured && (
-            <div className="absolute top-2 left-2">
-              <Star className="size-4 text-warning fill-warning drop-shadow" />
-            </div>
-          )}
         </div>
 
         <CardContent className="space-y-1.5">

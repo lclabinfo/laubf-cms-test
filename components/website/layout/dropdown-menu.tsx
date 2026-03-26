@@ -182,10 +182,13 @@ function SectionColumn({
                   : "gap-4 min-w-[200px] min-h-[62px] px-4 py-3",
               )}
             >
-              {!section.compact && Icon && (
+              {Icon && (
                 <Icon
-                  className="size-6 text-black-1 shrink-0"
-                  strokeWidth={1.5}
+                  className={cn(
+                    "shrink-0",
+                    section.compact ? "size-[18px] text-black-2" : "size-6 text-black-1"
+                  )}
+                  strokeWidth={section.compact ? 1.75 : 1.5}
                 />
               )}
               <div className="flex flex-col min-w-0 flex-1">

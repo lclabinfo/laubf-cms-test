@@ -2,9 +2,10 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { getChurchId } from "@/lib/tenant/context"
 import { getBibleStudyBySlug } from "@/lib/dal/bible-studies"
+import { getChurchDefaultBibleVersion } from "@/lib/dal/church"
 import type { BibleStudyDetail, BibleStudyAttachment } from "@/lib/types/bible-study"
 import { bibleBookLabel } from "@/lib/website/bible-book-labels"
-import { contentToHtml } from "@/lib/tiptap"
+import { contentToHtml } from "@/lib/tiptap-server"
 import StudyDetailView from "@/components/website/study-detail/study-detail-view"
 
 interface PageProps {
@@ -88,7 +89,10 @@ export default async function BibleStudyDetailPage({ params }: PageProps) {
     notFound()
   }
 
-  const detail = transformStudy(study)
+  const [detail, churchDefaultVersion] = await Promise.all([
+    Promise.resolve(transformStudy(study)),
+    getChurchDefaultBibleVersion(churchId),
+  ])
 
-  return <StudyDetailView study={detail} />
+  return <StudyDetailView study={detail} churchDefaultVersion={churchDefaultVersion} />
 }

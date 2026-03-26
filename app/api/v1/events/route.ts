@@ -20,7 +20,6 @@ export async function GET(request: NextRequest) {
       type: (searchParams.get('type') as EventType) ?? undefined,
       ministryId: searchParams.get('ministryId') ?? undefined,
       campusId: searchParams.get('campusId') ?? undefined,
-      isFeatured: searchParams.get('isFeatured') ? searchParams.get('isFeatured') === 'true' : undefined,
       isRecurring: searchParams.get('isRecurring') ? searchParams.get('isRecurring') === 'true' : undefined,
       dateFrom: searchParams.get('dateFrom') ? new Date(searchParams.get('dateFrom')!) : undefined,
       dateTo: searchParams.get('dateTo') ? new Date(searchParams.get('dateTo')!) : undefined,
@@ -137,7 +136,6 @@ export async function POST(request: NextRequest) {
     if (body.registrationRequired !== undefined) data.registrationRequired = body.registrationRequired
     if (body.maxParticipants !== undefined) data.maxParticipants = body.maxParticipants != null ? Number(body.maxParticipants) : null
     if (body.registrationDeadline != null) data.registrationDeadline = new Date(body.registrationDeadline)
-    if (body.isFeatured !== undefined) data.isFeatured = body.isFeatured
     if (body.isPinned !== undefined) data.isPinned = body.isPinned
     if (body.isRecurring !== undefined) data.isRecurring = body.isRecurring
     if (body.recurrence !== undefined) data.recurrence = body.recurrence
