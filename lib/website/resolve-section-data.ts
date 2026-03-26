@@ -282,6 +282,12 @@ export async function resolveSectionData(
               hasTranscript: s.hasTranscript,
               book: s.book ? bibleBookLabel(s.book) : undefined,
             })),
+            pagination: {
+              total: result.total,
+              page: result.page,
+              pageSize: result.pageSize,
+              totalPages: result.totalPages,
+            },
           },
         }
       }
@@ -319,7 +325,7 @@ export async function resolveSectionData(
                 id: c.slug,
                 abbreviation: c.shortName || '',
                 fullName: c.name,
-                href: `/website/ministries/campus/${c.slug}`,
+                href: `/ministries/campus/${c.slug}`,
               })),
           },
         }
