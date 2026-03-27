@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef, useEffect, useTransition } from "react"
 import SectionContainer from "@/components/website/shared/section-container"
 import MessageCard from "@/components/website/shared/message-card"
 import FilterToolbar from "@/components/website/shared/filter-toolbar"
@@ -86,6 +86,13 @@ interface FilterMeta {
   speakers: { name: string; count: number }[]
 }
 
+interface PaginationInfo {
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
 interface Props {
   messages: SimpleMessage[]
   layout: LayoutConfig
@@ -93,15 +100,52 @@ interface Props {
   paddingY?: string
   containerWidth?: string
   filterMeta?: FilterMeta
+  pagination?: PaginationInfo
+}
+
+/**
+ * Fetch a page of video messages from the API and transform to SimpleMessage shape.
+ */
+async function fetchMessagesPage(page: number, pageSize: number): Promise<SimpleMessage[]> {
+  const res = await fetch(`/api/v1/messages?page=${page}&pageSize=${pageSize}&publishedOnly=true`)
+  if (!res.ok) return []
+  const json = await res.json()
+  if (!json.success || !json.data) return []
+  return json.data
+    .filter((m: Record<string, unknown>) => m.youtubeId || m.videoUrl)
+    .map((m: Record<string, unknown>) => {
+      const speaker = m.speaker as { preferredName?: string; firstName?: string; lastName?: string } | null
+      const messageSeries = m.messageSeries as { series: { name: string } }[] | undefined
+      return {
+        id: m.id as string,
+        slug: m.slug as string,
+        title: m.title as string,
+        videoTitle: (m.videoTitle as string) || undefined,
+        passage: (m.passage as string) || '',
+        speaker: speaker
+          ? (speaker.preferredName
+            ? `${speaker.preferredName} ${speaker.lastName}`
+            : `${speaker.firstName} ${speaker.lastName}`)
+          : 'Unknown',
+        series: messageSeries?.[0]?.series?.name || '',
+        dateFor: m.dateFor ? String(m.dateFor).split('T')[0] : '',
+        youtubeId: (m.youtubeId as string) || '',
+        videoUrl: (m.videoUrl as string) || '',
+        thumbnailUrl: (m.thumbnailUrl as string) || (m.youtubeId ? `https://img.youtube.com/vi/${m.youtubeId}/hqdefault.jpg` : ''),
+        duration: (m.duration as string) || '',
+        hasVideo: m.hasVideo as boolean,
+      }
+    })
 }
 
 export default function AllMessagesClient({
-  messages,
+  messages: initialMessages,
   layout,
   colorScheme = 'light',
   paddingY = 'none',
   containerWidth = 'standard',
   filterMeta,
+  pagination,
 }: Props) {
   const t = useSectionTheme()
 
@@ -114,6 +158,45 @@ export default function AllMessagesClient({
   const [displayCount, setDisplayCount] = useState(layout.itemsPerPage)
   const [sortField, setSortField] = useState("date")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
+
+  /* ---- Server-side pagination: eagerly fetch remaining pages ---- */
+  const [allMessages, setAllMessages] = useState<SimpleMessage[]>(initialMessages)
+  const [, startLoadingMore] = useTransition()
+  const totalServerMessages = pagination?.total ?? initialMessages.length
+  const hasMoreServerPages = allMessages.length < totalServerMessages
+
+  const hasFetchedAll = useRef(false)
+  useEffect(() => {
+    if (hasFetchedAll.current) return
+    if (!hasMoreServerPages) return
+    hasFetchedAll.current = true
+
+    async function fetchAllRemaining() {
+      const totalPages = pagination?.totalPages ?? 1
+      let currentPage = (pagination?.page ?? 1) + 1
+      const pageSize = pagination?.pageSize ?? 48
+      const accumulated: SimpleMessage[] = []
+
+      while (currentPage <= totalPages) {
+        const batch = await fetchMessagesPage(currentPage, pageSize)
+        if (batch.length === 0) break
+        accumulated.push(...batch)
+        currentPage++
+      }
+
+      if (accumulated.length > 0) {
+        setAllMessages((prev) => {
+          const existingIds = new Set(prev.map((m) => m.id))
+          const unique = accumulated.filter((m) => !existingIds.has(m.id))
+          return [...prev, ...unique]
+        })
+      }
+    }
+
+    startLoadingMore(() => { fetchAllRemaining() })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const messages = allMessages
 
   /* ---- Derived data ---- */
   // When filterMeta is provided (server-rendered), use it for filter dropdowns

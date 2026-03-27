@@ -1,4 +1,4 @@
-import { getEvents } from '@/lib/dal/events'
+import { getEvents, getEventFilterMeta } from '@/lib/dal/events'
 import AllEventsClient from './all-events-client'
 
 interface AllEventsContent {
@@ -13,7 +13,10 @@ interface Props {
 
 export default async function AllEventsSection({ content, churchId }: Props) {
   try {
-    const eventsResult = await getEvents(churchId, { pageSize: 200 })
+    const [eventsResult, filterMeta] = await Promise.all([
+      getEvents(churchId, { pageSize: 200 }),
+      getEventFilterMeta(churchId),
+    ])
 
     // Transform events to the shape the client component expects
     const events = eventsResult.data.map((e) => ({
@@ -42,7 +45,7 @@ export default async function AllEventsSection({ content, churchId }: Props) {
       recurrenceSchedule: e.recurrenceSchedule || '',
     }))
 
-    return <AllEventsClient events={events} heading={content.heading} />
+    return <AllEventsClient events={events} heading={content.heading} filterMeta={filterMeta} />
   } catch (error) {
     console.error('[AllEventsSection] Failed to load events:', error)
     return (

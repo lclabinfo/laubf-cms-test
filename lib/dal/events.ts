@@ -37,6 +37,55 @@ export type EventFilters = {
   status?: ContentStatus | null // null = all statuses, undefined = default (PUBLISHED)
 }
 
+export type EventFilterMeta = {
+  years: number[]
+  ministries: string[]
+  campuses: string[]
+}
+
+/**
+ * Lightweight query to get all available filter options for published events.
+ * Returns years, ministries, and campuses so the client can render complete
+ * filter dropdowns on first render even when data exceeds the page size.
+ */
+export async function getEventFilterMeta(churchId: string): Promise<EventFilterMeta> {
+  const where: Prisma.EventWhereInput = {
+    churchId,
+    deletedAt: null,
+    status: ContentStatus.PUBLISHED,
+  }
+
+  const [yearRows, ministryRows, campusRows] = await Promise.all([
+    prisma.event.findMany({
+      where,
+      select: { dateStart: true },
+      distinct: ['dateStart'],
+    }).then((rows) => {
+      const years = new Set<number>()
+      for (const r of rows) {
+        if (r.dateStart) years.add(new Date(r.dateStart).getFullYear())
+      }
+      return Array.from(years).sort((a, b) => b - a)
+    }),
+    prisma.event.findMany({
+      where: { ...where, ministryId: { not: null } },
+      select: { ministry: { select: { name: true } } },
+      distinct: ['ministryId'],
+    }).then((rows) =>
+      rows.map((r) => r.ministry!.name).filter(Boolean).sort()
+    ),
+    prisma.event.findMany({
+      where: { ...where, campusId: { not: null } },
+      select: { campus: { select: { name: true } } },
+      distinct: ['campusId'],
+    }).then((rows) =>
+      rows.map((r) => r.campus!.name).filter(Boolean).sort()
+    ),
+  ])
+
+  return { years: yearRows, ministries: ministryRows, campuses: campusRows }
+}
+
 export async function getEvents(
   churchId: string,
   filters?: EventFilters & PaginationParams,

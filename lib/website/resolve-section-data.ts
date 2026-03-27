@@ -1,6 +1,6 @@
 import { getLatestMessage, getMessages } from '@/lib/dal/messages'
-import { getUpcomingEvents, getEvents } from '@/lib/dal/events'
-import { getVideos } from '@/lib/dal/videos'
+import { getUpcomingEvents, getEvents, getEventFilterMeta } from '@/lib/dal/events'
+import { getVideos, getVideoFilterMeta } from '@/lib/dal/videos'
 import { getBibleStudies } from '@/lib/dal/bible-studies'
 import { getTodaysDailyBread } from '@/lib/dal/daily-bread'
 import { fetchDailyBreadFromFeed } from '@/lib/daily-bread-feed'
@@ -236,10 +236,14 @@ export async function resolveSectionData(
       }
 
       case 'all-events': {
-        const eventsResult = await getEvents(churchId, { pageSize: 50 })
+        const [eventsResult, eventFilterMeta] = await Promise.all([
+          getEvents(churchId, { pageSize: 50 }),
+          getEventFilterMeta(churchId),
+        ])
         return {
           content,
           resolvedData: {
+            filterMeta: eventFilterMeta,
             events: eventsResult.data.map((e) => ({
               id: e.id,
               slug: e.slug,
@@ -290,10 +294,14 @@ export async function resolveSectionData(
       }
 
       case 'all-videos': {
-        const result = await getVideos(churchId, { pageSize: 50 })
+        const [result, videoFilterMeta] = await Promise.all([
+          getVideos(churchId, { pageSize: 50 }),
+          getVideoFilterMeta(churchId),
+        ])
         return {
           content,
           resolvedData: {
+            filterMeta: videoFilterMeta,
             videos: result.data.map((v) => ({
               id: v.id,
               title: v.title,

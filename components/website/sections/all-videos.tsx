@@ -25,6 +25,10 @@ interface AllVideosContent {
   heading?: string
 }
 
+interface FilterMeta {
+  categories: string[]
+}
+
 interface Props {
   content: AllVideosContent
   enableAnimations: boolean
@@ -32,9 +36,10 @@ interface Props {
   paddingY?: "none" | "compact" | "default" | "spacious"
   containerWidth?: "standard" | "narrow" | "full"
   videos?: Video[]
+  filterMeta?: FilterMeta
 }
 
-export default function AllVideosSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth, videos = [] }: Props) {
+export default function AllVideosSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth, videos = [], filterMeta }: Props) {
   const t = themeTokens[colorScheme]
 
   const [search, setSearch] = useState("")
@@ -45,10 +50,13 @@ export default function AllVideosSection({ content, enableAnimations, colorSchem
   const [filterCategory, setFilterCategory] = useState<string | undefined>()
 
   const categoryOptions = useMemo(() => {
+    if (filterMeta?.categories) {
+      return filterMeta.categories.map((c) => ({ value: c, label: c }))
+    }
     const cats = new Set<string>()
     videos.forEach((v) => { if (v.category) cats.add(v.category) })
     return Array.from(cats).sort().map((c) => ({ value: c, label: c }))
-  }, [videos])
+  }, [videos, filterMeta])
 
   const filteredVideos = useMemo(() => {
     let result = videos

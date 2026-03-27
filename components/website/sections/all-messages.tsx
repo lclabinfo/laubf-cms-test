@@ -32,8 +32,9 @@ export default async function AllMessagesSection({
   containerWidth = 'standard',
 }: Props) {
   try {
+    const PAGE_SIZE = 48
     const [messagesResult, , filterMeta] = await Promise.all([
-      getMessages(churchId, { pageSize: 200, videoPublished: true }),
+      getMessages(churchId, { pageSize: PAGE_SIZE, videoPublished: true }),
       getAllSeries(churchId),
       getMessageFilterMeta(churchId),
     ])
@@ -64,6 +65,13 @@ export default async function AllMessagesSection({
       liveTranscript: undefined,
     }))
 
+    const pagination = {
+      total: messagesResult.total,
+      page: messagesResult.page,
+      pageSize: messagesResult.pageSize,
+      totalPages: messagesResult.totalPages,
+    }
+
     const layoutConfig = {
       columns: {
         desktop: content.columns?.desktop ?? 3,
@@ -87,6 +95,7 @@ export default async function AllMessagesSection({
         paddingY={paddingY}
         containerWidth={containerWidth}
         filterMeta={filterMeta}
+        pagination={pagination}
       />
     )
   } catch (error) {

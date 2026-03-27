@@ -47,12 +47,19 @@ const VALID_TABS: TabView[] = ["event", "meeting", "program"]
 const INITIAL_COUNT = 48
 const LOAD_MORE_COUNT = 48
 
+interface FilterMeta {
+  years: number[]
+  ministries: string[]
+  campuses: string[]
+}
+
 interface Props {
   events: SimpleEvent[]
   heading: string
+  filterMeta?: FilterMeta
 }
 
-export default function AllEventsClient({ events, heading }: Props) {
+export default function AllEventsClient({ events, heading, filterMeta }: Props) {
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -93,26 +100,30 @@ export default function AllEventsClient({ events, heading }: Props) {
   )
 
   /* -- Derive unique ministry/campus values for filter dropdowns -- */
+  // Prefer filterMeta for complete options when data exceeds page size
   const ministryOptions = useMemo(() => {
+    if (filterMeta?.ministries) return filterMeta.ministries
     const ministries = new Set<string>()
     events.forEach((e) => { if (e.ministry) ministries.add(e.ministry) })
     return Array.from(ministries).sort()
-  }, [events])
+  }, [events, filterMeta])
 
   const campusOptions = useMemo(() => {
+    if (filterMeta?.campuses) return filterMeta.campuses
     const campuses = new Set<string>()
     events.forEach((e) => { if (e.campus) campuses.add(e.campus) })
     return Array.from(campuses).sort()
-  }, [events])
+  }, [events, filterMeta])
 
   const availableYears = useMemo(() => {
+    if (filterMeta?.years) return filterMeta.years
     const years = new Set<number>()
     events.forEach((e) => {
       const y = parseInt(e.dateStart.slice(0, 4), 10)
       if (!isNaN(y)) years.add(y)
     })
     return Array.from(years).sort((a, b) => b - a)
-  }, [events])
+  }, [events, filterMeta])
 
   /* -- Filtering & Sorting -- */
   const filteredEvents = useMemo(() => {

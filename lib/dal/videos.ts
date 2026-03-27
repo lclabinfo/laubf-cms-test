@@ -10,6 +10,24 @@ export type VideoFilters = {
   status?: ContentStatus
 }
 
+export type VideoFilterMeta = {
+  categories: string[]
+}
+
+/**
+ * Lightweight query to get all available filter options for published videos.
+ */
+export async function getVideoFilterMeta(churchId: string): Promise<VideoFilterMeta> {
+  const rows = await prisma.video.findMany({
+    where: { churchId, deletedAt: null, status: ContentStatus.PUBLISHED, category: { not: undefined } },
+    select: { category: true },
+    distinct: ['category'],
+  })
+  return {
+    categories: rows.map((r) => String(r.category)).filter(Boolean).sort(),
+  }
+}
+
 export async function getVideos(
   churchId: string,
   filters?: VideoFilters & PaginationParams,
