@@ -21,23 +21,45 @@
 
 ---
 
-## 1. ESV Default Not Applied + Church Settings Not Flowing to Website
+## 1. ESV Default Not Applied + Church Settings Not Flowing to Website + Version Ordering
 
-**Symptom:** NIV shows as the default Bible version instead of ESV. More importantly, whatever the church admin configures as the default Bible version in CMS settings is NOT being reflected on the public website (Bible study pages, Daily Bread, etc.).
+**Symptom:** Whatever the church admin configures as the default Bible version in CMS settings is NOT being reflected on the public website (Bible study pages, Daily Bread, etc.). Additionally, disabling a version in the CMS still shows it in the website dropdown. There was also no way to reorder bible versions.
 
-**Root Cause (two parts):**
+**Root Cause (three parts):**
 
-**Part A (fixed):** The hardcoded fallback in `components/cms/church-profile/bible-version-settings.tsx` was NIV in 3 places. Changed to ESV.
+**Part A (fixed previously):** The hardcoded fallback in `components/cms/church-profile/bible-version-settings.tsx` was NIV in 3 places. Changed to ESV.
 
-**Part B (the real issue):** The church's configured default Bible version (stored in `Church.settings.defaultBibleVersion` in the DB) is not flowing through to the website. The Bible study detail page initializes from `study.bibleVersion || "ESV"` — it reads the message's stored version and falls back to a hardcoded string. It never reads the church's configured default from the database.
+**Part B — Default not applied:** In `study-detail-view.tsx:139`, the priority was `study.bibleVersion || churchDefaultVersion || "ESV"`. The per-study `bibleVersion` field comes from the related Message model's `bibleVersion` column, which has a schema default of `"ESV"`. This means every study with a related message had `bibleVersion: "ESV"`, which always took priority over the church admin's chosen default.
 
-**Fix (Part B):**
-1. The Bible study detail page server component (`app/website/bible-study/[slug]/page.tsx`) needs to fetch the church's default Bible version from the DB (via church settings or `useBibleVersionConfig`)
-2. Pass it to the client component as a prop: `churchDefaultVersion`
-3. Initialize version state as: `study.bibleVersion || churchDefaultVersion || "ESV"` (message-specific > church default > hardcoded fallback)
-4. Apply the same pattern to all other website pages that display Bible text (Daily Bread, message detail, etc.)
+**Part C — Disabled versions still showing:** The version dropdown in `study-detail-view.tsx` iterated over the static `API_AVAILABLE_VERSIONS` constant (all 6 local versions: ESV, NIV, KJV, NLT, NASB, AMP) and completely ignored the church's `bibleVersions` enabled/disabled settings.
 
-**Key principle:** The CMS-configured default Bible version must flow through to every place that displays Bible text on the public website. The hardcoded "ESV" is only a last-resort fallback.
+**Fix (March 26, 2026):**
+
+1. **New DAL function** `getChurchBibleVersionConfig()` in `lib/dal/church.ts` — returns both `defaultVersion` and `enabledVersions` (preserving array order from the JSON settings) in a single DB query.
+
+2. **Bible study detail page** (`app/website/bible-study/[slug]/page.tsx`) — now uses `getChurchBibleVersionConfig()` and passes both `churchDefaultVersion` and `enabledVersions` to the client component.
+
+3. **Version priority fixed** in `study-detail-view.tsx` — changed to `churchDefaultVersion || study.bibleVersion || "ESV"`. The church admin's explicit setting now takes precedence over the per-study version (which is usually just the schema default "ESV").
+
+4. **Enabled versions filtering** — the dropdown now builds its list from `enabledVersions` in the saved order (looking up metadata from `API_AVAILABLE_VERSIONS`), instead of showing all versions statically. Disabled versions no longer appear. If the default gets disabled, falls back to the first available version.
+
+5. **DnD reordering in CMS** — `bible-version-settings.tsx` rebuilt with @dnd-kit (same pattern as `quick-links-editor.tsx`):
+   - Default version pinned at top (filled star, non-draggable)
+   - All other versions have GripVertical drag handles + star buttons to set as default
+   - Disabled versions are dimmed but still draggable (for pre-positioning before enabling)
+   - Setting a new default automatically moves it to position 0
+   - `enabledVersions` array order = display order on the website
+   - Every change (reorder, toggle, set default) auto-saves immediately
+
+6. **Website respects custom order** — the study detail dropdown renders versions in the exact order stored in `enabledVersions`, with the default always first.
+
+**Files modified:**
+- `lib/dal/church.ts` — added `getChurchBibleVersionConfig()`
+- `app/website/bible-study/[slug]/page.tsx` — passes `enabledVersions` prop
+- `components/website/study-detail/study-detail-view.tsx` — filters by enabled, respects order, church default priority
+- `components/cms/church-profile/bible-version-settings.tsx` — full rewrite with @dnd-kit DnD reordering
+
+**Key principle:** The `bibleVersions` array in the church settings JSON is the single source of truth for which versions are available, in what order, and which is default. The CMS writes it, the website reads it. No hardcoded version lists on the website side.
 
 ---
 
@@ -548,14 +570,14 @@ Several bugs interact with each other. The team flagged these dependencies:
 
 | # | Bug | Status | What Was Done |
 |---|-----|--------|---------------|
-| 1 | ESV default + settings flow | **Done** | Fallbacks changed NIV→ESV. New `getChurchDefaultBibleVersion()` DAL. Church setting flows to Bible study page + Daily Bread. |
+| 1 | ESV default + settings flow + version ordering | **Done (v2)** | Three bugs fixed: (a) church default now takes priority over per-study version, (b) disabled versions filtered out of website dropdown, (c) DnD reordering added to CMS. New `getChurchBibleVersionConfig()` DAL returns both default + enabled list. `enabledVersions` array order = display order everywhere. @dnd-kit sortable in CMS (default pinned at top). |
 | 2 | Per-pane Bible versions | **Done** | `Record<string, T>` keyed by pane ID. Each pane has independent version, Bible text cache, loading state. Scales to N panes. |
 | 3 | Old Bible studies (2003-2025) missing | **Done** | Root cause: no pagination — only first page of results was ever fetched. All 1,184 studies are PUBLISHED in DB. Fix: progressive background loading (50 on initial render, then client eagerly fetches remaining pages via API). |
 | 4 | Builder preview message filter | **Reverted + Done** | `videoPublished: true` restored on public website. Real bug is builder preview not applying this filter (separate investigation). |
 | 5 | Quick links icons | **Done** | Icons always render in navbar dropdown with conditional compact sizing. |
 | 6 | Quick links FAB hover gap | **Done (v3)** | Removed unreliable `onMouseLeave` from `pointer-events-none` container. Added invisible hover bridge (`pb-3 -mb-3`) on panel wrapper to fill the gap. 150ms close delay as safety net. Mobile = click only. |
-| 7 | Memory quick wins | **Done** | Sharp disabled, TypeScript excluded from bundle, TipTap server split. ~50-85 MB reduction. |
-| 8 | Transcript tab | **Done** | Transcript saves to `Message.rawTranscript` (TipTap JSON) but website reads `BibleStudy.transcript` (HTML). Sync function never copied it. Fix: `syncMessageStudy()` now converts rawTranscript → HTML as fallback. Legacy fields: `liveTranscript`, `transcriptSegments` are unused (Live Captions feature disabled). |
+| 7 | Memory quick wins | **Done (quick wins) + deeper fix planned** | Sharp disabled, TypeScript excluded from bundle, TipTap server split. ~50-85 MB reduction. **Root cause of 80 MB list queries identified**: `getBibleStudies()` fetches all text columns (avg 71 KB/row × 1,185 rows) for list views that only need ~128 bytes/row of metadata. Fix: Prisma `omit` on list queries — reduces payload from 80 MB → 152 KB. Full fix is part of the Message/BibleStudy table merge (see `message-biblestudy-proposed-schema.md`). |
+| 8 | Transcript tab | **Done (bandaid) → proper fix in table merge** | Transcript saves to `Message.rawTranscript` (TipTap JSON) but website reads `BibleStudy.transcript` (HTML). Sync function never copied it. Bandaid fix: `syncMessageStudy()` now converts rawTranscript → HTML as fallback. **Deeper audit revealed**: 626 BibleStudy.transcript entries are stored as TipTap JSON (from legacy migration), not HTML. The website's `contentToHtml()` auto-detects and converts on every page load (~42 KB parse per request). The sync function writes HTML but legacy data is JSON — two formats in the same column. `Message.transcriptSegments` is dead (7 entries, all JSON null, zero code refs). `Message.liveTranscript` is active but empty (0 entries; UI exists for Live Captions). **Proper fix:** Table merge normalizes all content to HTML at migration time, eliminates per-request parsing, and removes the sync layer entirely. See `message-biblestudy-proposed-schema.md`. |
 | 9 | Event share | **Done** | Fixed early return, added AbortError handling, added toast on successful Web Share. |
 | 10+12 | Featured events | **Done** | Manual featuring removed entirely. Builder filter settings are single source of truth via `getUpcomingEvents()`. |
 | 11 | R2 filenames | **Done** | `buildContentDisposition(att.name)` added to `promoteFromStaging()` in `sync-message-study.ts`. |
