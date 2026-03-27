@@ -3,20 +3,31 @@
 import { Suspense, useState, useCallback, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { Loader2, Users } from "lucide-react"
+import {
+  Loader2,
+  Users,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react"
 import { useCmsSession } from "@/components/cms/cms-shell"
 import { PageHeader } from "@/components/cms/page-header"
 import {
   useReactTable,
   getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  type ColumnFiltersState,
   type SortingState,
   type VisibilityState,
 } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { DataTable } from "@/components/ui/data-table"
 import { createColumns } from "@/components/cms/people/members-columns"
 import { MembersToolbar } from "@/components/cms/people/members-toolbar"
@@ -25,7 +36,7 @@ import { CSVImportDialog } from "@/components/cms/people/csv-import-dialog"
 import { MemberPreviewPanel } from "@/components/cms/people/member-preview-panel"
 import { ArchivedMembersDialog } from "@/components/cms/people/archived-members-dialog"
 import { MembersProvider, useMembers } from "@/lib/members-context"
-import type { MemberPerson, AddMemberPayload } from "@/lib/members-context"
+import type { MemberPerson, AddMemberPayload, SortBy } from "@/lib/members-context"
 import type { MembershipStatus } from "@/lib/generated/prisma/client"
 import { cn } from "@/lib/utils"
 
@@ -46,59 +57,151 @@ function useIsWideScreen() {
   return isWide
 }
 
-function globalFilterFn(
-  row: { original: MemberPerson },
-  _columnId: string,
-  filterValue: string
-) {
-  const search = filterValue.toLowerCase().trim()
-  if (!search) return true
-  const { firstName, lastName, preferredName, email, phone, mobilePhone, groups } = row.original
-  const fullName = `${firstName} ${lastName}`.toLowerCase()
+// Hoist row model factory outside the component so it is a stable reference
+const coreRowModel = getCoreRowModel()
 
-  // Check if the full name or individual fields match the entire search string
-  if (
-    fullName.includes(search) ||
-    firstName.toLowerCase().includes(search) ||
-    lastName.toLowerCase().includes(search) ||
-    (preferredName?.toLowerCase().includes(search) ?? false) ||
-    (email?.toLowerCase().includes(search) ?? false) ||
-    (phone?.toLowerCase().includes(search) ?? false) ||
-    (mobilePhone?.toLowerCase().includes(search) ?? false) ||
-    groups.some((g) => g.name.toLowerCase().includes(search))
-  ) {
-    return true
-  }
-
-  // Multi-word search: all words must match somewhere across fields
-  const words = search.split(/\s+/).filter(Boolean)
-  if (words.length > 1) {
-    const searchableText = [fullName, preferredName, email, phone, mobilePhone, ...groups.map((g) => g.name)]
-      .filter(Boolean)
-      .join(" ")
-      .toLowerCase()
-    return words.every((word) => searchableText.includes(word))
-  }
-
-  return false
+// Map TanStack column IDs to API sort fields
+const COLUMN_TO_SORT_BY: Record<string, SortBy> = {
+  lastName: "name",
+  email: "email",
+  membershipStatus: "membershipStatus",
+  createdAt: "createdAt",
+}
+const SORT_BY_TO_COLUMN: Record<SortBy, string> = {
+  name: "lastName",
+  email: "email",
+  membershipStatus: "membershipStatus",
+  createdAt: "createdAt",
 }
 
-// Hoist row model factories outside the component so they are stable references
-const coreRowModel = getCoreRowModel()
-const filteredRowModel = getFilteredRowModel()
-const paginationRowModel = getPaginationRowModel()
-const sortedRowModel = getSortedRowModel()
+function ServerPagination({
+  page,
+  totalPages,
+  pageSize,
+  total,
+  onPageChange,
+  onPageSizeChange,
+}: {
+  page: number
+  totalPages: number
+  pageSize: number
+  total: number
+  onPageChange: (page: number) => void
+  onPageSizeChange: (pageSize: number) => void
+}) {
+  return (
+    <div className="flex flex-col gap-3 px-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="text-muted-foreground text-sm">
+        {total} member{total !== 1 ? "s" : ""} total
+      </div>
+      <div className="flex items-center justify-between gap-4 sm:gap-6 lg:gap-8">
+        <div className="flex items-center gap-2">
+          <p className="hidden sm:block text-sm font-medium whitespace-nowrap">Rows per page</p>
+          <Select
+            value={`${pageSize}`}
+            onValueChange={(value) => onPageSizeChange(Number(value))}
+          >
+            <SelectTrigger size="sm" className="w-[70px]">
+              <SelectValue placeholder={pageSize} />
+            </SelectTrigger>
+            <SelectContent position="popper">
+              {[10, 20, 25, 30, 40, 50].map((ps) => (
+                <SelectItem key={ps} value={`${ps}`}>
+                  {ps}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="text-sm font-medium whitespace-nowrap">
+          Page {page} of {totalPages || 1}
+        </div>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon"
+            className="hidden size-8 lg:flex"
+            onClick={() => onPageChange(1)}
+            disabled={page <= 1}
+          >
+            <span className="sr-only">Go to first page</span>
+            <ChevronsLeft />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-8"
+            onClick={() => onPageChange(page - 1)}
+            disabled={page <= 1}
+          >
+            <span className="sr-only">Go to previous page</span>
+            <ChevronLeft />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-8"
+            onClick={() => onPageChange(page + 1)}
+            disabled={page >= totalPages}
+          >
+            <span className="sr-only">Go to next page</span>
+            <ChevronRight />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="hidden size-8 lg:flex"
+            onClick={() => onPageChange(totalPages)}
+            disabled={page >= totalPages}
+          >
+            <span className="sr-only">Go to last page</span>
+            <ChevronsRight />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function MembersPageContent() {
   const router = useRouter()
   const { user } = useCmsSession()
   const isWideScreen = useIsWideScreen()
-  const { members, archivedMembers, loading, deleteMember, addMember, updateMemberStatus, refresh, refreshArchived } = useMembers()
+  const {
+    members,
+    archivedMembers,
+    loading,
+    reloading,
+    pagination,
+    search,
+    sortBy,
+    sortDir,
+    membershipFilter,
+    deleteMember,
+    addMember,
+    updateMemberStatus,
+    refreshMembers,
+    refreshArchived,
+    setPage,
+    setPageSize,
+    setSearch,
+    setSort,
+    setMembershipFilter,
+  } = useMembers()
 
   const [addDialogOpen, setAddDialogOpen] = useState(false)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [archivedDialogOpen, setArchivedDialogOpen] = useState(false)
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null)
+
+  // Local search input state (updates immediately, context debounces the API call)
+  // Initialize from context's persisted search value so it shows after back-navigation
+  const [searchInput, setSearchInput] = useState(search)
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchInput(value)
+    setSearch(value)
+  }, [setSearch])
 
   // Resolve the selected member from the current members list
   const selectedMember = useMemo(
@@ -119,10 +222,10 @@ function MembersPageContent() {
       description: member ? `${member.firstName} ${member.lastName} has been archived.` : undefined,
       action: {
         label: "Undo",
-        onClick: () => refresh(),
+        onClick: () => refreshMembers(),
       },
     })
-  }, [members, deleteMember, refresh, selectedMemberId])
+  }, [members, deleteMember, refreshMembers, selectedMemberId])
 
   const handleAddMember = useCallback(async (data: AddMemberPayload) => {
     const member = await addMember(data)
@@ -134,66 +237,53 @@ function MembersPageContent() {
   }, [addMember])
 
   const handleImportComplete = useCallback(() => {
-    refresh()
+    refreshMembers()
     toast.success("Members imported successfully")
-  }, [refresh])
+  }, [refreshMembers])
 
   const columns = useMemo(() => createColumns({ onDelete: handleDelete }), [handleDelete])
 
-  const [sorting, setSorting] = useState<SortingState>([
-    { id: "lastName", desc: false },
-  ])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  // Derive TanStack sorting state from server-side sort
+  const sorting = useMemo<SortingState>(() => [
+    { id: SORT_BY_TO_COLUMN[sortBy] ?? "lastName", desc: sortDir === "desc" },
+  ], [sortBy, sortDir])
+
+  const handleSortingChange = useCallback((updater: SortingState | ((old: SortingState) => SortingState)) => {
+    const newSorting = typeof updater === "function" ? updater(sorting) : updater
+    if (newSorting.length > 0) {
+      const col = newSorting[0]
+      const newSortBy = COLUMN_TO_SORT_BY[col.id]
+      if (newSortBy) {
+        setSort(newSortBy, col.desc ? "desc" : "asc")
+      }
+    }
+  }, [sorting, setSort])
+
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
     roles: false,
   })
-  const [rowSelection, setRowSelection] = useState({})
-  const [globalFilter, setGlobalFilter] = useState("")
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 25 })
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({})
 
-  const resetPageIndex = useCallback(() => {
-    setPagination((prev) => (prev.pageIndex === 0 ? prev : { ...prev, pageIndex: 0 }))
-  }, [])
-
-  const handleColumnFiltersChange = useCallback(
-    (updater: ColumnFiltersState | ((old: ColumnFiltersState) => ColumnFiltersState)) => {
-      setColumnFilters(updater)
-      resetPageIndex()
-    },
-    [resetPageIndex]
-  )
-
-  const handleGlobalFilterChange = useCallback(
-    (value: string) => {
-      setGlobalFilter(value)
-      resetPageIndex()
-    },
-    [resetPageIndex]
-  )
-
+  // Server-side pagination: TanStack shows all rows from the current API page
   const table = useReactTable({
     data: members,
     columns,
     state: {
       sorting,
-      columnFilters,
       columnVisibility,
       rowSelection,
-      globalFilter,
-      pagination,
+      pagination: { pageIndex: 0, pageSize: pagination.pageSize },
     },
-    onSortingChange: setSorting,
-    onColumnFiltersChange: handleColumnFiltersChange,
+    getRowId: (row) => row.id,
+    onSortingChange: handleSortingChange,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
-    onGlobalFilterChange: handleGlobalFilterChange,
-    onPaginationChange: setPagination,
-    globalFilterFn,
+    manualPagination: true,
+    manualSorting: true,
+    pageCount: pagination.totalPages,
+    rowCount: pagination.total,
     autoResetPageIndex: false,
     getCoreRowModel: coreRowModel,
-    getFilteredRowModel: filteredRowModel,
-    getPaginationRowModel: paginationRowModel,
-    getSortedRowModel: sortedRowModel,
   })
 
   const handleRowClick = useCallback(
@@ -209,7 +299,7 @@ function MembersPageContent() {
   )
 
   const handleBulkUpdateStatus = useCallback((status: MembershipStatus) => {
-    const selectedRows = table.getFilteredSelectedRowModel().rows
+    const selectedRows = table.getSelectedRowModel().rows
     const ids = selectedRows.map((r) => r.original.id)
     if (ids.length === 0) return
 
@@ -223,7 +313,7 @@ function MembersPageContent() {
   }, [table, updateMemberStatus])
 
   const handleBulkArchive = useCallback(() => {
-    const selectedRows = table.getFilteredSelectedRowModel().rows
+    const selectedRows = table.getSelectedRowModel().rows
     const ids = selectedRows.map((r) => r.original.id)
     if (ids.length === 0) return
 
@@ -237,7 +327,7 @@ function MembersPageContent() {
 
   return (
     <>
-      {/* Main content — table */}
+      {/* Main content -- table */}
       <div className="space-y-4">
         <PageHeader
           title="Members"
@@ -247,7 +337,7 @@ function MembersPageContent() {
           actions={
             !loading ? (
               <Badge variant="secondary" className="text-xs">
-                {members.length}
+                {pagination.total}
               </Badge>
             ) : undefined
           }
@@ -255,8 +345,10 @@ function MembersPageContent() {
 
         <MembersToolbar
           table={table}
-          globalFilter={globalFilter}
-          setGlobalFilter={handleGlobalFilterChange}
+          globalFilter={searchInput}
+          setGlobalFilter={handleSearchChange}
+          membershipFilter={membershipFilter}
+          onMembershipFilterChange={setMembershipFilter}
           onAddMember={() => setAddDialogOpen(true)}
           onImportCSV={() => setImportDialogOpen(true)}
           onBulkUpdateStatus={handleBulkUpdateStatus}
@@ -272,7 +364,7 @@ function MembersPageContent() {
           <div className="flex items-center justify-center py-16">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
-        ) : members.length === 0 ? (
+        ) : members.length === 0 && !searchInput && !membershipFilter ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Users className="size-12 text-muted-foreground/30 mb-4" />
             <h3 className="text-sm font-medium">No members yet</h3>
@@ -296,18 +388,27 @@ function MembersPageContent() {
             </div>
           </div>
         ) : (
-          <div data-tutorial="ppl-table">
+          <div data-tutorial="ppl-table" className={cn("transition-opacity duration-150", reloading && "opacity-50 pointer-events-none")}>
             <DataTable
               columns={columns}
               table={table}
               onRowClick={handleRowClick}
               activeRowId={showPreview ? selectedMemberId : undefined}
+              hidePagination
+            />
+            <ServerPagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              pageSize={pagination.pageSize}
+              total={pagination.total}
+              onPageChange={setPage}
+              onPageSizeChange={setPageSize}
             />
           </div>
         )}
       </div>
 
-      {/* Right: preview panel — fixed to viewport right edge */}
+      {/* Right: preview panel -- fixed to viewport right edge */}
       {isWideScreen && (
         <div
           className={cn(

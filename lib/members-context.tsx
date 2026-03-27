@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, type ReactNode } from "react"
+import { useSessionState } from "@/lib/hooks/use-session-state"
 import type { MembershipStatus, Gender, MaritalStatus } from "@/lib/generated/prisma/client"
 import { toast } from "sonner"
 
@@ -24,18 +25,42 @@ export type MemberPerson = {
   groups: { id: string; name: string }[]
 }
 
+interface PaginationInfo {
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
+export type SortBy = "name" | "email" | "createdAt" | "membershipStatus"
+export type SortDir = "asc" | "desc"
+
 interface MembersContextValue {
   members: MemberPerson[]
-  archivedMembers: MemberPerson[]
   loading: boolean
-  loadingArchived: boolean
+  reloading: boolean
   error: string | null
+  pagination: PaginationInfo
+  search: string
+  sortBy: SortBy
+  sortDir: SortDir
+  membershipFilter: string
+  setPage: (page: number) => void
+  setPageSize: (size: number) => void
+  setSearch: (search: string) => void
+  setSortBy: (field: SortBy) => void
+  setSortDir: (dir: SortDir) => void
+  setSort: (sortBy: SortBy, sortDir: SortDir) => void
+  setMembershipFilter: (status: string) => void
+  refreshMembers: () => void
   addMember: (data: AddMemberPayload) => Promise<MemberPerson | null>
   updateMemberStatus: (ids: string[], status: MembershipStatus) => Promise<void>
   deleteMember: (id: string) => void
   restoreMember: (id: string) => Promise<void>
   permanentDeleteMember: (id: string) => Promise<void>
-  refresh: () => void
+  // Archived members dialog support (separate from main paginated list)
+  archivedMembers: MemberPerson[]
+  loadingArchived: boolean
   refreshArchived: () => void
 }
 
@@ -94,35 +119,152 @@ function slugify(text: string): string {
     .replace(/(^-|-$)/g, "")
 }
 
+const DEFAULT_PAGE_SIZE = 50
+
 export function MembersProvider({ children }: { children: ReactNode }) {
   const [members, setMembers] = useState<MemberPerson[]>([])
-  const [archivedMembers, setArchivedMembers] = useState<MemberPerson[]>([])
   const [loading, setLoading] = useState(true)
-  const [loadingArchived, setLoadingArchived] = useState(false)
+  const [reloading, setReloading] = useState(false)
+  const hasLoadedRef = useRef(false)
   const [error, setError] = useState<string | null>(null)
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    total: 0,
+    page: 1,
+    pageSize: DEFAULT_PAGE_SIZE,
+    totalPages: 0,
+  })
+  const [search, setSearchState] = useSessionState("cms:members:search", "")
+  const [sortBy, setSortByState] = useSessionState<SortBy>("cms:members:sortBy", "name")
+  const [sortDir, setSortDirState] = useSessionState<SortDir>("cms:members:sortDir", "asc")
+  const [membershipFilter, setMembershipFilterState] = useSessionState("cms:members:membershipFilter", "")
 
-  const fetchData = useCallback(async () => {
+  // Archived members (separate list for the archived dialog, not part of main pagination)
+  const [archivedMembers, setArchivedMembers] = useState<MemberPerson[]>([])
+  const [loadingArchived, setLoadingArchived] = useState(false)
+
+  // Debounce timer for search
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>(null)
+  // Track current fetch to avoid stale responses
+  const fetchIdRef = useRef(0)
+
+  const fetchMembers = useCallback(async (params: {
+    page: number
+    pageSize: number
+    search?: string
+    membershipStatus?: string
+    sortBy?: string
+    sortDir?: string
+  }) => {
+    const fetchId = ++fetchIdRef.current
     try {
-      setLoading(true)
+      // First load: show skeleton. Subsequent loads: keep stale data visible with reloading flag.
+      if (!hasLoadedRef.current) {
+        setLoading(true)
+      } else {
+        setReloading(true)
+      }
       setError(null)
 
-      const res = await fetch("/api/v1/people?pageSize=500")
+      const qs = new URLSearchParams()
+      qs.set("page", String(params.page))
+      qs.set("pageSize", String(params.pageSize))
+      if (params.search) qs.set("search", params.search)
+      if (params.membershipStatus) qs.set("membershipStatus", params.membershipStatus)
+      if (params.sortBy) qs.set("sortBy", params.sortBy)
+      if (params.sortDir) qs.set("sortDir", params.sortDir)
+
+      const res = await fetch(`/api/v1/people?${qs.toString()}`)
       if (!res.ok) throw new Error("Failed to fetch members")
 
       const json = await res.json()
+      if (fetchId !== fetchIdRef.current) return // stale
+
       setMembers((json.data ?? []).map(apiPersonToMember))
+      setPagination(json.pagination ?? {
+        total: 0,
+        page: params.page,
+        pageSize: params.pageSize,
+        totalPages: 0,
+      })
+      hasLoadedRef.current = true
     } catch (err) {
+      if (fetchId !== fetchIdRef.current) return
       console.error("MembersProvider fetch error:", err)
       setError(err instanceof Error ? err.message : "Failed to load members")
     } finally {
-      setLoading(false)
+      if (fetchId === fetchIdRef.current) {
+        setLoading(false)
+        setReloading(false)
+      }
     }
   }, [])
+
+  // Fetch members when page/filters/sort change
+  useEffect(() => {
+    fetchMembers({
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      search,
+      membershipStatus: membershipFilter,
+      sortBy,
+      sortDir,
+    })
+  }, [fetchMembers, pagination.page, pagination.pageSize, search, membershipFilter, sortBy, sortDir])
+
+  const setPage = useCallback((page: number) => {
+    setPagination((prev) => ({ ...prev, page }))
+  }, [])
+
+  const setPageSize = useCallback((pageSize: number) => {
+    setPagination((prev) => ({ ...prev, page: 1, pageSize }))
+  }, [])
+
+  const setSearch = useCallback((value: string) => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(() => {
+      setSearchState(value)
+      setPagination((prev) => ({ ...prev, page: 1 }))
+    }, 300)
+  }, [setSearchState])
+
+  const setSortBy = useCallback((field: SortBy) => {
+    setSortByState(field)
+    setPagination((prev) => ({ ...prev, page: 1 }))
+  }, [setSortByState])
+
+  const setSortDir = useCallback((dir: SortDir) => {
+    setSortDirState(dir)
+    setPagination((prev) => ({ ...prev, page: 1 }))
+  }, [setSortDirState])
+
+  const setSort = useCallback((newSortBy: SortBy, newSortDir: SortDir) => {
+    setSortByState(newSortBy)
+    setSortDirState(newSortDir)
+    setPagination((prev) => ({ ...prev, page: 1 }))
+  }, [setSortByState, setSortDirState])
+
+  const setMembershipFilter = useCallback((status: string) => {
+    setMembershipFilterState(status)
+    setPagination((prev) => ({ ...prev, page: 1 }))
+  }, [setMembershipFilterState])
+
+  const refreshMembers = useCallback(() => {
+    fetchMembers({
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      search,
+      membershipStatus: membershipFilter,
+      sortBy,
+      sortDir,
+    })
+  }, [fetchMembers, pagination.page, pagination.pageSize, search, membershipFilter, sortBy, sortDir])
+
+  // ---- Archived members (for dialog) ----
 
   const fetchArchived = useCallback(async () => {
     try {
       setLoadingArchived(true)
-      const res = await fetch("/api/v1/people?pageSize=500&membershipStatus=ARCHIVED")
+      const res = await fetch("/api/v1/people?pageSize=100&membershipStatus=ARCHIVED")
       if (!res.ok) throw new Error("Failed to fetch archived members")
       const json = await res.json()
       setArchivedMembers((json.data ?? []).map(apiPersonToMember))
@@ -133,13 +275,11 @@ export function MembersProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
-    fetchData().then(() => {
-      if (cancelled) return
-    })
-    return () => { cancelled = true }
-  }, [fetchData])
+  const refreshArchived = useCallback(() => {
+    fetchArchived()
+  }, [fetchArchived])
+
+  // ---- CRUD operations ----
 
   const addMember = useCallback(async (data: AddMemberPayload): Promise<MemberPerson | null> => {
     try {
@@ -173,7 +313,15 @@ export function MembersProvider({ children }: { children: ReactNode }) {
       const json = await res.json()
       if (json.success && json.data) {
         const member = apiPersonToMember(json.data)
-        setMembers((prev) => [member, ...prev])
+        // Refetch current page so new member appears in the correct sorted position
+        fetchMembers({
+          page: pagination.page,
+          pageSize: pagination.pageSize,
+          search,
+          membershipStatus: membershipFilter,
+          sortBy,
+          sortDir,
+        })
         return member
       }
       return null
@@ -181,20 +329,9 @@ export function MembersProvider({ children }: { children: ReactNode }) {
       console.error("addMember error:", err)
       throw err
     }
-  }, [])
-
-  const membersRef = useRef(members)
-  membersRef.current = members
+  }, [fetchMembers, pagination.page, pagination.pageSize, search, membershipFilter, sortBy, sortDir])
 
   const updateMemberStatus = useCallback(async (ids: string[], status: MembershipStatus) => {
-    // Save previous state for rollback
-    const previousMembers = membersRef.current
-
-    // Optimistic update
-    setMembers((prev) =>
-      prev.map((m) => (ids.includes(m.id) ? { ...m, membershipStatus: status } : m))
-    )
-
     // Execute all API calls
     const results = await Promise.allSettled(
       ids.map((id) =>
@@ -212,48 +349,45 @@ export function MembersProvider({ children }: { children: ReactNode }) {
     // Check for failures
     const failed = results.filter((r) => r.status === "rejected")
     if (failed.length > 0) {
-      // Rollback the failed ones
-      const succeededIds = results
-        .filter((r): r is PromiseFulfilledResult<string> => r.status === "fulfilled")
-        .map((r) => r.value)
-
-      setMembers((prev) =>
-        prev.map((m) => {
-          if (ids.includes(m.id) && !succeededIds.includes(m.id)) {
-            const original = previousMembers.find((pm) => pm.id === m.id)
-            return original ?? m
-          }
-          return m
-        })
-      )
-
       toast.error(`Failed to update ${failed.length} member${failed.length === 1 ? "" : "s"}`)
     }
-  }, [])
+
+    // Refetch to reflect the new state from the server
+    fetchMembers({
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      search,
+      membershipStatus: membershipFilter,
+      sortBy,
+      sortDir,
+    })
+  }, [fetchMembers, pagination.page, pagination.pageSize, search, membershipFilter, sortBy, sortDir])
 
   const deleteMember = useCallback((id: string) => {
-    let deleted: MemberPerson | undefined
-    setMembers((prev) => {
-      deleted = prev.find((m) => m.id === id)
-      return prev.filter((m) => m.id !== id)
-    })
-
     fetch(`/api/v1/people/${id}`, { method: "DELETE" })
       .then((res) => {
         if (!res.ok) throw new Error(`Failed to delete member (${res.status})`)
+        // Refetch current page after deletion
+        fetchMembers({
+          page: pagination.page,
+          pageSize: pagination.pageSize,
+          search,
+          membershipStatus: membershipFilter,
+          sortBy,
+          sortDir,
+        })
       })
       .catch((err) => {
         console.error("deleteMember error:", err)
-        if (deleted) {
-          setMembers((prev) => [deleted!, ...prev])
-        }
+        toast.error("Failed to archive member")
       })
-  }, [])
+  }, [fetchMembers, pagination.page, pagination.pageSize, search, membershipFilter, sortBy, sortDir])
 
   const permanentDeleteMember = useCallback(async (id: string) => {
     try {
       const res = await fetch(`/api/v1/people/${id}?permanent=true`, { method: "DELETE" })
       if (!res.ok) throw new Error("Failed to permanently delete member")
+      // Remove from local archived list immediately
       setArchivedMembers((prev) => prev.filter((m) => m.id !== id))
     } catch (err) {
       console.error("permanentDeleteMember error:", err)
@@ -270,29 +404,52 @@ export function MembersProvider({ children }: { children: ReactNode }) {
       })
       if (!res.ok) throw new Error("Failed to restore member")
 
-      // Move from archived to active list
-      const restored = archivedMembers.find((m) => m.id === id)
-      if (restored) {
-        setArchivedMembers((prev) => prev.filter((m) => m.id !== id))
-        setMembers((prev) => [{ ...restored, membershipStatus: "MEMBER" as MembershipStatus }, ...prev])
-      }
+      // Remove from local archived list immediately
+      setArchivedMembers((prev) => prev.filter((m) => m.id !== id))
+      // Refetch main list so restored member appears
+      fetchMembers({
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+        search,
+        membershipStatus: membershipFilter,
+        sortBy,
+        sortDir,
+      })
     } catch (err) {
       console.error("restoreMember error:", err)
       toast.error("Failed to restore member")
     }
-  }, [archivedMembers])
-
-  const refresh = useCallback(() => {
-    fetchData()
-  }, [fetchData])
-
-  const refreshArchived = useCallback(() => {
-    fetchArchived()
-  }, [fetchArchived])
+  }, [fetchMembers, pagination.page, pagination.pageSize, search, membershipFilter, sortBy, sortDir])
 
   const value = useMemo(
-    () => ({ members, archivedMembers, loading, loadingArchived, error, addMember, updateMemberStatus, deleteMember, permanentDeleteMember, restoreMember, refresh, refreshArchived }),
-    [members, archivedMembers, loading, loadingArchived, error, addMember, updateMemberStatus, deleteMember, permanentDeleteMember, restoreMember, refresh, refreshArchived]
+    () => ({
+      members,
+      loading,
+      reloading,
+      error,
+      pagination,
+      search,
+      sortBy,
+      sortDir,
+      membershipFilter,
+      setPage,
+      setPageSize,
+      setSearch,
+      setSortBy,
+      setSortDir,
+      setSort,
+      setMembershipFilter,
+      refreshMembers,
+      addMember,
+      updateMemberStatus,
+      deleteMember,
+      permanentDeleteMember,
+      restoreMember,
+      archivedMembers,
+      loadingArchived,
+      refreshArchived,
+    }),
+    [members, loading, reloading, error, pagination, search, sortBy, sortDir, membershipFilter, setPage, setPageSize, setSearch, setSortBy, setSortDir, setSort, setMembershipFilter, refreshMembers, addMember, updateMemberStatus, deleteMember, permanentDeleteMember, restoreMember, archivedMembers, loadingArchived, refreshArchived]
   )
 
   return <MembersContext value={value}>{children}</MembersContext>

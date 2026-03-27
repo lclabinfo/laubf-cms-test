@@ -37,6 +37,8 @@ export type PersonFilters = {
   search?: string
   membershipStatus?: MembershipStatus | null
   householdId?: string
+  sortBy?: string
+  sortDir?: 'asc' | 'desc'
 }
 
 function buildSearchFilter(search: string): Prisma.PersonWhereInput {
@@ -91,11 +93,21 @@ export async function getPeople(
     ...(filters?.search && buildSearchFilter(filters.search)),
   }
 
+  // Build sort order — default to lastName + firstName ascending
+  const sortBy = filters?.sortBy ?? 'name'
+  const sortDir = filters?.sortDir ?? 'asc'
+  const allowedSortFields = ['name', 'email', 'createdAt', 'membershipStatus'] as const
+  const safeSortBy = (allowedSortFields as readonly string[]).includes(sortBy) ? sortBy : 'name'
+  const orderBy: Prisma.PersonOrderByWithRelationInput[] =
+    safeSortBy === 'name'
+      ? [{ lastName: sortDir }, { firstName: sortDir }]
+      : [{ [safeSortBy]: sortDir }]
+
   const [data, total] = await Promise.all([
     prisma.person.findMany({
       where,
       include: personListInclude,
-      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      orderBy,
       skip,
       take,
     }),
