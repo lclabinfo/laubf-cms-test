@@ -1,22 +1,12 @@
 import type { NextConfig } from "next";
 
 /**
- * Subdomain → /website rewrite (replaces middleware).
+ * Subdomain → /website routing is handled by proxy.ts (Next.js 16 file convention).
+ * See docs/04_proxy-routing/proxy-routing-architecture.md for full details.
  *
- * On church subdomains (e.g. laubf.lclab.io), every public path is
- * transparently rewritten to /website/… so the browser URL stays clean.
- * In development (localhost) the rewrites don't apply — devs navigate
- * to /website/… directly as before.
+ * Do NOT add beforeFiles rewrites for subdomain routing here — they conflict
+ * with the proxy and cause double-rewriting (/website/website/...).
  */
-const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost:3000')
-  .replace(/:\d+$/, '') // strip port
-
-const isLocalDev = rootDomain === 'localhost' || rootDomain === '127.0.0.1'
-
-// Escaped domain for regex (e.g. "lclab\\.io")
-const escapedDomain = rootDomain.replace(/\./g, '\\.')
-// Match any subdomain of ROOT_DOMAIN except admin.*
-const hostPattern = `(?!admin\\.)(.+)\\.${escapedDomain}`
 
 const nextConfig: NextConfig = {
   output: 'standalone',
@@ -54,27 +44,6 @@ const nextConfig: NextConfig = {
         hostname: "pub-91add7d8455848c9a871477af3249f9e.r2.dev",
       },
     ],
-  },
-  async rewrites() {
-    // No subdomain rewrites needed in local dev
-    if (isLocalDev) return []
-
-    return {
-      beforeFiles: [
-        // Root path → website homepage
-        {
-          source: '/',
-          destination: '/website',
-          has: [{ type: 'host', value: hostPattern }],
-        },
-        // All other paths (skip _next, api, favicon)
-        {
-          source: '/:path((?!_next|api|favicon\\.ico).*)',
-          destination: '/website/:path',
-          has: [{ type: 'host', value: hostPattern }],
-        },
-      ],
-    }
   },
   async headers() {
     return [
