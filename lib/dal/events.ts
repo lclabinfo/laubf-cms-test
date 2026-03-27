@@ -20,6 +20,12 @@ const eventDetailInclude = {
   eventLinks: { orderBy: { sortOrder: 'asc' as const } },
 } satisfies Prisma.EventInclude
 
+/** Override global omit to include all fields in detail/write queries */
+const eventDetailOmit = {
+  locationInstructions: false as const,
+  welcomeMessage: false as const,
+}
+
 export type EventFilters = {
   type?: EventType
   ministryId?: string
@@ -77,6 +83,7 @@ export async function getEventBySlug(
 ): Promise<EventDetail | null> {
   const event = await prisma.event.findUnique({
     where: { churchId_slug: { churchId, slug } },
+    omit: eventDetailOmit,
     include: eventDetailInclude,
   })
   return event
@@ -154,6 +161,7 @@ export async function createEvent(
 ) {
   return prisma.event.create({
     data: { ...data, churchId },
+    omit: eventDetailOmit,
     include: eventDetailInclude,
   })
 }
@@ -166,6 +174,7 @@ export async function updateEvent(
   return prisma.event.update({
     where: { id, churchId },
     data,
+    omit: eventDetailOmit,
     include: eventDetailInclude,
   })
 }

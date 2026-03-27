@@ -1,15 +1,32 @@
 import { prisma } from '@/lib/db'
 import { Prisma } from '@/lib/generated/prisma/client'
 
-type RoleDefinitionWithAssignments = Prisma.PersonRoleDefinitionGetPayload<{
-  include: { assignments: { include: { person: true } } }
-}>
-
 const roleDetailInclude = {
   assignments: {
-    include: { person: true },
+    select: {
+      id: true,
+      personId: true,
+      title: true,
+      startDate: true,
+      endDate: true,
+      person: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          preferredName: true,
+          photoUrl: true,
+          email: true,
+        },
+      },
+    },
+    take: 50,
   },
 } satisfies Prisma.PersonRoleDefinitionInclude
+
+type RoleDefinitionWithAssignments = Prisma.PersonRoleDefinitionGetPayload<{
+  include: typeof roleDetailInclude
+}>
 
 export async function getRoleDefinitions(
   churchId: string,
@@ -147,8 +164,15 @@ export async function getPeopleByRole(
     where: { roleId: role.id },
     include: {
       person: {
-        include: {
-          roleAssignments: { include: { role: true } },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          preferredName: true,
+          photoUrl: true,
+          title: true,
+          bio: true,
+          email: true,
         },
       },
     },

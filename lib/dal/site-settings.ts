@@ -1,6 +1,12 @@
 import { prisma } from '@/lib/db'
 import { Prisma, type SiteSettings } from '@/lib/generated/prisma/client'
 
+/** Override global omit to include all fields in detail/write queries */
+const siteSettingsDetailOmit = {
+  customHeadHtml: false as const,
+  customBodyHtml: false as const,
+}
+
 type SiteSettingsRecord = SiteSettings
 
 export async function getSiteSettings(
@@ -8,6 +14,7 @@ export async function getSiteSettings(
 ): Promise<SiteSettingsRecord | null> {
   return prisma.siteSettings.findUnique({
     where: { churchId },
+    omit: siteSettingsDetailOmit,
   })
 }
 
@@ -19,6 +26,7 @@ export async function updateSiteSettings(
     where: { churchId },
     update: data,
     create: { ...data as Omit<Prisma.SiteSettingsUncheckedCreateInput, 'churchId'>, churchId },
+    omit: siteSettingsDetailOmit,
   })
 }
 

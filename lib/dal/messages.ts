@@ -2,25 +2,35 @@ import { prisma } from '@/lib/db'
 import { Prisma } from '@/lib/generated/prisma/client'
 import { paginationArgs, paginatedResult, type PaginationParams, type PaginatedResult } from './types'
 
-type MessageWithRelations = Prisma.MessageGetPayload<{
-  include: { speaker: true; messageSeries: { include: { series: true } } }
-}>
+/** Omit heavy text/JSON fields from list queries — these are only needed on detail/edit views */
+const messageListOmit = {
+  rawTranscript: true as const,
+  liveTranscript: true as const,
+  transcriptSegments: true as const,
+  studySections: true as const,
+}
 
-type MessageDetail = Prisma.MessageGetPayload<{
-  include: {
-    speaker: true
-    messageSeries: { include: { series: true } }
-    relatedStudy: {
-      include: {
-        attachments: true
-      }
-    }
-  }
-}>
+/** Override global omit to include all fields in detail/write queries */
+const messageDetailOmit = {
+  rawTranscript: false as const,
+  liveTranscript: false as const,
+  transcriptSegments: false as const,
+  studySections: false as const,
+}
+
+// All views only use speaker name fields — avoid loading full Person record
+const speakerSelect = {
+  select: {
+    id: true,
+    firstName: true,
+    lastName: true,
+    preferredName: true,
+  },
+} as const
 
 // Lightweight include for list views — no relatedStudy to avoid loading heavy text columns
 const messageListInclude = {
-  speaker: true,
+  speaker: speakerSelect,
   messageSeries: {
     include: { series: true },
     orderBy: { sortOrder: 'asc' as const },
@@ -32,14 +42,27 @@ const messageListInclude = {
   },
 } satisfies Prisma.MessageInclude
 
+type MessageWithRelations = Prisma.MessageGetPayload<{
+  omit: typeof messageListOmit
+  include: typeof messageListInclude
+}>
+
 const messageDetailInclude = {
-  ...messageListInclude,
+  speaker: speakerSelect,
+  messageSeries: {
+    include: { series: true },
+    orderBy: { sortOrder: 'asc' as const },
+  },
   relatedStudy: {
     include: {
       attachments: { orderBy: { sortOrder: 'asc' as const } },
     },
   },
 } satisfies Prisma.MessageInclude
+
+type MessageDetail = Prisma.MessageGetPayload<{
+  include: typeof messageDetailInclude
+}>
 
 export type MessageFilters = {
   speakerId?: string
@@ -110,6 +133,7 @@ export async function getMessages(
   const [data, total] = await Promise.all([
     prisma.message.findMany({
       where,
+      omit: messageListOmit,
       include: messageListInclude,
       orderBy,
       skip,
@@ -133,6 +157,7 @@ export async function getMessageBySlug(
       deletedAt: null,
       ...(publishedOnly ? { hasVideo: true } : {}),
     },
+    omit: messageDetailOmit,
     include: messageDetailInclude,
   })
 }
@@ -143,6 +168,7 @@ export async function getMessageById(
 ): Promise<MessageDetail | null> {
   return prisma.message.findFirst({
     where: { id, churchId, deletedAt: null },
+    omit: messageDetailOmit,
     include: messageDetailInclude,
   })
 }
@@ -162,6 +188,7 @@ export async function getLatestMessage(
       hasVideo: true,
       dateFor: { lte: today },
     },
+    omit: messageListOmit,
     include: messageListInclude,
     orderBy: { dateFor: 'desc' },
   })
@@ -177,6 +204,7 @@ export async function getLatestMessage(
       hasStudy: true,
       dateFor: { lte: today },
     },
+    omit: messageListOmit,
     include: messageListInclude,
     orderBy: { dateFor: 'desc' },
   })
@@ -267,6 +295,7 @@ export async function createMessage(
 
   const message = await prisma.message.create({
     data: { ...messageData, churchId } as Prisma.MessageUncheckedCreateInput,
+    omit: messageDetailOmit,
     include: messageDetailInclude,
   })
 
@@ -282,6 +311,7 @@ export async function createMessage(
     // Re-fetch to include the series relation in the response
     return prisma.message.findUniqueOrThrow({
       where: { id: message.id },
+      omit: messageDetailOmit,
       include: messageDetailInclude,
     })
   }
@@ -324,6 +354,7 @@ export async function updateMessage(
   const message = await prisma.message.update({
     where: { id, churchId },
     data: messageData as Prisma.MessageUncheckedUpdateInput,
+    omit: messageDetailOmit,
     include: messageDetailInclude,
   })
 
@@ -348,6 +379,7 @@ export async function updateMessage(
     // Re-fetch to include updated series relation
     return prisma.message.findUniqueOrThrow({
       where: { id: message.id },
+      omit: messageDetailOmit,
       include: messageDetailInclude,
     })
   }
@@ -370,6 +402,7 @@ export async function archiveMessage(churchId: string, id: string) {
       hasVideo: false,
       hasStudy: false,
     },
+    omit: messageDetailOmit,
     include: messageDetailInclude,
   })
 }
@@ -378,6 +411,7 @@ export async function unarchiveMessage(churchId: string, id: string) {
   return prisma.message.update({
     where: { id, churchId },
     data: { archivedAt: null },
+    omit: messageDetailOmit,
     include: messageDetailInclude,
   })
 }

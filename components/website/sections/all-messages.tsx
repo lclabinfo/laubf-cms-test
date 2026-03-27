@@ -59,8 +59,8 @@ export default async function AllMessagesSection({
       thumbnailUrl: m.thumbnailUrl || (m.youtubeId ? `https://img.youtube.com/vi/${m.youtubeId}/hqdefault.jpg` : ''),
       duration: m.duration || '',
       hasVideo: m.hasVideo,
-      rawTranscript: m.rawTranscript || undefined,
-      liveTranscript: m.liveTranscript || undefined,
+      rawTranscript: undefined,
+      liveTranscript: undefined,
     }))
 
     const layoutConfig = {

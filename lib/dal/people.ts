@@ -2,38 +2,36 @@ import { prisma } from '@/lib/db'
 import { Prisma, type MembershipStatus } from '@/lib/generated/prisma/client'
 import { paginationArgs, paginatedResult, type PaginationParams, type PaginatedResult } from './types'
 
-type PersonWithRelations = Prisma.PersonGetPayload<{
-  include: {
-    householdMemberships: { include: { household: true } }
-    roleAssignments: { include: { role: true } }
-  }
-}>
-
-type PersonDetail = Prisma.PersonGetPayload<{
-  include: {
-    householdMemberships: { include: { household: true } }
-    roleAssignments: { include: { role: true } }
-    communicationPreferences: true
-    customFieldValues: { include: { fieldDefinition: true } }
-  }
-}>
-
 const personListInclude = {
   householdMemberships: {
-    include: { household: true },
+    select: {
+      role: true,
+      household: { select: { id: true, name: true } },
+    },
   },
   roleAssignments: {
-    include: { role: true },
+    select: {
+      role: { select: { id: true, name: true } },
+    },
   },
 } satisfies Prisma.PersonInclude
+
+type PersonWithRelations = Prisma.PersonGetPayload<{
+  include: typeof personListInclude
+}>
 
 const personDetailInclude = {
   ...personListInclude,
-  communicationPreferences: true,
+  communicationPreferences: { take: 50 },
   customFieldValues: {
     include: { fieldDefinition: true },
+    take: 50,
   },
 } satisfies Prisma.PersonInclude
+
+type PersonDetail = Prisma.PersonGetPayload<{
+  include: typeof personDetailInclude
+}>
 
 export type PersonFilters = {
   search?: string

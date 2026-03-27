@@ -14,6 +14,7 @@ const householdInclude = {
   members: {
     include: { person: true },
     orderBy: { createdAt: 'asc' as const },
+    take: 20,
   },
 } satisfies Prisma.HouseholdInclude
 

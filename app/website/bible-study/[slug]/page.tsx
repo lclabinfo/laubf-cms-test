@@ -1,3 +1,4 @@
+import { cache } from "react"
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { getChurchId } from "@/lib/tenant/context"
@@ -8,6 +9,11 @@ import type { BibleStudyDetail, BibleStudyAttachment } from "@/lib/types/bible-s
 import { bibleBookLabel } from "@/lib/website/bible-book-labels"
 import { contentToHtml } from "@/lib/tiptap-server"
 import StudyDetailView from "@/components/website/study-detail/study-detail-view"
+
+/** Deduplicate DB query between generateMetadata() and page component within a single request */
+const getCachedStudy = cache((churchId: string, slug: string) =>
+  getBibleStudyBySlug(churchId, slug)
+)
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -71,7 +77,7 @@ function transformStudy(study: NonNullable<Awaited<ReturnType<typeof getBibleStu
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
   const churchId = await getChurchId()
-  const study = await getBibleStudyBySlug(churchId, slug)
+  const study = await getCachedStudy(churchId, slug)
 
   if (!study) return { title: "Study Not Found" }
 
@@ -94,7 +100,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function BibleStudyDetailPage({ params }: PageProps) {
   const { slug } = await params
   const churchId = await getChurchId()
-  const study = await getBibleStudyBySlug(churchId, slug)
+  const study = await getCachedStudy(churchId, slug)
 
   if (!study) {
     notFound()

@@ -7,10 +7,33 @@ type BibleStudyWithRelations = Prisma.BibleStudyGetPayload<{
   include: { speaker: true; series: true; attachments: true; relatedMessage: { select: { bibleVersion: true; slug: true; videoUrl: true; youtubeId: true } } }
 }>
 
+/** Omit heavy text fields from list queries to avoid loading ~80 MB of TOAST data */
+const bibleStudyListOmit = {
+  questions: true as const,
+  answers: true as const,
+  transcript: true as const,
+  bibleText: true as const,
+  keyVerseText: true as const,
+}
+
+/** Override global omit to include all fields in detail/write queries */
+const bibleStudyDetailOmit = {
+  questions: false as const,
+  answers: false as const,
+  transcript: false as const,
+  bibleText: false as const,
+  keyVerseText: false as const,
+}
+
+type BibleStudyListItem = Prisma.BibleStudyGetPayload<{
+  omit: typeof bibleStudyListOmit
+  include: { speaker: true; series: true; attachments: { take: 20 }; relatedMessage: { select: { bibleVersion: true; slug: true; videoUrl: true; youtubeId: true } } }
+}>
+
 const bibleStudyInclude = {
   speaker: true,
   series: true,
-  attachments: { orderBy: { sortOrder: 'asc' as const } },
+  attachments: { orderBy: { sortOrder: 'asc' as const }, take: 20 },
   relatedMessage: { select: { bibleVersion: true, slug: true, videoUrl: true, youtubeId: true } },
 } satisfies Prisma.BibleStudyInclude
 
@@ -24,7 +47,7 @@ export type BibleStudyFilters = {
 export async function getBibleStudies(
   churchId: string,
   filters?: BibleStudyFilters & PaginationParams,
-): Promise<PaginatedResult<BibleStudyWithRelations>> {
+): Promise<PaginatedResult<BibleStudyListItem>> {
   const { skip, take, page, pageSize } = paginationArgs(filters)
   const status = filters?.status ?? ContentStatus.PUBLISHED
 
@@ -40,6 +63,7 @@ export async function getBibleStudies(
   const [data, total] = await Promise.all([
     prisma.bibleStudy.findMany({
       where,
+      omit: bibleStudyListOmit,
       include: bibleStudyInclude,
       orderBy: { dateFor: 'desc' },
       skip,
@@ -57,6 +81,7 @@ export async function getBibleStudyBySlug(
 ): Promise<BibleStudyWithRelations | null> {
   return prisma.bibleStudy.findFirst({
     where: { churchId, slug, deletedAt: null, status: ContentStatus.PUBLISHED },
+    omit: bibleStudyDetailOmit,
     include: bibleStudyInclude,
   })
 }
@@ -67,6 +92,7 @@ export async function createBibleStudy(
 ) {
   return prisma.bibleStudy.create({
     data: { ...data, churchId },
+    omit: bibleStudyDetailOmit,
     include: bibleStudyInclude,
   })
 }
@@ -79,6 +105,7 @@ export async function updateBibleStudy(
   return prisma.bibleStudy.update({
     where: { id, churchId },
     data,
+    omit: bibleStudyDetailOmit,
     include: bibleStudyInclude,
   })
 }

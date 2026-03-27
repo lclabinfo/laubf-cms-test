@@ -1,3 +1,4 @@
+import { cache } from "react"
 import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import Link from "next/link"
@@ -15,6 +16,11 @@ import {
 } from "@/components/website/shared/icons"
 import TranscriptPanel from "./transcript-panel"
 import ShareMessageButton from "./share-message-button"
+
+/** Deduplicate DB query between generateMetadata() and page component within a single request */
+const getCachedMessage = cache((churchId: string, slug: string) =>
+  getMessageBySlug(churchId, slug)
+)
 
 interface PageProps {
   params: Promise<{ slug: string }>
@@ -44,7 +50,7 @@ function formatDate(date: Date): string {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params
   const churchId = await getChurchId()
-  const message = await getMessageBySlug(churchId, slug)
+  const message = await getCachedMessage(churchId, slug)
 
   if (!message) return { title: "Message Not Found" }
 
@@ -81,7 +87,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function MessageDetailPage({ params }: PageProps) {
   const { slug } = await params
   const churchId = await getChurchId()
-  const message = await getMessageBySlug(churchId, slug)
+  const message = await getCachedMessage(churchId, slug)
 
   if (!message) {
     notFound()
