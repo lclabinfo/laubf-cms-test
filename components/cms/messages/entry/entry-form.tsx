@@ -1,6 +1,20 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react"
+
+/** Download a cross-origin file with the correct filename via blob URL. */
+async function downloadFile(url: string, filename: string) {
+  const resp = await fetch(url)
+  const blob = await resp.blob()
+  const blobUrl = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = blobUrl
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(blobUrl)
+}
 import { useRouter, useSearchParams, usePathname } from "next/navigation"
 import { deleteImageFromR2, promoteStagingImages, replaceStagingUrls } from "@/lib/upload-media"
 import type { StagingImageEntry } from "@/lib/upload-media"
@@ -208,10 +222,8 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                     </Button>
                   )}
                   {att.url && (
-                    <Button variant="ghost" size="icon-sm" asChild>
-                      <a href={att.url} download={att.name} title="Download">
-                        <Download className="size-3.5" />
-                      </a>
+                    <Button variant="ghost" size="icon-sm" onClick={() => downloadFile(att.url!, att.name)} title="Download">
+                      <Download className="size-3.5" />
                     </Button>
                   )}
                   <Button
@@ -1330,11 +1342,9 @@ export function EntryForm({ mode, message }: EntryFormProps) {
                   Preview not available for this file type.
                 </p>
                 {previewAttachment?.url && (
-                  <Button variant="outline" size="sm" asChild>
-                    <a href={previewAttachment.url} download={previewAttachment.name}>
-                      <Download className="size-3.5" />
-                      Download to view
-                    </a>
+                  <Button variant="outline" size="sm" onClick={() => downloadFile(previewAttachment.url!, previewAttachment.name)}>
+                    <Download className="size-3.5" />
+                    Download to view
                   </Button>
                 )}
               </div>
