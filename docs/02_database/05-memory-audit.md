@@ -461,6 +461,127 @@ BibleVerse (342K rows), Messages (1,176), Bible Studies (1,185) sit in PostgreSQ
 
 ---
 
+## Memory Retention & GC Analysis (added 2026-03-26)
+
+> **Question investigated**: Is the server holding query results in memory across requests
+> instead of freeing them? Is there a cache or global store that accumulates data over time?
+
+### Short answer
+
+**No.** The codebase has excellent memory hygiene — no unbounded accumulation, no query result caching, no leaking globals. The 1 GB RSS is NOT from retained data. It's from **per-request over-allocation** (80 MB bible study queries × RSC doubling = ~160 MB transient spike per homepage render) combined with the **permanent runtime footprint** (~40-70 MB Prisma WASM + generated client, ~15-30 MB TipTap, module cache).
+
+V8's garbage collector reclaims the per-request allocations, but GC pressure from repeated 160 MB spikes keeps RSS high because V8 grows the heap to avoid constant collection and is slow to release pages back to the OS.
+
+### What was audited
+
+Every file in `lib/`, `app/api/`, `app/website/`, and `components/website/` was checked for:
+- Module-level variables that could accumulate data
+- Global object attachments (`globalThis`, `globalForPrisma`)
+- In-memory caches (`Map`, `Set`, `WeakMap` at module scope)
+- Next.js Data Cache usage (`unstable_cache`, `'use cache'`, `cacheTag`)
+- React `cache()` usage
+- `fetch()` calls with cache options
+- Event listeners / intervals at module level
+- Dynamic imports that load heavy modules permanently
+
+### Finding 1: Zero query result caching — every request hits the DB fresh
+
+The app uses **none** of Next.js's caching mechanisms for database queries:
+
+| Caching mechanism | Used? | Impact |
+|-------------------|-------|--------|
+| `unstable_cache()` | **No** — zero usage in app code | Every Prisma query runs fresh |
+| `'use cache'` directive | **No** — not enabled | No server-side result caching |
+| `cacheTag()` / `cacheLife()` | **No** | N/A |
+| React `cache()` | **No** — recommended in this doc (1d) but not implemented | Detail pages query DB twice (metadata + render) |
+| `export const revalidate` (ISR) | **No** — zero website routes have this | Every visitor triggers full DB queries + full RSC render |
+| `fetch()` with cache | **No** — only `cache: 'no-store'` used in CMS contexts | N/A for server components |
+
+**This means every single page visit — even for the exact same URL visited 1 second ago — runs the full query pipeline, allocates the full result set in Node.js memory, serializes it through RSC, and discards it.** There is no layer preventing this repetition.
+
+This is the opposite of the "data retained in memory" concern — the problem is that **nothing is cached**, so the server does maximum work (and maximum memory allocation) on every request, then throws it all away.
+
+### Finding 2: The homepage renders 10 sections in parallel, each with its own query
+
+The catch-all page route (`app/website/[[...slug]]/page.tsx:70`) resolves all visible sections via `Promise.all()`. The homepage has **10 sections**, each calling `resolveSectionData()` which fires a separate Prisma query.
+
+During a homepage render, the server simultaneously holds in memory:
+- `HIGHLIGHT_CARDS` → `getUpcomingEvents()` result
+- `ALL_BIBLE_STUDIES` → `getBibleStudies()` result (**the 80 MB one**)
+- `EVENT_CALENDAR` → `getEvents()` result
+- `DIRECTORY_LIST` → `getCampuses()` result
+- `MEDIA_GRID` → `getVideos()` result
+- Plus 5 more section queries
+
+`Promise.all()` means all 10 query results exist simultaneously in memory until all have resolved. Peak memory during homepage render: **80 MB (bible studies) + ~5 MB (other sections) + RSC serialization overhead ≈ 170+ MB transient**.
+
+After the response is sent, V8 GC can reclaim this, but: (a) GC doesn't run instantly — it waits for heap pressure, (b) V8 is reluctant to shrink the heap after a large spike (it assumes similar spikes will recur), (c) concurrent requests compound the issue.
+
+### Finding 3: Module-level memory is small and bounded
+
+| Module-level item | File | Size | Bounded? |
+|-------------------|------|------|----------|
+| Prisma client singleton | `lib/db/client.ts` | ~40-70 MB (WASM + runtime + pool) | Yes — single instance |
+| TipTap extension cache | `lib/tiptap-server.ts` | ~500 bytes (array of extension objects) | Yes — cached once |
+| Rate limiter Map | `lib/rate-limit.ts` | Up to 10K entries max | Yes — cap + 5-min cleanup |
+| BOOK_PATTERNS array | `lib/dal/sync-message-study.ts` | ~10 KB | Yes — constant |
+| ALLOWED_FIELDS Set | `app/api/v1/church/route.ts` | ~500 bytes | Yes — constant |
+
+**Total persistent module-level memory: ~70 MB**, almost entirely the Prisma runtime. No unbounded growth detected.
+
+### Finding 4: Dynamic imports are cached permanently but appropriately
+
+Node.js caches every `await import()` permanently after first execution. The codebase uses lazy imports for:
+
+| Import | File | Loaded when | Size |
+|--------|------|-------------|------|
+| `mammoth` | `lib/docx-import.ts` | DOCX conversion triggered | ~2-3 MB |
+| `jszip` | `lib/docx-import.ts` | DOCX conversion triggered | ~1-2 MB |
+| `word-extractor` | `lib/doc-convert.ts` | .doc conversion triggered | ~1 MB |
+| `@/lib/permissions` | `lib/auth/config.ts` | First auth check | ~10 KB |
+| `@/lib/upload-attachment` | `lib/dal/sync-message-study.ts` | Attachment cleanup | ~5 KB |
+
+These are correctly lazy — they only load when the feature is actually used. Once loaded, they stay in the module cache permanently (no way to evict). For document conversion tools that are rarely used, this is a ~4 MB permanent cost only after first use.
+
+### Finding 5: No server-side React context retention
+
+All React context providers (`MessagesProvider`, `EventsProvider`, `MembersProvider`) are client components (`"use client"`). They hold state in browser memory, not server memory. Server components receive data as props and discard it after rendering.
+
+### Where the 1 GB actually comes from (revised model)
+
+| Component | Size | Type | Can be reduced? |
+|-----------|------|------|----------------|
+| Prisma WASM compiler + generated client | ~40-70 MB | Permanent | Yes — schema consolidation (Priority 7) |
+| TipTap server utilities | ~5-10 MB | Permanent | **Done** — split from full TipTap (was ~15-30 MB) |
+| Node.js runtime + Next.js framework | ~80-120 MB | Permanent | No — fixed cost |
+| **Per-request: Bible study list query** | **~80 MB per render** | **Transient** | **Yes — `omit` reduces to 152 KB** |
+| Per-request: RSC serialization doubling | ~80 MB (mirrors query result) | Transient | Yes — fixed by fixing query size |
+| Per-request: Other section queries | ~5-10 MB combined | Transient | Modest improvement with ISR |
+| V8 heap headroom (doesn't shrink after spikes) | ~100-200 MB | Semi-permanent | Yes — reducing spike size lets heap shrink |
+| Module cache (lazy imports, npm packages) | ~20-40 MB | Permanent | Modest — already lazy-loaded |
+
+**Key insight**: The permanent footprint is ~200-300 MB (Prisma + Next.js + modules). The remaining ~700 MB is V8 heap that was grown to accommodate transient 160+ MB spikes and never released. **Fix the spike (Priority 1a: `omit`), and V8 will maintain a much smaller heap.**
+
+### Recommendations (in order of impact)
+
+**1. Fix the 80 MB query spike (Priority 1a — `omit`)**: This is by far the highest-impact change. Reducing the bible study list query from 80 MB to 152 KB eliminates the primary cause of V8 heap growth. Expected steady-state RSS reduction: **300-500 MB**.
+
+**2. Add ISR to website routes (Priority 2)**: Eliminates per-request DB queries for repeated visits. Homepage renders drop from 170+ MB transient allocation to 0 MB (served from disk cache). Expected additional RSS reduction: **100-200 MB**.
+
+**3. Add React `cache()` to detail pages (Priority 1d)**: Halves DB round-trips on detail views. Small but free.
+
+**4. Do NOT add `unstable_cache()` for large content**: It would hold query results in the Next.js Data Cache with a warm in-memory copy, which is exactly the "server storing data" concern you had. For a CMS where content changes frequently, ISR's filesystem cache (Priority 2) is better — it serves from disk, not memory.
+
+### What NOT to worry about
+
+- **Module-level constants**: The lookup tables, regex patterns, and small Sets total < 50 KB. Not a factor.
+- **Rate limiter Map**: Capped at 10K entries with 5-minute cleanup. At most ~1 MB.
+- **Prisma connection pool**: 5 connections × ~500 KB each = ~2.5 MB. Negligible.
+- **Dynamic import caching**: ~4 MB for rarely-used DOCX tools. Acceptable.
+- **React contexts**: Client-side only. Zero server memory.
+
+---
+
 ## Config Flags — Honest Assessment
 
 These were initially listed as P0 fixes. After verification, most are ineffective:
