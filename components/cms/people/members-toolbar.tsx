@@ -41,6 +41,9 @@ interface ToolbarProps {
   table: TanstackTable<MemberPerson>
   globalFilter: string
   setGlobalFilter: (value: string) => void
+  /** Server-side membership status filter (single value or empty string for all) */
+  membershipFilter: string
+  onMembershipFilterChange: (status: string) => void
   onAddMember: () => void
   onImportCSV: () => void
   onBulkUpdateStatus: (status: MembershipStatus) => void
@@ -53,6 +56,8 @@ export function MembersToolbar({
   table,
   globalFilter,
   setGlobalFilter,
+  membershipFilter,
+  onMembershipFilterChange,
   onAddMember,
   onImportCSV,
   onBulkUpdateStatus,
@@ -60,27 +65,26 @@ export function MembersToolbar({
   onViewArchived,
   archivedCount,
 }: ToolbarProps) {
-  const selectedCount = table.getFilteredSelectedRowModel().rows.length
-  const statusFilter = (table.getColumn("membershipStatus")?.getFilterValue() as MembershipStatus[]) ?? []
+  const selectedCount = table.getSelectedRowModel().rows.length
 
-  function toggleStatus(status: MembershipStatus) {
-    const current = statusFilter
-    const next = current.includes(status)
-      ? current.filter((s) => s !== status)
-      : [...current, status]
-    table.getColumn("membershipStatus")?.setFilterValue(next.length ? next : undefined)
+  function selectStatus(status: MembershipStatus) {
+    // Toggle: if already selected, clear the filter
+    if (membershipFilter === status) {
+      onMembershipFilterChange("")
+    } else {
+      onMembershipFilterChange(status)
+    }
   }
 
   function clearFilters() {
-    table.getColumn("membershipStatus")?.setFilterValue(undefined)
+    onMembershipFilterChange("")
   }
 
-  const filterCount = statusFilter.length
-  const hasFilters = filterCount > 0
+  const hasFilters = !!membershipFilter
 
   return (
     <div data-tutorial="ppl-toolbar" className="space-y-2">
-      {/* Search + filters row — always the same height */}
+      {/* Search + filters row */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Search */}
         <div className="relative w-full sm:w-sm">
@@ -102,7 +106,7 @@ export function MembersToolbar({
               <span className="hidden sm:inline">Filters</span>
               {hasFilters && (
                 <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
-                  {filterCount}
+                  1
                 </Badge>
               )}
             </Button>
@@ -127,9 +131,9 @@ export function MembersToolbar({
                   {statuses.map((s) => (
                     <Badge
                       key={s.value}
-                      variant={statusFilter.includes(s.value) ? "default" : "outline"}
+                      variant={membershipFilter === s.value ? "default" : "outline"}
                       className="cursor-pointer"
-                      onClick={() => toggleStatus(s.value)}
+                      onClick={() => selectStatus(s.value)}
                     >
                       {s.label}
                     </Badge>
@@ -179,23 +183,18 @@ export function MembersToolbar({
           )}
         </Button>
 
-        {/* Active filter badges */}
+        {/* Active filter badge */}
         {hasFilters && (
           <div className="flex flex-wrap items-center gap-1">
-            {statusFilter.map((s) => {
-              const label = statuses.find((st) => st.value === s)?.label ?? s
-              return (
-                <Badge key={`status-${s}`} variant="secondary" className="gap-1">
-                  {label}
-                  <button
-                    onClick={() => toggleStatus(s)}
-                    className="ml-0.5 rounded-full hover:bg-foreground/10"
-                  >
-                    <X className="size-3" />
-                  </button>
-                </Badge>
-              )
-            })}
+            <Badge variant="secondary" className="gap-1">
+              {statuses.find((st) => st.value === membershipFilter)?.label ?? membershipFilter}
+              <button
+                onClick={clearFilters}
+                className="ml-0.5 rounded-full hover:bg-foreground/10"
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
           </div>
         )}
 
@@ -214,7 +213,7 @@ export function MembersToolbar({
         </div>
       </div>
 
-      {/* Bulk actions bar — separate row, only when items are selected */}
+      {/* Bulk actions bar -- separate row, only when items are selected */}
       {selectedCount > 0 && (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-muted/50 px-3 py-1.5">
           <span className="text-sm font-medium whitespace-nowrap">
