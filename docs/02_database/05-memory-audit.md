@@ -25,7 +25,7 @@ Items still pending: Priority 2 (ISR), Priority 3 (superseded by merge), Priorit
 ---
 
 > **NOTE — Table Merge Plan**: Priorities 3, 4, and parts of 6/7 will be superseded by the
-> Message + BibleStudy table merge documented in `/message-biblestudy-proposed-schema.md`.
+> Message + BibleStudy table merge documented in `docs/00_dev-notes/plans/message-biblestudy-proposed-schema.md`.
 > That merge eliminates the sync layer, the duplication, and the format inconsistency in one
 > migration. Items marked **[SUPERSEDED BY MERGE]** below should NOT be implemented independently —
 > they'll be handled as part of the merge. Items marked **[DO NOW]** are safe to implement
@@ -102,7 +102,7 @@ const studies = await prisma.bibleStudy.findMany({
 
 > **Note**: After the table merge, this becomes a single `omit` on the merged Message table.
 > The pattern is the same — `omit` works identically on a merged table. See
-> `/message-biblestudy-proposed-schema.md` section 10.
+> `docs/00_dev-notes/plans/message-biblestudy-proposed-schema.md` section 10.
 
 **Why it matters beyond Node.js**: PostgreSQL stores large Text/JsonB fields in a separate TOAST table. When you `SELECT` without text columns, PostgreSQL **never reads TOAST** — no I/O, no decompression, no buffer pool pollution. This is the single biggest hidden win.
 
@@ -214,7 +214,7 @@ Then add `revalidatePath`/`revalidateTag` calls in CMS save handlers so edits ap
 
 > **2026-03-26 update**: This entire priority is addressed by the Message + BibleStudy table
 > merge. The merge eliminates all duplication by putting everything on a single table. See
-> `/message-biblestudy-proposed-schema.md` for the full plan. Do NOT implement 3a or 3b
+> `docs/00_dev-notes/plans/message-biblestudy-proposed-schema.md` for the full plan. Do NOT implement 3a or 3b
 > independently — they would create throwaway work that the merge replaces.
 
 ### 3a. Remove Message ↔ BibleStudy Content Duplication — **[SUPERSEDED BY MERGE]**
@@ -374,7 +374,7 @@ Independent of the Message/BibleStudy work. Still valid.
 > **2026-03-26 update**: The table merge changes the model count calculation. BibleStudy and
 > MessageSeries are dropped (2 models). BibleStudyAttachment is renamed to MessageAttachment
 > (0 net change — it stays as a relation table, NOT inlined as JSON, because attachments need
-> individual R2 file lifecycle management). See `/message-biblestudy-proposed-schema.md`.
+> individual R2 file lifecycle management). See `docs/00_dev-notes/plans/message-biblestudy-proposed-schema.md`.
 
 ### Models to Remove/Merge
 
@@ -696,7 +696,7 @@ Run before and after each priority phase to measure actual impact.
 | Document | Scope |
 |----------|-------|
 | `/message-biblestudy-current-architecture.md` | Full audit of both tables: every column, every operation, data population, format inconsistencies |
-| `/message-biblestudy-proposed-schema.md` | Proposed table merge: schema, migration plan, workflow walkthrough, TOAST analysis, alternative approaches evaluated |
+| `docs/00_dev-notes/plans/message-biblestudy-proposed-schema.md` | Proposed table merge: schema, migration plan, workflow walkthrough, TOAST analysis, alternative approaches evaluated |
 | `/bug-investigation-2026-03-25.md` | Bug #7 (memory) and #8 (transcript) findings that led to this deeper investigation |
 
 ---

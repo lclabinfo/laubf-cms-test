@@ -1,5 +1,3 @@
-# Caching & Memory Audit
-
 > **Date**: 2026-03-27
 > **Observed memory**: ~1,000 MB in production (`next start`)
 > **Target memory**: <300 MB production
