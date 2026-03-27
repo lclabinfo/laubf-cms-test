@@ -389,6 +389,28 @@ Steps 5-6 add granular cache control and eliminate redundant DB queries. Step 7 
 
 ---
 
+## Steady-State Memory Estimates
+
+After the global omit and selective query optimizations (already done):
+
+| Scenario | Expected RSS | Notes |
+|----------|-------------|-------|
+| After fresh restart, idle | ~350-400 MB | Prisma + Next.js + TipTap loaded |
+| Normal CMS usage (1-2 users) | ~400-500 MB | Page loads, editing, saving |
+| Active builder session | ~450-550 MB | Builder + iframe + undo stack |
+| Website traffic (no ISR yet) | ~500-600 MB | DB queries per request, GC cycles |
+| Website traffic (with ISR) | ~400-500 MB | Most requests served from disk cache |
+| **Peak under load** | **~600-800 MB** | Multiple concurrent users + website |
+| **Previous peak (before optimizations)** | **~1000 MB** | Fixed by global omit + selective queries |
+
+Growth from 400 to 600-800 MB is **normal V8 behavior** — the old generation heap fills under traffic and RSS doesn't decrease because V8 keeps allocated pages. This is not a leak.
+
+**If memory exceeds 800 MB consistently**, check: people/members context (500 records), multiple builder sessions, rate limiter Map under heavy unique-IP traffic.
+
+See `full-memory-audit.md` for the complete module-by-module breakdown.
+
+---
+
 ## Verification Commands
 
 After implementing, verify with:
