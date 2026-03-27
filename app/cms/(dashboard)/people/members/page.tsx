@@ -364,7 +364,7 @@ function MembersPageContent() {
           <div className="flex items-center justify-center py-16">
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
-        ) : members.length === 0 && !searchInput && !membershipFilter ? (
+        ) : pagination.total === 0 && !searchInput && !membershipFilter ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <Users className="size-12 text-muted-foreground/30 mb-4" />
             <h3 className="text-sm font-medium">No members yet</h3>
