@@ -46,7 +46,11 @@ Everything is ordered by **permanent steady-state impact** — assuming every pa
 
 **Why this is #1**: Every list request currently loads megabytes of text content that the UI never displays. Fixing this saves memory on EVERY request, permanently. It also prevents PostgreSQL from reading TOAST tables (separate storage for large text), which is a 10-50x I/O improvement.
 
-### 1a. Use `omit` in All List Queries — **[DO NOW]**
+### 1a. Use `omit` in All List Queries — **[DONE 2026-03-27]**
+- [x] Add `omit` to `getBibleStudies()` in `lib/dal/bible-studies.ts` (questions, answers, transcript, bibleText, keyVerseText)
+- [x] Add `omit` to `getMessages()` in `lib/dal/messages.ts` (rawTranscript, liveTranscript, transcriptSegments, studySections)
+- [x] Add `omit` to `getLatestMessage()` in `lib/dal/messages.ts`
+- [x] Update list return types to reflect omitted fields (`BibleStudyListItem`, `MessageWithRelations` with omit)
 
 > **2026-03-26 correction**: The original estimate of ~5-7.5 MB per list request was
 > conservative. Actual measurement shows `getBibleStudies()` transfers **~80 MB** for all
@@ -91,7 +95,14 @@ const studies = await prisma.bibleStudy.findMany({
 **Files**: `lib/dal/bible-studies.ts`, `lib/dal/messages.ts`, `lib/website/resolve-section-data.ts`
 **Side effects**: None for list views. Detail views use `findUnique` without `omit` and still get all columns.
 
-### 1b. Global `omit` on PrismaClient as Safety Net — **[DO NOW]**
+### 1b. Global `omit` on PrismaClient as Safety Net — **[DONE 2026-03-27]**
+- [x] Add global `omit` config to `lib/db/client.ts` (Message, BibleStudy, Event, SiteSettings heavy text fields)
+- [x] Add `omit: { field: false }` overrides to all detail/write queries that need heavy fields
+  - [x] `getBibleStudyBySlug()`, `createBibleStudy()`, `updateBibleStudy()` in bible-studies.ts
+  - [x] `getMessageBySlug()`, `getMessageById()`, `createMessage()`, `updateMessage()`, `archiveMessage()`, `unarchiveMessage()` in messages.ts
+  - [x] `getEventBySlug()`, `createEvent()`, `updateEvent()` in events.ts
+  - [x] `getSiteSettings()`, `updateSiteSettings()` in site-settings.ts
+  - Note: DailyBread excluded from global omit — few records, body needed in all views
 
 Even after fixing list queries, add `omit` to the PrismaClient config to prevent accidental over-fetching anywhere else:
 
@@ -117,7 +128,12 @@ return new PrismaClient({
 **Files**: `lib/db/client.ts`
 **Side effects**: Detail views must opt-in to heavy fields via `omit: { questions: false }`. Verify all detail pages still work.
 
-### 1c. Add `take` Limits to All Nested 1:Many Includes — **[DO NOW]**
+### 1c. Add `take` Limits to All Nested 1:Many Includes — **[DONE 2026-03-27]**
+- [x] `getPersonById()` → communicationPreferences: `take: 50`
+- [x] `getPersonById()` → customFieldValues: `take: 50`
+- [x] `getBibleStudies()` → attachments: `take: 20`
+- [x] `getRoleDefinitions()` → assignments: `take: 50`
+- [x] `getHouseholds()` → members: `take: 20`
 
 Several DAL functions load unbounded nested relations:
 
@@ -133,7 +149,9 @@ Several DAL functions load unbounded nested relations:
 **Effort**: LOW — add `take` parameter to include clauses
 **Files**: `lib/dal/people.ts`, `lib/dal/bible-studies.ts`, `lib/dal/person-roles.ts`, `lib/dal/households.ts`
 
-### 1d. Deduplicate Detail Page Queries with React `cache()` — **[DO NOW]**
+### 1d. Deduplicate Detail Page Queries with React `cache()` — **[DONE 2026-03-27]**
+- [x] Wrap `getBibleStudyBySlug` with `cache()` in `app/website/bible-study/[slug]/page.tsx`
+- [x] Wrap `getMessageBySlug` with `cache()` in `app/website/messages/[slug]/page.tsx`
 
 Detail pages call their DAL function **twice** — once in `generateMetadata()`, once in the page component. Each call loads ~100 KB.
 
@@ -152,6 +170,10 @@ const getCachedStudy = cache((churchId: string, slug: string) =>
 ---
 
 ## Priority 2: ISR for Website Routes — **[DO NOW]**
+- [ ] Add `export const revalidate = 60` to `app/website/[[...slug]]/page.tsx`
+- [ ] Add `export const revalidate = 300` to `app/website/layout.tsx`
+- [ ] Add `revalidatePath`/`revalidateTag` calls in CMS save handlers
+- [ ] Verify CMS preview bypasses cache
 
 **Why this is #2**: Caches rendered HTML to disk. Between revalidation intervals, website visitors get served from disk with **zero DB queries, zero Prisma, zero memory allocation**. For a church website where content changes ~once/day, this eliminates 99% of database-driven memory usage.
 
@@ -179,7 +201,11 @@ Then add `revalidatePath`/`revalidateTag` calls in CMS save handlers so edits ap
 > `/message-biblestudy-proposed-schema.md` for the full plan. Do NOT implement 3a or 3b
 > independently — they would create throwaway work that the merge replaces.
 
-### 3a. Remove Message ↔ BibleStudy Content Duplication
+### 3a. Remove Message ↔ BibleStudy Content Duplication — **[SUPERSEDED BY MERGE]**
+
+- [ ] Merge BibleStudy content into Message table (eliminates duplication)
+- [ ] Remove `syncMessageStudy()` sync layer (~448 lines)
+- [ ] Resolve format inconsistency (99% TipTap JSON vs 1% HTML in BibleStudy columns)
 
 Study content is stored **TWICE**:
 
@@ -203,16 +229,18 @@ BibleStudy.transcript  (Text, ~80 KB)  ← Same content as HTML
 > The bigger issue is the 448-line sync layer and the format inconsistency (99% TipTap JSON
 > vs 1% HTML in BibleStudy columns). Both are resolved by the table merge.
 
-### 3b. Remove Dead `transcriptSegments` Field
+### 3b. Remove Dead `transcriptSegments` Field — **[SUPERSEDED BY MERGE]**
 
-`Message.transcriptSegments` (JsonB) — **confirmed dead** as of 2026-03-26: 7 entries in the database, all containing JSON `null` (not SQL NULL). Zero code references in sync, rendering, or any active code path.
+- [ ] Drop `Message.transcriptSegments` column (confirmed dead: 7 entries, all JSON `null`, zero code refs)
 
 > **Resolved by merge**: Column is dropped in the merge migration. If implementing before the
 > merge, this is safe to drop independently.
 
 ### 3c. Remove Duplicate Fields Between Church and SiteSettings — **[DO NOW]**
 
-9 fields are duplicated across both models (social URLs, contact info, logo/favicon). After any consolidation, one source of truth should remain. Independent of the table merge.
+- [ ] Identify canonical source for each of the 9 duplicated fields (social URLs, contact info, logo/favicon)
+- [ ] Consolidate to single source of truth (remove duplicates from non-canonical model)
+- [ ] Update DAL queries and admin UI to use canonical model only
 
 **Savings**: Modest (avoids loading duplicate data in layout queries)
 **Effort**: LOW-MEDIUM depending on which model becomes canonical
@@ -233,16 +261,17 @@ BibleStudy.transcript  (Text, ~80 KB)  ← Same content as HTML
 ~~Currently, TipTap JSON is stored in the database and converted to HTML **on every page render** server-side. TipTap imports ~10-20 MB of dependencies that stay permanently loaded.~~
 
 **Done (2026-03-26):**
-- `lib/tiptap-server.ts` created with lightweight server-only utilities (no editor plugins)
-- `app/website/bible-study/[slug]/page.tsx` → imports from `tiptap-server`
-- `app/website/events/[slug]/page.tsx` → imports from `tiptap-server`
-- `app/website/messages/[slug]/page.tsx` → imports from `tiptap-server`
-- Sharp disabled (`images: { unoptimized: true }` in `next.config.ts`)
-- TypeScript excluded from bundle (`serverExternalPackages: ['typescript']`)
+- [x] Create `lib/tiptap-server.ts` with lightweight server-only utilities (no editor plugins)
+- [x] `app/website/bible-study/[slug]/page.tsx` → imports from `tiptap-server`
+- [x] `app/website/events/[slug]/page.tsx` → imports from `tiptap-server`
+- [x] `app/website/messages/[slug]/page.tsx` → imports from `tiptap-server`
+- [x] Disable Sharp (`images: { unoptimized: true }` in `next.config.ts`)
+- [x] Exclude TypeScript from bundle (`serverExternalPackages: ['typescript']`)
 
 **Savings achieved**: ~50-85 MB reduction in server bundle size
 
-**Remaining (deferred to merge)**: One-time conversion of 1,150+ TipTap JSON entries in BibleStudy columns to HTML, eliminating per-request parsing.
+**Remaining (deferred to merge):**
+- [ ] One-time conversion of 1,150+ TipTap JSON entries in BibleStudy columns to HTML (eliminates per-request parsing)
 
 ---
 
@@ -251,20 +280,20 @@ BibleStudy.transcript  (Text, ~80 KB)  ← Same content as HTML
 Independent of the Message/BibleStudy work. Still valid.
 
 ### 5a. Fix Cartesian Explosion in People Queries
-
-`getPeople()` has 2-level nested includes (householdMemberships.household + roleAssignments.role) with a 7-condition OR search filter. `getPeopleByRole()` loads 500 people × 5 roles each = 2500 role records.
-
-**Fix**: Use `select` with minimal fields. Split role search into separate query. Paginate assignments.
+- [ ] Refactor `getPeople()` to use `select` with minimal fields instead of full includes
+- [ ] Split role search in `getPeople()` into a separate query (avoid 7-condition OR with nested joins)
+- [ ] Add pagination to `getPeopleByRole()` role assignments (currently 500 people × 5 roles = 2500 records)
+- [ ] Paginate `householdMemberships` and `roleAssignments` includes
 
 **Savings**: 20-100 MB at peak (permanent — every people page load)
 **Effort**: MEDIUM
 **Files**: `lib/dal/people.ts`, `lib/dal/person-roles.ts`
 
 ### 5b. Batch-Fetch Speakers Instead of Per-Message Include
-
-When `include: { speaker: true }` loads 50 messages, Prisma creates **50 separate Speaker objects** even if 40 share the same speaker. No deduplication.
-
-**Fix**: Fetch messages without speaker. Extract unique `speakerId` values. Batch-fetch speakers. Join in app code. Creates 5 objects instead of 50.
+- [ ] Fetch messages without `include: { speaker: true }`
+- [ ] Extract unique `speakerId` values from results
+- [ ] Batch-fetch speakers in single query
+- [ ] Join speakers to messages in app code (5 objects instead of 50)
 
 **Savings**: 1-3 MB per list render (permanent)
 **Effort**: MEDIUM
@@ -272,78 +301,55 @@ When `include: { speaker: true }` loads 50 messages, Prisma creates **50 separat
 
 ---
 
-## Priority 6: PostgreSQL Tuning (Free Performance) — **[PARTIALLY OUTDATED]**
+## Priority 6: PostgreSQL Tuning (Free Performance) — **[DONE — 2026-03-27]**
 
-### 6a. Partial Indexes on `deletedAt IS NULL` — **[DO NOW]**
+> **2026-03-27**: All items implemented in migration `20260327164719_pg_tuning_priority6`.
+> Note: `isFeatured` column on Event was NOT dropped — it's actively used for website display
+> (renders "FEATURED" badges on event cards/detail pages). Only the index was dropped.
 
-Almost every query filters `deletedAt: null`, but indexes include deleted rows. Partial indexes only index live rows — smaller indexes, faster lookups, no code change.
+### 6a. Partial Indexes on `deletedAt IS NULL` — **[DONE]**
+- [x] Create partial index `idx_message_active` on Message (`churchId`, `dateFor` DESC) WHERE `deletedAt` IS NULL
+- [x] Create partial index `idx_event_active` on Event (`churchId`, `dateStart` DESC) WHERE `deletedAt` IS NULL
+- [x] Added via raw SQL in Prisma migration
 
-```sql
-CREATE INDEX idx_message_active ON "Message" ("churchId", "dateFor" DESC) WHERE "deletedAt" IS NULL;
-CREATE INDEX idx_event_active ON "Event" ("churchId", "dateStart" DESC) WHERE "deletedAt" IS NULL;
-```
+> Skipped `idx_bible_study_active` — BibleStudy table will be dropped in merge.
 
-> **2026-03-26 update**: The `idx_bible_study_active` index is no longer needed if the table
-> merge proceeds — the BibleStudy table will be dropped. If implementing before the merge,
-> it's still valid but short-lived.
+### 6b. LZ4 Compression for TOAST Columns — **[DONE]**
+- [x] Set LZ4 compression on `Message.rawTranscript`
+- [x] Set LZ4 compression on `Message.liveTranscript`
+- [x] Set LZ4 compression on `Message.studySections`
+- [x] Set LZ4 compression on `Event.description`
+- [x] Set LZ4 compression on `Event.locationInstructions`
+- [x] Set LZ4 compression on `Event.welcomeMessage`
+- [ ] (Post-merge) Set LZ4 compression on `Message.questions`
+- [ ] (Post-merge) Set LZ4 compression on `Message.answers`
+- [ ] (Post-merge) Set LZ4 compression on `Message.transcript`
+- [ ] (Post-merge) Set LZ4 compression on `Message.bibleText`
 
-Note: Added via raw SQL migration (Prisma doesn't support partial indexes natively).
+> Note: LZ4 only affects newly written data. Existing TOAST data stays pglz until `VACUUM FULL`.
 
-### 6b. LZ4 Compression for TOAST Columns — **[DO NOW]**
+### 6c. Keep PageSection.content Inline (No TOAST) — **[DONE]**
+- [x] Set `STORAGE MAIN` on `PageSection.content` (avoids TOAST lookups for <2 KB JSON read on every page load)
 
-Decompresses 3-5x faster than default pglz. Speeds up detail page loads.
+### 6d. Drop Redundant Indexes — **[DONE]**
 
-```sql
-ALTER TABLE "Message" ALTER COLUMN "rawTranscript" SET COMPRESSION lz4;
-ALTER TABLE "Message" ALTER COLUMN "liveTranscript" SET COMPRESSION lz4;
-```
+**Indexes dropped (2026-03-27):**
+- [x] Event: `[churchId, status]` (covered by `[churchId, status, dateStart]`)
+- [x] Event: `[churchId, isFeatured]` (low cardinality — column kept, actively used on website)
+- [x] Event: `[churchId, isPinned]` (boolean — too low cardinality, not queried on Event)
+- [x] Event: `[churchId, isRecurring]` (boolean — too low cardinality)
+- [x] Event: `[churchId, campusId]` (rarely filtered alone)
+- [x] Page: `[churchId, isPublished]` (boolean, <100 pages)
+- [x] Page: `[churchId, isHomepage]` (only 1 true per church)
+- [x] Session: `[token]` (redundant — `@unique` already creates index)
+- [x] Church: `[slug]` (redundant — `@unique` already creates index)
 
-> **2026-03-26 update**: After the table merge, also apply to the new text columns on Message:
-> ```sql
-> ALTER TABLE "Message" ALTER COLUMN "questions" SET COMPRESSION lz4;
-> ALTER TABLE "Message" ALTER COLUMN "answers" SET COMPRESSION lz4;
-> ALTER TABLE "Message" ALTER COLUMN "transcript" SET COMPRESSION lz4;
-> ALTER TABLE "Message" ALTER COLUMN "bibleText" SET COMPRESSION lz4;
-> ```
-> The BibleStudy-specific ALTER statements are no longer needed since that table will be dropped.
+**Indexes KEPT (reversed from original recommendation):**
+- [x] Message: `[churchId, hasVideo]` — needed after merge for content type filtering
+- [x] Message: `[churchId, hasStudy]` — needed after merge for content type filtering
 
-### 6c. Keep PageSection.content Inline (No TOAST) — **[DO NOW]**
-
-`PageSection.content` is usually small (<2 KB) but read on every page load. `STORAGE MAIN` avoids TOAST table lookups:
-
-```sql
-ALTER TABLE "PageSection" ALTER COLUMN "content" SET STORAGE MAIN;
-```
-
-### 6d. Drop Redundant Indexes — **[PARTIALLY OUTDATED]**
-
-> **2026-03-26 update**: Several items in this list have changed:
-> - `[churchId, isFeatured]` on Event: Manual featuring was removed (committed 2026-03-26).
->   The `isFeatured` column is still in the schema but unused — **drop the column AND the
->   index** in the next schema migration.
-> - `[churchId, hasVideo]` and `[churchId, hasStudy]` on Message: The original audit
->   recommended dropping these as "too low cardinality." **This is REVERSED** — after the
->   table merge, these become the primary filters for partitioning content by type
->   (`WHERE hasStudy=true` replaces `FROM BibleStudy`). **Keep these indexes.**
-> - `[churchId, status]` on BibleStudy: **Dropped with the table** during the merge.
-
-| Model | Drop | Reason |
-|-------|------|--------|
-| Event | `[churchId, status]` | Covered by `[churchId, status, dateStart]` |
-| Event | `[churchId, isFeatured]` | **Column is now unused** — drop column and index together |
-| Event | `[churchId, isPinned]` | Boolean — too low cardinality |
-| Event | `[churchId, isRecurring]` | Boolean — too low cardinality |
-| Event | `[churchId, campusId]` | Rarely filtered alone |
-| ~~Message~~ | ~~`[churchId, hasVideo]`~~ | ~~Boolean — too low cardinality~~ **KEEP — needed after merge** |
-| ~~Message~~ | ~~`[churchId, hasStudy]`~~ | ~~Boolean — too low cardinality~~ **KEEP — needed after merge** |
-| ~~BibleStudy~~ | ~~`[churchId, status]`~~ | ~~Small table, seq scan faster~~ **Dropped with table in merge** |
-| Page | `[churchId, isPublished]` | Boolean, <100 pages |
-| Page | `[churchId, isHomepage]` | Only 1 true per church |
-| Session | `[token]` | Redundant — `@unique` already creates index |
-| Church | `[slug]` | Redundant — `@unique` already creates index |
-
-**Effort**: LOW — migration to drop indexes
-**Savings**: Faster writes, less PostgreSQL memory for index pages
+**Dropped with table in merge:**
+- [ ] BibleStudy: `[churchId, status]` — dropped when BibleStudy table is removed
 
 ---
 
@@ -356,34 +362,35 @@ ALTER TABLE "PageSection" ALTER COLUMN "content" SET STORAGE MAIN;
 
 ### Models to Remove/Merge
 
-| Change | Models Saved | Effort | Side Effects | Status |
-|--------|-------------|--------|-------------|--------|
-| **BibleStudy → merged into Message** | 1 | HIGH | See merge plan | **[SUPERSEDED BY MERGE]** |
-| **MessageSeries → direct FK on Message** | 1 | MEDIUM | Part of merge | **[SUPERSEDED BY MERGE]** |
-| Remove Tag (unused, zero references) | 1 | LOW | None | Still valid |
-| EventLink → Event.links JSON | 1 | LOW | Update events DAL + UI | Still valid |
-| ~~BibleStudyAttachment → BibleStudy.attachments JSON~~ | ~~1~~ | — | — | **REVERSED — keep as relation table (renamed MessageAttachment). R2 lifecycle management requires individual records.** |
-| MediaFolder → Remove (MediaAsset.folder is sufficient) | 1 | LOW | Update media DAL | Still valid |
-| CommunicationPreference → Person.commPrefs JSON | 1 | LOW | Update person DAL | Still valid |
-| SiteSettings → Church.siteSettings JSON | 1 | HIGH | Major — rewrite DAL, theme, admin | Still valid |
-| ThemeCustomization → Church.themeConfig JSON | 1 | HIGH | Major — rewrite theme system | Still valid |
-| BuilderPresence → Redis/in-memory | 1 | MEDIUM | Architecture change | Still valid |
+**Superseded by merge:**
+- [ ] BibleStudy → merged into Message (HIGH effort, see merge plan) **[SUPERSEDED BY MERGE]**
+- [ ] MessageSeries → direct FK on Message (MEDIUM effort, part of merge) **[SUPERSEDED BY MERGE]**
+
+**Reversed:**
+- [x] ~~BibleStudyAttachment → BibleStudy.attachments JSON~~ — **REVERSED: keep as relation table (renamed MessageAttachment). R2 lifecycle management requires individual records.**
+
+**Still valid — independent of merge:**
+- [ ] Remove Tag model (unused, zero references) — LOW effort, no side effects
+- [ ] EventLink → Event.links JSON — LOW effort, update events DAL + UI
+- [ ] MediaFolder → Remove (MediaAsset.folder is sufficient) — LOW effort, update media DAL
+- [ ] CommunicationPreference → Person.commPrefs JSON — LOW effort, update person DAL
+- [ ] SiteSettings → Church.siteSettings JSON — HIGH effort, major rewrite of DAL, theme, admin
+- [ ] ThemeCustomization → Church.themeConfig JSON — HIGH effort, major rewrite of theme system
+- [ ] BuilderPresence → Redis/in-memory — MEDIUM effort, architecture change
 
 **Conservative (with merge)**: Merge tables + Remove Tag, EventLink, MediaFolder, CommunicationPreference = **6 models** (45 → 39)
 **Aggressive (with merge)**: Also SiteSettings, ThemeCustomization, BuilderPresence = **9 models** (45 → 36)
 
 ### Column Consolidation (370 → ~242 Columns)
 
-| Model | Columns to Consolidate | Into | Saves |
-|-------|----------------------|------|-------|
-| Event recurrence | 8 cols | `recurrenceRule Json?` | 7 cols, 2 enums |
-| Event registration | 7 cols | `registration Json?` | 6 cols |
-| Event location | 8 cols | `locationData Json?` | 7 cols, 1 enum |
-| Person phones | 3 cols | `phones Json?` | 2 cols |
-| Person address duplication | 4 cols (city/state/zip/country already in address JSON) | Remove | 4 cols |
-| MenuItem featured | 4 cols | `featured Json?` | 3 cols |
-| Church social URLs | 5 cols (duplicated in SiteSettings) | Remove | 5 cols |
-| **Message/BibleStudy merge** | **9 duplicated cols + 5 dead/deprecated cols** | **Single table** | **14 cols** |
+- [ ] Event recurrence: Consolidate 8 cols → `recurrenceRule Json?` (saves 7 cols, 2 enums)
+- [ ] Event registration: Consolidate 7 cols → `registration Json?` (saves 6 cols)
+- [ ] Event location: Consolidate 8 cols → `locationData Json?` (saves 7 cols, 1 enum)
+- [ ] Person phones: Consolidate 3 cols → `phones Json?` (saves 2 cols)
+- [ ] Person address: Remove 4 duplicate cols (city/state/zip/country already in address JSON)
+- [ ] MenuItem featured: Consolidate 4 cols → `featured Json?` (saves 3 cols)
+- [ ] Church social URLs: Remove 5 duplicate cols (duplicated in SiteSettings)
+- [ ] Message/BibleStudy merge: Remove 9 duplicated cols + 5 dead/deprecated cols (saves 14 cols)
 
 > **2026-03-26 addition**: The table merge removes: `Message.transcriptSegments` (dead),
 > `Message.attachments` JSON (deprecated), `Message.relatedStudyId` (no longer needed),
@@ -392,11 +399,29 @@ ALTER TABLE "PageSection" ALTER COLUMN "content" SET STORAGE MAIN;
 
 ### Enum Reduction (27 → 9)
 
-**Keep (9)**: ChurchStatus, PlanTier, MemberRole, SubStatus, ContentStatus, EventType, BibleBook, SectionType, MembershipStatus
+**Keep (9):** ChurchStatus, PlanTier, MemberRole, SubStatus, ContentStatus, EventType, BibleBook, SectionType, MembershipStatus
 
-**Remove (3)**: Recurrence, RecurrenceEndType, LocationType (absorbed into JSON)
+**Remove (absorbed into JSON):**
+- [ ] Remove `Recurrence` enum
+- [ ] Remove `RecurrenceEndType` enum
+- [ ] Remove `LocationType` enum
 
-**Convert to String (15)**: AttachmentType, AnnouncePriority, NoteType, HouseholdRole, CommunicationChannel, CustomFieldType, VideoCategory, MaritalStatus, Gender, MenuLocation, PageType, PageLayout, DomainStatus, SslStatus, AccessRequestStatus
+**Convert to String (15):**
+- [ ] Convert `AttachmentType` to String
+- [ ] Convert `AnnouncePriority` to String
+- [ ] Convert `NoteType` to String
+- [ ] Convert `HouseholdRole` to String
+- [ ] Convert `CommunicationChannel` to String
+- [ ] Convert `CustomFieldType` to String
+- [ ] Convert `VideoCategory` to String
+- [ ] Convert `MaritalStatus` to String
+- [ ] Convert `Gender` to String
+- [ ] Convert `MenuLocation` to String
+- [ ] Convert `PageType` to String
+- [ ] Convert `PageLayout` to String
+- [ ] Convert `DomainStatus` to String
+- [ ] Convert `SslStatus` to String
+- [ ] Convert `AccessRequestStatus` to String
 
 ### Net Result (updated with merge)
 
@@ -415,17 +440,18 @@ ALTER TABLE "PageSection" ALTER COLUMN "content" SET STORAGE MAIN;
 ## Priority 8: Architecture Options (Long-Term) — **[DO NOW — still valid]**
 
 ### Option A: Split CMS + Website into Two Processes
-
-- **Process 1**: CMS admin (Next.js + Prisma, ~500 MB)
-- **Process 2**: Website (lightweight Next.js, ISR-only, 150-200 MB)
+- [ ] Evaluate feasibility of splitting into two processes
+- [ ] **Process 1**: CMS admin (Next.js + Prisma, ~500 MB)
+- [ ] **Process 2**: Website (lightweight Next.js, ISR-only, 150-200 MB)
 
 ### Option B: Drizzle for Website Read Paths
-
-Keep Prisma for CMS writes. Use Drizzle (6x lighter, ~5-15 MB vs 40-70 MB) for website queries. Effort: 2-3 weeks.
+- [ ] Evaluate Drizzle as read-path ORM (6x lighter: ~5-15 MB vs Prisma's 40-70 MB)
+- [ ] Keep Prisma for CMS writes, use Drizzle for website queries
+- [ ] Effort estimate: 2-3 weeks
 
 ### Option C: Prisma Accelerate
-
-Offload query engine to Prisma's cloud. Server keeps thin HTTP client (~2-3 MB). Paid per-query.
+- [ ] Evaluate Prisma Accelerate (offloads query engine to Prisma cloud, ~2-3 MB client)
+- [ ] Assess cost model (paid per-query)
 
 ---
 
@@ -586,16 +612,19 @@ All React context providers (`MessagesProvider`, `EventsProvider`, `MembersProvi
 
 These were initially listed as P0 fixes. After verification, most are ineffective:
 
-| Flag | Permanent? | Verdict |
-|------|-----------|---------|
-| `preloadEntriesOnStart: false` | NO — same memory once all pages visited | Skip for fully-used app |
-| `serverExternalPackages` for Prisma | Already handled — bundler deduplicates (verified) | Not needed |
-| `serverExternalPackages` for TypeScript | **DONE (2026-03-26)** — added `'typescript'` | ~20-30 MB saved |
-| `webpackMemoryOptimizations` | Dev only — zero production impact | Skip |
-| `--max-old-space-size=512` | Diagnostic — forces GC or crashes | Already configured |
-| `images: { unoptimized: true }` | **DONE (2026-03-26)** — Sharp disabled | ~15-25 MB saved |
-| Reduce connection pool 5→3 | YES — 4-10 MB permanent | Worth doing |
-| Reduce Prisma dev logging | YES — prevents string accumulation in dev | Worth doing |
+**Done:**
+- [x] `serverExternalPackages` for TypeScript — added `'typescript'` (~20-30 MB saved) (2026-03-26)
+- [x] `images: { unoptimized: true }` — Sharp disabled (~15-25 MB saved) (2026-03-26)
+- [x] `--max-old-space-size=512` — already configured
+
+**Still worth doing:**
+- [ ] Reduce connection pool 5→3 (4-10 MB permanent savings)
+- [ ] Reduce Prisma dev logging (prevents string accumulation in dev)
+
+**Skip (ineffective):**
+- [x] ~~`preloadEntriesOnStart: false`~~ — same memory once all pages visited. Skip for fully-used app
+- [x] ~~`serverExternalPackages` for Prisma~~ — bundler deduplicates already (verified). Not needed
+- [x] ~~`webpackMemoryOptimizations`~~ — dev only, zero production impact. Skip
 
 ---
 
