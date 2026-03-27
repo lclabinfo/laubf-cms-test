@@ -54,12 +54,14 @@ interface BuilderSnapshot {
 const AUTO_SAVE_DELAY_MS = 30_000
 
 /**
- * Returns the URL path identifier for a page.
- * Uses the slug if non-empty, otherwise falls back to the page ID.
- * This handles homepage (slug = '') where the slug-based URL would be broken.
+ * Returns the URL path identifier for a page in API calls.
+ * Uses the slug for simple slugs, but falls back to the page UUID when
+ * the slug contains slashes (e.g. "ministries/campus/usc") because the
+ * API route /api/v1/pages/[slug] only matches a single path segment.
  */
 function pagePathId(page: { slug: string; id: string }): string {
-  return page.slug || page.id
+  if (!page.slug || page.slug.includes('/')) return page.id
+  return page.slug
 }
 
 // NavbarData is defined in types.ts — re-exported for backward compat
