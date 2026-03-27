@@ -1,5 +1,5 @@
 import 'dotenv/config'
-import { createReadStream } from 'fs'
+import { createReadStream, readFileSync, existsSync } from 'fs'
 import { createGunzip } from 'zlib'
 import { createInterface } from 'readline'
 import { join } from 'path'
@@ -278,12 +278,15 @@ const BIBLE_STUDIES_RAW: BibleStudySeed[] = materialMod.default
 const BIBLE_STUDIES: BibleStudySeed[] = BIBLE_STUDIES_RAW.filter(bs => bs.book !== null)
 
 // --- Bible Study Content (extracted from DOCX/DOC files) ---
-import { readFileSync } from 'fs'
 const bibleStudyContent: Record<string, { questions?: string; answers?: string; transcript?: string }> =
-  JSON.parse(readFileSync('scripts/bible-study-content.json', 'utf-8'))
+  existsSync('scripts/bible-study-content.json')
+    ? JSON.parse(readFileSync('scripts/bible-study-content.json', 'utf-8'))
+    : {}
 
 // --- Event descriptions (large TipTap JSON stored externally) ---
-const WMC_2026_DESCRIPTION = readFileSync('prisma/seed-data/wmc-2026-description.json', 'utf-8').trim()
+const WMC_2026_DESCRIPTION = existsSync('prisma/seed-data/wmc-2026-description.json')
+  ? readFileSync('prisma/seed-data/wmc-2026-description.json', 'utf-8').trim()
+  : ''
 
 // --- Videos ---
 const VIDEOS = [
@@ -4112,8 +4115,13 @@ async function seedBibleVerses() {
     return
   }
 
-  console.log('\nSeeding Bible verses from compressed TSV...')
   const filePath = join(import.meta.dirname!, 'data', 'bible-verses.tsv.gz')
+  if (!existsSync(filePath)) {
+    console.log('\nBible verses TSV not found — skipping. (Keep a local copy of prisma/data/bible-verses.tsv.gz to seed from scratch.)')
+    return
+  }
+
+  console.log('\nSeeding Bible verses from compressed TSV...')
 
   const rows: { book: string; chapter: number; verse: number; version: string; text: string }[] = []
 
