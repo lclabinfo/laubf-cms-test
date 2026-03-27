@@ -130,14 +130,31 @@ function SimpleDropdown({
 
 /* ── Main Component ── */
 
-export default function StudyDetailView({ study, churchDefaultVersion = "ESV" }: { study: BibleStudyDetail; churchDefaultVersion?: string }) {
+export default function StudyDetailView({
+  study,
+  churchDefaultVersion = "ESV",
+  enabledVersions,
+}: {
+  study: BibleStudyDetail
+  churchDefaultVersion?: string
+  enabledVersions?: string[] | null
+}) {
   const [fontSize, setFontSize] = useState(100)
   const [isDesktop, setIsDesktop] = useState(true)
-  // Per-pane Bible version state (keyed by pane ID: "left", "right", or any future pane)
-  // Priority: study-specific version > church default > hardcoded fallback
+
+  // Build version list in the church's custom order (enabledVersions array order is display order).
+  // Fall back to the static API_AVAILABLE_VERSIONS if no custom config.
+  const availableVersions = enabledVersions
+    ? enabledVersions
+        .map(code => API_AVAILABLE_VERSIONS.find(v => v.code === code))
+        .filter((v): v is (typeof API_AVAILABLE_VERSIONS)[number] => v != null)
+    : API_AVAILABLE_VERSIONS
+
+  // Priority: church default > study-specific > hardcoded fallback
+  // Church admin's chosen default takes precedence over per-study version (which is often just the schema default "ESV")
   const defaultBibleVersion = (() => {
-    const stored = study.bibleVersion || churchDefaultVersion || "ESV"
-    return API_AVAILABLE_VERSIONS.some(v => v.code === stored) ? stored : "ESV"
+    const preferred = churchDefaultVersion || study.bibleVersion || "ESV"
+    return availableVersions.some(v => v.code === preferred) ? preferred : (availableVersions[0]?.code ?? "ESV")
   })()
   const [paneVersions, setPaneVersions] = useState<Record<string, string>>(() => ({
     left: defaultBibleVersion,
@@ -422,7 +439,7 @@ export default function StudyDetailView({ study, churchDefaultVersion = "ESV" }:
                   }
                 >
                   <div className="max-h-64 overflow-y-auto">
-                    {API_AVAILABLE_VERSIONS.map((v) => (
+                    {availableVersions.map((v) => (
                       <button
                         key={v.code}
                         onClick={() => handleVersionChange(paneId, v.code)}

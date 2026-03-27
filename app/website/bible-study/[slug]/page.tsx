@@ -2,7 +2,8 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import { getChurchId } from "@/lib/tenant/context"
 import { getBibleStudyBySlug } from "@/lib/dal/bible-studies"
-import { getChurchDefaultBibleVersion } from "@/lib/dal/church"
+import { getChurchBibleVersionConfig } from "@/lib/dal/church"
+import { getPublicBaseUrl } from "@/lib/website/public-url"
 import type { BibleStudyDetail, BibleStudyAttachment } from "@/lib/types/bible-study"
 import { bibleBookLabel } from "@/lib/website/bible-book-labels"
 import { contentToHtml } from "@/lib/tiptap-server"
@@ -74,9 +75,19 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!study) return { title: "Study Not Found" }
 
+  const canonicalUrl = `${getPublicBaseUrl()}/bible-study/${slug}`
+  const description = `Bible study on ${study.passage} from the series "${study.series?.name ?? ""}".`
+
   return {
     title: study.title,
-    description: `Bible study on ${study.passage} from the series "${study.series?.name ?? ""}".`,
+    description,
+    alternates: { canonical: canonicalUrl },
+    openGraph: {
+      title: study.title,
+      description,
+      url: canonicalUrl,
+      type: "article",
+    },
   }
 }
 
@@ -89,10 +100,16 @@ export default async function BibleStudyDetailPage({ params }: PageProps) {
     notFound()
   }
 
-  const [detail, churchDefaultVersion] = await Promise.all([
+  const [detail, bibleConfig] = await Promise.all([
     Promise.resolve(transformStudy(study)),
-    getChurchDefaultBibleVersion(churchId),
+    getChurchBibleVersionConfig(churchId),
   ])
 
-  return <StudyDetailView study={detail} churchDefaultVersion={churchDefaultVersion} />
+  return (
+    <StudyDetailView
+      study={detail}
+      churchDefaultVersion={bibleConfig.defaultVersion}
+      enabledVersions={bibleConfig.enabledVersions}
+    />
+  )
 }

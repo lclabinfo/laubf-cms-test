@@ -47,6 +47,30 @@ export async function getChurchDefaultBibleVersion(churchId: string): Promise<st
   return 'ESV'
 }
 
+/**
+ * Returns the church's bible version configuration:
+ * - defaultVersion: the church's chosen default bible version
+ * - enabledVersions: array of version codes the church has enabled (null = all enabled)
+ */
+export async function getChurchBibleVersionConfig(churchId: string): Promise<{
+  defaultVersion: string
+  enabledVersions: string[] | null
+}> {
+  const church = await prisma.church.findUnique({
+    where: { id: churchId },
+    select: { settings: true },
+  })
+  const settings = church?.settings
+  if (settings && typeof settings === 'object' && !Array.isArray(settings)) {
+    const s = settings as Record<string, unknown>
+    return {
+      defaultVersion: (typeof s.defaultBibleVersion === 'string' && s.defaultBibleVersion) ? s.defaultBibleVersion : 'ESV',
+      enabledVersions: Array.isArray(s.bibleVersions) ? s.bibleVersions as string[] : null,
+    }
+  }
+  return { defaultVersion: 'ESV', enabledVersions: null }
+}
+
 export async function updateChurch(
   churchId: string,
   data: {
