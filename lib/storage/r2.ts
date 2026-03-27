@@ -176,7 +176,12 @@ export async function moveObject(
  * Uses RFC 5987 encoding for non-ASCII filenames.
  */
 export function buildContentDisposition(filename: string): string {
-  const safeFilename = filename.replace(/[\r\n"]/g, '_');
+  // The `filename` parameter only allows printable ASCII (no control chars, no
+  // non-ASCII). Replace anything outside the safe range — this covers \r, \n,
+  // ", non-breaking spaces (\u202f, \u00a0), and all other Unicode characters
+  // that would cause ERR_INVALID_CHAR on the S3/R2 PutObject call.
+  // eslint-disable-next-line no-control-regex
+  const safeFilename = filename.replace(/[^\x20-\x21\x23-\x7E]/g, '_');
   const encodedFilename = encodeURIComponent(filename).replace(/'/g, '%27');
   return `inline; filename="${safeFilename}"; filename*=UTF-8''${encodedFilename}`;
 }

@@ -34,8 +34,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, data: result })
   } catch (error) {
     console.error('GET /api/v1/media error:', error)
+    const detail = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to list media' } },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: `Failed to list media: ${detail}` } },
       { status: 500 },
     )
   }
@@ -135,8 +136,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: asset }, { status: 201 })
   } catch (error) {
     console.error('POST /api/v1/media error:', error)
+    const detail = error instanceof Error ? error.message : 'Unknown error'
     return NextResponse.json(
-      { success: false, error: { code: 'INTERNAL_ERROR', message: 'Failed to create media asset' } },
+      { success: false, error: { code: 'INTERNAL_ERROR', message: `Failed to create media asset: ${detail}` } },
       { status: 500 },
     )
   }

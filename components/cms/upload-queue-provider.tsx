@@ -169,11 +169,11 @@ export function UploadQueueProvider({ children }: { children: ReactNode }) {
           signal: ac2.signal,
         })
 
-        const createJson = await createRes.json()
-        if (!createJson.success) {
+        const createJson = await createRes.json().catch(() => null)
+        if (!createRes.ok || !createJson?.success) {
           updateJob(id, {
             status: "error",
-            error: createJson.error?.message ?? "Failed to create media record",
+            error: createJson?.error?.message ?? `Upload failed (${createRes.status})`,
           })
           return
         }
