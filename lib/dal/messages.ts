@@ -54,6 +54,12 @@ const messageDetailInclude = {
     orderBy: { sortOrder: 'asc' as const },
   },
   relatedStudy: {
+    // Override global omit: the CMS study tab needs questions & answers
+    // to synthesize studySections for legacy migrated entries.
+    omit: {
+      questions: false,
+      answers: false,
+    },
     include: {
       attachments: { orderBy: { sortOrder: 'asc' as const } },
     },
