@@ -16,6 +16,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (ids.length > 1000) {
+      return NextResponse.json(
+        { success: false, error: { code: 'BAD_REQUEST', message: 'Maximum 1000 IDs per request' } },
+        { status: 400 },
+      )
+    }
+
     const churchId = await getChurchId()
 
     switch (action) {

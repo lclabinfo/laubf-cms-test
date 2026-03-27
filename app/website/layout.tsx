@@ -8,6 +8,8 @@ import { getChurchId } from '@/lib/tenant/context'
 import { buildLayoutData } from '@/lib/website/build-layout-props'
 import { getSiteSettings } from '@/lib/dal/site-settings'
 
+export const revalidate = 300
+
 /* ── SEO Metadata ── */
 
 export async function generateMetadata(): Promise<Metadata> {

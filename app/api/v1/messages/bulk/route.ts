@@ -18,6 +18,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (ids.length > 1000) {
+      return NextResponse.json(
+        { success: false, error: { code: 'VALIDATION_ERROR', message: 'Maximum 1000 items per bulk operation' } },
+        { status: 400 },
+      )
+    }
+
     const churchId = await getChurchId()
 
     switch (action) {

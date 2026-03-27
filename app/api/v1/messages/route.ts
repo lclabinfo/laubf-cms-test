@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const sortDirParam = searchParams.get('sortDir')
     const filters: MessageFilters & { page?: number; pageSize?: number } = {
       page: searchParams.get('page') ? Number(searchParams.get('page')) : undefined,
-      pageSize: searchParams.get('pageSize') ? Number(searchParams.get('pageSize')) : undefined,
+      pageSize: searchParams.get('pageSize') ? Math.min(Number(searchParams.get('pageSize')), 100) : undefined,
       speakerId: searchParams.get('speakerId') ?? undefined,
       seriesId: searchParams.get('seriesId') ?? undefined,
       search: searchParams.get('search') ?? undefined,

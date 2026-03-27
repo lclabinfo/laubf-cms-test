@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     const filters: BibleStudyFilters & { page?: number; pageSize?: number } = {
       page: searchParams.get('page') ? Number(searchParams.get('page')) : undefined,
-      pageSize: searchParams.get('pageSize') ? Number(searchParams.get('pageSize')) : undefined,
+      pageSize: searchParams.get('pageSize') ? Math.min(Number(searchParams.get('pageSize')), 100) : undefined,
       book: (searchParams.get('book') as BibleBook) ?? undefined,
       seriesId: searchParams.get('seriesId') ?? undefined,
       speakerId: searchParams.get('speakerId') ?? undefined,

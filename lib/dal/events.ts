@@ -22,6 +22,7 @@ const eventDetailInclude = {
 
 /** Override global omit to include all fields in detail/write queries */
 const eventDetailOmit = {
+  description: false as const,
   locationInstructions: false as const,
   welcomeMessage: false as const,
 }
@@ -191,6 +192,7 @@ export async function getUpcomingEvents(
 
 export async function getRecurringEvents(
   churchId: string,
+  limit?: number,
 ): Promise<EventWithRelations[]> {
   return prisma.event.findMany({
     where: {
@@ -201,6 +203,7 @@ export async function getRecurringEvents(
     },
     include: eventListInclude,
     orderBy: { dateStart: 'asc' },
+    take: limit || 50,
   })
 }
 

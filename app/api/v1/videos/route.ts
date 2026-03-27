@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     const filters: VideoFilters & { page?: number; pageSize?: number } = {
       page: searchParams.get('page') ? Number(searchParams.get('page')) : undefined,
-      pageSize: searchParams.get('pageSize') ? Number(searchParams.get('pageSize')) : undefined,
+      pageSize: searchParams.get('pageSize') ? Math.min(Number(searchParams.get('pageSize')), 100) : undefined,
       category: (searchParams.get('category') as VideoCategory) ?? undefined,
       isShort: searchParams.get('isShort') ? searchParams.get('isShort') === 'true' : undefined,
       status: (searchParams.get('status') as ContentStatus) ?? undefined,

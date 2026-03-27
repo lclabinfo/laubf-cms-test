@@ -7,6 +7,8 @@ import { SectionRenderer } from '@/components/website/sections/registry'
 import { resolveSectionData } from '@/lib/website/resolve-section-data'
 import type { SectionType } from '@/lib/db/types'
 
+export const revalidate = 60
+
 interface PageProps {
   params: Promise<{ slug?: string[] }>
 }

@@ -5,6 +5,8 @@ import { bibleBookLabel } from '@/lib/website/bible-book-labels'
 import EventsHeroSection from '@/components/website/sections/events-hero'
 import AllBibleStudiesSection from '@/components/website/sections/all-bible-studies'
 
+export const revalidate = 60
+
 export const metadata: Metadata = {
   title: 'Bible Study',
   description:

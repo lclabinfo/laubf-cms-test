@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const statusParam = searchParams.get('status')
     const filters: EventFilters & { page?: number; pageSize?: number } = {
       page: searchParams.get('page') ? Number(searchParams.get('page')) : undefined,
-      pageSize: searchParams.get('pageSize') ? Number(searchParams.get('pageSize')) : undefined,
+      pageSize: searchParams.get('pageSize') ? Math.min(Number(searchParams.get('pageSize')), 100) : undefined,
       type: (searchParams.get('type') as EventType) ?? undefined,
       ministryId: searchParams.get('ministryId') ?? undefined,
       campusId: searchParams.get('campusId') ?? undefined,

@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
 
     const filters: PersonFilters & { page?: number; pageSize?: number } = {
       page: searchParams.get('page') ? Number(searchParams.get('page')) : undefined,
-      pageSize: searchParams.get('pageSize') ? Number(searchParams.get('pageSize')) : undefined,
+      pageSize: searchParams.get('pageSize') ? Math.min(Number(searchParams.get('pageSize')), 100) : undefined,
       search: searchParams.get('search') ?? undefined,
       membershipStatus: (searchParams.get('membershipStatus') as MembershipStatus) ?? undefined,
       householdId: searchParams.get('householdId') ?? undefined,

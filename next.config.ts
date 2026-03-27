@@ -9,6 +9,7 @@ import type { NextConfig } from "next";
  */
 
 const nextConfig: NextConfig = {
+  cacheMaxMemorySize: 50 * 1024 * 1024, // 50 MB cap on in-memory cache
   output: 'standalone',
   serverExternalPackages: ['@aws-sdk/client-s3', '@aws-sdk/s3-request-presigner', 'typescript'],
   experimental: {

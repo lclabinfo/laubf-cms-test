@@ -58,10 +58,13 @@ export default async function BuilderPage({ params }: BuilderPageProps) {
   // Fetch footer data (reuse siteSettings from navbar call)
   const footerResult = await buildFooterProps(churchId, siteSettings)
 
-  // Serialize navbar data for client components (deep-clone menu to cross server→client boundary)
+  // Deep-clone header menu once (avoids redundant JSON.stringify calls)
+  const clonedHeaderMenu = headerMenu ? JSON.parse(JSON.stringify(headerMenu)) : null
+
+  // Serialize navbar data for client components
   const navbarData = {
     ...navbarProps,
-    menu: headerMenu ? JSON.parse(JSON.stringify(headerMenu)) : null,
+    menu: clonedHeaderMenu,
   }
 
   // Derive navbar settings from siteSettings (avoids redundant DB call)
@@ -102,10 +105,8 @@ export default async function BuilderPage({ params }: BuilderPageProps) {
     parentId: p.parentId,
   }))
 
-  // Serialize menu items for NavigationEditor (includes all fields)
-  const headerMenuItemsFull = headerMenu?.items
-    ? JSON.parse(JSON.stringify(headerMenu.items))
-    : []
+  // Reuse the already-cloned header menu items (no second serialization needed)
+  const headerMenuItemsFull = clonedHeaderMenu?.items ?? []
 
   return (
     <>

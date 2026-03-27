@@ -34,6 +34,7 @@ export async function getPages(churchId: string): Promise<PageRecord[]> {
   return prisma.page.findMany({
     where: { churchId, deletedAt: null },
     orderBy: { sortOrder: 'asc' },
+    take: 100,
   })
 }
 

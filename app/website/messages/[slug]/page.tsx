@@ -17,6 +17,8 @@ import {
 import TranscriptPanel from "./transcript-panel"
 import ShareMessageButton from "./share-message-button"
 
+export const revalidate = 3600
+
 /** Deduplicate DB query between generateMetadata() and page component within a single request */
 const getCachedMessage = cache((churchId: string, slug: string) =>
   getMessageBySlug(churchId, slug)

@@ -10,6 +10,8 @@ import { bibleBookLabel } from "@/lib/website/bible-book-labels"
 import { contentToHtml } from "@/lib/tiptap-server"
 import StudyDetailView from "@/components/website/study-detail/study-detail-view"
 
+export const revalidate = 3600
+
 /** Deduplicate DB query between generateMetadata() and page component within a single request */
 const getCachedStudy = cache((churchId: string, slug: string) =>
   getBibleStudyBySlug(churchId, slug)

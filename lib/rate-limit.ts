@@ -6,17 +6,17 @@
  * deployments, each instance has its own Map. Use Upstash Redis for those.
  */
 
-const MAX_MAP_SIZE = 10_000
+const MAX_MAP_SIZE = 5_000
 const hits = new Map<string, { count: number; resetAt: number }>()
 
-// Periodic cleanup of expired entries (every 5 min)
+// Periodic cleanup of expired entries (every 1 min)
 if (typeof setInterval !== 'undefined') {
   setInterval(() => {
     const now = Date.now()
     for (const [key, record] of hits) {
       if (now > record.resetAt) hits.delete(key)
     }
-  }, 5 * 60 * 1000)
+  }, 60 * 1000)
 }
 
 export function rateLimit(
@@ -39,6 +39,11 @@ export function rateLimit(
   }
 
   const record = hits.get(key)
+
+  // Inline expiry: eagerly remove stale entry so Map size stays accurate
+  if (record && now > record.resetAt) {
+    hits.delete(key)
+  }
 
   if (!record || now > record.resetAt) {
     const resetAt = now + windowMs

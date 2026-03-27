@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from "react"
 
-const MAX_HISTORY = 50
+const MAX_HISTORY = 10
 
 /**
  * A generic undo/redo history hook for the website builder.

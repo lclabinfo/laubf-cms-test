@@ -19,6 +19,8 @@ import { getPublicBaseUrl } from "@/lib/website/public-url"
 import { contentToHtml } from "@/lib/tiptap-server"
 import EventActions from "@/components/website/shared/event-actions"
 
+export const revalidate = 600
+
 interface PageProps {
   params: Promise<{ slug: string }>
 }
