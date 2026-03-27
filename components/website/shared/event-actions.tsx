@@ -336,28 +336,26 @@ export default function EventActions({ event, shareUrl }: { event: EventData; sh
   }
 
   async function handleShare() {
-    const shareText = `I'd love for you to join us for ${event.title}! Here are the details:`
-    const shareData = {
-      title: event.title,
-      text: shareText,
-      url: currentUrl,
-    }
+    const shareText = `I'd love for you to join us for ${event.title}! Here are the details:\n${currentUrl}`
 
     if (navigator.share) {
       try {
-        await navigator.share(shareData)
+        // Pass text+URL combined in the `text` field. When `url` is a separate field,
+        // macOS/iMessage drops the `text` and only shares the link. Combining them
+        // ensures the template message always appears alongside the URL.
+        await navigator.share({ text: shareText })
         setShareToast(true)
         setTimeout(() => setShareToast(false), 2000)
-        return // Only return on successful share
+        return
       } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") return // User cancelled — exit silently
+        if (error instanceof DOMException && error.name === "AbortError") return
         // Other error — fall through to clipboard fallback
       }
     }
 
     // Fallback: copy to clipboard
     try {
-      await navigator.clipboard.writeText(`${shareText}\n${currentUrl}`)
+      await navigator.clipboard.writeText(shareText)
       setShareToast(true)
       setTimeout(() => setShareToast(false), 2000)
     } catch {

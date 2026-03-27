@@ -15,6 +15,7 @@ import {
   IconVideo,
 } from "@/components/website/shared/icons"
 import { resolveHref } from "@/lib/website/resolve-href"
+import { getPublicBaseUrl } from "@/lib/website/public-url"
 import { contentToHtml } from "@/lib/tiptap-server"
 import EventActions from "@/components/website/shared/event-actions"
 
@@ -71,23 +72,27 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!event) return { title: "Event Not Found" }
 
+  const canonicalUrl = `${getPublicBaseUrl()}/events/${slug}`
   const ogImages = event.coverImage
     ? [{ url: event.coverImage, width: 1200, height: 630, alt: event.imageAlt || event.title }]
     : []
+  const description = event.shortDescription || event.description || `Details for ${event.title}`
 
   return {
     title: event.title,
-    description: event.shortDescription || event.description || `Details for ${event.title}`,
+    description,
+    alternates: { canonical: canonicalUrl },
     openGraph: {
       title: event.title,
-      description: event.shortDescription || `Details for ${event.title}`,
+      description,
+      url: canonicalUrl,
       type: "article",
       ...(ogImages.length > 0 && { images: ogImages }),
     },
     twitter: {
       card: ogImages.length > 0 ? "summary_large_image" : "summary",
       title: event.title,
-      description: event.shortDescription || `Details for ${event.title}`,
+      description,
       ...(ogImages.length > 0 && { images: [event.coverImage!] }),
     },
   }
@@ -452,6 +457,7 @@ export default async function EventDetailPage({ params }: PageProps) {
                 recurrenceEndDate: event.recurrenceEndDate ? event.recurrenceEndDate.toISOString().split("T")[0] : null,
                 recurrenceEndAfter: event.recurrenceEndAfter,
               }}
+              shareUrl={`${getPublicBaseUrl()}/events/${slug}`}
             />
 
             {/* Event links */}

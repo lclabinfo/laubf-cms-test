@@ -4,6 +4,7 @@ import Link from "next/link"
 import { getChurchId } from "@/lib/tenant/context"
 import { getMessageBySlug } from "@/lib/dal/messages"
 import { resolveHref } from "@/lib/website/resolve-href"
+import { getPublicBaseUrl } from "@/lib/website/public-url"
 import { contentToHtml } from "@/lib/tiptap-server"
 import {
   IconChevronLeft,
@@ -47,9 +48,31 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!message) return { title: "Message Not Found" }
 
+  const canonicalUrl = `${getPublicBaseUrl()}/messages/${slug}`
+  const title = message.videoTitle || message.title
+  const description = message.videoDescription || `Listen to ${message.title}`
+
+  // Use YouTube thumbnail, uploaded thumbnail, or nothing
+  const ogImage = message.thumbnailUrl
+    || (message.youtubeId ? `https://img.youtube.com/vi/${message.youtubeId}/maxresdefault.jpg` : null)
+
   return {
-    title: message.videoTitle || message.title,
-    description: message.videoDescription || `Listen to ${message.title}`,
+    title,
+    description,
+    alternates: { canonical: canonicalUrl },
+    openGraph: {
+      title,
+      description,
+      url: canonicalUrl,
+      type: "article",
+      ...(ogImage && { images: [{ url: ogImage, width: 1200, height: 630, alt: title }] }),
+    },
+    twitter: {
+      card: ogImage ? "summary_large_image" : "summary",
+      title,
+      description,
+      ...(ogImage && { images: [ogImage] }),
+    },
   }
 }
 
