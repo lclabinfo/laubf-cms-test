@@ -5,10 +5,13 @@
  * headers. Uses the DB as the source of truth (no slow bucket listing), and
  * runs HeadObject checks in parallel batches for speed.
  *
+ * Uses CopyObject (server-side copy-to-self) to set metadata — no file bytes
+ * are downloaded or uploaded. The copy happens entirely within R2's servers.
+ *
  * Safety:
  *   - Preview by default. Pass --execute to actually write.
- *   - Never deletes or moves objects — only re-uploads in place with the
- *     Content-Disposition header added.
+ *   - Never deletes or moves objects — copies in place with new metadata.
+ *   - Verifies each copy via HeadObject before counting as success.
  *   - Skips objects that already have a correct Content-Disposition.
  *
  * Usage:
@@ -20,8 +23,7 @@ import 'dotenv/config'
 import {
   S3Client,
   HeadObjectCommand,
-  GetObjectCommand,
-  PutObjectCommand,
+  CopyObjectCommand,
 } from '@aws-sdk/client-s3'
 import pg from 'pg'
 import { PrismaPg } from '@prisma/adapter-pg'
@@ -68,6 +70,7 @@ interface FileEntry {
 interface CheckResult {
   entry: FileEntry
   needsFix: boolean
+  contentType?: string
   error?: string
 }
 
@@ -77,7 +80,11 @@ async function checkObject(entry: FileEntry): Promise<CheckResult> {
     const head = await s3.send(
       new HeadObjectCommand({ Bucket: entry.bucket, Key: entry.key }),
     )
-    return { entry, needsFix: !head.ContentDisposition }
+    return {
+      entry,
+      needsFix: !head.ContentDisposition,
+      contentType: head.ContentType || 'application/octet-stream',
+    }
   } catch (err: any) {
     if (err?.name === 'NotFound' || err?.$metadata?.httpStatusCode === 404) {
       return { entry, needsFix: false, error: '404 (not in R2)' }
@@ -104,20 +111,34 @@ async function batch<T, R>(items: T[], size: number, fn: (item: T) => Promise<R>
   return results
 }
 
-async function applyContentDisposition(bucket: string, key: string, disposition: string): Promise<void> {
-  const getResp = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }))
-  if (!getResp.Body) throw new Error(`No body for ${key}`)
-  const body = await getResp.Body.transformToByteArray()
-
+/**
+ * Set Content-Disposition via server-side copy-to-self.
+ * No file bytes are downloaded — R2 copies the object onto itself
+ * with replaced metadata. We read the existing ContentType via HeadObject
+ * first so we preserve it.
+ */
+async function applyContentDisposition(
+  bucket: string,
+  key: string,
+  disposition: string,
+  contentType: string,
+): Promise<void> {
   await s3.send(
-    new PutObjectCommand({
+    new CopyObjectCommand({
       Bucket: bucket,
       Key: key,
-      Body: body,
-      ContentType: getResp.ContentType,
+      CopySource: `${bucket}/${key}`,
       ContentDisposition: disposition,
+      ContentType: contentType,
+      MetadataDirective: 'REPLACE',
     }),
   )
+
+  // Verify the header was actually set (R2 CopyObject can be flaky)
+  const verify = await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: key }))
+  if (!verify.ContentDisposition) {
+    throw new Error('CopyObject succeeded but Content-Disposition not set — R2 may not support MetadataDirective')
+  }
 }
 
 // ── Build file lists from DB ──────────────────────────────────────────────────
@@ -221,22 +242,24 @@ async function main() {
     return
   }
 
-  // 4. Apply fixes (sequential — download+reupload is heavier)
-  console.log(`\nApplying fixes to ${needsFix.length} object(s)...\n`)
+  // 4. Apply fixes (concurrent — CopyObject is lightweight, no file transfer)
+  console.log(`\nApplying fixes to ${needsFix.length} object(s) (${CONCURRENCY} concurrent)...\n`)
   let fixed = 0
   let fixErrors = 0
 
-  for (const r of needsFix) {
+  await batch(needsFix, CONCURRENCY, async (r) => {
     const disp = buildContentDisposition(r.entry.filename)
     try {
-      await applyContentDisposition(r.entry.bucket, r.entry.key, disp)
+      await applyContentDisposition(r.entry.bucket, r.entry.key, disp, r.contentType!)
       fixed++
-      console.log(`  [${fixed}/${needsFix.length}] ${r.entry.key}`)
+      if (fixed % 50 === 0 || fixed === needsFix.length) {
+        console.log(`  Updated ${fixed}/${needsFix.length}`)
+      }
     } catch (err) {
       fixErrors++
       console.log(`  FAILED ${r.entry.key} — ${err instanceof Error ? err.message : err}`)
     }
-  }
+  })
 
   console.log(`\n${'='.repeat(50)}`)
   console.log(`Done: ${fixed} fixed, ${fixErrors} errors`)

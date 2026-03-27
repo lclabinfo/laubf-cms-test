@@ -27,6 +27,22 @@ import { API_AVAILABLE_VERSIONS } from "@/lib/bible-versions"
 import BibleCopyright from "@/components/website/shared/bible-copyright"
 import type { BibleStudyDetail } from "@/lib/types/bible-study"
 
+/* ── Helpers ── */
+
+/** Download a cross-origin file with the correct filename via blob URL. */
+async function downloadFile(url: string, filename: string) {
+  const resp = await fetch(url)
+  const blob = await resp.blob()
+  const blobUrl = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = blobUrl
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(blobUrl)
+}
+
 /* ── Types ── */
 
 type ResourceType = "scripture" | "guide" | "leaderGuide" | "transcript"
@@ -584,12 +600,11 @@ export default function StudyDetailView({
                 </h3>
                 <div className="space-y-3">
                   {study.attachments.map((attachment, idx) => (
-                    <a
+                    <button
                       key={idx}
-                      href={attachment.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-4 p-4 rounded-xl border border-white-2 hover:border-brand-1/30 hover:bg-white-1-5 transition-all group bg-white-0"
+                      type="button"
+                      onClick={() => downloadFile(attachment.url, attachment.name)}
+                      className="flex items-center gap-4 p-4 rounded-xl border border-white-2 hover:border-brand-1/30 hover:bg-white-1-5 transition-all group bg-white-0 w-full text-left cursor-pointer"
                     >
                       <div className="h-10 w-10 flex items-center justify-center rounded-lg bg-white-1-5 text-black-3 group-hover:bg-brand-1 group-hover:text-white-0 transition-colors">
                         {attachment.type === "image" ? (
@@ -607,7 +622,7 @@ export default function StudyDetailView({
                         </p>
                       </div>
                       <Download className="w-4 h-4 text-white-3 group-hover:text-brand-1 transition-colors" />
-                    </a>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -780,12 +795,11 @@ export default function StudyDetailView({
                 Study Resources
               </div>
               {study.attachments.map((attachment, idx) => (
-                <a
+                <button
                   key={idx}
-                  href={attachment.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="flex items-center gap-3 px-3 py-2 hover:bg-white-1-5 transition-colors"
+                  type="button"
+                  onClick={() => downloadFile(attachment.url, attachment.name)}
+                  className="flex items-center gap-3 px-3 py-2 hover:bg-white-1-5 transition-colors w-full text-left cursor-pointer"
                 >
                   <div className="bg-white-1-5 p-1.5 rounded-md text-black-3">
                     {attachment.type === "image" ? (
@@ -803,7 +817,7 @@ export default function StudyDetailView({
                     </p>
                   </div>
                   <Download className="w-3.5 h-3.5 text-white-3" />
-                </a>
+                </button>
               ))}
             </SimpleDropdown>
           )}
