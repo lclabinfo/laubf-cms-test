@@ -1,8 +1,20 @@
 # Domain Hosting & Deployment Plan
 
 > **Created:** 2026-03-09
-> **Status:** Planning
+> **Last updated:** 2026-03-27
+> **Status:** Implementation ~90% complete. All code-side work done. Server-side deployment partially complete.
 > **Scope:** MVP (LA UBF single-tenant) → multi-tenant ready
+>
+> **Implementation reality (as of 2026-03-27):**
+> - `proxy.ts` exists and is fully functional (subdomain routing + auth gating)
+> - `lib/url.ts` exists with all URL helpers
+> - `next.config.ts` has `output: 'standalone'`
+> - `scripts/deploy.sh` and `scripts/nginx/laubf.conf` exist
+> - `lib/website/resolve-href.ts` handles dev/prod link generation (33 files use it)
+> - Production deployed and running on Azure VM via PM2 (see `docs/deployment-roadmap.md` section 7)
+> - DNS, SSL, and nginx configured for `laubf.lclab.io` and `admin.laubf.lclab.io`
+> - Remaining: final smoke tests, some seed data verification, error tracking setup
+> - See `docs/04_proxy-routing/proxy-routing-architecture.md` for detailed proxy docs including the March 26 double-rewrite bug fix
 
 ---
 

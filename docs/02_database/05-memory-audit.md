@@ -8,6 +8,22 @@
 > **Observed memory**: ~1,000 MB in **production** (`next start`)
 > **Target memory**: <300 MB production
 
+## Fixes Applied (2026-03-27)
+
+The following high-priority items were implemented on 2026-03-27:
+
+| Item | Description | Status |
+|------|-------------|--------|
+| **1a** | `omit` in all list queries (bible-studies, messages) | DONE -- reduces bible study list from ~80 MB to ~152 KB |
+| **1b** | Global `omit` on PrismaClient as safety net | DONE -- `lib/db/client.ts` config, with opt-in overrides in all detail/write queries |
+| **1c** | `take` limits on nested 1:Many includes | DONE -- 5 includes bounded (communicationPreferences, customFieldValues, attachments, assignments, members) |
+| **1d** | React `cache()` on detail page queries | DONE -- `app/website/bible-study/[slug]/page.tsx` and `app/website/messages/[slug]/page.tsx` |
+| **6** | PostgreSQL tuning (partial indexes, LZ4, STORAGE MAIN, redundant index drops) | DONE -- migration `20260327164719_pg_tuning_priority6` |
+
+Items still pending: Priority 2 (ISR), Priority 3 (superseded by merge), Priority 5 (people/roles refactoring), Priority 7 (schema consolidation), Priority 8 (architecture options).
+
+---
+
 > **NOTE — Table Merge Plan**: Priorities 3, 4, and parts of 6/7 will be superseded by the
 > Message + BibleStudy table merge documented in `/message-biblestudy-proposed-schema.md`.
 > That merge eliminates the sync layer, the duplication, and the format inconsistency in one

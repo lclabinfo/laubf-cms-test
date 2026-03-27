@@ -33,7 +33,9 @@ This follows the industry-standard pattern:
 
 **Why a separate domain from the marketing site?** Security best practice. Tenant-hosted content on a separate domain (`lclab.io`) isolates it from the platform's own cookies and session data (on whatever the marketing domain will be). This is what Shopify (`myshopify.com` vs `shopify.com`) and Webflow (`webflow.io` vs `webflow.com`) do.
 
-### Custom Domain Hosting: `gracechurch.org` (Paid Tier)
+### Custom Domain Hosting: `gracechurch.org` (Paid Tier) — NOT YET IMPLEMENTED
+
+> **Status (March 2026):** The `CustomDomain` model exists in the Prisma schema (with `domain`, `status`, `verificationToken`, `sslStatus`, `verifiedAt` fields) but no application code has been written. There is no domain verification API (`/api/internal/verify-domain`), no CMS UI for connecting custom domains, and no custom-domain lookup in `proxy.ts`. The proxy currently only handles `*.lclab.io` subdomains. Custom domain support is planned for Phase D (multi-tenant).
 
 Churches on a paid plan can connect their own domain. The visitor sees `gracechurch.org` with no trace of the platform branding. This is the premium experience.
 
@@ -334,7 +336,9 @@ No domain infrastructure needed. Access the site at `localhost:3000` or the Azur
 6. Configure Caddyfile for wildcard SSL
 7. Verify: `curl https://laubf.lclab.io` returns the LA UBF website
 
-### Phase D (Multi-Tenant + Custom Domains)
+### Phase D (Multi-Tenant + Custom Domains) — NOT STARTED
+
+> **Status (March 2026):** None of these items are implemented. The `CustomDomain` Prisma model exists in the schema but has no application code (no DAL, no API routes, no CMS UI, no proxy integration). This is a Phase D deliverable.
 
 1. Add On-Demand TLS block to Caddyfile for custom domains
 2. Create `/api/internal/verify-domain` endpoint

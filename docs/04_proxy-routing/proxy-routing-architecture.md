@@ -40,6 +40,10 @@ Browser: laubf.lclab.io/about
 
 CMS routes (`/cms/*`) and API routes (`/api/v1/*`) are protected via Auth.js. The proxy delegates to the edge-safe auth config (`lib/auth/edge-config.ts`) which checks for a valid JWT.
 
+### What's NOT Implemented
+
+- **Custom domain routing** is not yet handled in `proxy.ts`. The proxy only matches `*.lclab.io` subdomains. Custom domain support (e.g., `gracechurch.org` resolving to a church) requires a `CustomDomain` table lookup in the proxy or at the Caddy layer. This is planned for Phase D. See `docs/03_website-rendering/06-hosting-domain-strategy.md` for the full custom domain architecture.
+
 ### Request Flow
 
 ```
@@ -347,10 +351,6 @@ These are **runtime** values read by `process.env` in the proxy and server compo
               │  │    gate    │  │
               │  └─────┬──────┘  │
               │        │         │
-              │  ┌─────┴──────┐  │
-              │  │ next.config │  │  ← beforeFiles rewrites (backup)
-              │  │  rewrites   │  │
-              │  └─────┬──────┘  │
               │        │         │
               │  ┌─────┴──────┐  │
               │  │  App Router │  │

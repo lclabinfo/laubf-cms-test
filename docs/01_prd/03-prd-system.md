@@ -21,6 +21,8 @@ These capabilities are largely invisible during day-to-day content work — they
 
 ## 1. Roles & Permissions
 
+> **Implementation Status (March 2026): COMPLETE.** Authentication is fully implemented using Auth.js v5 with Google SSO + credentials login. Custom roles with 49 granular permissions are enforced via `lib/permissions.ts`. JWT tokens include permissions[], rolePriority, roleName, roleId, and memberStatus. API routes use `requireApiAuth('permission.string')` for authorization. CMS routes are auth-gated in `proxy.ts`. Onboarding flow is at `/cms/onboarding`. Roles CRUD is at `/api/v1/member-roles/`. See `lib/auth/config.ts`, `lib/auth/edge-config.ts`, and `lib/permissions.ts` for implementation.
+
 > The system must support multiple admins safely, with minimal onboarding overhead and consistent behavior during leadership transitions.
 
 ### 1.1 Role Definitions

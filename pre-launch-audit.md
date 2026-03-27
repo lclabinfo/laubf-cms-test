@@ -1,13 +1,21 @@
 # Pre-Launch Audit Checklist
 
-**Date:** 2026-03-25
+**Date:** 2026-03-25 | **Verified:** 2026-03-27 (automated codebase audit)
 **Audited by:** 6 parallel agents covering permissions, website content, responsive design, CMS-website sync, roles/members, and UX/error handling.
+
+> **Verification Summary (2026-03-27):** 147 items checked against actual codebase.
+> **Done: 10** | **Not Done: 137** | Biggest gap: 41 unprotected API write routes (P0).
+> Note: Edge middleware (`proxy.ts`) blocks unauthenticated access to `/api/v1/*` and `/cms/*`,
+> so these routes are only accessible to logged-in users — but any authenticated user (even Viewer)
+> can hit unprotected write endpoints.
 
 ---
 
 ## P0: Fix Before Meeting Today
 
 ### 1. SECURITY: Unprotected API write routes (no `requireApiAuth`)
+
+> **Verified 2026-03-27:** All 41 write routes below confirmed unprotected. None have `requireApiAuth` calls.
 
 - [ ] `PATCH /api/v1/church` — Anyone can edit church profile → add `church.profile.edit`
 - [ ] `POST /api/v1/people/import` — Anyone can bulk-import people → add `people.create`
@@ -57,31 +65,33 @@ Sensitive **read** endpoints also exposed without auth:
 
 **File:** `lib/permissions.ts:174-195`
 
-- [x] Add `users.remove` to Admin role
-- [x] Add `users.approve_requests` to Admin role
-- [x] Add `roles.manage` to Admin role
-- [x] Add `website.navigation.edit` to Admin role (fixes Quick Links bug)
-- [ ] Update Admin role record in **database** to match code (seed won't auto-fix since `isSystem: false`)
+- [x] Add `users.remove` to Admin role — **Verified 2026-03-27:** confirmed at `lib/permissions.ts:192`
+- [x] Add `users.approve_requests` to Admin role — **Verified:** confirmed at `lib/permissions.ts:193`
+- [x] Add `roles.manage` to Admin role — **Verified:** confirmed at `lib/permissions.ts:194`
+- [x] Add `website.navigation.edit` to Admin role — **Verified:** confirmed at `lib/permissions.ts:188`
+- [ ] Update Admin role record in **database** to match code — **Verified 2026-03-27:** seed uses `upsert` but unclear if seed was re-run after permission code changes. DB record may be stale.
 
 ### 3. QUICK LINKS BUG
 
 **Root cause:** Quick links editor saves via menu item endpoints requiring `website.navigation.edit`. Admin only had `website.navigation.view`.
 
-- [x] Add `website.navigation.edit` to Admin role in code
-- [x] Fix error handling — parse API 403 response and show "Permission denied" toast
-- [x] Fix error handling in delete catch block
-- [x] Fix error handling in reorder catch block
-- [ ] Update Admin role record in database
+- [x] Add `website.navigation.edit` to Admin role in code — **Verified 2026-03-27**
+- [x] Fix error handling — parse API 403 response and show "Permission denied" toast — **Verified:** `quick-links-editor.tsx:298,341`
+- [x] Fix error handling in delete catch block — **Verified:** `quick-links-editor.tsx:366,378`
+- [x] Fix error handling in reorder catch block — **Verified:** `quick-links-editor.tsx:414,421`
+- [ ] Update Admin role record in database — **Not verified as applied**
 
 ### 4. ROLES: Permission changes don't propagate immediately
 
-- [ ] Add `sessionVersion` increment to `updateRole()` in `lib/dal/roles.ts:58-74`
-- [ ] Add `sessionVersion` increment to `deleteRole()` in `lib/dal/roles.ts:77-92`
-- [ ] Add `sessionVersion` increment to `reactivateUser()` in `lib/dal/users.ts:314-318`
+> **Verified 2026-03-27:** All 3 items confirmed NOT DONE.
+
+- [ ] Add `sessionVersion` increment to `updateRole()` in `lib/dal/roles.ts:58-74` — simple `prisma.role.update` with no sessionVersion bump
+- [ ] Add `sessionVersion` increment to `deleteRole()` in `lib/dal/roles.ts:77-92` — no sessionVersion bump
+- [ ] Add `sessionVersion` increment to `reactivateUser()` in `lib/dal/users.ts:314-318` — no bump (compare: `deactivateUser` at line 298 DOES have the bump)
 
 ### 5. SECURITY: DELETE user lacks hierarchy check
 
-- [x] Add role level check to DELETE handler in `app/api/v1/users/[id]/route.ts:92-129` (match PATCH/deactivate/reactivate pattern)
+- [x] Add role level check to DELETE handler — **Verified 2026-03-27:** hierarchy check at `app/api/v1/users/[id]/route.ts:117-124`, checks `actorLevel < ROLE_LEVEL.OWNER && targetLevel >= actorLevel`, plus last-owner protection at lines 127-135.
 
 ---
 
@@ -90,6 +100,8 @@ Sensitive **read** endpoints also exposed without auth:
 ### 6. CMS Error Handling: Systemic problem
 
 **The pattern:** API returns `{ code: "FORBIDDEN", message: "Insufficient permissions" }` but client catches show generic "Failed to [action]". Zero places check for HTTP 403.
+
+> **Verified 2026-03-27:** All items confirmed NOT DONE.
 
 Create shared utility:
 - [ ] Create `handleApiError()` in `lib/api/handle-error.ts` (403 → "Permission denied, contact admin/owner"; 401 → "Session expired"; else → fallback + API message)
@@ -111,9 +123,11 @@ Create shared utility:
 - [ ] `website/navigation/page.tsx:311` — Reorder items
 
 Other error handling fixes:
-- [ ] `media/page.tsx:346` — `json.error` is an object, should be `json.error?.message`
+- [ ] `media/page.tsx:346` — `json.error` is an object (`{code, message}`), displays as `[object Object]`. Should be `json.error?.message`. Same issue at line 395. (Lines 411, 484, 503, 527 correctly use `json.error?.message`.)
 
 ### 7. CMS Pages: Missing `RoleGuard` (accessible by direct URL)
+
+> **Verified 2026-03-27:** All 10 pages confirmed missing `RoleGuard`. Only `people/users`, `website/settings`, `website/domains`, and `admin/roles` pages have it.
 
 - [ ] `/cms/church-profile` → `church.profile.view`
 - [ ] `/cms/people/members` → `people.view`
@@ -128,36 +142,48 @@ Other error handling fixes:
 
 ### 8. WEBSITE: Campus links have `/website/` prefix
 
-- [ ] Fix `resolve-section-data.ts:322` — change `href: '/website/ministries/campus/${c.slug}'` to `href: '/ministries/campus/${c.slug}'`
+- [x] Fix `resolve-section-data.ts:322` — **Verified 2026-03-27:** Now reads `href: '/ministries/campus/${c.slug}'` (no `/website/` prefix). Fixed in earlier commit.
 
 ### 9. WEBSITE: QUICK_LINKS section gets no meeting data
+
+> **Verified 2026-03-27:** NOT DONE. `QUICK_LINKS` is not in `DEFAULT_DATA_SOURCES` map at `resolve-section-data.ts:21-33`.
 
 - [ ] Add `QUICK_LINKS` entry to `DEFAULT_DATA_SOURCES` in `resolve-section-data.ts`
 
 ### 10. WEBSITE: Ministries POST has no revalidation
 
+> **Verified 2026-03-27:** NOT DONE. POST handler at `app/api/v1/ministries/route.ts:20-42` has no `revalidatePath` call. (PATCH and DELETE DO have it.)
+
 - [ ] Add `revalidatePath('/website', 'layout')` to POST handler in `app/api/v1/ministries/route.ts:20-42`
 
 ### 11. RESPONSIVE: Daily Bread locks body scroll
+
+> **Verified 2026-03-27:** NOT DONE. `daily-bread-feature.tsx:298-306` locks body scroll unconditionally via `document.body.style.overflow = "hidden"` whenever `entry` is truthy (on mount), not only when a full-screen modal is open.
 
 - [ ] Fix `daily-bread-feature.tsx:297` — only lock scroll when full-screen reader/audio modal is open, not on mount
 
 ### 12. RESPONSIVE: Video play button invisible on touch
 
+> **Verified 2026-03-27:** NOT DONE. `video-card.tsx:51` still uses `opacity-0 group-hover:opacity-100` with no touch/mobile visibility.
+
 - [ ] Fix `video-card.tsx:51-52` — change to `opacity-100 lg:opacity-0 lg:group-hover:opacity-100`
 
 ### 13. ROLES: Dual role system partially integrated
 
-- [ ] CMS users page only shows 4 legacy enum roles — add custom role assignment or document limitation
-- [ ] `PATCH /api/v1/users/[id]` only updates legacy enum, never `roleId`
+> **Verified 2026-03-27:** All 4 items confirmed NOT DONE.
+
+- [ ] CMS users page uses 4 legacy enum roles for filtering — `users/page.tsx:332-340` maps custom roles but sets filter value to `r.slug.toUpperCase()` while filtering by `u.role` (legacy enum). Custom roles won't match.
+- [ ] `PATCH /api/v1/users/[id]` only updates legacy `role` enum, never `roleId`
 - [ ] Unify `ROLE_LEVEL` (hardcoded 0-3) vs `Role.priority` (0-1000) hierarchy checks
-- [ ] Extract `ROLE_LEVEL` to `lib/permissions.ts` (currently duplicated in 5 files)
+- [ ] Extract `ROLE_LEVEL` to `lib/permissions.ts` (currently duplicated in 5 files: `users/[id]/route.ts`, `users/invite/route.ts`, `users/[id]/reactivate/route.ts`, `users/[id]/deactivate/route.ts`, `users-columns.tsx`)
 
 ### 14. HERO BANNER: Dead fields and missing poster rendering
 
+> **Verified 2026-03-27:** All 4 items confirmed NOT DONE.
+
 **Background:** The hero banner content JSON has legacy/dead fields from the original seed format. The editor has a "Poster / Fallback Image" picker that saves to `posterImage` but the renderer never uses it.
 
-- [ ] Wire up `posterImage.src` as the `poster` attribute on `<video>` in `HeroVideo` component (`hero-banner.tsx`) — displays while video loads or if playback fails
+- [ ] Wire up `posterImage.src` as the `poster` attribute on `<video>` in `HeroVideo` component (`hero-banner.tsx:683-746`) — no `poster` attribute currently rendered
 - [ ] Evaluate removing `backgroundImage` from video-mode hero sections — currently a legacy sync field that caused a 6-hour debug session (see `docs/00_dev-notes/hero-video-investigation.md`)
 - [ ] If keeping `backgroundImage`, use it as the poster/fallback image instead of a separate `posterImage` field (consolidate)
 - [ ] Clean up any remaining hero sections in DB where `backgroundImage.src` still contains a `.mp4`/`.webm` URL (legacy format — video should only be in `backgroundVideo`)
@@ -170,52 +196,60 @@ Other error handling fixes:
 
 ### 14. Website content issues
 
-- [ ] Replace placeholder team data ("Leader name" / "Bio here") in 4 ministry pages (`seed.mts:2172-2174, 2256-2258, 2355-2357, 2451-2453`)
-- [ ] Verify 3 events with `location: "TBD"` are intentional (`seed.mts:391-393`)
-- [ ] Confirm "Giving" page "COMING SOON" is intentional for launch (`seed.mts:3547-3559`)
-- [ ] Generalize hardcoded LA UBF subheading regex (`hero-banner.tsx:631-648`)
-- [ ] Address hardcoded R2 CDN URL for cross mask image (`statement.tsx:9-10`)
-- [ ] Remove hardcoded test credentials fallbacks in seed (`seed.mts:3759-3760`)
-- [ ] Fix error page to use website design system instead of CMS Button (`error.tsx:25-28`)
-- [ ] Fix inconsistent `resolveHref` usage on error vs not-found pages (`error.tsx:27`)
-- [ ] Clean up MeetTeam placeholder sentinel checks (`meet-team.tsx:38, 85`)
+> **Verified 2026-03-27:** All items confirmed NOT DONE.
+
+- [ ] Replace placeholder team data ("Leader name" / "Bio here") in 4 ministry pages — still at `seed.mts:2174-2176, 2258-2260, 2357-2359, 2453-2455`
+- [ ] Verify 3 events with `location: "TBD"` are intentional — still at `seed.mts:391-393`
+- [ ] Confirm "Giving" page "COMING SOON" is intentional for launch — still at `seed.mts:3549`
+- [ ] Generalize hardcoded LA UBF subheading regex — still at `hero-banner.tsx:631-648`
+- [ ] Address hardcoded R2 CDN URL for cross mask image — still at `statement.tsx:9-10`
+- [ ] Remove hardcoded test credentials fallbacks in seed — still at `seed.mts:3761-3762` (`'info@lclab.io'` and `'laubf-admin-2024'`)
+- [ ] Fix error page to use website design system instead of CMS Button — `error.tsx:4,25-28`
+- [ ] Fix inconsistent `resolveHref` usage on error vs not-found pages — `error.tsx:27` uses `<a href="/">` while `not-found.tsx` uses `resolveHref('/')`
+- [ ] Clean up MeetTeam placeholder sentinel checks — `meet-team.tsx:38,85` still has `"Leader name"` and `"Bio here"` sentinel checks
 
 ### 15. Responsive design issues
 
-- [ ] Fix 540px sticky column overflow at lg breakpoint (`directory-list.tsx:186`)
-- [ ] Add overflow protection for user HTML (`custom-html.tsx:24`)
-- [ ] Fix 600px rotating wheel clipping on tablets (`media-text.tsx:120-123`)
-- [ ] Replace `text-black-1` with theme token in statement section (`statement.tsx:72`)
-- [ ] Add mobile alternative for hidden footer nav columns (`footer.tsx:78`)
-- [ ] Add iOS safe area padding for audio player (`daily-bread-feature.tsx:137`)
-- [ ] Fix invalid Tailwind class `duration-3000` (`recurring-meetings.tsx:66`)
-- [ ] Replace fragile calc-based widths with CSS grid (`media-grid.tsx:92`, `pathway-card.tsx:69`)
-- [ ] Fix 926px spotlight element horizontal scroll risk (`quote-banner.tsx:59`)
-- [ ] Fix orbit images with fixed pixel sizes overflowing on mobile (`page-hero.tsx:87-111`)
-- [ ] Add touch alternative for hover-only arrow button (`event-card.tsx:104`)
-- [ ] Add touch alternatives for hover-only visual effects (`image-card.tsx:40`, `event-card.tsx:43`, `message-card.tsx:59`, `directory-list.tsx:237`)
-- [ ] Replace `<a>` with Next.js `<Link>` for client-side navigation (`event-card.tsx:32`, `event-list-item.tsx:53`)
-- [ ] Fix FAB overlap with daily bread audio player (`quick-links-fab.tsx:120-121`)
-- [ ] Fix dropdown panel `w-max` exceeding viewport (`dropdown-menu.tsx:265-268`)
+> **Verified 2026-03-27:** All items confirmed NOT DONE.
+
+- [ ] Fix 540px sticky column overflow at lg breakpoint — `directory-list.tsx:186` has `w-[540px]` fixed width
+- [ ] Add overflow protection for user HTML — `custom-html.tsx:24` has no `overflow-hidden`
+- [ ] Fix 600px rotating wheel clipping on tablets — `media-text.tsx:120` has `w-[600px]` fixed width
+- [ ] Replace `text-black-1` with theme token in statement section — `statement.tsx:72`
+- [ ] Add mobile alternative for hidden footer nav columns — `website-footer.tsx:116` uses `hidden sm:flex`, no mobile alternative
+- [ ] Add iOS safe area padding for audio player — no `safe-area` references in `daily-bread-feature.tsx`
+- [ ] Fix invalid Tailwind class `duration-3000` — `recurring-meetings.tsx:66` (valid max is `duration-1000`; needs custom config)
+- [ ] Replace fragile calc-based widths with CSS grid — `media-grid.tsx:92`, `pathway-card.tsx:69`
+- [ ] Fix 926px spotlight element horizontal scroll risk — `quote-banner.tsx:59` has `w-[926px]`
+- [ ] Fix orbit images with fixed pixel sizes overflowing on mobile — `page-hero.tsx:87-111`
+- [ ] Add touch alternative for hover-only arrow button — `event-card.tsx:104` has `hidden lg:block`
+- [ ] Add touch alternatives for hover-only visual effects — `image-card.tsx:41`, `event-card.tsx:43,68`, `message-card.tsx:59,71,74,87`, `directory-list.tsx:123,237,240`
+- [ ] Replace `<a>` with Next.js `<Link>` for client-side navigation — `event-card.tsx:30`, `event-list-item.tsx:53`
+- [ ] Fix FAB overlap with daily bread audio player — `quick-links-fab.tsx:143` positions at `bottom-6 right-4`
+- [ ] Fix dropdown panel `w-max` exceeding viewport — `dropdown-menu.tsx:269`
 
 ### 16. Data sync gaps
 
+> **Verified 2026-03-27:** All items confirmed NOT DONE.
+
 - [ ] Add dynamic people/staff data pipeline for MEET_TEAM sections (currently static JSON only)
-- [ ] Render member images in MeetTeam section (`meet-team.tsx:60-68` — accepts but ignores `image`)
-- [ ] Pass event `imagePosition` to list sections in `resolve-section-data.ts`
-- [ ] Pass event `badge` field to highlight cards (`resolve-section-data.ts:113-125`)
-- [ ] Pass event `shortDescription` to list/card views in `resolve-section-data.ts`
-- [ ] Fix `revalidateTag('members')` — no cache tag consumer exists on website
+- [ ] Render member images in MeetTeam section — `meet-team.tsx:60-70` always shows placeholder SVG, never uses `member.image`
+- [ ] Pass event `imagePosition` to list sections in `resolve-section-data.ts` — not passed
+- [ ] Pass event `badge` field to highlight cards in `resolve-section-data.ts` — not passed
+- [ ] Pass event `shortDescription` to list/card views in `resolve-section-data.ts` — not passed
+- [ ] Fix `revalidateTag('members')` — called in 3 API routes but no cache consumer on website routes
 - [ ] Implement route-level caching (Phase D-F — all pages currently dynamically rendered)
 
 ### 17. Code quality
 
+> **Verified 2026-03-27:** All items confirmed NOT DONE.
+
 - [ ] Extract `ROLE_LEVEL` constant to `lib/permissions.ts` (duplicated in 5 files)
-- [ ] Add role selection during access request approval (`access-requests.ts:134` — always assigns VIEWER)
+- [ ] Add role selection during access request approval — `access-requests.ts:134` always assigns VIEWER
 - [ ] Fix `media/page.tsx:346` — `json.error` is an object, use `json.error?.message`
-- [ ] Fix role filter on users page to work with custom roles (`users/page.tsx:332`)
-- [ ] Replace native `<select>` with shadcn Select in form-section (`form-section.tsx:245-256`)
-- [ ] Remove `!important` padding overrides in highlight-cards (`highlight-cards.tsx:55`)
+- [ ] Fix role filter on users page to work with custom roles — `users/page.tsx:268,332` filters by legacy enum
+- [ ] Replace native `<select>` with shadcn Select in form-section — `form-section.tsx:245`
+- [ ] Remove `!important` padding overrides in highlight-cards — still at `highlight-cards.tsx:54` (`!pt-24 lg:!pt-25 lg:!pb-10`)
 
 ---
 
@@ -250,24 +284,26 @@ Other error handling fixes:
 
 ## Recommended Fix Order
 
-| # | Fix | Effort | Impact |
-|---|---|---|---|
-| 1 | ~~Add 4 missing permissions to Admin role in `lib/permissions.ts`~~ | ~~2 min~~ | ~~Done~~ |
-| 2 | Update Admin role record in database to match | 2 min | Makes permission change take effect |
-| 3 | Add `sessionVersion` bumps to `updateRole`, `deleteRole`, `reactivateUser` | 15 min | Ensures permission/role changes propagate immediately |
-| 4 | Add `requireApiAuth()` to critical unprotected routes (church, people/import, series, campuses, ministries) | 30 min | Closes biggest security holes |
-| 5 | Fix campus href — remove `/website/` prefix in `resolve-section-data.ts:322` | 1 min | Fixes broken campus links on website |
-| 6 | Add hierarchy check to DELETE user endpoint | 5 min | Prevents Admin from removing other Admins/Owners |
-| 7 | ~~Fix quick-links-editor error handling~~ | ~~20 min~~ | ~~Done~~ |
-| 8 | Add `requireApiAuth()` to remaining unprotected routes | 45 min | Closes all security holes |
-| 9 | Add toasts to 14 silent-failure operations | 30 min | Users get feedback on all actions |
-| 10 | Add `RoleGuard` to 10 unprotected CMS pages | 30 min | Direct URL access shows proper "no permission" state |
+| # | Fix | Effort | Impact | Status |
+|---|---|---|---|---|
+| 1 | ~~Add 4 missing permissions to Admin role in code~~ | ~~2 min~~ | ~~Done~~ | **DONE** |
+| 2 | Update Admin role record in database to match | 2 min | Makes permission change take effect | NOT DONE |
+| 3 | Add `sessionVersion` bumps to `updateRole`, `deleteRole`, `reactivateUser` | 15 min | Ensures permission/role changes propagate immediately | NOT DONE |
+| 4 | Add `requireApiAuth()` to critical unprotected routes (church, people/import, series, campuses, ministries) | 30 min | Closes biggest security holes | NOT DONE |
+| 5 | ~~Fix campus href — remove `/website/` prefix~~ | ~~1 min~~ | ~~Done~~ | **DONE** |
+| 6 | ~~Add hierarchy check to DELETE user endpoint~~ | ~~5 min~~ | ~~Done~~ | **DONE** |
+| 7 | ~~Fix quick-links-editor error handling~~ | ~~20 min~~ | ~~Done~~ | **DONE** |
+| 8 | Add `requireApiAuth()` to remaining unprotected routes | 45 min | Closes all security holes | NOT DONE |
+| 9 | Add toasts to 14 silent-failure operations | 30 min | Users get feedback on all actions | NOT DONE |
+| 10 | Add `RoleGuard` to 10 unprotected CMS pages | 30 min | Direct URL access shows proper "no permission" state | NOT DONE |
 
 ---
 
 ## Videos CMS — Missing Feature (added 2026-03-25)
 
 ### P1: Videos Management Page
+
+> **Verified 2026-03-27:** No `/cms/videos` page exists. DAL and API routes exist but no CMS UI.
 
 The CMS has no dedicated page to manage videos. The current state:
 - Videos are visible on the website (`/website/videos`) and render correctly
@@ -294,6 +330,9 @@ What's needed:
 ## Rich Text Editor — Image Support (added 2026-03-25)
 
 ### P0: DOCX Image Import Broken
+
+> **Verified 2026-03-27:** NOT DONE. `lib/docx-import.ts:253-264` has no `convertImage` option. `lib/tiptap.ts:772` has `allowBase64: false`.
+
 - [ ] Add `convertImage` handler to mammoth config in `lib/docx-import.ts` (line 253) — uploads extracted images to R2 staging, injects R2 URLs into HTML before TipTap parsing
 - **Root cause:** mammoth.js converts embedded DOCX images to base64 `<img>` tags, but TipTap Image extension has `allowBase64: false` — images discarded during `generateJSON()`
 - **Files:** `lib/docx-import.ts`, `lib/tiptap.ts` (line 772)
@@ -317,10 +356,15 @@ What's needed:
 ## Attachment Data Cleanup (added 2026-03-25)
 
 ### P1: Run Message.attachments Migration
+
+> **Verified 2026-03-27:** NOT DONE. Script exists but has not been executed.
+
 - [ ] Run `npx tsx scripts/migrate-attachments-to-relation.mts` (dry-run first, then `--execute`)
 - **What it does:** Audits Message.attachments JSON, backfills missing data to BibleStudyAttachment, clears the JSON column
 - **After:** Remove `attachments Json? @db.JsonB` from Message model in a future Prisma migration
 
 ### P2: Backfill Content-Disposition on Existing R2 Files
-- [ ] Write and run one-time script to copy-to-self all existing R2 objects with Content-Disposition header
-- **Status:** Not started. New uploads get correct Content-Disposition during promotion. Existing R2 files don't have it.
+
+> **Verified 2026-03-27:** DONE. Script `scripts/backfill-content-disposition.mts` was created and executed (commit `32653dd`, 2026-03-26). Uses `CopyObject` for zero-transfer metadata updates.
+
+- [x] Write and run one-time script to copy-to-self all existing R2 objects with Content-Disposition header — **DONE** (commit `32653dd`)

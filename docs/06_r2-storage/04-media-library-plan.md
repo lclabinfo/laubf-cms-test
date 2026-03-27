@@ -1,15 +1,21 @@
 # Media Library — R2 Implementation Plan
 
-> **Revised 2026-03-05** — Incorporates lessons learned from the bible study attachments R2 integration. Read this entire document before writing any code.
+> **Revised 2026-03-05** — Incorporates lessons learned from the bible study attachments R2 integration.
+> **Last updated 2026-03-27** — Status updated to reflect completed implementation.
 
-## Current State
+> **Status: MOSTLY COMPLETE.** Phases 1-6 are implemented and working. The media library has full R2 backend integration, DAL, API routes, CMS UI with grid/list views, folder management, upload, preview, bulk operations, and search. Phase 7 (media selector integration into other editors) is partially done. See the Implementation Checklist below for precise item-level status.
 
-- `MediaAsset` model exists in Prisma schema (`prisma/schema.prisma`, line ~890) with `url`, `filename`, `mimeType`, `fileSize`, `width`, `height`, `alt`, `folder`, `thumbnailUrl`
-- `MediaAsset.id` is `@id @default(uuid()) @db.Uuid` — all IDs must be `crypto.randomUUID()` on the client
-- CMS media page exists at `app/cms/(dashboard)/media/page.tsx` (placeholder)
-- UI scaffolding in `components/cms/media/`: upload dialog, grid, sidebar, preview, selector (12 files)
-- **No backend integration** — no DAL, no API routes, no actual file storage
-- Media types defined in `lib/media-data.ts` but not connected to DB
+## Current State (as of 2026-03-27)
+
+- `MediaAsset` model in Prisma schema with `url`, `filename`, `mimeType`, `fileSize`, `width`, `height`, `alt`, `folder`, `thumbnailUrl`
+- `MediaAsset.id` is `@id @default(uuid()) @db.Uuid` — all IDs use `crypto.randomUUID()`
+- `MediaFolder` model for persistent folder management
+- **DAL complete:** `lib/dal/media.ts` — 18 functions (list, CRUD, folders, bulk ops, counts, soft/hard delete with R2 cleanup)
+- **API routes complete:** 8 route files in `app/api/v1/media/` (list, create with staging promotion, get, update, delete, bulk-delete, folders CRUD, by-url lookup, usage tracking, promote)
+- **R2 integration complete:** `lib/storage/r2.ts` exports `MEDIA_BUCKET`, `MEDIA_PUBLIC_URL`, `getMediaPublicUrl()`, `keyFromMediaUrl()`. Upload URL endpoint routes to correct bucket based on context.
+- **CMS UI complete:** `app/cms/(dashboard)/media/page.tsx` — full media library with grid/list views, sidebar filters, folder management, upload, preview, bulk operations, search, sort, storage quota display
+- **13 component files** in `components/cms/media/`: upload dialog, grid, sidebar, preview, columns, toolbar, folder dialogs, move-to, connect-album, add-video, media-picker
+- **Storage quota enforcement** in `lib/dal/storage.ts` (shared 10 GB across media + attachments)
 
 ## Target State
 
@@ -225,9 +231,9 @@ const MAX_SIZE_BY_TYPE: Record<string, number> = {
 // The category (images/audio/video) is determined at promotion time based on MIME type.
 ```
 
-### Phase 3: Media DAL (`lib/dal/media.ts`)
+### Phase 3: Media DAL (`lib/dal/media.ts`) — COMPLETE
 
-**File to create:** `lib/dal/media.ts`
+**File:** `lib/dal/media.ts` (18 functions: listMedia, getMediaAsset, createMediaAsset, updateMediaAsset, deleteMediaAsset, hardDeleteMediaAsset, hardDeleteMediaAssetByUrl, findMediaAssetByUrl, listFolders, createFolder, renameFolder, deleteFolder, getFolderCounts, getMediaCounts, getDistinctFolders, bulkMoveToFolder, bulkSoftDelete, bulkHardDelete)
 
 Follow the pattern in existing DAL modules (e.g., `lib/dal/messages.ts`). Every function takes `churchId` as first param.
 
@@ -338,11 +344,11 @@ export async function getDistinctFolders(churchId: string): Promise<string[]> {
 }
 ```
 
-### Phase 4: Media API Routes
+### Phase 4: Media API Routes — COMPLETE
 
 **Directory:** `app/api/v1/media/`
 
-Create these route files:
+Implemented route files (8 files, exceeds original plan):
 
 | File | Method | Purpose |
 |---|---|---|
@@ -351,7 +357,12 @@ Create these route files:
 | `app/api/v1/media/[id]/route.ts` | GET | Get single media asset |
 | `app/api/v1/media/[id]/route.ts` | PATCH | Update metadata (alt, folder, filename) |
 | `app/api/v1/media/[id]/route.ts` | DELETE | Soft-delete media asset |
-| `app/api/v1/media/folders/route.ts` | GET | List distinct folders |
+| `app/api/v1/media/folders/route.ts` | GET, POST | List and create folders |
+| `app/api/v1/media/folders/[id]/route.ts` | PATCH, DELETE | Rename and delete folders |
+| `app/api/v1/media/bulk-delete/route.ts` | POST | Bulk soft/hard delete |
+| `app/api/v1/media/by-url/route.ts` | GET | Find media by URL |
+| `app/api/v1/media/[id]/usage/route.ts` | GET | Track media usage in events/pages |
+| `app/api/v1/media/promote/route.ts` | POST | Promote staging to permanent |
 
 **Critical: POST `/api/v1/media` must handle staging promotion.**
 
@@ -435,9 +446,9 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
 }
 ```
 
-### Phase 5: Upload Flow (Client-Side)
+### Phase 5: Upload Flow (Client-Side) — COMPLETE
 
-**Reference implementation:** See how `components/cms/messages/entry/metadata-sidebar.tsx` handles bible study attachment uploads. Follow the same pattern.
+**Implemented** in `components/cms/media/upload-photo-dialog.tsx` and the upload queue provider. Follows the same presigned URL pattern as bible study attachments.
 
 **Upload sequence for each file:**
 
@@ -508,20 +519,30 @@ function getImageDimensions(file: File): Promise<{ width: number; height: number
 }
 ```
 
-### Phase 6: Wire Up CMS UI
+### Phase 6: Wire Up CMS UI — COMPLETE
 
-| File | Change |
+All 13 component files are fully wired to the API:
+
+| File | Status |
 |---|---|
-| `app/cms/(dashboard)/media/page.tsx` | Replace placeholder with real grid + toolbar. Fetch from `GET /api/v1/media`. |
-| `components/cms/media/upload-photo-dialog.tsx` | Connect to presigned URL upload flow (Phase 5 pattern). |
-| `components/cms/media/media-grid.tsx` | Fetch from API, handle pagination, show loading/empty states. |
-| `components/cms/media/media-sidebar.tsx` | Fetch folders from `GET /api/v1/media/folders`. |
-| `components/cms/media/media-preview-dialog.tsx` | Load from R2 URL, show metadata. |
-| `components/cms/media/media-selector-dialog.tsx` | Browse + select existing media for embedding in other editors. |
-| `components/cms/media/toolbar.tsx` | Search, filter by type, bulk delete. |
-| `components/cms/media/columns.tsx` | Update columns if using table view. |
+| `app/cms/(dashboard)/media/page.tsx` | DONE — Full media library page with grid + list, sidebar, toolbar, all dialogs |
+| `components/cms/media/upload-photo-dialog.tsx` | DONE — Presigned R2 URL upload flow |
+| `components/cms/media/media-grid.tsx` | DONE — Grid view with thumbnails, video overlays, pagination |
+| `components/cms/media/media-sidebar.tsx` | DONE — Folders from API, smart filters, drag-drop |
+| `components/cms/media/media-preview-dialog.tsx` | DONE — R2-hosted files, editable metadata, usage tracking |
+| `components/cms/media/media-picker-dialog.tsx` | DONE — Browse + select media for embedding (replaces media-selector-dialog) |
+| `components/cms/media/toolbar.tsx` | DONE — Search, sort, view mode toggle, bulk actions |
+| `components/cms/media/columns.tsx` | DONE — List view columns with sortable table |
+| `components/cms/media/create-folder-dialog.tsx` | DONE |
+| `components/cms/media/rename-folder-dialog.tsx` | DONE |
+| `components/cms/media/move-to-dialog.tsx` | DONE |
+| `components/cms/media/add-video-dialog.tsx` | DONE — YouTube/Vimeo URL, oEmbed title fetch |
+| `components/cms/media/connect-album-dialog.tsx` | DONE — Google Album linking |
+| `components/cms/media/google-albums-table.tsx` | DONE |
 
-### Phase 7: Media Selector Integration
+### Phase 7: Media Selector Integration — PARTIAL
+
+`media-picker-dialog.tsx` exists and can browse/select media. Not yet integrated into all editors.
 
 Allow other editors (messages, events, pages) to embed media from the library:
 
@@ -660,52 +681,57 @@ This requires Cloudflare Pro plan ($20/mo) or a separate Worker-based solution.
 Use this as a step-by-step guide. Complete each item in order.
 
 ### Infrastructure (do first, do once)
-- [ ] Create `media` R2 bucket in Cloudflare dashboard
-- [ ] Configure CORS on `media` bucket (see Prerequisites section)
-- [ ] Set `R2_MEDIA_BUCKET_NAME` and `R2_MEDIA_PUBLIC_URL` in `.env`
-- [ ] Add media bucket R2.dev hostname to `next.config.ts` `images.remotePatterns`
-- [ ] Configure staging lifecycle rule on `media` bucket (delete after 1 day, prefix `la-ubf/staging/`)
+- [x] Create `media` R2 bucket in Cloudflare dashboard
+- [x] Configure CORS on `media` bucket (see Prerequisites section)
+- [x] Set `R2_MEDIA_BUCKET_NAME` and `R2_MEDIA_PUBLIC_URL` in `.env`
+- [x] Add media bucket R2.dev hostname to `next.config.ts` `images.remotePatterns`
+- [x] Configure staging lifecycle rule on `media` bucket (delete after 1 day, prefix `la-ubf/staging/`)
 
 ### Storage client
-- [ ] Add `MEDIA_BUCKET` and `MEDIA_PUBLIC_URL` exports to `lib/storage/r2.ts`
-- [ ] Add `bucket` param to `getUploadUrl()` in `lib/storage/r2.ts`
-- [ ] Add `getMediaPublicUrl(key)` function to `lib/storage/r2.ts`
-- [ ] Add `keyFromMediaUrl(url)` function to `lib/storage/r2.ts`
-- [ ] Verify existing helpers (`deleteObject`, `moveObject`, `listObjects`, `uploadFile`) already accept optional `bucket` param
+- [x] Add `MEDIA_BUCKET` and `MEDIA_PUBLIC_URL` exports to `lib/storage/r2.ts`
+- [x] Add `bucket` param to `getUploadUrl()` in `lib/storage/r2.ts`
+- [x] Add `getMediaPublicUrl(key)` function to `lib/storage/r2.ts`
+- [x] Add `keyFromMediaUrl(url)` function to `lib/storage/r2.ts`
+- [x] Verify existing helpers (`deleteObject`, `moveObject`, `listObjects`, `uploadFile`) already accept optional `bucket` param
 
 ### Upload endpoint
-- [ ] Update `POST /api/v1/upload-url` to use `MEDIA_BUCKET` when `context === "media"`
-- [ ] Update `POST /api/v1/upload-url` to return `getMediaPublicUrl(key)` when `context === "media"`
+- [x] Update `POST /api/v1/upload-url` to use `MEDIA_BUCKET` when `context === "media"`
+- [x] Update `POST /api/v1/upload-url` to return `getMediaPublicUrl(key)` when `context === "media"`
 
 ### DAL
-- [ ] Create `lib/dal/media.ts` with all functions from Phase 3
+- [x] Create `lib/dal/media.ts` with all functions from Phase 3 (expanded to 18 functions including folders, bulk ops, counts)
 
 ### API routes
-- [ ] Create `app/api/v1/media/route.ts` (GET + POST)
-- [ ] Create `app/api/v1/media/[id]/route.ts` (GET + PATCH + DELETE)
-- [ ] Create `app/api/v1/media/folders/route.ts` (GET)
-- [ ] Verify POST handler promotes staging files to permanent keys
-- [ ] Verify DELETE handler cleans up R2 objects
+- [x] Create `app/api/v1/media/route.ts` (GET + POST)
+- [x] Create `app/api/v1/media/[id]/route.ts` (GET + PATCH + DELETE)
+- [x] Create `app/api/v1/media/folders/route.ts` (GET + POST)
+- [x] Create `app/api/v1/media/folders/[id]/route.ts` (PATCH + DELETE)
+- [x] Create `app/api/v1/media/bulk-delete/route.ts` (POST)
+- [x] Create `app/api/v1/media/by-url/route.ts` (GET)
+- [x] Create `app/api/v1/media/[id]/usage/route.ts` (GET)
+- [x] Create `app/api/v1/media/promote/route.ts` (POST)
+- [x] Verify POST handler promotes staging files to permanent keys
+- [x] Verify DELETE handler cleans up R2 objects
 
 ### CMS UI
-- [ ] Wire `upload-photo-dialog.tsx` to presigned URL flow
-- [ ] Wire `media-grid.tsx` to `GET /api/v1/media`
-- [ ] Wire `media-sidebar.tsx` to folders endpoint
-- [ ] Wire `media-preview-dialog.tsx` to show R2-hosted files
-- [ ] Wire `toolbar.tsx` search/filter to API query params
-- [ ] Update `app/cms/(dashboard)/media/page.tsx` to compose all components
+- [x] Wire `upload-photo-dialog.tsx` to presigned URL flow
+- [x] Wire `media-grid.tsx` to `GET /api/v1/media`
+- [x] Wire `media-sidebar.tsx` to folders endpoint
+- [x] Wire `media-preview-dialog.tsx` to show R2-hosted files
+- [x] Wire `toolbar.tsx` search/filter to API query params
+- [x] Update `app/cms/(dashboard)/media/page.tsx` to compose all components
 
 ### After schema changes (if any)
-- [ ] Run `npx prisma migrate dev --name <name>`
-- [ ] Delete `.next/` directory
-- [ ] Restart dev server
+- [x] Run `npx prisma migrate dev --name <name>`
+- [x] Delete `.next/` directory
+- [x] Restart dev server
 
 ### Verification
-- [ ] Upload an image — verify it appears in R2 `media` bucket under `la-ubf/staging/`
-- [ ] Save — verify file moves to `la-ubf/images/2026/` permanent key
-- [ ] Verify the `MediaAsset` DB record has the permanent URL (not staging)
-- [ ] Delete a media asset — verify R2 object is removed
-- [ ] Upload from media selector in another editor — verify cross-editor flow works
+- [x] Upload an image — verify it appears in R2 `media` bucket under `la-ubf/staging/`
+- [x] Save — verify file moves to `la-ubf/images/2026/` permanent key
+- [x] Verify the `MediaAsset` DB record has the permanent URL (not staging)
+- [x] Delete a media asset — verify R2 object is removed
+- [ ] Upload from media selector in another editor — verify cross-editor flow works (media-picker exists but not wired into all editors yet)
 
 ---
 

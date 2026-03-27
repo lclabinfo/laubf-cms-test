@@ -1,5 +1,7 @@
 # Caching Explained
 
+> **Phase E -- Not Yet Implemented.** This document describes the planned caching design. No caching code has been written yet. The application currently has no ISR, no `'use cache'` directives, no Redis, and no CDN page caching rules. Every page request runs full database queries. See `docs/02_database/05-memory-audit.md` (Finding 1) for measured impact of the current no-caching state.
+
 ## What Caching Actually Means, Why Redis Exists, and When to Add Each Layer
 
 > **Context**: This document explains caching from first principles for developers who understand browser caching but are unclear on server-side caching, Redis, and CDN caching. It's specifically written for our stack: Next.js 16 self-hosted on Azure VM with Cloudflare as CDN.

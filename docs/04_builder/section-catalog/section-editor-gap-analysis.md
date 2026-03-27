@@ -1,8 +1,17 @@
 # Section Editor Specification
 
-> **Updated**: March 17, 2026
+> **Created**: March 17, 2026
+> **Updated**: March 27, 2026
 > **Purpose**: Maps what each section editor currently exposes vs. what it SHOULD expose.
-> **Status**: Draft for David's review. Mark decisions inline, then implement.
+> **Status**: **RESOLVED.** All 13 editor gaps identified below were closed on March 18, 2026 (commits `4b11296`, `79b7182`). All 4 hardcoded URLs were also fixed. The builder roadmap (`builder-roadmap.md`) and dev-guide-day2 confirm this.
+>
+> **What was done:**
+> - All 13 sections that needed editor changes were updated (see Summary at bottom)
+> - All 4 hardcoded URL issues were fixed (HERO_BANNER video, STATEMENT mask, FEATURE_BREAKDOWN watermark, FOOTER logo)
+> - Shared editor component library extracted to `section-editors/shared/` (15 reusable primitives, -42% editor code)
+> - 41/41 section editors verified complete via Playwright
+>
+> This document is retained as a historical reference for what was audited and how gaps were identified. The "Gap" columns below reflect the state as of March 17 (pre-fix). All gaps listed have been addressed.
 
 ---
 
