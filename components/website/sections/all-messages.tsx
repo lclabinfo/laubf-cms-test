@@ -1,4 +1,4 @@
-import { getMessages } from '@/lib/dal/messages'
+import { getMessages, getMessageFilterMeta, type MessageFilterMeta } from '@/lib/dal/messages'
 import { getAllSeries } from '@/lib/dal/series'
 import AllMessagesClient from './all-messages-client'
 
@@ -32,9 +32,10 @@ export default async function AllMessagesSection({
   containerWidth = 'standard',
 }: Props) {
   try {
-    const [messagesResult] = await Promise.all([
+    const [messagesResult, , filterMeta] = await Promise.all([
       getMessages(churchId, { pageSize: 200, videoPublished: true }),
       getAllSeries(churchId),
+      getMessageFilterMeta(churchId),
     ])
 
     // Only include messages that have an actual video source (youtubeId or videoUrl)
@@ -70,7 +71,7 @@ export default async function AllMessagesSection({
         mobile: content.columns?.mobile ?? 1,
       },
       cardGap: content.cardGap ?? 'default',
-      itemsPerPage: content.itemsPerPage ?? 50,
+      itemsPerPage: content.itemsPerPage ?? 48,
       showDate: content.showDate ?? true,
       showSeriesPill: content.showSeriesPill ?? true,
       showSpeaker: content.showSpeaker ?? true,
@@ -85,6 +86,7 @@ export default async function AllMessagesSection({
         colorScheme={colorScheme}
         paddingY={paddingY}
         containerWidth={containerWidth}
+        filterMeta={filterMeta}
       />
     )
   } catch (error) {

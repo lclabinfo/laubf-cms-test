@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import { getChurchId } from '@/lib/tenant/context'
-import { getBibleStudies } from '@/lib/dal/bible-studies'
+import { getBibleStudies, getBibleStudyFilterMeta } from '@/lib/dal/bible-studies'
 import { bibleBookLabel } from '@/lib/website/bible-book-labels'
 import EventsHeroSection from '@/components/website/sections/events-hero'
 import AllBibleStudiesSection from '@/components/website/sections/all-bible-studies'
@@ -23,11 +23,16 @@ function toDateString(date: Date | string | null): string {
 export default async function BibleStudyListingPage() {
   const churchId = await getChurchId()
 
-  // Fetch first page of published bible studies (server-side).
+  // Fetch first page of published bible studies + filter metadata in parallel.
   // The client component fetches additional pages via the API as the user
   // clicks "Load More", so we don't need to fetch everything up front.
+  // Filter metadata (years, series, books) is fetched separately so dropdowns
+  // are complete on first render without waiting for all pages.
   const PAGE_SIZE = 50
-  const result = await getBibleStudies(churchId, { pageSize: PAGE_SIZE })
+  const [result, filterMeta] = await Promise.all([
+    getBibleStudies(churchId, { pageSize: PAGE_SIZE }),
+    getBibleStudyFilterMeta(churchId),
+  ])
 
   // Transform Prisma models into the shape expected by AllBibleStudiesSection
   const studies = result.data.map((s) => ({
@@ -60,6 +65,7 @@ export default async function BibleStudyListingPage() {
         colorScheme="light"
         studies={studies}
         pagination={{ total: result.total, page: result.page, pageSize: result.pageSize, totalPages: result.totalPages }}
+        filterMeta={filterMeta}
       />
     </>
   )

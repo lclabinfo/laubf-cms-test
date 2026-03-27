@@ -44,8 +44,8 @@ interface EventFilters {
 }
 
 const VALID_TABS: TabView[] = ["event", "meeting", "program"]
-const INITIAL_COUNT = 50
-const LOAD_MORE_COUNT = 50
+const INITIAL_COUNT = 48
+const LOAD_MORE_COUNT = 48
 
 interface Props {
   events: SimpleEvent[]

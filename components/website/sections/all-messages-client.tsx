@@ -80,12 +80,19 @@ interface LayoutConfig {
   showDuration: boolean
 }
 
+interface FilterMeta {
+  years: number[]
+  series: { name: string; count: number }[]
+  speakers: { name: string; count: number }[]
+}
+
 interface Props {
   messages: SimpleMessage[]
   layout: LayoutConfig
   colorScheme?: string
   paddingY?: string
   containerWidth?: string
+  filterMeta?: FilterMeta
 }
 
 export default function AllMessagesClient({
@@ -94,6 +101,7 @@ export default function AllMessagesClient({
   colorScheme = 'light',
   paddingY = 'none',
   containerWidth = 'standard',
+  filterMeta,
 }: Props) {
   const t = useSectionTheme()
 
@@ -108,6 +116,8 @@ export default function AllMessagesClient({
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
 
   /* ---- Derived data ---- */
+  // When filterMeta is provided (server-rendered), use it for filter dropdowns
+  // so they're complete on first render even if messages prop is paginated.
   const seriesList = useMemo(() => {
     const seriesMap = new Map<string, { name: string; count: number; lastDate: string }>()
     messages.forEach((m) => {
@@ -120,19 +130,35 @@ export default function AllMessagesClient({
         seriesMap.set(m.series, { name: m.series, count: 1, lastDate: m.dateFor })
       }
     })
+    // Merge with filterMeta for accurate counts
+    if (filterMeta?.series) {
+      for (const fm of filterMeta.series) {
+        const existing = seriesMap.get(fm.name)
+        if (existing) {
+          existing.count = Math.max(existing.count, fm.count)
+        } else {
+          seriesMap.set(fm.name, { name: fm.name, count: fm.count, lastDate: '' })
+        }
+      }
+    }
     return Array.from(seriesMap.values()).sort((a, b) => b.lastDate.localeCompare(a.lastDate))
-  }, [messages])
+  }, [messages, filterMeta])
 
   const speakerList = useMemo(() => {
+    if (filterMeta?.speakers) {
+      return filterMeta.speakers.map((s) => s.name).sort()
+    }
     const speakers = new Set<string>()
     messages.forEach((m) => { if (m.speaker) speakers.add(m.speaker) })
     return Array.from(speakers).sort()
-  }, [messages])
+  }, [messages, filterMeta])
 
-  const seriesOptions = useMemo(
-    () => seriesList.map((s) => ({ value: s.name, label: s.name })),
-    [seriesList],
-  )
+  const seriesOptions = useMemo(() => {
+    if (filterMeta?.series) {
+      return filterMeta.series.map((s) => ({ value: s.name, label: s.name }))
+    }
+    return seriesList.map((s) => ({ value: s.name, label: s.name }))
+  }, [seriesList, filterMeta])
 
   const speakerOptions = useMemo(
     () => speakerList.map((s) => ({ value: s, label: s })),
@@ -140,13 +166,14 @@ export default function AllMessagesClient({
   )
 
   const availableYears = useMemo(() => {
+    if (filterMeta?.years) return filterMeta.years
     const years = new Set<number>()
     messages.forEach((m) => {
       const y = parseInt(m.dateFor.slice(0, 4), 10)
       if (!isNaN(y)) years.add(y)
     })
     return Array.from(years).sort((a, b) => b - a)
-  }, [messages])
+  }, [messages, filterMeta])
 
   /* ---- Filtering & Sorting ---- */
   const filteredMessages = useMemo(() => {

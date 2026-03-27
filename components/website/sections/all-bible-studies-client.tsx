@@ -131,10 +131,17 @@ function formatDate(dateStr: string) {
   })
 }
 
+interface FilterMeta {
+  years: number[]
+  series: { name: string; count: number }[]
+  books: { book: string; count: number }[]
+}
+
 interface Props {
   studies: BibleStudy[]
   heading: string
   pagination?: PaginationInfo
+  filterMeta?: FilterMeta
 }
 
 /**
@@ -160,7 +167,7 @@ async function fetchStudiesPage(page: number, pageSize: number): Promise<BibleSt
   }))
 }
 
-export default function AllBibleStudiesClient({ studies: initialStudies, heading, pagination }: Props) {
+export default function AllBibleStudiesClient({ studies: initialStudies, heading, pagination, filterMeta }: Props) {
   /* ---- State ---- */
   const [tab, setTab] = useState<TabView>("all")
   const [viewMode, setViewMode] = useState<ViewMode>("card")
@@ -217,6 +224,9 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
   const studies = allStudies
 
   /* ---- Derived data ---- */
+  // When filterMeta is provided (server-rendered), use it for filter dropdowns
+  // so they're complete on first render. Fall back to deriving from loaded data
+  // for the Series tab grid (which needs lastDate from actual records).
   const seriesList = useMemo(() => {
     const seriesMap = new Map<string, { name: string; count: number; lastDate: string }>()
     studies.forEach((s) => {
@@ -229,40 +239,61 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
         seriesMap.set(s.series, { name: s.series, count: 1, lastDate: s.dateFor })
       }
     })
+    // Merge counts from filterMeta so the series grid shows accurate totals
+    // even before all pages are loaded
+    if (filterMeta?.series) {
+      for (const fm of filterMeta.series) {
+        const existing = seriesMap.get(fm.name)
+        if (existing) {
+          existing.count = Math.max(existing.count, fm.count)
+        } else {
+          seriesMap.set(fm.name, { name: fm.name, count: fm.count, lastDate: '' })
+        }
+      }
+    }
     return Array.from(seriesMap.values()).sort((a, b) => b.count - a.count)
-  }, [studies])
+  }, [studies, filterMeta])
 
   const bookCounts = useMemo(() => {
+    // Prefer filterMeta for complete counts
+    if (filterMeta?.books) {
+      const counts = new Map<string, number>()
+      for (const b of filterMeta.books) counts.set(b.book, b.count)
+      return counts
+    }
     const counts = new Map<string, number>()
     studies.forEach((s) => {
       if (!s.book) return
       counts.set(s.book, (counts.get(s.book) ?? 0) + 1)
     })
     return counts
-  }, [studies])
+  }, [studies, filterMeta])
 
-  const seriesOptions = useMemo(
-    () => seriesList.map((s) => ({ value: s.name, label: s.name })),
-    [seriesList],
-  )
+  const seriesOptions = useMemo(() => {
+    // Prefer filterMeta for complete series list
+    if (filterMeta?.series) {
+      return filterMeta.series.map((s) => ({ value: s.name, label: s.name }))
+    }
+    return seriesList.map((s) => ({ value: s.name, label: s.name }))
+  }, [seriesList, filterMeta])
 
   const bookOptions = useMemo(() => {
-    const booksWithStudies = new Set<string>()
-    studies.forEach((s) => { if (s.book) booksWithStudies.add(s.book) })
     return BIBLE_BOOKS.map((b) => ({
       value: b.name,
       label: `${b.name} (${bookCounts.get(b.name) ?? 0})`,
     }))
-  }, [studies, bookCounts])
+  }, [bookCounts])
 
   const availableYears = useMemo(() => {
+    // Prefer filterMeta for complete year list
+    if (filterMeta?.years) return filterMeta.years
     const years = new Set<number>()
     studies.forEach((s) => {
       const y = parseInt(s.dateFor.slice(0, 4), 10)
       if (!isNaN(y)) years.add(y)
     })
     return Array.from(years).sort((a, b) => b - a)
-  }, [studies])
+  }, [studies, filterMeta])
 
   /* ---- Filtering & Sorting (All Studies tab) ---- */
   const filteredStudies = useMemo(() => {

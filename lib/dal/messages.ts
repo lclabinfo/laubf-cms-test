@@ -84,6 +84,79 @@ export type MessageFilters = {
   archiveFilter?: 'all' | 'active' | 'archived'
 }
 
+export type MessageFilterMeta = {
+  years: number[]
+  series: { name: string; count: number }[]
+  speakers: { name: string; count: number }[]
+}
+
+/**
+ * Lightweight query to get all available filter options for video messages.
+ * Returns years, series (with counts), and speakers (with counts) so the client
+ * can render complete filter dropdowns on first render.
+ */
+export async function getMessageFilterMeta(churchId: string): Promise<MessageFilterMeta> {
+  const where: Prisma.MessageWhereInput = {
+    churchId,
+    deletedAt: null,
+    hasVideo: true,
+  }
+
+  const [yearRows, seriesRows, speakerRows] = await Promise.all([
+    // Distinct years
+    prisma.message.findMany({
+      where,
+      select: { dateFor: true },
+      distinct: ['dateFor'],
+    }).then((rows) => {
+      const years = new Set<number>()
+      for (const r of rows) {
+        if (r.dateFor) years.add(new Date(r.dateFor).getFullYear())
+      }
+      return Array.from(years).sort((a, b) => b - a)
+    }),
+    // Series with counts
+    prisma.message.findMany({
+      where: { ...where, messageSeries: { some: {} } },
+      select: { messageSeries: { include: { series: { select: { name: true } } } } },
+    }).then((rows) => {
+      const seriesMap = new Map<string, number>()
+      for (const m of rows) {
+        for (const ms of m.messageSeries) {
+          const name = ms.series.name
+          seriesMap.set(name, (seriesMap.get(name) ?? 0) + 1)
+        }
+      }
+      return Array.from(seriesMap.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+    }),
+    // Speakers with counts
+    prisma.message.groupBy({
+      by: ['speakerId'],
+      where: { ...where, speakerId: { not: null } },
+      _count: { _all: true },
+    }).then(async (groups) => {
+      if (groups.length === 0) return [] as { name: string; count: number }[]
+      const speakerIds = groups.map((g) => g.speakerId!).filter(Boolean)
+      const speakers = await prisma.person.findMany({
+        where: { id: { in: speakerIds } },
+        select: { id: true, firstName: true, lastName: true, preferredName: true },
+      })
+      const nameMap = new Map(speakers.map((s) => [
+        s.id,
+        s.preferredName ? `${s.preferredName} ${s.lastName}` : `${s.firstName} ${s.lastName}`,
+      ]))
+      return groups
+        .map((g) => ({ name: nameMap.get(g.speakerId!) || '', count: g._count._all }))
+        .filter((s) => s.name)
+        .sort((a, b) => b.count - a.count)
+    }),
+  ])
+
+  return { years: yearRows, series: seriesRows, speakers: speakerRows }
+}
+
 export async function getMessages(
   churchId: string,
   filters?: MessageFilters & PaginationParams,
