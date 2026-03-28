@@ -1,29 +1,124 @@
-# `'use cache'` Implementation Plan
+# Caching & Data Access Layer Plan
 
-> **Date**: 2026-03-27
-> **Status**: Blocked by CMS Suspense compatibility
+> **Date**: 2026-03-27 (updated with official Next.js 16.2.1 docs)
+> **Status**: ISR active, `'use cache'` blocked, `unstable_cache` available as middle ground
 > **Priority**: Medium (ISR handles 90% of the memory win already)
-> **Estimated effort**: 2-4 hours
-> **Prerequisite**: CMS pages must be Suspense-compatible
+> **Estimated effort**: 2-4 hours for either approach
 
 ---
 
-## What This Is
+## Current State: What's Active
 
-`'use cache'` is a Next.js 16 directive that caches individual function results to disk. It's more granular than ISR — instead of caching entire pages, it caches each database query independently with tag-based invalidation.
+**ISR (`export const revalidate`) is live** on all 6 website routes:
+- `app/website/[[...slug]]/page.tsx` — 60s
+- `app/website/layout.tsx` — 300s
+- `app/website/bible-study/page.tsx` — 60s
+- `app/website/bible-study/[slug]/page.tsx` — 3600s
+- `app/website/messages/[slug]/page.tsx` — 3600s
+- `app/website/events/[slug]/page.tsx` — 600s
 
-**Current caching (ISR):**
-- Pages cached to disk for 60-3600 seconds
-- When a page expires, ALL queries re-run to regenerate it
-- `revalidatePath()` clears page cache when CMS content changes
+ISR caches entire rendered pages to the filesystem (`.next/cache/`). Repeat visitors get served from disk with zero memory allocation and zero database queries. On-demand invalidation via `revalidatePath()` is wired into all CMS API write handlers.
 
-**What `'use cache'` adds:**
-- Each DAL function cached independently with its own TTL
-- When a page needs to regenerate, cached query results are reused (zero DB queries)
-- `revalidateTag()` clears only the affected content type (e.g., sermon edit only clears sermon cache, not events/pages/menus)
-- Cache lives on disk, not in RAM
+**Debug tip:** Add `NEXT_PRIVATE_DEBUG_CACHE=1` to `.env` on the server to log ISR cache hits/misses to the console.
 
-**Memory impact:** Moderate improvement on top of ISR. ISR already eliminates 99% of redundant page renders. `'use cache'` makes the remaining 1% (page regeneration after TTL expires) cheaper by caching the underlying queries.
+**Verify with:** `curl -I https://laubf.lclab.io/ 2>&1 | grep x-nextjs-cache` — values are `HIT`, `STALE`, `MISS`, or `REVALIDATED`.
+
+---
+
+## Three Caching Approaches (Comparison)
+
+### 1. ISR Only (Current) — Page-Level, Time-Based
+
+```typescript
+// app/website/[[...slug]]/page.tsx
+export const revalidate = 60  // re-render at most every 60 seconds
+```
+
+- **How it works:** First visitor after TTL triggers background re-render. All visitors get cached HTML from disk instantly. `revalidatePath()` clears specific pages on CMS save.
+- **What's cached:** The full rendered HTML page.
+- **Where cached:** Filesystem (`.next/cache/`), plus up to 50 MB in-memory LRU (`cacheMaxMemorySize`).
+- **Invalidation:** `revalidatePath('/website/messages')` or `revalidatePath('/website')`.
+- **Limitation:** When a page regenerates, ALL database queries re-run even if only one content type changed. No per-query caching.
+- **Works with:** `output: 'standalone'`, self-hosted, no extra config needed.
+
+### 2. `unstable_cache` — Function-Level, Tag-Based (Available NOW)
+
+```typescript
+import { unstable_cache } from 'next/cache'
+
+const getCachedMessages = unstable_cache(
+  async (churchId: string) => {
+    return prisma.message.findMany({ where: { churchId, deletedAt: null } })
+  },
+  ['messages'],  // cache key prefix
+  { revalidate: 3600, tags: ['sermons'] }  // 1 hour TTL + tag
+)
+```
+
+- **How it works:** Wraps an async function. Results cached by key + arguments. `revalidateTag('sermons')` clears only sermon-related cache entries.
+- **What's cached:** Individual function return values (serialized JSON).
+- **Where cached:** Same filesystem cache as ISR.
+- **Invalidation:** `revalidateTag('sermons')` — granular, only clears tagged entries.
+- **Advantage over ISR alone:** When a page regenerates, cached query results are reused. Sermon edit only clears sermon cache, not events/menus/settings.
+- **Works with:** `output: 'standalone'`, **no `cacheComponents` flag needed**, no Suspense refactor needed.
+- **Limitation:** `unstable_` prefix means API may change. But it's been stable since Next.js 14.1 and is widely used in production.
+
+### 3. `'use cache'` — Function/Component-Level, Tag-Based (Blocked)
+
+```typescript
+export async function getMessages(churchId: string) {
+  'use cache'
+  cacheTag(`church:${churchId}:sermons`)
+  cacheLife('hours')
+  return prisma.message.findMany({ ... })
+}
+```
+
+- **How it works:** Same as `unstable_cache` but with cleaner syntax and component-level caching.
+- **What's cached:** Function results OR entire component render output.
+- **Requires:** `cacheComponents: true` in next.config.ts.
+- **Blocked because:** `cacheComponents` enables Partial Prerendering (PPR), which requires ALL pages to handle dynamic APIs (`headers()`, `cookies()`) inside `<Suspense>` boundaries. 7 CMS files fail the build.
+- **Replaces ISR:** `export const revalidate` is incompatible with `cacheComponents`. They are mutually exclusive.
+
+---
+
+## Recommended Next Step: `unstable_cache` (No Suspense Refactor Needed)
+
+`unstable_cache` gives us 80% of what `'use cache'` offers without ANY CMS page changes:
+
+| Feature | ISR Only | + `unstable_cache` | + `'use cache'` |
+|---------|----------|-------------------|-----------------|
+| Page-level caching | Yes | Yes | Yes (via `cacheLife`) |
+| Query-level caching | No | **Yes** | Yes |
+| Tag-based invalidation | No (`revalidatePath` only) | **Yes** (`revalidateTag`) | Yes |
+| Requires Suspense refactor | No | **No** | Yes (7 files) |
+| Requires `cacheComponents` | No | **No** | Yes |
+| API stability | Stable | Stable since 14.1 | Stable in 16+ |
+| Memory impact | Good | **Better** | Best |
+
+**Implementation pattern:**
+
+```typescript
+// lib/dal/messages.ts
+import { unstable_cache } from 'next/cache'
+
+// Wrap read-only DAL functions
+export const getMessages = unstable_cache(
+  async (churchId: string, filters?: MessageFilters & PaginationParams) => {
+    // ... existing Prisma query (unchanged)
+  },
+  ['messages'],
+  { revalidate: 300, tags: ['sermons'] }
+)
+
+// CMS API route — after save:
+import { revalidateTag } from 'next/cache'
+revalidateTag('sermons')  // clears only sermon-related cache
+```
+
+**Effort:** ~1-2 hours (wrap existing functions, add revalidateTag to API routes).
+**Risk:** Low (function signatures unchanged, just wrapped).
+**Invalidation helper:** Already created at `lib/cache/invalidation.ts`.
 
 ---
 
@@ -155,15 +250,26 @@ invalidateSermons(churchId) // or invalidateEvents, invalidateStudies, etc.
 
 ---
 
-## Side Effects
+## Important Caveats (from official Next.js docs)
+
+1. **ISR is per-instance on self-hosted.** If you ever run multiple PM2 processes or multiple servers, on-demand revalidation (`revalidatePath`/`revalidateTag`) only invalidates the cache on the instance that receives the API call. Other instances still serve stale data until their TTL expires. Fix: use a shared `cacheHandler` (Redis) when scaling to multiple processes.
+
+2. **Proxy/rewrites don't apply to on-demand ISR.** Our `proxy.ts` rewrites `laubf.lclab.io/about` → `/website/about`. When calling `revalidatePath`, use the actual path (`/website/about`), not the public URL (`/about`). This is already correct in our API routes.
+
+3. **Lowest `revalidate` wins.** If a page has multiple data sources with different revalidation times, the lowest one is used for the page's ISR TTL. Our layout (300s) doesn't affect child pages (60s) because the child's lower value takes precedence.
+
+4. **Error resilience.** If regeneration fails (DB error, etc.), the last successfully generated page continues to be served. Next.js retries on the next request. This means temporary DB outages don't break the website.
+
+5. **`unstable_cache` is safe to use.** Despite the `unstable_` prefix, it's been stable since Next.js 14.1 (released Jan 2024) and is the recommended approach for caching database queries in the official ISR guide.
+
+## Side Effects of Current ISR Setup
 
 | Side Effect | Impact | Mitigation |
 |-------------|--------|------------|
-| Brief skeleton flash on CMS page load (~50ms) | LOW | Skeletons match existing loading states |
-| `export const revalidate` removed from website routes | NONE | Replaced by `cacheLife()` on DAL functions with same or better TTLs |
-| Cache entries use disk space | LOW | Bounded by `cacheMaxMemorySize: 50MB` for in-memory; disk cache is small (text/JSON only) |
-| First visit after deploy is uncached | LOW | Same as current ISR behavior |
-| All mutation functions must NOT have `'use cache'` | NONE | Only read functions are cached; mutations already excluded |
+| Cache entries use disk space | LOW | Bounded by `cacheMaxMemorySize: 50MB` for in-memory; disk is small |
+| First visit after deploy is uncached | LOW | Stale-while-revalidate means user still gets fast response |
+| All mutation functions must NOT be cached | NONE | Only read functions; mutations already excluded |
+| Per-instance cache on self-hosted | LOW for now | Single PM2 process; Redis needed for multi-process |
 
 ---
 
