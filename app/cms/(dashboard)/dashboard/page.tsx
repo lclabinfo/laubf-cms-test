@@ -128,9 +128,10 @@ export default async function DashboardPage() {
   const now = new Date()
 
   // Health computation helper
-  function computeHealth(latestDate: Date | null, totalCount: number): "green" | "yellow" | "red" | "neutral" {
+  function computeHealth(latestDate: Date | string | null, totalCount: number): "green" | "yellow" | "red" | "neutral" {
     if (!latestDate) return totalCount === 0 ? "neutral" : "red"
-    const days = Math.floor((Date.now() - latestDate.getTime()) / (1000 * 60 * 60 * 24))
+    const dateObj = latestDate instanceof Date ? latestDate : new Date(latestDate)
+    const days = Math.floor((Date.now() - dateObj.getTime()) / (1000 * 60 * 60 * 24))
     if (days > 30) return "red"
     if (days > 14) return "yellow"
     return "green"
@@ -167,6 +168,9 @@ export default async function DashboardPage() {
     else if (hasSomewhatStale) pageHealth = "yellow"
   }
 
+  // Helper: safely convert Date or string to ISO string (unstable_cache serializes Dates to strings)
+  const toISO = (d: Date | string) => typeof d === 'string' ? d : d.toISOString()
+
   // Merge + sort recent activity (top 10 across all types)
   const recentActivity = [
     ...recentMessages.map((m) => ({
@@ -174,7 +178,7 @@ export default async function DashboardPage() {
       title: m.title,
       type: "message" as const,
       status: (m.hasVideo || m.hasStudy) ? ("PUBLISHED" as const) : ("DRAFT" as const),
-      updatedAt: m.updatedAt.toISOString(),
+      updatedAt: toISO(m.updatedAt),
       href: `/cms/messages/${m.id}`,
     })),
     ...recentEvents.map((e) => ({
@@ -182,7 +186,7 @@ export default async function DashboardPage() {
       title: e.title,
       type: "event" as const,
       status: e.status,
-      updatedAt: e.updatedAt.toISOString(),
+      updatedAt: toISO(e.updatedAt),
       href: `/cms/events/${e.id}`,
     })),
     ...recentPages.map((p) => ({
@@ -190,7 +194,7 @@ export default async function DashboardPage() {
       title: p.title,
       type: "page" as const,
       status: p.isPublished ? ("PUBLISHED" as const) : ("DRAFT" as const),
-      updatedAt: p.updatedAt.toISOString(),
+      updatedAt: toISO(p.updatedAt),
       href: `/cms/website/builder/${p.id}`,
     })),
   ]
@@ -205,7 +209,7 @@ export default async function DashboardPage() {
     id: e.id,
     title: e.title,
     slug: e.slug,
-    dateStart: e.dateStart.toISOString(),
+    dateStart: toISO(e.dateStart),
     startTime: e.startTime,
     endTime: e.endTime,
     location: e.location,
@@ -230,7 +234,7 @@ export default async function DashboardPage() {
   let videoHealthDetail: string
   if (latestPublishedDates.latestVideo) {
     const daysSince = Math.floor(
-      (now.getTime() - latestPublishedDates.latestVideo.getTime()) / (1000 * 60 * 60 * 24)
+      (now.getTime() - new Date(latestPublishedDates.latestVideo).getTime()) / (1000 * 60 * 60 * 24)
     )
     videoHealthDetail = `Posted ${formatDaysAgo(daysSince)}`
   } else {
@@ -240,7 +244,7 @@ export default async function DashboardPage() {
   let studyHealthDetail: string
   if (latestPublishedDates.latestStudy) {
     const daysSince = Math.floor(
-      (now.getTime() - latestPublishedDates.latestStudy.getTime()) / (1000 * 60 * 60 * 24)
+      (now.getTime() - new Date(latestPublishedDates.latestStudy).getTime()) / (1000 * 60 * 60 * 24)
     )
     studyHealthDetail = `Posted ${formatDaysAgo(daysSince)}`
   } else {

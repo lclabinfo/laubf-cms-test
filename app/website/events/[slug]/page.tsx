@@ -447,8 +447,8 @@ export default async function EventDetailPage({ params }: PageProps) {
             <EventActions
               event={{
                 title: event.title,
-                dateStart: event.dateStart.toISOString().split("T")[0],
-                dateEnd: event.dateEnd ? event.dateEnd.toISOString().split("T")[0] : null,
+                dateStart: (event.dateStart instanceof Date ? event.dateStart.toISOString() : String(event.dateStart)).split("T")[0],
+                dateEnd: event.dateEnd ? (event.dateEnd instanceof Date ? event.dateEnd.toISOString() : String(event.dateEnd)).split("T")[0] : null,
                 startTime: event.startTime,
                 endTime: event.endTime,
                 location: event.location,
@@ -458,7 +458,7 @@ export default async function EventDetailPage({ params }: PageProps) {
                 recurrence: event.recurrence,
                 recurrenceDays: event.recurrenceDays,
                 recurrenceEndType: event.recurrenceEndType,
-                recurrenceEndDate: event.recurrenceEndDate ? event.recurrenceEndDate.toISOString().split("T")[0] : null,
+                recurrenceEndDate: event.recurrenceEndDate ? (event.recurrenceEndDate instanceof Date ? event.recurrenceEndDate.toISOString() : String(event.recurrenceEndDate)).split("T")[0] : null,
                 recurrenceEndAfter: event.recurrenceEndAfter,
               }}
               shareUrl={`${getPublicBaseUrl()}/events/${slug}`}

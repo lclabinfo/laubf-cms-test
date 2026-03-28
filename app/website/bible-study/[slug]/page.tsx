@@ -48,7 +48,7 @@ function transformStudy(study: NonNullable<Awaited<ReturnType<typeof getBibleStu
     title: study.title,
     book: bibleBookLabel(study.book),
     passage: study.passage,
-    dateFor: study.dateFor.toISOString().split("T")[0],
+    dateFor: (study.dateFor instanceof Date ? study.dateFor.toISOString() : String(study.dateFor)).split("T")[0],
     series: study.series?.name ?? "",
     messenger: study.speaker
       ? (study.speaker.preferredName
