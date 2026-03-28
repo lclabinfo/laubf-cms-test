@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback, useRef, useTransition, useEffect } from "react"
+import { useState, useMemo, useCallback, useRef, useEffect } from "react"
 import SectionContainer from "@/components/website/shared/section-container"
 import BibleStudyCard from "@/components/website/shared/bible-study-card"
 import FilterToolbar from "@/components/website/shared/filter-toolbar"
@@ -8,7 +8,7 @@ import { IconGrid, IconListView, IconBookOpen, IconFileText, IconHelpCircle, Ico
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { resolveHref } from "@/lib/website/resolve-href"
-import { bibleBookLabel } from "@/lib/website/bible-book-labels"
+import { bibleBookLabel, bibleBookFromLabel } from "@/lib/website/bible-book-labels"
 
 interface BibleStudy {
   id: string
@@ -28,6 +28,7 @@ type ViewMode = "card" | "list"
 
 interface BibleStudyFilters {
   series?: string
+  seriesId?: string
   book?: string
   dateFrom?: string
   dateTo?: string
@@ -40,8 +41,7 @@ interface PaginationInfo {
   totalPages: number
 }
 
-const INITIAL_DISPLAY = 48
-const DISPLAY_INCREMENT = 48
+const PAGE_SIZE = 50
 
 /* ---- Bible books data for Books tab ---- */
 
@@ -133,7 +133,7 @@ function formatDate(dateStr: string) {
 
 interface FilterMeta {
   years: number[]
-  series: { name: string; count: number }[]
+  series: { id?: string; name: string; count: number }[]
   books: { book: string; count: number }[]
 }
 
@@ -145,15 +145,30 @@ interface Props {
 }
 
 /**
- * Fetch additional pages of bible studies from the API and transform them
- * into the shape this component expects. Returns the new studies array.
+ * Build API URL with current filter params.
  */
-async function fetchStudiesPage(page: number, pageSize: number): Promise<BibleStudy[]> {
-  const res = await fetch(`/api/v1/bible-studies?page=${page}&pageSize=${pageSize}`)
-  if (!res.ok) return []
-  const json = await res.json()
-  if (!json.success || !json.data) return []
-  return json.data.map((s: Record<string, unknown>) => ({
+function buildApiUrl(page: number, filters: BibleStudyFilters, search: string): string {
+  const params = new URLSearchParams()
+  params.set('page', String(page))
+  params.set('pageSize', String(PAGE_SIZE))
+  if (filters.seriesId) params.set('seriesId', filters.seriesId)
+  else if (filters.series) params.set('seriesName', filters.series)
+  if (filters.book) {
+    // Convert display label to enum value for API
+    const enumVal = bibleBookFromLabel(filters.book)
+    if (enumVal) params.set('book', enumVal)
+  }
+  if (filters.dateFrom) params.set('dateFrom', filters.dateFrom)
+  if (filters.dateTo) params.set('dateTo', filters.dateTo)
+  if (search) params.set('search', search)
+  return `/api/v1/bible-studies?${params.toString()}`
+}
+
+/**
+ * Transform API response data into the shape this component expects.
+ */
+function transformApiStudies(data: Record<string, unknown>[]): BibleStudy[] {
+  return data.map((s) => ({
     id: s.id as string,
     slug: s.slug as string,
     title: s.title as string,
@@ -174,85 +189,139 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
   const [search, setSearch] = useState("")
   const [filters, setFilters] = useState<BibleStudyFilters>({})
   const [yearFilter, setYearFilter] = useState("")
-  const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY)
   const [sortField, setSortField] = useState("date")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
 
-  /* ---- Server-side pagination state ---- */
-  const [allStudies, setAllStudies] = useState<BibleStudy[]>(initialStudies)
-  const [serverPage, setServerPage] = useState(pagination?.page ?? 1)
-  const [isLoadingMore, startLoadingMore] = useTransition()
-  const totalServerStudies = pagination?.total ?? initialStudies.length
-  const serverPageSize = pagination?.pageSize ?? initialStudies.length
-  const hasMoreServerPages = allStudies.length < totalServerStudies
+  /* ---- Server-side filtered data state ---- */
+  const [studies, setStudies] = useState<BibleStudy[]>(initialStudies)
+  const [totalResults, setTotalResults] = useState(pagination?.total ?? initialStudies.length)
+  const [currentPage, setCurrentPage] = useState(pagination?.page ?? 1)
+  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
 
-  // On mount, eagerly fetch all remaining pages in the background so that
-  // series/book counts are accurate and client-side filtering covers everything.
-  const hasFetchedAll = useRef(false)
-  useEffect(() => {
-    if (hasFetchedAll.current) return
-    if (!hasMoreServerPages) return
-    hasFetchedAll.current = true
+  // Debounce timer ref for search
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Abort controller for in-flight requests
+  const abortRef = useRef<AbortController | null>(null)
 
-    async function fetchAllRemaining() {
-      const totalPages = pagination?.totalPages ?? 1
-      let currentPage = (pagination?.page ?? 1) + 1
-      const pageSize = pagination?.pageSize ?? 50
-      const accumulated: BibleStudy[] = []
+  /**
+   * Fetch filtered studies from the API. Replaces current results (page 1)
+   * or appends (page > 1 for "Load More").
+   */
+  const fetchStudies = useCallback(async (
+    page: number,
+    currentFilters: BibleStudyFilters,
+    currentSearch: string,
+    append: boolean,
+  ) => {
+    // Abort any in-flight request
+    if (abortRef.current) abortRef.current.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
 
-      while (currentPage <= totalPages) {
-        const batch = await fetchStudiesPage(currentPage, pageSize)
-        if (batch.length === 0) break
-        accumulated.push(...batch)
-        currentPage++
-      }
+    if (append) setIsLoadingMore(true)
+    else setIsLoading(true)
 
-      if (accumulated.length > 0) {
-        setAllStudies((prev) => {
+    try {
+      const url = buildApiUrl(page, currentFilters, currentSearch)
+      const res = await fetch(url, { signal: controller.signal })
+      if (!res.ok) return
+      const json = await res.json()
+      if (!json.success || !json.data) return
+
+      const newStudies = transformApiStudies(json.data)
+      if (append) {
+        setStudies((prev) => {
           const existingIds = new Set(prev.map((s) => s.id))
-          const unique = accumulated.filter((s) => !existingIds.has(s.id))
+          const unique = newStudies.filter((s) => !existingIds.has(s.id))
           return [...prev, ...unique]
         })
-        setServerPage(totalPages)
+      } else {
+        setStudies(newStudies)
+      }
+      setTotalResults(json.pagination.total)
+      setCurrentPage(json.pagination.page)
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
+      console.error('[AllBibleStudiesClient] fetch error:', err)
+    } finally {
+      if (!controller.signal.aborted) {
+        setIsLoading(false)
+        setIsLoadingMore(false)
       }
     }
+  }, [])
 
-    fetchAllRemaining()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  /**
+   * Trigger a filtered fetch (page 1) whenever filters or search change.
+   * For search, debounce 300ms. For dropdown filters, fetch immediately.
+   */
+  const triggerFilteredFetch = useCallback((
+    newFilters: BibleStudyFilters,
+    newSearch: string,
+    debounce: boolean = false,
+  ) => {
+    if (searchTimerRef.current) {
+      clearTimeout(searchTimerRef.current)
+      searchTimerRef.current = null
+    }
 
-  // Use allStudies instead of the prop for all derived data
-  const studies = allStudies
+    // If no filters/search active, reset to initial server data
+    const isActive = !!(newFilters.series || newFilters.seriesId || newFilters.book || newFilters.dateFrom || newFilters.dateTo || newSearch)
+    if (!isActive) {
+      if (abortRef.current) abortRef.current.abort()
+      setStudies(initialStudies)
+      setTotalResults(pagination?.total ?? initialStudies.length)
+      setCurrentPage(pagination?.page ?? 1)
+      setIsLoading(false)
+      return
+    }
 
-  /* ---- Derived data ---- */
-  // When filterMeta is provided (server-rendered), use it for filter dropdowns
-  // so they're complete on first render. Fall back to deriving from loaded data
-  // for the Series tab grid (which needs lastDate from actual records).
+    if (debounce) {
+      setIsLoading(true) // Show loading state immediately for perceived responsiveness
+      searchTimerRef.current = setTimeout(() => {
+        fetchStudies(1, newFilters, newSearch, false)
+      }, 300)
+    } else {
+      fetchStudies(1, newFilters, newSearch, false)
+    }
+  }, [fetchStudies, initialStudies, pagination])
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+      if (abortRef.current) abortRef.current.abort()
+    }
+  }, [])
+
+  /* ---- Derived data from filterMeta (for dropdowns, series/books tabs) ---- */
   const seriesList = useMemo(() => {
-    const seriesMap = new Map<string, { name: string; count: number; lastDate: string }>()
+    // Build from filterMeta (complete data from server)
+    if (filterMeta?.series) {
+      return filterMeta.series.map((s) => ({
+        name: s.name,
+        id: s.id,
+        count: s.count,
+        lastDate: '', // filterMeta doesn't include lastDate; filled from loaded studies below
+      }))
+    }
+    return [] as { name: string; id?: string; count: number; lastDate: string }[]
+  }, [filterMeta])
+
+  // Augment seriesList with lastDate from currently loaded studies
+  const seriesListWithDates = useMemo(() => {
+    const dateMap = new Map<string, string>()
     studies.forEach((s) => {
       if (!s.series) return
-      const existing = seriesMap.get(s.series)
-      if (existing) {
-        existing.count++
-        if (s.dateFor > existing.lastDate) existing.lastDate = s.dateFor
-      } else {
-        seriesMap.set(s.series, { name: s.series, count: 1, lastDate: s.dateFor })
-      }
+      const existing = dateMap.get(s.series)
+      if (!existing || s.dateFor > existing) dateMap.set(s.series, s.dateFor)
     })
-    // Merge counts from filterMeta so the series grid shows accurate totals
-    // even before all pages are loaded
-    if (filterMeta?.series) {
-      for (const fm of filterMeta.series) {
-        const existing = seriesMap.get(fm.name)
-        if (existing) {
-          existing.count = Math.max(existing.count, fm.count)
-        } else {
-          seriesMap.set(fm.name, { name: fm.name, count: fm.count, lastDate: '' })
-        }
-      }
-    }
-    return Array.from(seriesMap.values()).sort((a, b) => b.count - a.count)
-  }, [studies, filterMeta])
+    return seriesList.map((s) => ({
+      ...s,
+      lastDate: dateMap.get(s.name) || s.lastDate,
+    }))
+  }, [seriesList, studies])
 
   const bookCounts = useMemo(() => {
     // Prefer filterMeta for complete counts
@@ -268,6 +337,17 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
     })
     return counts
   }, [studies, filterMeta])
+
+  // Build a name->id map from filterMeta for series lookups
+  const seriesIdMap = useMemo(() => {
+    const map = new Map<string, string>()
+    if (filterMeta?.series) {
+      for (const s of filterMeta.series) {
+        if (s.id) map.set(s.name, s.id)
+      }
+    }
+    return map
+  }, [filterMeta])
 
   const seriesOptions = useMemo(() => {
     // Prefer filterMeta for complete series list
@@ -295,33 +375,9 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
     return Array.from(years).sort((a, b) => b - a)
   }, [studies, filterMeta])
 
-  /* ---- Filtering & Sorting (All Studies tab) ---- */
-  const filteredStudies = useMemo(() => {
-    let result = studies
-
-    if (search) {
-      const q = search.toLowerCase()
-      result = result.filter(
-        (s) =>
-          s.title.toLowerCase().includes(q) ||
-          s.passage.toLowerCase().includes(q) ||
-          s.series.toLowerCase().includes(q),
-      )
-    }
-    if (filters.series) {
-      result = result.filter((s) => s.series === filters.series)
-    }
-    if (filters.book) {
-      result = result.filter((s) => s.book === filters.book)
-    }
-    if (filters.dateFrom) {
-      result = result.filter((s) => s.dateFor >= filters.dateFrom!)
-    }
-    if (filters.dateTo) {
-      result = result.filter((s) => s.dateFor <= filters.dateTo!)
-    }
-
-    return [...result].sort((a, b) => {
+  /* ---- Sorting (client-side on loaded results) ---- */
+  const sortedStudies = useMemo(() => {
+    return [...studies].sort((a, b) => {
       let cmp = 0
       if (sortField === "date") {
         cmp = a.dateFor.localeCompare(b.dateFor)
@@ -332,39 +388,58 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
       }
       return sortDirection === "asc" ? cmp : -cmp
     })
-  }, [studies, filters, search, sortField, sortDirection])
+  }, [studies, sortField, sortDirection])
 
-  const visibleStudies = filteredStudies.slice(0, displayCount)
-  // Show "Load More" if there are more studies to display OR more pages to fetch from the server
-  const hasMore = displayCount < filteredStudies.length || hasMoreServerPages
+  const hasMore = studies.length < totalResults
 
   function updateFilter<K extends keyof BibleStudyFilters>(
     key: K,
     value: BibleStudyFilters[K],
   ) {
-    setFilters((prev) => ({ ...prev, [key]: value }))
+    const newFilters = { ...filters, [key]: value }
+    // When setting series by name, also set seriesId if available
+    if (key === "series") {
+      if (value && typeof value === 'string') {
+        newFilters.seriesId = seriesIdMap.get(value)
+      } else {
+        newFilters.seriesId = undefined
+      }
+    }
     if (key === "dateFrom" || key === "dateTo") setYearFilter("")
-    setDisplayCount(INITIAL_DISPLAY)
+    setFilters(newFilters)
+    triggerFilteredFetch(newFilters, search)
   }
 
   function handleYearChange(year: string) {
     setYearFilter(year)
+    let newFilters: BibleStudyFilters
     if (year && year !== "all") {
-      setFilters((prev) => ({ ...prev, dateFrom: `${year}-01-01`, dateTo: `${year}-12-31` }))
+      newFilters = { ...filters, dateFrom: `${year}-01-01`, dateTo: `${year}-12-31` }
     } else {
-      setFilters((prev) => ({ ...prev, dateFrom: undefined, dateTo: undefined }))
+      newFilters = { ...filters, dateFrom: undefined, dateTo: undefined }
     }
-    setDisplayCount(INITIAL_DISPLAY)
+    setFilters(newFilters)
+    triggerFilteredFetch(newFilters, search)
+  }
+
+  function handleSearchChange(value: string) {
+    setSearch(value)
+    triggerFilteredFetch(filters, value, true /* debounce */)
   }
 
   /** Switch to "all" tab with a specific filter pre-applied */
   const switchToAllWithFilter = useCallback((key: keyof BibleStudyFilters, value: string) => {
     setTab("all")
-    setFilters({ [key]: value })
+    const newFilters: BibleStudyFilters = { [key]: value }
+    // Resolve seriesId when switching by series name
+    if (key === "series") {
+      newFilters.seriesId = seriesIdMap.get(value)
+    }
+    setFilters(newFilters)
     setYearFilter("")
     setSearch("")
-    setDisplayCount(INITIAL_DISPLAY)
-  }, [])
+    triggerFilteredFetch(newFilters, "")
+  }, [seriesIdMap, triggerFilteredFetch])
 
   const tabs: { key: string; label: string }[] = [
     { key: "all", label: "All Studies" },
@@ -383,7 +458,7 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
             setTab(key as TabView)
             setFilters({})
             setSearch("")
-            setDisplayCount(INITIAL_DISPLAY)
+            triggerFilteredFetch({}, "", false)
           },
         }}
         viewModes={tab === "all" ? {
@@ -396,10 +471,7 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
         } : undefined}
         search={tab === "all" ? {
           value: search,
-          onChange: (v) => {
-            setSearch(v)
-            setDisplayCount(INITIAL_DISPLAY)
-          },
+          onChange: (v) => handleSearchChange(v),
           placeholder: "Search studies, passages, series...",
         } : undefined}
         filters={tab === "all" ? [
@@ -459,7 +531,7 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
           setSearch("")
           setFilters({})
           setYearFilter("")
-          setDisplayCount(INITIAL_DISPLAY)
+          triggerFilteredFetch({}, "", false)
         } : undefined}
         className="mb-8"
       />
@@ -467,7 +539,12 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
       {/* ---- All Studies Tab ---- */}
       {tab === "all" && (
         <>
-          {filteredStudies.length === 0 ? (
+          {isLoading ? (
+            <div className="flex flex-col items-center py-20">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black-1 mb-4" />
+              <p className="text-body-1 text-black-3">Loading studies...</p>
+            </div>
+          ) : sortedStudies.length === 0 ? (
             <div className="flex flex-col items-center py-20">
               <p className="text-body-1 text-black-2">
                 No studies found matching your criteria.
@@ -476,7 +553,8 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
                 onClick={() => {
                   setSearch("")
                   setFilters({})
-                  setDisplayCount(INITIAL_DISPLAY)
+                  setYearFilter("")
+                  triggerFilteredFetch({}, "", false)
                 }}
                 className="mt-4 text-accent-blue text-[14px] font-medium hover:underline"
               >
@@ -484,35 +562,18 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
               </button>
             </div>
           ) : viewMode === "card" ? (
-            <CardGrid studies={visibleStudies} />
+            <CardGrid studies={sortedStudies} />
           ) : (
-            <StudyListView studies={visibleStudies} />
+            <StudyListView studies={sortedStudies} />
           )}
 
-          {/* Load more */}
-          {hasMore && (
+          {/* Load more -- fetches next page with current filters */}
+          {hasMore && !isLoading && (
             <div className="flex justify-center mt-10">
               <button
                 disabled={isLoadingMore}
                 onClick={() => {
-                  // If we have more items already loaded from the server, just show more
-                  if (displayCount < filteredStudies.length) {
-                    setDisplayCount((c) => c + DISPLAY_INCREMENT)
-                  } else if (hasMoreServerPages) {
-                    // Fetch the next page from the server and append
-                    const nextPage = serverPage + 1
-                    startLoadingMore(async () => {
-                      const newStudies = await fetchStudiesPage(nextPage, serverPageSize)
-                      if (newStudies.length > 0) {
-                        // Deduplicate by id before appending
-                        const existingIds = new Set(allStudies.map((s) => s.id))
-                        const unique = newStudies.filter((s) => !existingIds.has(s.id))
-                        setAllStudies((prev) => [...prev, ...unique])
-                        setServerPage(nextPage)
-                        setDisplayCount((c) => c + DISPLAY_INCREMENT)
-                      }
-                    })
-                  }
+                  fetchStudies(currentPage + 1, filters, search, true)
                 }}
                 className="inline-flex items-center justify-center rounded-full border border-black-1/30 px-8 py-4 text-button-1 text-black-1 transition-colors hover:bg-black-1 hover:text-white-1 disabled:opacity-50"
               >
@@ -528,7 +589,7 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
         <>
           <h2 className="text-h2 text-black-1 mb-8">Series</h2>
           <SeriesGrid
-            series={seriesList}
+            series={seriesListWithDates}
             onSeriesClick={(name) => switchToAllWithFilter("series", name)}
           />
         </>

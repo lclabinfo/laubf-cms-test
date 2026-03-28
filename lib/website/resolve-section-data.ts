@@ -294,14 +294,21 @@ export async function resolveSectionData(
       }
 
       case 'all-videos': {
+        const PAGE_SIZE = 9
         const [result, videoFilterMeta] = await Promise.all([
-          getVideos(churchId, { pageSize: 50 }),
+          getVideos(churchId, { pageSize: PAGE_SIZE }),
           getVideoFilterMeta(churchId),
         ])
         return {
           content,
           resolvedData: {
             filterMeta: videoFilterMeta,
+            pagination: {
+              total: result.total,
+              page: result.page,
+              pageSize: result.pageSize,
+              totalPages: result.totalPages,
+            },
             videos: result.data.map((v) => ({
               id: v.id,
               title: v.title,

@@ -8,6 +8,11 @@ export type VideoFilters = {
   category?: VideoCategory
   isShort?: boolean
   status?: ContentStatus
+  search?: string
+  dateFrom?: string  // YYYY-MM-DD
+  dateTo?: string    // YYYY-MM-DD
+  sortBy?: 'datePublished' | 'title'
+  sortDir?: 'asc' | 'desc'
 }
 
 export type VideoFilterMeta = {
@@ -41,12 +46,28 @@ export async function getVideos(
     status,
     ...(filters?.category && { category: filters.category }),
     ...(filters?.isShort !== undefined && { isShort: filters.isShort }),
+    ...(filters?.search && {
+      OR: [
+        { title: { contains: filters.search, mode: 'insensitive' as const } },
+        { description: { contains: filters.search, mode: 'insensitive' as const } },
+      ],
+    }),
+    ...((filters?.dateFrom || filters?.dateTo) && {
+      datePublished: {
+        ...(filters?.dateFrom && { gte: new Date(filters.dateFrom) }),
+        ...(filters?.dateTo && { lte: new Date(filters.dateTo + 'T23:59:59') }),
+      },
+    }),
   }
+
+  const sortBy = filters?.sortBy ?? 'datePublished'
+  const sortDir = filters?.sortDir ?? 'desc'
+  const orderBy: Prisma.VideoOrderByWithRelationInput = { [sortBy]: sortDir }
 
   const [data, total] = await Promise.all([
     prisma.video.findMany({
       where,
-      orderBy: { datePublished: 'desc' },
+      orderBy,
       skip,
       take,
     }),

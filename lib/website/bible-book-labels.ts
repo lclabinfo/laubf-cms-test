@@ -83,3 +83,26 @@ export const BIBLE_BOOK_LABELS: Record<BibleBook, string> = {
 export function bibleBookLabel(book: string): string {
   return BIBLE_BOOK_LABELS[book as BibleBook] ?? book
 }
+
+/**
+ * Reverse mapping: display label (e.g. "1 Samuel") -> BibleBook enum value (e.g. "FIRST_SAMUEL").
+ * Built lazily on first call.
+ */
+let _reverseMap: Map<string, BibleBook> | null = null
+function getReverseMap(): Map<string, BibleBook> {
+  if (!_reverseMap) {
+    _reverseMap = new Map()
+    for (const [enumVal, label] of Object.entries(BIBLE_BOOK_LABELS)) {
+      _reverseMap.set(label, enumVal as BibleBook)
+    }
+  }
+  return _reverseMap
+}
+
+/**
+ * Convert a display label (e.g. "Genesis", "1 Samuel") to the BibleBook enum value.
+ * Returns undefined if no match is found.
+ */
+export function bibleBookFromLabel(label: string): BibleBook | undefined {
+  return getReverseMap().get(label)
+}

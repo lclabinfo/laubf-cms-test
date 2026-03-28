@@ -13,8 +13,9 @@ interface Props {
 
 export default async function AllEventsSection({ content, churchId }: Props) {
   try {
+    const PAGE_SIZE = 48
     const [eventsResult, filterMeta] = await Promise.all([
-      getEvents(churchId, { pageSize: 200 }),
+      getEvents(churchId, { pageSize: PAGE_SIZE }),
       getEventFilterMeta(churchId),
     ])
 
@@ -45,7 +46,14 @@ export default async function AllEventsSection({ content, churchId }: Props) {
       recurrenceSchedule: e.recurrenceSchedule || '',
     }))
 
-    return <AllEventsClient events={events} heading={content.heading} filterMeta={filterMeta} />
+    const pagination = {
+      total: eventsResult.total,
+      page: eventsResult.page,
+      pageSize: eventsResult.pageSize,
+      totalPages: eventsResult.totalPages,
+    }
+
+    return <AllEventsClient events={events} heading={content.heading} filterMeta={filterMeta} pagination={pagination} />
   } catch (error) {
     console.error('[AllEventsSection] Failed to load events:', error)
     return (

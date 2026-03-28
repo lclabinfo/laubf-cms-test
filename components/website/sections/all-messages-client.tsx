@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useRef, useEffect, useTransition } from "react"
+import { useState, useMemo, useRef, useEffect, useCallback } from "react"
 import SectionContainer from "@/components/website/shared/section-container"
 import MessageCard from "@/components/website/shared/message-card"
 import FilterToolbar from "@/components/website/shared/filter-toolbar"
@@ -39,7 +39,7 @@ interface MessageFilters {
   dateTo?: string
 }
 
-// Column count → Tailwind grid class mapping
+// Column count -> Tailwind grid class mapping
 const DESKTOP_COLS: Record<number, string> = {
   2: 'lg:grid-cols-2',
   3: 'lg:grid-cols-3',
@@ -104,16 +104,42 @@ interface Props {
 }
 
 /**
- * Fetch a page of video messages from the API and transform to SimpleMessage shape.
+ * Build the API query string for fetching messages with current filters.
  */
-async function fetchMessagesPage(page: number, pageSize: number): Promise<SimpleMessage[]> {
-  const res = await fetch(`/api/v1/messages?page=${page}&pageSize=${pageSize}&publishedOnly=true`)
-  if (!res.ok) return []
-  const json = await res.json()
-  if (!json.success || !json.data) return []
-  return json.data
-    .filter((m: Record<string, unknown>) => m.youtubeId || m.videoUrl)
-    .map((m: Record<string, unknown>) => {
+function buildApiUrl(params: {
+  page: number
+  pageSize: number
+  filters: MessageFilters
+  sortBy: string
+  sortDir: 'asc' | 'desc'
+  search?: string
+}): string {
+  const sp = new URLSearchParams()
+  sp.set('page', String(params.page))
+  sp.set('pageSize', String(params.pageSize))
+  sp.set('videoPublished', 'true')
+
+  // Map sort field names: client uses "date" but API uses "dateFor"
+  const sortByApi = params.sortBy === 'date' ? 'dateFor' : params.sortBy
+  sp.set('sortBy', sortByApi)
+  sp.set('sortDir', params.sortDir)
+
+  if (params.filters.series) sp.set('seriesName', params.filters.series)
+  if (params.filters.speaker) sp.set('speakerName', params.filters.speaker)
+  if (params.filters.dateFrom) sp.set('dateFrom', params.filters.dateFrom)
+  if (params.filters.dateTo) sp.set('dateTo', params.filters.dateTo)
+  if (params.search) sp.set('search', params.search)
+
+  return `/api/v1/messages?${sp.toString()}`
+}
+
+/**
+ * Transform raw API response data to SimpleMessage shape.
+ */
+function transformApiMessages(data: Record<string, unknown>[]): SimpleMessage[] {
+  return data
+    .filter((m) => m.youtubeId || m.videoUrl)
+    .map((m) => {
       const speaker = m.speaker as { preferredName?: string; firstName?: string; lastName?: string } | null
       const messageSeries = m.messageSeries as { series: { name: string } }[] | undefined
       return {
@@ -155,93 +181,147 @@ export default function AllMessagesClient({
   const [search, setSearch] = useState("")
   const [filters, setFilters] = useState<MessageFilters>({})
   const [yearFilter, setYearFilter] = useState("")
-  const [displayCount, setDisplayCount] = useState(layout.itemsPerPage)
   const [sortField, setSortField] = useState("date")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
 
-  /* ---- Server-side pagination: eagerly fetch remaining pages ---- */
-  const [allMessages, setAllMessages] = useState<SimpleMessage[]>(initialMessages)
-  const [, startLoadingMore] = useTransition()
-  const totalServerMessages = pagination?.total ?? initialMessages.length
-  const hasMoreServerPages = allMessages.length < totalServerMessages
+  /* ---- Server-filtered messages state ---- */
+  const [messages, setMessages] = useState<SimpleMessage[]>(initialMessages)
+  const [serverTotal, setServerTotal] = useState(pagination?.total ?? initialMessages.length)
+  const [currentPage, setCurrentPage] = useState(pagination?.page ?? 1)
+  const [isFiltering, setIsFiltering] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const pageSize = pagination?.pageSize ?? layout.itemsPerPage
 
-  const hasFetchedAll = useRef(false)
-  useEffect(() => {
-    if (hasFetchedAll.current) return
-    if (!hasMoreServerPages) return
-    hasFetchedAll.current = true
+  // Abort controller ref for cancelling in-flight requests
+  const abortRef = useRef<AbortController | null>(null)
+  // Search debounce timer ref
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-    async function fetchAllRemaining() {
-      const totalPages = pagination?.totalPages ?? 1
-      let currentPage = (pagination?.page ?? 1) + 1
-      const pageSize = pagination?.pageSize ?? 48
-      const accumulated: SimpleMessage[] = []
+  /**
+   * Fetch filtered messages from the API. Replaces current messages (page 1).
+   */
+  const fetchFiltered = useCallback(async (
+    newFilters: MessageFilters,
+    searchText: string,
+    sort: { field: string; dir: 'asc' | 'desc' },
+  ) => {
+    // Cancel any in-flight request
+    if (abortRef.current) abortRef.current.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
 
-      while (currentPage <= totalPages) {
-        const batch = await fetchMessagesPage(currentPage, pageSize)
-        if (batch.length === 0) break
-        accumulated.push(...batch)
-        currentPage++
+    setIsFiltering(true)
+
+    try {
+      const url = buildApiUrl({
+        page: 1,
+        pageSize,
+        filters: newFilters,
+        sortBy: sort.field,
+        sortDir: sort.dir,
+        search: searchText || undefined,
+      })
+      const res = await fetch(url, { signal: controller.signal })
+      if (!res.ok) throw new Error('API error')
+      const json = await res.json()
+      if (!json.success) throw new Error('API returned failure')
+
+      const transformed = transformApiMessages(json.data ?? [])
+      setMessages(transformed)
+      setServerTotal(json.pagination?.total ?? transformed.length)
+      setCurrentPage(1)
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'AbortError') return
+      console.error('[AllMessagesClient] fetchFiltered error:', err)
+    } finally {
+      if (!controller.signal.aborted) {
+        setIsFiltering(false)
       }
+    }
+  }, [pageSize])
 
-      if (accumulated.length > 0) {
-        setAllMessages((prev) => {
+  /**
+   * Load more: fetch the next page with the same filters applied, appending results.
+   */
+  const loadMore = useCallback(async () => {
+    const nextPage = currentPage + 1
+    setIsLoadingMore(true)
+
+    try {
+      const url = buildApiUrl({
+        page: nextPage,
+        pageSize,
+        filters,
+        sortBy: sortField,
+        sortDir: sortDirection,
+        search: search || undefined,
+      })
+      const res = await fetch(url)
+      if (!res.ok) throw new Error('API error')
+      const json = await res.json()
+      if (!json.success) throw new Error('API returned failure')
+
+      const transformed = transformApiMessages(json.data ?? [])
+      if (transformed.length > 0) {
+        setMessages((prev) => {
           const existingIds = new Set(prev.map((m) => m.id))
-          const unique = accumulated.filter((m) => !existingIds.has(m.id))
+          const unique = transformed.filter((m) => !existingIds.has(m.id))
           return [...prev, ...unique]
         })
+        setCurrentPage(nextPage)
       }
+    } catch (err) {
+      console.error('[AllMessagesClient] loadMore error:', err)
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }, [currentPage, pageSize, filters, sortField, sortDirection, search])
+
+  /**
+   * Trigger an API fetch when discrete filters (series, speaker, year, dateFrom, dateTo)
+   * or sort changes. Search has its own debounced handler.
+   */
+  const triggerFilterFetch = useCallback((
+    newFilters: MessageFilters,
+    searchText: string,
+    sort: { field: string; dir: 'asc' | 'desc' },
+  ) => {
+    // If no filters and no search, reset to initial data
+    const hasFilters = !!(newFilters.series || newFilters.speaker || newFilters.dateFrom || newFilters.dateTo || searchText)
+    const isDefaultSort = sort.field === 'date' && sort.dir === 'desc'
+
+    if (!hasFilters && isDefaultSort) {
+      // Reset to server-rendered initial data
+      if (abortRef.current) abortRef.current.abort()
+      setMessages(initialMessages)
+      setServerTotal(pagination?.total ?? initialMessages.length)
+      setCurrentPage(pagination?.page ?? 1)
+      setIsFiltering(false)
+      return
     }
 
-    startLoadingMore(() => { fetchAllRemaining() })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+    fetchFiltered(newFilters, searchText, sort)
+  }, [fetchFiltered, initialMessages, pagination])
 
-  const messages = allMessages
-
-  /* ---- Derived data ---- */
-  // When filterMeta is provided (server-rendered), use it for filter dropdowns
-  // so they're complete on first render even if messages prop is paginated.
+  /* ---- Dropdown/filter data from filterMeta ---- */
   const seriesList = useMemo(() => {
-    const seriesMap = new Map<string, { name: string; count: number; lastDate: string }>()
-    messages.forEach((m) => {
-      if (!m.series) return
-      const existing = seriesMap.get(m.series)
-      if (existing) {
-        existing.count++
-        if (m.dateFor > existing.lastDate) existing.lastDate = m.dateFor
-      } else {
-        seriesMap.set(m.series, { name: m.series, count: 1, lastDate: m.dateFor })
-      }
-    })
-    // Merge with filterMeta for accurate counts
-    if (filterMeta?.series) {
-      for (const fm of filterMeta.series) {
-        const existing = seriesMap.get(fm.name)
-        if (existing) {
-          existing.count = Math.max(existing.count, fm.count)
-        } else {
-          seriesMap.set(fm.name, { name: fm.name, count: fm.count, lastDate: '' })
-        }
-      }
-    }
-    return Array.from(seriesMap.values()).sort((a, b) => b.lastDate.localeCompare(a.lastDate))
-  }, [messages, filterMeta])
+    if (!filterMeta?.series) return []
+    return filterMeta.series.map((s) => ({ name: s.name, count: s.count, lastDate: '' }))
+  }, [filterMeta])
 
   const speakerList = useMemo(() => {
     if (filterMeta?.speakers) {
       return filterMeta.speakers.map((s) => s.name).sort()
     }
-    const speakers = new Set<string>()
-    messages.forEach((m) => { if (m.speaker) speakers.add(m.speaker) })
-    return Array.from(speakers).sort()
-  }, [messages, filterMeta])
+    return []
+  }, [filterMeta])
 
   const seriesOptions = useMemo(() => {
     if (filterMeta?.series) {
       return filterMeta.series.map((s) => ({ value: s.name, label: s.name }))
     }
-    return seriesList.map((s) => ({ value: s.name, label: s.name }))
-  }, [seriesList, filterMeta])
+    return []
+  }, [filterMeta])
 
   const speakerOptions = useMemo(
     () => speakerList.map((s) => ({ value: s, label: s })),
@@ -250,84 +330,80 @@ export default function AllMessagesClient({
 
   const availableYears = useMemo(() => {
     if (filterMeta?.years) return filterMeta.years
-    const years = new Set<number>()
-    messages.forEach((m) => {
-      const y = parseInt(m.dateFor.slice(0, 4), 10)
-      if (!isNaN(y)) years.add(y)
-    })
-    return Array.from(years).sort((a, b) => b - a)
-  }, [messages, filterMeta])
+    return []
+  }, [filterMeta])
 
-  /* ---- Filtering & Sorting ---- */
-  const filteredMessages = useMemo(() => {
-    let result = messages
-
-    if (search) {
-      const q = search.toLowerCase()
-      result = result.filter(
-        (m) =>
-          m.title.toLowerCase().includes(q) ||
-          (m.videoTitle && m.videoTitle.toLowerCase().includes(q)) ||
-          m.speaker.toLowerCase().includes(q) ||
-          m.passage.toLowerCase().includes(q)
-      )
-    }
-    if (filters.series) {
-      result = result.filter((m) => m.series === filters.series)
-    }
-    if (filters.speaker) {
-      result = result.filter((m) => m.speaker === filters.speaker)
-    }
-    if (filters.dateFrom) {
-      result = result.filter((m) => m.dateFor >= filters.dateFrom!)
-    }
-    if (filters.dateTo) {
-      result = result.filter((m) => m.dateFor <= filters.dateTo!)
-    }
-
-    return [...result].sort((a, b) => {
-      let cmp = 0
-      if (sortField === "date") {
-        cmp = a.dateFor.localeCompare(b.dateFor)
-      } else if (sortField === "speaker") {
-        cmp = a.speaker.localeCompare(b.speaker)
-      } else {
-        cmp = a.title.localeCompare(b.title)
-      }
-      return sortDirection === "asc" ? cmp : -cmp
-    })
-  }, [messages, filters, search, sortField, sortDirection])
-
-  const visibleMessages = filteredMessages.slice(0, displayCount)
-  const hasMore = displayCount < filteredMessages.length
-
+  /* ---- Filter/sort change handlers ---- */
   function updateFilter<K extends keyof MessageFilters>(
     key: K,
     value: MessageFilters[K],
   ) {
-    setFilters((prev) => ({ ...prev, [key]: value }))
+    const newFilters = { ...filters, [key]: value }
     if (key === "dateFrom" || key === "dateTo") setYearFilter("")
-    setDisplayCount(layout.itemsPerPage)
+    setFilters(newFilters)
+    triggerFilterFetch(newFilters, search, { field: sortField, dir: sortDirection })
   }
 
   function handleYearChange(year: string) {
     setYearFilter(year)
+    let newFilters: MessageFilters
     if (year && year !== "all") {
-      setFilters((prev) => ({ ...prev, dateFrom: `${year}-01-01`, dateTo: `${year}-12-31` }))
+      newFilters = { ...filters, dateFrom: `${year}-01-01`, dateTo: `${year}-12-31` }
     } else {
-      setFilters((prev) => ({ ...prev, dateFrom: undefined, dateTo: undefined }))
+      newFilters = { ...filters, dateFrom: undefined, dateTo: undefined }
     }
-    setDisplayCount(layout.itemsPerPage)
+    setFilters(newFilters)
+    triggerFilterFetch(newFilters, search, { field: sortField, dir: sortDirection })
+  }
+
+  function handleSortChange(value: string, dir: 'asc' | 'desc') {
+    setSortField(value)
+    setSortDirection(dir)
+    triggerFilterFetch(filters, search, { field: value, dir })
+  }
+
+  function handleSearchChange(value: string) {
+    setSearch(value)
+    // Debounce search by 300ms
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    searchTimerRef.current = setTimeout(() => {
+      triggerFilterFetch(filters, value, { field: sortField, dir: sortDirection })
+    }, 300)
+  }
+
+  function handleReset() {
+    setSearch("")
+    setFilters({})
+    setYearFilter("")
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    // Reset to initial server-rendered data
+    if (abortRef.current) abortRef.current.abort()
+    setMessages(initialMessages)
+    setServerTotal(pagination?.total ?? initialMessages.length)
+    setCurrentPage(pagination?.page ?? 1)
+    setIsFiltering(false)
   }
 
   /** Switch to "all" tab with a specific filter pre-applied */
   function switchToAllWithFilter(key: keyof MessageFilters, value: string) {
+    const newFilters: MessageFilters = { [key]: value }
     setTab("all")
-    setFilters({ [key]: value })
+    setFilters(newFilters)
     setYearFilter("")
     setSearch("")
-    setDisplayCount(layout.itemsPerPage)
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+    triggerFilterFetch(newFilters, "", { field: sortField, dir: sortDirection })
   }
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+      if (abortRef.current) abortRef.current.abort()
+    }
+  }, [])
+
+  const hasMore = messages.length < serverTotal
 
   const tabs: { key: string; label: string }[] = [
     { key: "all", label: "All Messages" },
@@ -350,7 +426,14 @@ export default function AllMessagesClient({
             setTab(key as TabView)
             setFilters({})
             setSearch("")
-            setDisplayCount(layout.itemsPerPage)
+            setYearFilter("")
+            if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
+            // Reset to initial data when switching tabs
+            if (abortRef.current) abortRef.current.abort()
+            setMessages(initialMessages)
+            setServerTotal(pagination?.total ?? initialMessages.length)
+            setCurrentPage(pagination?.page ?? 1)
+            setIsFiltering(false)
           },
         }}
         viewModes={tab === "all" ? {
@@ -363,10 +446,7 @@ export default function AllMessagesClient({
         } : undefined}
         search={tab === "all" ? {
           value: search,
-          onChange: (v) => {
-            setSearch(v)
-            setDisplayCount(layout.itemsPerPage)
-          },
+          onChange: handleSearchChange,
           placeholder: "Search messages, speakers, passages...",
         } : undefined}
         filters={tab === "all" ? [
@@ -421,56 +501,68 @@ export default function AllMessagesClient({
           ],
           active: sortField,
           direction: sortDirection,
-          onChange: (value, dir) => {
-            setSortField(value)
-            setSortDirection(dir)
-          },
+          onChange: handleSortChange,
         } : undefined}
-        onReset={tab === "all" ? () => {
-          setSearch("")
-          setFilters({})
-          setYearFilter("")
-          setDisplayCount(layout.itemsPerPage)
-        } : undefined}
+        onReset={tab === "all" ? handleReset : undefined}
         className="mb-8"
       />
 
       {/* ---- All Messages Tab ---- */}
       {tab === "all" && (
         <>
-          {filteredMessages.length === 0 ? (
+          {/* Loading overlay */}
+          {isFiltering ? (
+            <div className="relative min-h-[300px]">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="flex flex-col items-center gap-3">
+                  <div className={cn(
+                    "size-8 border-2 border-current border-t-transparent rounded-full animate-spin",
+                    t.textMuted,
+                  )} />
+                  <p className={cn("text-[14px]", t.textMuted)}>Loading messages...</p>
+                </div>
+              </div>
+            </div>
+          ) : messages.length === 0 ? (
             <div className="flex flex-col items-center py-20">
               <p className={cn("text-body-1", t.textSecondary)}>
                 No messages found matching your criteria.
               </p>
               <button
-                onClick={() => {
-                  setSearch("")
-                  setFilters({})
-                  setDisplayCount(layout.itemsPerPage)
-                }}
+                onClick={handleReset}
                 className="mt-4 text-accent-blue text-[14px] font-medium hover:underline"
               >
                 Clear all filters
               </button>
             </div>
           ) : viewMode === "card" ? (
-            <CardGrid messages={visibleMessages} columns={layout.columns} cardGap={layout.cardGap} />
+            <CardGrid messages={messages} columns={layout.columns} cardGap={layout.cardGap} />
           ) : (
-            <MessageListView messages={visibleMessages} t={t} />
+            <MessageListView messages={messages} t={t} />
           )}
 
           {/* Load more */}
-          {hasMore && (
+          {!isFiltering && hasMore && (
             <div className="flex justify-center mt-10">
               <button
-                onClick={() => setDisplayCount((c) => c + layout.itemsPerPage)}
+                onClick={loadMore}
+                disabled={isLoadingMore}
                 className={cn(
                   "inline-flex items-center justify-center rounded-full border px-8 py-4 text-button-1 transition-colors",
                   t.btnOutlineBorder, t.btnOutlineText,
+                  isLoadingMore && "opacity-60 cursor-not-allowed",
                 )}
               >
-                Load More Messages
+                {isLoadingMore ? (
+                  <span className="flex items-center gap-2">
+                    <span className={cn(
+                      "size-4 border-2 border-current border-t-transparent rounded-full animate-spin",
+                    )} />
+                    Loading...
+                  </span>
+                ) : (
+                  "Load More Messages"
+                )}
               </button>
             </div>
           )}
@@ -500,7 +592,7 @@ export default function AllMessagesClient({
                   {s.name}
                 </h3>
                 <p className={cn("text-[13px] mb-4", t.textMuted)}>
-                  {s.count} {s.count === 1 ? "Message" : "Messages"} · Last updated {formatDate(s.lastDate)}
+                  {s.count} {s.count === 1 ? "Message" : "Messages"}
                 </p>
                 <p className="mt-auto text-[12px] font-semibold text-accent-blue tracking-[0.24px] uppercase">
                   VIEW COLLECTION

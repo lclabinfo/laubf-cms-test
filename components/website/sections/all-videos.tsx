@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef, useTransition } from "react"
 import SectionContainer from "@/components/website/shared/section-container"
 import VideoCard from "@/components/website/shared/video-card"
 import VideoModal from "@/components/website/shared/video-modal"
@@ -18,8 +18,7 @@ interface Video {
   isShort?: boolean
 }
 
-const INITIAL_COUNT = 9
-const LOAD_MORE_COUNT = 9
+const PAGE_SIZE = 9
 
 interface AllVideosContent {
   heading?: string
@@ -27,6 +26,13 @@ interface AllVideosContent {
 
 interface FilterMeta {
   categories: string[]
+}
+
+interface PaginationInfo {
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
 }
 
 interface Props {
@@ -37,57 +43,152 @@ interface Props {
   containerWidth?: "standard" | "narrow" | "full"
   videos?: Video[]
   filterMeta?: FilterMeta
+  pagination?: PaginationInfo
 }
 
-export default function AllVideosSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth, videos = [], filterMeta }: Props) {
+/** Map UI sort field names to API parameter names */
+function mapSortField(field: string): string {
+  return field === "date" ? "datePublished" : field
+}
+
+/** Build query string for the videos API based on current filters */
+function buildApiUrl(params: {
+  page: number
+  pageSize: number
+  search?: string
+  category?: string
+  sortBy?: string
+  sortDir?: string
+}): string {
+  const qs = new URLSearchParams()
+  qs.set("page", String(params.page))
+  qs.set("pageSize", String(params.pageSize))
+  if (params.search) qs.set("search", params.search)
+  if (params.category) qs.set("category", params.category)
+  if (params.sortBy) qs.set("sortBy", params.sortBy)
+  if (params.sortDir) qs.set("sortDir", params.sortDir)
+  return `/api/v1/videos?${qs.toString()}`
+}
+
+/** Fetch videos from the API and transform to the component's Video shape */
+async function fetchVideos(url: string): Promise<{ videos: Video[]; pagination: PaginationInfo }> {
+  const res = await fetch(url)
+  if (!res.ok) return { videos: [], pagination: { total: 0, page: 1, pageSize: PAGE_SIZE, totalPages: 0 } }
+  const json = await res.json()
+  if (!json.success || !json.data) return { videos: [], pagination: { total: 0, page: 1, pageSize: PAGE_SIZE, totalPages: 0 } }
+  const videos: Video[] = json.data.map((v: Record<string, unknown>) => ({
+    id: v.id as string,
+    title: v.title as string,
+    youtubeId: (v.youtubeId as string) || "",
+    duration: (v.duration as string) || "",
+    category: (v.category as string) || "",
+    datePublished: v.datePublished ? String(v.datePublished).split("T")[0] : "",
+    description: (v.description as string) || "",
+    isShort: v.isShort as boolean | undefined,
+  }))
+  return { videos, pagination: json.pagination }
+}
+
+export default function AllVideosSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth, videos: initialVideos = [], filterMeta, pagination: initialPagination }: Props) {
   const t = themeTokens[colorScheme]
 
   const [search, setSearch] = useState("")
-  const [displayCount, setDisplayCount] = useState(INITIAL_COUNT)
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
   const [sortField, setSortField] = useState("date")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
   const [filterCategory, setFilterCategory] = useState<string | undefined>()
+
+  /* ---- Server-side filtered data ---- */
+  const [videos, setVideos] = useState<Video[]>(initialVideos)
+  const [totalCount, setTotalCount] = useState(initialPagination?.total ?? initialVideos.length)
+  const [currentPage, setCurrentPage] = useState(initialPagination?.page ?? 1)
+  const [isFiltering, startFiltering] = useTransition()
+  const [isLoadingMore, startLoadingMore] = useTransition()
+
+  /* Track whether any filter has been applied (to know if we should use API) */
+  const hasActiveFilters = !!(search || filterCategory || sortField !== "date" || sortDirection !== "desc")
 
   const categoryOptions = useMemo(() => {
     if (filterMeta?.categories) {
       return filterMeta.categories.map((c) => ({ value: c, label: c }))
     }
     const cats = new Set<string>()
-    videos.forEach((v) => { if (v.category) cats.add(v.category) })
+    initialVideos.forEach((v) => { if (v.category) cats.add(v.category) })
     return Array.from(cats).sort().map((c) => ({ value: c, label: c }))
-  }, [videos, filterMeta])
+  }, [initialVideos, filterMeta])
 
-  const filteredVideos = useMemo(() => {
-    let result = videos
-    if (search) {
-      const q = search.toLowerCase()
-      result = result.filter(
-        (v) =>
-          v.title.toLowerCase().includes(q) ||
-          (v.category && v.category.toLowerCase().includes(q)),
-      )
+  /* ---- Debounced search ---- */
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+
+  useEffect(() => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(search)
+    }, 300)
+    return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current) }
+  }, [search])
+
+  /* ---- Re-fetch when filters change ---- */
+  const prevFiltersRef = useRef("")
+  useEffect(() => {
+    const filterKey = JSON.stringify({ search: debouncedSearch, category: filterCategory, sortField, sortDirection })
+    if (filterKey === prevFiltersRef.current) return
+    prevFiltersRef.current = filterKey
+
+    // Skip API call on initial render with default filters
+    if (!debouncedSearch && !filterCategory && sortField === "date" && sortDirection === "desc") {
+      setVideos(initialVideos)
+      setTotalCount(initialPagination?.total ?? initialVideos.length)
+      setCurrentPage(initialPagination?.page ?? 1)
+      return
     }
-    if (filterCategory) {
-      result = result.filter((v) => v.category === filterCategory)
-    }
-    return [...result].sort((a, b) => {
-      let cmp = 0
-      if (sortField === "date") {
-        cmp = a.datePublished.localeCompare(b.datePublished)
-      } else {
-        cmp = a.title.localeCompare(b.title)
-      }
-      return sortDirection === "asc" ? cmp : -cmp
+
+    const url = buildApiUrl({
+      page: 1,
+      pageSize: PAGE_SIZE,
+      search: debouncedSearch || undefined,
+      category: filterCategory,
+      sortBy: mapSortField(sortField),
+      sortDir: sortDirection,
     })
-  }, [videos, search, filterCategory, sortField, sortDirection])
 
-  const visibleVideos = filteredVideos.slice(0, displayCount)
-  const hasMore = displayCount < filteredVideos.length
+    startFiltering(async () => {
+      const result = await fetchVideos(url)
+      setVideos(result.videos)
+      setTotalCount(result.pagination.total)
+      setCurrentPage(1)
+    })
+  }, [debouncedSearch, filterCategory, sortField, sortDirection, initialVideos, initialPagination])
+
+  /* ---- Load More ---- */
+  const hasMore = videos.length < totalCount
+
+  function handleLoadMore() {
+    const nextPage = currentPage + 1
+    const url = buildApiUrl({
+      page: nextPage,
+      pageSize: PAGE_SIZE,
+      search: debouncedSearch || undefined,
+      category: filterCategory,
+      sortBy: mapSortField(sortField),
+      sortDir: sortDirection,
+    })
+    startLoadingMore(async () => {
+      const result = await fetchVideos(url)
+      setVideos((prev) => {
+        const existingIds = new Set(prev.map((v) => v.id))
+        const unique = result.videos.filter((v) => !existingIds.has(v.id))
+        return [...prev, ...unique]
+      })
+      setCurrentPage(nextPage)
+      setTotalCount(result.pagination.total)
+    })
+  }
 
   return (
     <SectionContainer colorScheme={colorScheme} paddingY="none" containerWidth={containerWidth} className="pb-24 lg:pb-30">
-      {/* Filter toolbar — matches Messages and Bible Studies pages */}
+      {/* Filter toolbar -- matches Messages and Bible Studies pages */}
       <FilterToolbar
         tabs={{
           options: [{ key: "all", label: "All Videos" }],
@@ -96,10 +197,7 @@ export default function AllVideosSection({ content, enableAnimations, colorSchem
         }}
         search={{
           value: search,
-          onChange: (v) => {
-            setSearch(v)
-            setDisplayCount(INITIAL_COUNT)
-          },
+          onChange: (v) => setSearch(v),
           placeholder: "Search videos...",
         }}
         filters={categoryOptions.length > 0 ? [
@@ -113,7 +211,6 @@ export default function AllVideosSection({ content, enableAnimations, colorSchem
             ],
             onChange: (v: string) => {
               setFilterCategory(v === "all" ? undefined : v)
-              setDisplayCount(INITIAL_COUNT)
             },
           },
         ] : undefined}
@@ -134,13 +231,18 @@ export default function AllVideosSection({ content, enableAnimations, colorSchem
         onReset={() => {
           setSearch("")
           setFilterCategory(undefined)
-          setDisplayCount(INITIAL_COUNT)
+          setSortField("date")
+          setSortDirection("desc")
         }}
         className="mb-8"
       />
 
-      {/* Videos grid */}
-      {filteredVideos.length === 0 ? (
+      {/* Loading state for filter changes */}
+      {isFiltering ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-black-1/10 border-t-black-1" />
+        </div>
+      ) : videos.length === 0 ? (
         <div className="flex flex-col items-center py-20">
           <p className={`text-body-1 ${t.textSecondary}`}>
             No videos found matching your criteria.
@@ -149,7 +251,8 @@ export default function AllVideosSection({ content, enableAnimations, colorSchem
             onClick={() => {
               setSearch("")
               setFilterCategory(undefined)
-              setDisplayCount(INITIAL_COUNT)
+              setSortField("date")
+              setSortDirection("desc")
             }}
             className="mt-4 text-accent-blue text-[14px] font-medium hover:underline"
           >
@@ -158,7 +261,7 @@ export default function AllVideosSection({ content, enableAnimations, colorSchem
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {visibleVideos.map((video) => (
+          {videos.map((video) => (
             <VideoCard
               key={video.id}
               video={video}
@@ -169,13 +272,14 @@ export default function AllVideosSection({ content, enableAnimations, colorSchem
       )}
 
       {/* Load more */}
-      {hasMore && (
+      {hasMore && !isFiltering && (
         <div className="flex justify-center mt-10">
           <button
-            onClick={() => setDisplayCount((c) => c + LOAD_MORE_COUNT)}
-            className="inline-flex items-center justify-center rounded-full border border-black-1/30 px-8 py-4 text-button-1 text-black-1 transition-colors hover:bg-black-1 hover:text-white-1"
+            disabled={isLoadingMore}
+            onClick={handleLoadMore}
+            className="inline-flex items-center justify-center rounded-full border border-black-1/30 px-8 py-4 text-button-1 text-black-1 transition-colors hover:bg-black-1 hover:text-white-1 disabled:opacity-50"
           >
-            Load More Videos
+            {isLoadingMore ? "Loading..." : "Load More Videos"}
           </button>
         </div>
       )}

@@ -31,10 +31,19 @@ export type EventFilters = {
   type?: EventType
   ministryId?: string
   campusId?: string
+  /** Filter by ministry name (exact match) -- alternative to ministryId */
+  ministryName?: string
+  /** Filter by campus name (exact match) -- alternative to campusId */
+  campusName?: string
   isFeatured?: boolean
   isRecurring?: boolean
   dateFrom?: Date
   dateTo?: Date
+  search?: string
+  /** Column to sort by (default: dateStart) */
+  sortBy?: 'dateStart' | 'title'
+  /** Sort direction (default: asc) */
+  sortDir?: 'asc' | 'desc'
   status?: ContentStatus | null // null = all statuses, undefined = default (PUBLISHED)
 }
 
@@ -101,6 +110,12 @@ export async function getEvents(
     ...(filters?.type && { type: filters.type }),
     ...(filters?.ministryId && { ministryId: filters.ministryId }),
     ...(filters?.campusId && { campusId: filters.campusId }),
+    ...(filters?.ministryName && !filters?.ministryId && {
+      ministry: { name: filters.ministryName },
+    }),
+    ...(filters?.campusName && !filters?.campusId && {
+      campus: { name: filters.campusName },
+    }),
     ...(filters?.isFeatured !== undefined && { isFeatured: filters.isFeatured }),
     ...(filters?.isRecurring !== undefined && { isRecurring: filters.isRecurring }),
     ...(filters?.dateFrom || filters?.dateTo
@@ -111,13 +126,24 @@ export async function getEvents(
           },
         }
       : {}),
+    ...(filters?.search && {
+      OR: [
+        { title: { contains: filters.search, mode: 'insensitive' as const } },
+        { description: { contains: filters.search, mode: 'insensitive' as const } },
+        { location: { contains: filters.search, mode: 'insensitive' as const } },
+      ],
+    }),
   }
+
+  const sortBy = filters?.sortBy ?? 'dateStart'
+  const sortDir = filters?.sortDir ?? 'asc'
+  const orderBy: Prisma.EventOrderByWithRelationInput = { [sortBy]: sortDir }
 
   const [data, total] = await Promise.all([
     prisma.event.findMany({
       where,
       include: eventListInclude,
-      orderBy: { dateStart: 'asc' },
+      orderBy,
       skip,
       take,
     }),
@@ -166,7 +192,7 @@ export async function getUpcomingEvents(
 
   if (pastEventsDays !== 0) {
     if (pastEventsDays === -1) {
-      // Infinite lookback — include all past events
+      // Infinite lookback -- include all past events
       dateConditions.push({ dateStart: { lt: today } })
     } else {
       const cutoff = new Date(today)

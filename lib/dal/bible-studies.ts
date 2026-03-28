@@ -40,13 +40,21 @@ const bibleStudyInclude = {
 export type BibleStudyFilters = {
   book?: BibleBook
   seriesId?: string
+  seriesName?: string
   speakerId?: string
   status?: ContentStatus
+  dateFrom?: string  // YYYY-MM-DD
+  dateTo?: string    // YYYY-MM-DD
+  search?: string
+  /** Column to sort by (default: dateFor) */
+  sortBy?: 'dateFor' | 'title'
+  /** Sort direction (default: desc) */
+  sortDir?: 'asc' | 'desc'
 }
 
 export type BibleStudyFilterMeta = {
   years: number[]
-  series: { name: string; count: number }[]
+  series: { id: string; name: string; count: number }[]
   books: { book: string; count: number }[]
 }
 
@@ -64,7 +72,7 @@ export async function getBibleStudyFilterMeta(churchId: string): Promise<BibleSt
   }
 
   const [yearRows, seriesRows, bookRows] = await Promise.all([
-    // Distinct years — use findMany with select to extract unique years
+    // Distinct years
     prisma.bibleStudy.findMany({
       where,
       select: { dateFor: true },
@@ -82,7 +90,7 @@ export async function getBibleStudyFilterMeta(churchId: string): Promise<BibleSt
       where: { ...where, seriesId: { not: null } },
       _count: { _all: true },
     }).then(async (groups) => {
-      if (groups.length === 0) return [] as { name: string; count: number }[]
+      if (groups.length === 0) return [] as { id: string; name: string; count: number }[]
       const seriesIds = groups.map((g) => g.seriesId!).filter(Boolean)
       const seriesRecords = await prisma.series.findMany({
         where: { id: { in: seriesIds } },
@@ -90,7 +98,7 @@ export async function getBibleStudyFilterMeta(churchId: string): Promise<BibleSt
       })
       const nameMap = new Map(seriesRecords.map((s) => [s.id, s.name]))
       return groups
-        .map((g) => ({ name: nameMap.get(g.seriesId!) || '', count: g._count._all }))
+        .map((g) => ({ id: g.seriesId!, name: nameMap.get(g.seriesId!) || '', count: g._count._all }))
         .filter((s) => s.name)
         .sort((a, b) => b.count - a.count)
     }),
@@ -116,21 +124,49 @@ export async function getBibleStudies(
   const { skip, take, page, pageSize } = paginationArgs(filters)
   const status = filters?.status ?? ContentStatus.PUBLISHED
 
+  // Resolve seriesName to seriesId if provided
+  let resolvedSeriesId = filters?.seriesId
+  if (!resolvedSeriesId && filters?.seriesName) {
+    const series = await prisma.series.findFirst({
+      where: { churchId, name: filters.seriesName, deletedAt: null },
+      select: { id: true },
+    })
+    if (series) resolvedSeriesId = series.id
+    else resolvedSeriesId = 'NO_MATCH' // Force empty results for unknown series name
+  }
+
   const where: Prisma.BibleStudyWhereInput = {
     churchId,
     deletedAt: null,
     status,
     ...(filters?.book && { book: filters.book }),
-    ...(filters?.seriesId && { seriesId: filters.seriesId }),
+    ...(resolvedSeriesId && { seriesId: resolvedSeriesId }),
     ...(filters?.speakerId && { speakerId: filters.speakerId }),
+    ...((filters?.dateFrom || filters?.dateTo) && {
+      dateFor: {
+        ...(filters?.dateFrom && { gte: new Date(filters.dateFrom) }),
+        ...(filters?.dateTo && { lte: new Date(filters.dateTo) }),
+      },
+    }),
+    ...(filters?.search && {
+      OR: [
+        { title: { contains: filters.search, mode: 'insensitive' as const } },
+        { passage: { contains: filters.search, mode: 'insensitive' as const } },
+      ],
+    }),
   }
+
+  // Determine sort order
+  const sortBy = filters?.sortBy ?? 'dateFor'
+  const sortDir = filters?.sortDir ?? 'desc'
+  const orderBy: Prisma.BibleStudyOrderByWithRelationInput = { [sortBy]: sortDir }
 
   const [data, total] = await Promise.all([
     prisma.bibleStudy.findMany({
       where,
       omit: bibleStudyListOmit,
       include: bibleStudyInclude,
-      orderBy: { dateFor: 'desc' },
+      orderBy,
       skip,
       take,
     }),

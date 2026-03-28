@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef, useTransition } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import SectionContainer from "@/components/website/shared/section-container"
 import EventGridCard from "@/components/website/shared/event-grid-card"
@@ -44,8 +44,7 @@ interface EventFilters {
 }
 
 const VALID_TABS: TabView[] = ["event", "meeting", "program"]
-const INITIAL_COUNT = 48
-const LOAD_MORE_COUNT = 48
+const PAGE_SIZE = 48
 
 interface FilterMeta {
   years: number[]
@@ -53,13 +52,87 @@ interface FilterMeta {
   campuses: string[]
 }
 
+interface PaginationInfo {
+  total: number
+  page: number
+  pageSize: number
+  totalPages: number
+}
+
 interface Props {
   events: SimpleEvent[]
   heading: string
   filterMeta?: FilterMeta
+  pagination?: PaginationInfo
 }
 
-export default function AllEventsClient({ events, heading, filterMeta }: Props) {
+/** Map UI sort field to API param */
+function mapSortField(field: string): string {
+  return field === "date" ? "dateStart" : field
+}
+
+/** Build API query string for events */
+function buildApiUrl(params: {
+  page: number
+  pageSize: number
+  type?: string
+  search?: string
+  ministryName?: string
+  campusName?: string
+  dateFrom?: string
+  dateTo?: string
+  sortBy?: string
+  sortDir?: string
+}): string {
+  const qs = new URLSearchParams()
+  qs.set("page", String(params.page))
+  qs.set("pageSize", String(params.pageSize))
+  if (params.type) qs.set("type", params.type.toUpperCase())
+  if (params.search) qs.set("search", params.search)
+  if (params.ministryName) qs.set("ministryName", params.ministryName)
+  if (params.campusName) qs.set("campusName", params.campusName)
+  if (params.dateFrom) qs.set("dateFrom", params.dateFrom)
+  if (params.dateTo) qs.set("dateTo", params.dateTo)
+  if (params.sortBy) qs.set("sortBy", params.sortBy)
+  if (params.sortDir) qs.set("sortDir", params.sortDir)
+  return `/api/v1/events?${qs.toString()}`
+}
+
+/** Fetch events from the API and transform to SimpleEvent shape */
+async function fetchEvents(url: string): Promise<{ events: SimpleEvent[]; pagination: PaginationInfo }> {
+  const res = await fetch(url)
+  if (!res.ok) return { events: [], pagination: { total: 0, page: 1, pageSize: PAGE_SIZE, totalPages: 0 } }
+  const json = await res.json()
+  if (!json.success || !json.data) return { events: [], pagination: { total: 0, page: 1, pageSize: PAGE_SIZE, totalPages: 0 } }
+  const events: SimpleEvent[] = json.data.map((e: Record<string, unknown>) => {
+    const ministry = e.ministry as { name?: string } | null
+    const campus = e.campus as { name?: string } | null
+    const dateStartRaw = e.dateStart ? String(e.dateStart) : ""
+    const dateEndRaw = e.dateEnd ? String(e.dateEnd) : null
+    return {
+      id: e.id as string,
+      slug: e.slug as string,
+      title: e.title as string,
+      description: (e.description as string) || "",
+      type: (e.type as string).toLowerCase() as "event" | "meeting" | "program",
+      dateStart: dateStartRaw.length > 10 ? dateStartRaw.slice(0, 10) : dateStartRaw,
+      dateEnd: dateEndRaw ? (dateEndRaw.length > 10 ? dateEndRaw.slice(0, 10) : dateEndRaw) : null,
+      timeStart: (e.startTime as string) || "",
+      timeEnd: (e.endTime as string) || "",
+      location: (e.location as string) || "",
+      locationDetail: (e.address as string) || "",
+      ministry: ministry?.name || "",
+      campus: campus?.name || "",
+      thumbnailUrl: (e.coverImage as string) || "",
+      isFeatured: e.isFeatured as boolean,
+      isRecurring: e.isRecurring as boolean,
+      recurrenceSchedule: (e.recurrenceSchedule as string) || "",
+    }
+  })
+  return { events, pagination: json.pagination }
+}
+
+export default function AllEventsClient({ events: initialEvents, heading, filterMeta, pagination: initialPagination }: Props) {
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -74,9 +147,15 @@ export default function AllEventsClient({ events, heading, filterMeta }: Props) 
   const [search, setSearch] = useState("")
   const [filters, setFilters] = useState<EventFilters>({})
   const [yearFilter, setYearFilter] = useState("")
-  const [displayCount, setDisplayCount] = useState(INITIAL_COUNT)
   const [sortField, setSortField] = useState("date")
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
+
+  /* -- Server-side filtered data -- */
+  const [events, setEvents] = useState<SimpleEvent[]>(initialEvents)
+  const [totalCount, setTotalCount] = useState(initialPagination?.total ?? initialEvents.length)
+  const [currentPage, setCurrentPage] = useState(initialPagination?.page ?? 1)
+  const [isFiltering, startFiltering] = useTransition()
+  const [isLoadingMore, startLoadingMore] = useTransition()
 
   /* -- Sync tab when URL changes (e.g. navbar click while already on page) -- */
   useEffect(() => {
@@ -85,7 +164,6 @@ export default function AllEventsClient({ events, heading, filterMeta }: Props) 
       setFilters({})
       setYearFilter("")
       setSearch("")
-      setDisplayCount(INITIAL_COUNT)
     }
   }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -99,72 +177,120 @@ export default function AllEventsClient({ events, heading, filterMeta }: Props) 
     [searchParams, router],
   )
 
-  /* -- Derive unique ministry/campus values for filter dropdowns -- */
-  // Prefer filterMeta for complete options when data exceeds page size
+  /* -- Filter meta for dropdowns (from server, complete) -- */
   const ministryOptions = useMemo(() => {
     if (filterMeta?.ministries) return filterMeta.ministries
     const ministries = new Set<string>()
-    events.forEach((e) => { if (e.ministry) ministries.add(e.ministry) })
+    initialEvents.forEach((e) => { if (e.ministry) ministries.add(e.ministry) })
     return Array.from(ministries).sort()
-  }, [events, filterMeta])
+  }, [initialEvents, filterMeta])
 
   const campusOptions = useMemo(() => {
     if (filterMeta?.campuses) return filterMeta.campuses
     const campuses = new Set<string>()
-    events.forEach((e) => { if (e.campus) campuses.add(e.campus) })
+    initialEvents.forEach((e) => { if (e.campus) campuses.add(e.campus) })
     return Array.from(campuses).sort()
-  }, [events, filterMeta])
+  }, [initialEvents, filterMeta])
 
   const availableYears = useMemo(() => {
     if (filterMeta?.years) return filterMeta.years
     const years = new Set<number>()
-    events.forEach((e) => {
+    initialEvents.forEach((e) => {
       const y = parseInt(e.dateStart.slice(0, 4), 10)
       if (!isNaN(y)) years.add(y)
     })
     return Array.from(years).sort((a, b) => b - a)
-  }, [events, filterMeta])
+  }, [initialEvents, filterMeta])
 
-  /* -- Filtering & Sorting -- */
-  const filteredEvents = useMemo(() => {
-    let result = events.filter((e) => e.type === tab)
+  /* -- Debounced search -- */
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [debouncedSearch, setDebouncedSearch] = useState("")
 
-    if (search) {
-      const q = search.toLowerCase()
-      result = result.filter(
-        (e) =>
-          e.title.toLowerCase().includes(q) ||
-          e.description.toLowerCase().includes(q) ||
-          e.location.toLowerCase().includes(q)
-      )
-    }
+  useEffect(() => {
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
+    searchTimeoutRef.current = setTimeout(() => {
+      setDebouncedSearch(search)
+    }, 300)
+    return () => { if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current) }
+  }, [search])
 
-    if (filters.ministry) {
-      result = result.filter((e) => e.ministry === filters.ministry)
-    }
-    if (filters.campus) {
-      result = result.filter((e) => e.campus === filters.campus)
-    }
-    if (filters.dateFrom) {
-      result = result.filter((e) => e.dateStart >= filters.dateFrom!)
-    }
-    if (filters.dateTo) {
-      result = result.filter((e) => e.dateStart <= filters.dateTo!)
-    }
-
-    return [...result].sort((a, b) => {
-      let cmp = 0
-      if (sortField === "date") {
-        cmp = a.dateStart.localeCompare(b.dateStart)
-      } else {
-        cmp = a.title.localeCompare(b.title)
-      }
-      return sortDirection === "asc" ? cmp : -cmp
+  /* -- Re-fetch when filters change -- */
+  const prevFiltersRef = useRef("")
+  useEffect(() => {
+    const filterKey = JSON.stringify({
+      search: debouncedSearch,
+      tab,
+      ministry: filters.ministry,
+      campus: filters.campus,
+      dateFrom: filters.dateFrom,
+      dateTo: filters.dateTo,
+      sortField,
+      sortDirection,
     })
-  }, [events, filters, search, tab, sortField, sortDirection])
+    if (filterKey === prevFiltersRef.current) return
+    prevFiltersRef.current = filterKey
 
-  const visibleEvents = filteredEvents.slice(0, displayCount)
-  const hasMore = displayCount < filteredEvents.length
+    // On initial render with no active filters and matching tab, use SSR data
+    const isDefaultFilters = !debouncedSearch && !filters.ministry && !filters.campus &&
+      !filters.dateFrom && !filters.dateTo && sortField === "date" && sortDirection === "desc"
+    if (isDefaultFilters && tab === activeTab) {
+      // Filter initial events by tab type client-side (they were loaded with all types)
+      const tabEvents = initialEvents.filter((e) => e.type === tab)
+      setEvents(tabEvents)
+      setTotalCount(tabEvents.length)
+      setCurrentPage(1)
+      return
+    }
+
+    const url = buildApiUrl({
+      page: 1,
+      pageSize: PAGE_SIZE,
+      type: tab,
+      search: debouncedSearch || undefined,
+      ministryName: filters.ministry,
+      campusName: filters.campus,
+      dateFrom: filters.dateFrom,
+      dateTo: filters.dateTo,
+      sortBy: mapSortField(sortField),
+      sortDir: sortDirection,
+    })
+
+    startFiltering(async () => {
+      const result = await fetchEvents(url)
+      setEvents(result.events)
+      setTotalCount(result.pagination.total)
+      setCurrentPage(1)
+    })
+  }, [debouncedSearch, tab, filters, sortField, sortDirection, initialEvents, activeTab])
+
+  /* -- Load More -- */
+  const hasMore = events.length < totalCount
+
+  function handleLoadMore() {
+    const nextPage = currentPage + 1
+    const url = buildApiUrl({
+      page: nextPage,
+      pageSize: PAGE_SIZE,
+      type: tab,
+      search: debouncedSearch || undefined,
+      ministryName: filters.ministry,
+      campusName: filters.campus,
+      dateFrom: filters.dateFrom,
+      dateTo: filters.dateTo,
+      sortBy: mapSortField(sortField),
+      sortDir: sortDirection,
+    })
+    startLoadingMore(async () => {
+      const result = await fetchEvents(url)
+      setEvents((prev) => {
+        const existingIds = new Set(prev.map((e) => e.id))
+        const unique = result.events.filter((e) => !existingIds.has(e.id))
+        return [...prev, ...unique]
+      })
+      setCurrentPage(nextPage)
+      setTotalCount(result.pagination.total)
+    })
+  }
 
   function updateFilter<K extends keyof EventFilters>(
     key: K,
@@ -172,7 +298,6 @@ export default function AllEventsClient({ events, heading, filterMeta }: Props) 
   ) {
     setFilters((prev) => ({ ...prev, [key]: value }))
     if (key === "dateFrom" || key === "dateTo") setYearFilter("")
-    setDisplayCount(INITIAL_COUNT)
   }
 
   function handleYearChange(year: string) {
@@ -182,7 +307,6 @@ export default function AllEventsClient({ events, heading, filterMeta }: Props) 
     } else {
       setFilters((prev) => ({ ...prev, dateFrom: undefined, dateTo: undefined }))
     }
-    setDisplayCount(INITIAL_COUNT)
   }
 
   const tabs: { key: TabView; label: string }[] = [
@@ -204,7 +328,7 @@ export default function AllEventsClient({ events, heading, filterMeta }: Props) 
             updateTabInUrl(newTab)
             setFilters({})
             setSearch("")
-            setDisplayCount(INITIAL_COUNT)
+            setYearFilter("")
           },
         }}
         viewModes={{
@@ -218,10 +342,7 @@ export default function AllEventsClient({ events, heading, filterMeta }: Props) 
         }}
         search={{
           value: search,
-          onChange: (v) => {
-            setSearch(v)
-            setDisplayCount(INITIAL_COUNT)
-          },
+          onChange: (v) => setSearch(v),
           placeholder: "Search events, meetings, programs...",
         }}
         filters={[
@@ -287,13 +408,18 @@ export default function AllEventsClient({ events, heading, filterMeta }: Props) 
           setSearch("")
           setFilters({})
           setYearFilter("")
-          setDisplayCount(INITIAL_COUNT)
+          setSortField("date")
+          setSortDirection("desc")
         }}
         className="mb-8"
       />
 
       {/* Events display */}
-      {filteredEvents.length === 0 ? (
+      {isFiltering ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-black-1/10 border-t-black-1" />
+        </div>
+      ) : events.length === 0 ? (
         <div className="flex flex-col items-center py-20">
           <p className="text-body-1 text-black-2">
             No events found matching your criteria.
@@ -302,7 +428,9 @@ export default function AllEventsClient({ events, heading, filterMeta }: Props) 
             onClick={() => {
               setSearch("")
               setFilters({})
-              setDisplayCount(INITIAL_COUNT)
+              setYearFilter("")
+              setSortField("date")
+              setSortDirection("desc")
             }}
             className="mt-4 text-accent-blue text-[14px] font-medium hover:underline"
           >
@@ -310,21 +438,22 @@ export default function AllEventsClient({ events, heading, filterMeta }: Props) 
           </button>
         </div>
       ) : viewMode === "card" ? (
-        <CardView events={visibleEvents} />
+        <CardView events={events} />
       ) : viewMode === "list" ? (
-        <ListView events={visibleEvents} />
+        <ListView events={events} />
       ) : (
-        <CalendarView events={filteredEvents} />
+        <CalendarView events={events} />
       )}
 
       {/* Load more (hidden in calendar view since calendar shows all events for the month) */}
-      {hasMore && viewMode !== "calendar" && (
+      {hasMore && viewMode !== "calendar" && !isFiltering && (
         <div className="flex justify-center mt-10">
           <button
-            onClick={() => setDisplayCount((c) => c + LOAD_MORE_COUNT)}
-            className="inline-flex items-center justify-center rounded-full border border-black-1/30 px-8 py-4 text-button-1 text-black-1 transition-colors hover:bg-black-1 hover:text-white-1"
+            disabled={isLoadingMore}
+            onClick={handleLoadMore}
+            className="inline-flex items-center justify-center rounded-full border border-black-1/30 px-8 py-4 text-button-1 text-black-1 transition-colors hover:bg-black-1 hover:text-white-1 disabled:opacity-50"
           >
-            Load More Events
+            {isLoadingMore ? "Loading..." : "Load More Events"}
           </button>
         </div>
       )}
@@ -406,4 +535,3 @@ function toDateKey(dateStr: string): string {
   const d = new Date(dateStr)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
-
