@@ -73,7 +73,7 @@ export async function getEventFilterMeta(churchId: string): Promise<EventFilterM
     }).then((rows) => {
       const years = new Set<number>()
       for (const r of rows) {
-        if (r.dateStart) years.add(new Date(r.dateStart).getFullYear())
+        if (r.dateStart) years.add(new Date(r.dateStart).getUTCFullYear())
       }
       return Array.from(years).sort((a, b) => b - a)
     }),
@@ -176,8 +176,10 @@ export async function getUpcomingEvents(
     sortOrder?: 'asc' | 'desc'
   },
 ): Promise<EventWithRelations[]> {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  // Use UTC midnight for date comparison against @db.Date columns (stored as UTC midnight)
+  const now = new Date()
+  const todayStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`
+  const today = new Date(todayStr + 'T00:00:00.000Z')
 
   const includeRecurring = options?.includeRecurring ?? true
   const pastEventsDays = options?.pastEventsDays ?? 0

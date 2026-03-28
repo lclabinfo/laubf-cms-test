@@ -6,8 +6,10 @@ type DailyBreadRecord = DailyBread
 export async function getTodaysDailyBread(
   churchId: string,
 ): Promise<DailyBreadRecord | null> {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  // Use UTC midnight to match @db.Date columns (Prisma stores dates as UTC midnight)
+  const now = new Date()
+  const todayStr = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`
+  const today = new Date(todayStr + 'T00:00:00.000Z')
 
   return prisma.dailyBread.findFirst({
     where: {

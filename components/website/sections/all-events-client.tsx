@@ -8,6 +8,7 @@ import EventListItem from "@/components/website/shared/event-list-item"
 import EventCalendarGrid from "@/components/website/shared/event-calendar-grid"
 import FilterToolbar from "@/components/website/shared/filter-toolbar"
 import { IconGrid, IconListView, IconCalendar } from "@/components/website/shared/icons"
+import { Skeleton } from "@/components/ui/skeleton"
 import { resolveHref } from "@/lib/website/resolve-href"
 import { formatTimeRange } from "@/lib/website/format-time"
 
@@ -132,7 +133,7 @@ async function fetchEvents(url: string): Promise<{ events: SimpleEvent[]; pagina
   return { events, pagination: json.pagination }
 }
 
-export default function AllEventsClient({ events: initialEvents, heading, filterMeta, pagination: initialPagination }: Props) {
+export default function AllEventsClient({ events: initialEvents, filterMeta, pagination: initialPagination }: Props) {
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -156,6 +157,9 @@ export default function AllEventsClient({ events: initialEvents, heading, filter
   const [currentPage, setCurrentPage] = useState(initialPagination?.page ?? 1)
   const [isFiltering, startFiltering] = useTransition()
   const [isLoadingMore, startLoadingMore] = useTransition()
+  // Content area ref for min-height preservation during filtering (prevents scroll jump)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [contentMinHeight, setContentMinHeight] = useState<number | undefined>()
 
   /* -- Sync tab when URL changes (e.g. navbar click while already on page) -- */
   useEffect(() => {
@@ -255,11 +259,18 @@ export default function AllEventsClient({ events: initialEvents, heading, filter
       sortDir: sortDirection,
     })
 
+    // Capture current content height to prevent scroll jump during loading
+    if (contentRef.current) {
+      setContentMinHeight(contentRef.current.offsetHeight)
+    }
     startFiltering(async () => {
       const result = await fetchEvents(url)
+      // Small delay so the fade-out is visible before swapping content
+      await new Promise((r) => setTimeout(r, 150))
       setEvents(result.events)
       setTotalCount(result.pagination.total)
       setCurrentPage(1)
+      requestAnimationFrame(() => setContentMinHeight(undefined))
     })
   }, [debouncedSearch, tab, filters, sortField, sortDirection, initialEvents, activeTab])
 
@@ -414,50 +425,125 @@ export default function AllEventsClient({ events: initialEvents, heading, filter
         className="mb-8"
       />
 
-      {/* Events display */}
-      {isFiltering ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-black-1/10 border-t-black-1" />
+      {/* Events display with min-height preservation to prevent scroll jump */}
+      <div ref={contentRef} className="relative" style={{ minHeight: contentMinHeight ? `${contentMinHeight}px` : undefined }}>
+        <div className={`transition-opacity duration-500 ease-in-out ${isFiltering ? "opacity-30 pointer-events-none" : "opacity-100"}`}>
+          {events.length === 0 && !isFiltering ? (
+            <div className="flex flex-col items-center py-20">
+              <p className="text-body-1 text-black-2">
+                No events found matching your criteria.
+              </p>
+              <button
+                onClick={() => {
+                  setSearch("")
+                  setFilters({})
+                  setYearFilter("")
+                  setSortField("date")
+                  setSortDirection("desc")
+                }}
+                className="mt-4 text-accent-blue text-[14px] font-medium hover:underline"
+              >
+                Clear all filters
+              </button>
+            </div>
+          ) : viewMode === "card" ? (
+            <CardView events={events} />
+          ) : viewMode === "list" ? (
+            <ListView events={events} />
+          ) : (
+            <CalendarView events={events} />
+          )}
         </div>
-      ) : events.length === 0 ? (
-        <div className="flex flex-col items-center py-20">
-          <p className="text-body-1 text-black-2">
-            No events found matching your criteria.
-          </p>
-          <button
-            onClick={() => {
-              setSearch("")
-              setFilters({})
-              setYearFilter("")
-              setSortField("date")
-              setSortDirection("desc")
-            }}
-            className="mt-4 text-accent-blue text-[14px] font-medium hover:underline"
-          >
-            Clear all filters
-          </button>
-        </div>
-      ) : viewMode === "card" ? (
-        <CardView events={events} />
-      ) : viewMode === "list" ? (
-        <ListView events={events} />
-      ) : (
-        <CalendarView events={events} />
-      )}
+      </div>
 
       {/* Load more (hidden in calendar view since calendar shows all events for the month) */}
       {hasMore && viewMode !== "calendar" && !isFiltering && (
-        <div className="flex justify-center mt-10">
-          <button
-            disabled={isLoadingMore}
-            onClick={handleLoadMore}
-            className="inline-flex items-center justify-center rounded-full border border-black-1/30 px-8 py-4 text-button-1 text-black-1 transition-colors hover:bg-black-1 hover:text-white-1 disabled:opacity-50"
-          >
-            {isLoadingMore ? "Loading..." : "Load More Events"}
-          </button>
-        </div>
+        <>
+          {isLoadingMore && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-5">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <EventCardSkeleton key={i} />
+              ))}
+            </div>
+          )}
+          <div className="flex justify-center mt-10">
+            <button
+              disabled={isLoadingMore}
+              onClick={handleLoadMore}
+              className="inline-flex items-center justify-center rounded-full border border-black-1/30 px-8 py-4 text-button-1 text-black-1 transition-colors hover:bg-black-1 hover:text-white-1 disabled:opacity-50"
+            >
+              {isLoadingMore ? "Loading..." : "Load More Events"}
+            </button>
+          </div>
+        </>
       )}
     </SectionContainer>
+  )
+}
+
+/* -- Skeleton Components -- */
+
+function EventCardSkeleton() {
+  return (
+    <div className="flex flex-col rounded-[20px] border border-muted overflow-clip h-full">
+      {/* Image area */}
+      <Skeleton className="h-[160px] w-full rounded-none" />
+      {/* Details */}
+      <div className="flex flex-col gap-3 pt-[18px] pb-5 px-5 lg:px-7 flex-1">
+        {/* Type badge + title */}
+        <div className="flex flex-col gap-3 items-start">
+          <Skeleton className="h-6 w-16 rounded-lg" />
+          <Skeleton className="h-5 w-3/4" />
+        </div>
+        {/* Time & location */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <Skeleton className="size-4 rounded-full" />
+            <Skeleton className="h-3.5 w-40" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="size-4 rounded-full" />
+            <Skeleton className="h-3.5 w-32" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EventListItemSkeleton() {
+  return (
+    <div className="flex items-center gap-4 py-4 border-b border-muted">
+      <Skeleton className="size-12 rounded-[8px] shrink-0" />
+      <div className="flex-1 min-w-0 space-y-2">
+        <Skeleton className="h-4 w-2/3" />
+        <div className="flex gap-4">
+          <Skeleton className="h-3.5 w-32" />
+          <Skeleton className="h-3.5 w-24" />
+        </div>
+      </div>
+      <Skeleton className="h-6 w-14 rounded-lg shrink-0" />
+    </div>
+  )
+}
+
+function EventCardSkeletonGrid() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <EventCardSkeleton key={i} />
+      ))}
+    </div>
+  )
+}
+
+function EventListSkeletonGrid() {
+  return (
+    <div className="flex flex-col">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <EventListItemSkeleton key={i} />
+      ))}
+    </div>
   )
 }
 

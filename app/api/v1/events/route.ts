@@ -14,15 +14,22 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl
 
     const statusParam = searchParams.get('status')
+    const sortByParam = searchParams.get('sortBy')
+    const sortDirParam = searchParams.get('sortDir')
     const filters: EventFilters & { page?: number; pageSize?: number } = {
       page: searchParams.get('page') ? Number(searchParams.get('page')) : undefined,
       pageSize: searchParams.get('pageSize') ? Math.min(Number(searchParams.get('pageSize')), 100) : undefined,
       type: (searchParams.get('type') as EventType) ?? undefined,
       ministryId: searchParams.get('ministryId') ?? undefined,
       campusId: searchParams.get('campusId') ?? undefined,
+      ministryName: searchParams.get('ministryName') ?? undefined,
+      campusName: searchParams.get('campusName') ?? undefined,
       isRecurring: searchParams.get('isRecurring') ? searchParams.get('isRecurring') === 'true' : undefined,
       dateFrom: searchParams.get('dateFrom') ? new Date(searchParams.get('dateFrom')!) : undefined,
       dateTo: searchParams.get('dateTo') ? new Date(searchParams.get('dateTo')!) : undefined,
+      search: searchParams.get('search') ?? undefined,
+      sortBy: sortByParam && ['dateStart', 'title'].includes(sortByParam) ? sortByParam as 'dateStart' | 'title' : undefined,
+      sortDir: sortDirParam && ['asc', 'desc'].includes(sortDirParam) ? sortDirParam as 'asc' | 'desc' : undefined,
       // Empty string status param = all statuses (null), missing = default (undefined)
       status: searchParams.has('status')
         ? (statusParam ? statusParam as ContentStatus : null)

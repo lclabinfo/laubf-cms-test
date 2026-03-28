@@ -73,6 +73,10 @@ type MessageDetail = Prisma.MessageGetPayload<{
 export type MessageFilters = {
   speakerId?: string
   seriesId?: string
+  /** Filter by series name (exact match) -- alternative to seriesId */
+  seriesName?: string
+  /** Filter by speaker display name (exact match on preferredName+lastName or firstName+lastName) */
+  speakerName?: string
   search?: string
   /** When true, only return messages with at least one published resource */
   publishedOnly?: boolean
@@ -117,7 +121,7 @@ export async function getMessageFilterMeta(churchId: string): Promise<MessageFil
     }).then((rows) => {
       const years = new Set<number>()
       for (const r of rows) {
-        if (r.dateFor) years.add(new Date(r.dateFor).getFullYear())
+        if (r.dateFor) years.add(new Date(r.dateFor).getUTCFullYear())
       }
       return Array.from(years).sort((a, b) => b - a)
     }),
@@ -169,6 +173,26 @@ export async function getMessages(
 ): Promise<PaginatedResult<MessageWithRelations>> {
   const { skip, take, page, pageSize } = paginationArgs(filters)
 
+  // Resolve speakerName to speakerId(s) if provided (display name is computed, not a column)
+  let resolvedSpeakerIds: string[] | undefined
+  if (filters?.speakerName && !filters?.speakerId) {
+    const nameParts = filters.speakerName.trim().split(/\s+/)
+    const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : undefined
+    const firstOrPreferred = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : nameParts[0]
+    const candidates = await prisma.person.findMany({
+      where: {
+        churchId,
+        ...(lastName ? { lastName } : {}),
+        OR: [
+          ...(firstOrPreferred ? [{ preferredName: firstOrPreferred }] : []),
+          ...(firstOrPreferred ? [{ firstName: firstOrPreferred }] : []),
+        ],
+      },
+      select: { id: true },
+    })
+    resolvedSpeakerIds = candidates.map((c) => c.id)
+  }
+
   const archiveFilter = filters?.archiveFilter ?? 'all'
   const where: Prisma.MessageWhereInput = {
     churchId,
@@ -178,8 +202,18 @@ export async function getMessages(
     ...(filters?.videoPublished && { hasVideo: true }),
     ...(filters?.publishedOnly && !filters?.videoPublished && { OR: [{ hasVideo: true }, { hasStudy: true }] }),
     ...(filters?.speakerId && { speakerId: filters.speakerId }),
+    ...(resolvedSpeakerIds && resolvedSpeakerIds.length > 0 && !filters?.speakerId && {
+      speakerId: { in: resolvedSpeakerIds },
+    }),
+    // Return no results if speakerName was given but resolved to nobody
+    ...(filters?.speakerName && !filters?.speakerId && resolvedSpeakerIds && resolvedSpeakerIds.length === 0 && {
+      id: '__no_match__',
+    }),
     ...(filters?.seriesId && {
       messageSeries: { some: { seriesId: filters.seriesId } },
+    }),
+    ...(filters?.seriesName && !filters?.seriesId && {
+      messageSeries: { some: { series: { name: filters.seriesName } } },
     }),
     ...(filters?.search && {
       OR: [

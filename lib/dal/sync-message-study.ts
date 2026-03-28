@@ -262,7 +262,7 @@ export async function syncMessageStudy(params: SyncParams): Promise<string> {
     await syncStudyAttachments(studyId, attachments || [], {
       churchSlug,
       studySlug: studySlug,
-      year: dateForValue.getFullYear().toString(),
+      year: dateForValue.getUTCFullYear().toString(),
     })
   }
 

@@ -11,13 +11,21 @@ export async function GET(request: NextRequest) {
     const churchId = await getChurchId()
     const { searchParams } = request.nextUrl
 
+    const sortByParam = searchParams.get('sortBy')
+    const sortDirParam = searchParams.get('sortDir')
     const filters: BibleStudyFilters & { page?: number; pageSize?: number } = {
       page: searchParams.get('page') ? Number(searchParams.get('page')) : undefined,
       pageSize: searchParams.get('pageSize') ? Math.min(Number(searchParams.get('pageSize')), 100) : undefined,
       book: (searchParams.get('book') as BibleBook) ?? undefined,
       seriesId: searchParams.get('seriesId') ?? undefined,
+      seriesName: searchParams.get('seriesName') ?? undefined,
       speakerId: searchParams.get('speakerId') ?? undefined,
       status: (searchParams.get('status') as ContentStatus) ?? undefined,
+      dateFrom: searchParams.get('dateFrom') ?? undefined,
+      dateTo: searchParams.get('dateTo') ?? undefined,
+      search: searchParams.get('search') ?? undefined,
+      sortBy: sortByParam && ['dateFor', 'title'].includes(sortByParam) ? sortByParam as 'dateFor' | 'title' : undefined,
+      sortDir: sortDirParam && ['asc', 'desc'].includes(sortDirParam) ? sortDirParam as 'asc' | 'desc' : undefined,
     }
 
     const result = await getBibleStudies(churchId, filters)

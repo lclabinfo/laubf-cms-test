@@ -80,7 +80,7 @@ export async function getBibleStudyFilterMeta(churchId: string): Promise<BibleSt
     }).then((rows) => {
       const years = new Set<number>()
       for (const r of rows) {
-        if (r.dateFor) years.add(new Date(r.dateFor).getFullYear())
+        if (r.dateFor) years.add(new Date(r.dateFor).getUTCFullYear())
       }
       return Array.from(years).sort((a, b) => b - a)
     }),

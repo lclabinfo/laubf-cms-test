@@ -62,10 +62,12 @@ export async function resolveSectionData(
           ? (() => {
               const d = new Date(message.dateFor)
               const now = new Date()
-              const sameYear = d.getFullYear() === now.getFullYear()
+              const sameYear = d.getUTCFullYear() === now.getFullYear()
+              const dateStr = d.toISOString().split('T')[0]
+              const displayDate = new Date(dateStr + 'T00:00:00')
               return sameYear
-                ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
-                : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
+                ? displayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()
+                : displayDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()
             })()
           : ''
 

@@ -28,7 +28,9 @@ interface PageProps {
 /* ── Helpers ── */
 
 function formatEventDate(date: Date): string {
-  return date.toLocaleDateString("en-US", {
+  // Convert Prisma @db.Date (UTC midnight) to local midnight for correct display
+  const dateStr = date.toISOString().split('T')[0]
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
     day: "numeric",
@@ -125,7 +127,7 @@ export default async function EventDetailPage({ params }: PageProps) {
     : null
 
   const recurrenceEndLabel = event.isRecurring && event.recurrenceEndType === "ON_DATE" && event.recurrenceEndDate
-    ? `Until ${new Date(event.recurrenceEndDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`
+    ? `Until ${new Date(new Date(event.recurrenceEndDate).toISOString().split('T')[0] + 'T00:00:00').toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`
     : null
 
   const locationLabel =
@@ -407,7 +409,7 @@ export default async function EventDetailPage({ params }: PageProps) {
                   {/* Registration Deadline */}
                   {event.registrationDeadline && (
                     <p className="text-body-3 text-black-3">
-                      Register by: {new Date(event.registrationDeadline).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                      Register by: {new Date(new Date(event.registrationDeadline).toISOString().split('T')[0] + 'T00:00:00').toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
                     </p>
                   )}
                 </div>

@@ -6,6 +6,7 @@ import MessageCard from "@/components/website/shared/message-card"
 import FilterToolbar from "@/components/website/shared/filter-toolbar"
 import { IconGrid, IconListView, IconBookOpen, IconUser, IconVideo, IconFileText, IconChevronRight, IconFolder } from "@/components/website/shared/icons"
 import { useSectionTheme } from "@/components/website/shared/theme-context"
+import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { resolveHref } from "@/lib/website/resolve-href"
@@ -196,6 +197,9 @@ export default function AllMessagesClient({
   const abortRef = useRef<AbortController | null>(null)
   // Search debounce timer ref
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Content area ref for min-height preservation during filtering (prevents scroll jump)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [contentMinHeight, setContentMinHeight] = useState<number | undefined>()
 
   /**
    * Fetch filtered messages from the API. Replaces current messages (page 1).
@@ -210,6 +214,10 @@ export default function AllMessagesClient({
     const controller = new AbortController()
     abortRef.current = controller
 
+    // Capture current content height to prevent scroll jump during loading
+    if (contentRef.current) {
+      setContentMinHeight(contentRef.current.offsetHeight)
+    }
     setIsFiltering(true)
 
     try {
@@ -227,15 +235,22 @@ export default function AllMessagesClient({
       if (!json.success) throw new Error('API returned failure')
 
       const transformed = transformApiMessages(json.data ?? [])
+      // Small delay so the fade-out is visible before swapping content
+      await new Promise((r) => setTimeout(r, 150))
       setMessages(transformed)
       setServerTotal(json.pagination?.total ?? transformed.length)
       setCurrentPage(1)
+      // Let React render new content before fading in
+      requestAnimationFrame(() => {
+        setIsFiltering(false)
+        setContentMinHeight(undefined)
+      })
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return
       console.error('[AllMessagesClient] fetchFiltered error:', err)
-    } finally {
       if (!controller.signal.aborted) {
         setIsFiltering(false)
+        setContentMinHeight(undefined)
       }
     }
   }, [pageSize])
@@ -297,6 +312,7 @@ export default function AllMessagesClient({
       setServerTotal(pagination?.total ?? initialMessages.length)
       setCurrentPage(pagination?.page ?? 1)
       setIsFiltering(false)
+      setContentMinHeight(undefined)
       return
     }
 
@@ -382,6 +398,7 @@ export default function AllMessagesClient({
     setServerTotal(pagination?.total ?? initialMessages.length)
     setCurrentPage(pagination?.page ?? 1)
     setIsFiltering(false)
+    setContentMinHeight(undefined)
   }
 
   /** Switch to "all" tab with a specific filter pre-applied */
@@ -510,61 +527,61 @@ export default function AllMessagesClient({
       {/* ---- All Messages Tab ---- */}
       {tab === "all" && (
         <>
-          {/* Loading overlay */}
-          {isFiltering ? (
-            <div className="relative min-h-[300px]">
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="flex flex-col items-center gap-3">
-                  <div className={cn(
-                    "size-8 border-2 border-current border-t-transparent rounded-full animate-spin",
-                    t.textMuted,
-                  )} />
-                  <p className={cn("text-[14px]", t.textMuted)}>Loading messages...</p>
+          <div ref={contentRef} className="relative" style={{ minHeight: contentMinHeight ? `${contentMinHeight}px` : undefined }}>
+            <div className={cn("transition-opacity duration-500 ease-in-out", isFiltering ? "opacity-30 pointer-events-none" : "opacity-100")}>
+              {messages.length === 0 && !isFiltering ? (
+                <div className="flex flex-col items-center py-20">
+                  <p className={cn("text-body-1", t.textSecondary)}>
+                    No messages found matching your criteria.
+                  </p>
+                  <button
+                    onClick={handleReset}
+                    className="mt-4 text-accent-blue text-[14px] font-medium hover:underline"
+                  >
+                    Clear all filters
+                  </button>
                 </div>
-              </div>
+              ) : viewMode === "card" ? (
+                <CardGrid messages={messages} columns={layout.columns} cardGap={layout.cardGap} />
+              ) : (
+                <MessageListView messages={messages} t={t} />
+              )}
             </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center py-20">
-              <p className={cn("text-body-1", t.textSecondary)}>
-                No messages found matching your criteria.
-              </p>
-              <button
-                onClick={handleReset}
-                className="mt-4 text-accent-blue text-[14px] font-medium hover:underline"
-              >
-                Clear all filters
-              </button>
-            </div>
-          ) : viewMode === "card" ? (
-            <CardGrid messages={messages} columns={layout.columns} cardGap={layout.cardGap} />
-          ) : (
-            <MessageListView messages={messages} t={t} />
-          )}
+          </div>
 
           {/* Load more */}
           {!isFiltering && hasMore && (
-            <div className="flex justify-center mt-10">
-              <button
-                onClick={loadMore}
-                disabled={isLoadingMore}
-                className={cn(
-                  "inline-flex items-center justify-center rounded-full border px-8 py-4 text-button-1 transition-colors",
-                  t.btnOutlineBorder, t.btnOutlineText,
-                  isLoadingMore && "opacity-60 cursor-not-allowed",
-                )}
-              >
-                {isLoadingMore ? (
-                  <span className="flex items-center gap-2">
-                    <span className={cn(
-                      "size-4 border-2 border-current border-t-transparent rounded-full animate-spin",
-                    )} />
-                    Loading...
-                  </span>
-                ) : (
-                  "Load More Messages"
-                )}
-              </button>
-            </div>
+            <>
+              {isLoadingMore && (
+                <div className={`grid ${MOBILE_COLS[layout.columns.mobile] ?? 'grid-cols-1'} ${TABLET_COLS[layout.columns.tablet] ?? 'md:grid-cols-2'} ${DESKTOP_COLS[layout.columns.desktop] ?? 'lg:grid-cols-3'} ${GAP_MAP[layout.cardGap] ?? 'gap-5'} mt-5`}>
+                  {Array.from({ length: layout.columns.desktop }).map((_, i) => (
+                    <MessageCardSkeleton key={i} />
+                  ))}
+                </div>
+              )}
+              <div className="flex justify-center mt-10">
+                <button
+                  onClick={loadMore}
+                  disabled={isLoadingMore}
+                  className={cn(
+                    "inline-flex items-center justify-center rounded-full border px-8 py-4 text-button-1 transition-colors",
+                    t.btnOutlineBorder, t.btnOutlineText,
+                    isLoadingMore && "opacity-60 cursor-not-allowed",
+                  )}
+                >
+                  {isLoadingMore ? (
+                    <span className="flex items-center gap-2">
+                      <span className={cn(
+                        "size-4 border-2 border-current border-t-transparent rounded-full animate-spin",
+                      )} />
+                      Loading...
+                    </span>
+                  ) : (
+                    "Load More Messages"
+                  )}
+                </button>
+              </div>
+            </>
           )}
         </>
       )}
@@ -635,6 +652,93 @@ function CardGrid({
     <div className={`grid ${gridClass}`}>
       {messages.map((message) => (
         <MessageCard key={message.id} message={message} />
+      ))}
+    </div>
+  )
+}
+
+/* ---- Skeleton Components ---- */
+
+function MessageCardSkeleton() {
+  return (
+    <div className="rounded-[24px] p-3 bg-muted/30">
+      {/* Thumbnail skeleton */}
+      <Skeleton className="aspect-video w-full rounded-[16px]" />
+      {/* Content area */}
+      <div className="pt-5 px-2 pb-3 space-y-3">
+        {/* Date + series pill row */}
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-3.5 w-28" />
+          <Skeleton className="h-6 w-20 rounded-[8px]" />
+        </div>
+        {/* Title */}
+        <Skeleton className="h-6 w-full" />
+        <Skeleton className="h-6 w-3/4" />
+        {/* Speaker + passage */}
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center gap-2">
+            <Skeleton className="size-4 rounded-full" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+          <div className="flex items-center gap-2">
+            <Skeleton className="size-4 rounded-full" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MessageListItemSkeleton() {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-6 py-5 -mx-4 px-4">
+      {/* Mini thumbnail -- desktop only */}
+      <Skeleton className="w-[120px] aspect-video rounded-[8px] shrink-0 hidden sm:block" />
+      <div className="flex-1 min-w-0 space-y-2">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-5 w-20 rounded-[6px]" />
+          <Skeleton className="h-3.5 w-24" />
+        </div>
+        <Skeleton className="h-5 w-3/4" />
+        <div className="flex gap-4">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-4 w-36" />
+        </div>
+      </div>
+      <Skeleton className="h-5 w-5 rounded shrink-0 hidden sm:block" />
+    </div>
+  )
+}
+
+function MessageCardSkeletonGrid({
+  columns,
+  cardGap,
+}: {
+  columns: { desktop: number; tablet: number; mobile: number }
+  cardGap: string
+}) {
+  const gridClass = [
+    MOBILE_COLS[columns.mobile] ?? 'grid-cols-1',
+    TABLET_COLS[columns.tablet] ?? 'md:grid-cols-2',
+    DESKTOP_COLS[columns.desktop] ?? 'lg:grid-cols-3',
+    GAP_MAP[cardGap] ?? 'gap-5',
+  ].join(' ')
+
+  return (
+    <div className={`grid ${gridClass}`}>
+      {Array.from({ length: columns.desktop * 2 }).map((_, i) => (
+        <MessageCardSkeleton key={i} />
+      ))}
+    </div>
+  )
+}
+
+function MessageListSkeletonGrid() {
+  return (
+    <div className="flex flex-col divide-y divide-muted">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <MessageListItemSkeleton key={i} />
       ))}
     </div>
   )

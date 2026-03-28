@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useMemo, useCallback, useEffect, useRef, useTransition } from "react"
+import { useState, useMemo, useEffect, useRef, useTransition } from "react"
 import SectionContainer from "@/components/website/shared/section-container"
 import VideoCard from "@/components/website/shared/video-card"
 import VideoModal from "@/components/website/shared/video-modal"
 import FilterToolbar from "@/components/website/shared/filter-toolbar"
+import { Skeleton } from "@/components/ui/skeleton"
 import { themeTokens, type SectionTheme } from "@/components/website/shared/theme-tokens"
 
 interface Video {
@@ -89,7 +90,28 @@ async function fetchVideos(url: string): Promise<{ videos: Video[]; pagination: 
   return { videos, pagination: json.pagination }
 }
 
-export default function AllVideosSection({ content, enableAnimations, colorScheme = "light", paddingY, containerWidth, videos: initialVideos = [], filterMeta, pagination: initialPagination }: Props) {
+function VideoCardSkeleton() {
+  return (
+    <div className="rounded-[16px]">
+      {/* Thumbnail skeleton */}
+      <Skeleton className="aspect-video w-full rounded-[16px]" />
+      {/* Content area */}
+      <div className="pt-3 pb-1 px-1 space-y-2">
+        {/* Category + date */}
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-2.5 w-16" />
+          <Skeleton className="size-[3px] rounded-full" />
+          <Skeleton className="h-2.5 w-20" />
+        </div>
+        {/* Title */}
+        <Skeleton className="h-5 w-full" />
+        <Skeleton className="h-5 w-2/3" />
+      </div>
+    </div>
+  )
+}
+
+export default function AllVideosSection({ colorScheme = "light", containerWidth, videos: initialVideos = [], filterMeta, pagination: initialPagination }: Props) {
   const t = themeTokens[colorScheme]
 
   const [search, setSearch] = useState("")
@@ -104,9 +126,9 @@ export default function AllVideosSection({ content, enableAnimations, colorSchem
   const [currentPage, setCurrentPage] = useState(initialPagination?.page ?? 1)
   const [isFiltering, startFiltering] = useTransition()
   const [isLoadingMore, startLoadingMore] = useTransition()
-
-  /* Track whether any filter has been applied (to know if we should use API) */
-  const hasActiveFilters = !!(search || filterCategory || sortField !== "date" || sortDirection !== "desc")
+  // Content area ref for min-height preservation during filtering (prevents scroll jump)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [contentMinHeight, setContentMinHeight] = useState<number | undefined>()
 
   const categoryOptions = useMemo(() => {
     if (filterMeta?.categories) {
@@ -153,11 +175,18 @@ export default function AllVideosSection({ content, enableAnimations, colorSchem
       sortDir: sortDirection,
     })
 
+    // Capture current content height to prevent scroll jump during loading
+    if (contentRef.current) {
+      setContentMinHeight(contentRef.current.offsetHeight)
+    }
     startFiltering(async () => {
       const result = await fetchVideos(url)
+      // Small delay so the fade-out is visible before swapping content
+      await new Promise((r) => setTimeout(r, 150))
       setVideos(result.videos)
       setTotalCount(result.pagination.total)
       setCurrentPage(1)
+      requestAnimationFrame(() => setContentMinHeight(undefined))
     })
   }, [debouncedSearch, filterCategory, sortField, sortDirection, initialVideos, initialPagination])
 
@@ -237,51 +266,60 @@ export default function AllVideosSection({ content, enableAnimations, colorSchem
         className="mb-8"
       />
 
-      {/* Loading state for filter changes */}
-      {isFiltering ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-black-1/10 border-t-black-1" />
+      {/* Content area with min-height preservation to prevent scroll jump */}
+      <div ref={contentRef} className="relative" style={{ minHeight: contentMinHeight ? `${contentMinHeight}px` : undefined }}>
+        <div className={`transition-opacity duration-500 ease-in-out ${isFiltering ? "opacity-30 pointer-events-none" : "opacity-100"}`}>
+          {videos.length === 0 && !isFiltering ? (
+            <div className="flex flex-col items-center py-20">
+              <p className={`text-body-1 ${t.textSecondary}`}>
+                No videos found matching your criteria.
+              </p>
+              <button
+                onClick={() => {
+                  setSearch("")
+                  setFilterCategory(undefined)
+                  setSortField("date")
+                  setSortDirection("desc")
+                }}
+                className="mt-4 text-accent-blue text-[14px] font-medium hover:underline"
+              >
+                Clear all filters
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {videos.map((video) => (
+                <VideoCard
+                  key={video.id}
+                  video={video}
+                  onClick={() => setSelectedVideo(video)}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      ) : videos.length === 0 ? (
-        <div className="flex flex-col items-center py-20">
-          <p className={`text-body-1 ${t.textSecondary}`}>
-            No videos found matching your criteria.
-          </p>
-          <button
-            onClick={() => {
-              setSearch("")
-              setFilterCategory(undefined)
-              setSortField("date")
-              setSortDirection("desc")
-            }}
-            className="mt-4 text-accent-blue text-[14px] font-medium hover:underline"
-          >
-            Clear all filters
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {videos.map((video) => (
-            <VideoCard
-              key={video.id}
-              video={video}
-              onClick={() => setSelectedVideo(video)}
-            />
-          ))}
-        </div>
-      )}
+      </div>
 
       {/* Load more */}
       {hasMore && !isFiltering && (
-        <div className="flex justify-center mt-10">
-          <button
-            disabled={isLoadingMore}
-            onClick={handleLoadMore}
-            className="inline-flex items-center justify-center rounded-full border border-black-1/30 px-8 py-4 text-button-1 text-black-1 transition-colors hover:bg-black-1 hover:text-white-1 disabled:opacity-50"
-          >
-            {isLoadingMore ? "Loading..." : "Load More Videos"}
-          </button>
-        </div>
+        <>
+          {isLoadingMore && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-5">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <VideoCardSkeleton key={i} />
+              ))}
+            </div>
+          )}
+          <div className="flex justify-center mt-10">
+            <button
+              disabled={isLoadingMore}
+              onClick={handleLoadMore}
+              className="inline-flex items-center justify-center rounded-full border border-black-1/30 px-8 py-4 text-button-1 text-black-1 transition-colors hover:bg-black-1 hover:text-white-1 disabled:opacity-50"
+            >
+              {isLoadingMore ? "Loading..." : "Load More Videos"}
+            </button>
+          </div>
+        </>
       )}
 
       {/* Video modal */}

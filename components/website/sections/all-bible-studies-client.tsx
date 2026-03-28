@@ -5,6 +5,7 @@ import SectionContainer from "@/components/website/shared/section-container"
 import BibleStudyCard from "@/components/website/shared/bible-study-card"
 import FilterToolbar from "@/components/website/shared/filter-toolbar"
 import { IconGrid, IconListView, IconBookOpen, IconFileText, IconHelpCircle, IconVideo, IconChevronRight, IconFolder } from "@/components/website/shared/icons"
+import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
 import { resolveHref } from "@/lib/website/resolve-href"
@@ -203,6 +204,9 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Abort controller for in-flight requests
   const abortRef = useRef<AbortController | null>(null)
+  // Content area ref for min-height preservation during filtering (prevents scroll jump)
+  const contentRef = useRef<HTMLDivElement>(null)
+  const [contentMinHeight, setContentMinHeight] = useState<number | undefined>()
 
   /**
    * Fetch filtered studies from the API. Replaces current results (page 1)
@@ -219,8 +223,15 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
     const controller = new AbortController()
     abortRef.current = controller
 
-    if (append) setIsLoadingMore(true)
-    else setIsLoading(true)
+    if (append) {
+      setIsLoadingMore(true)
+    } else {
+      // Capture current content height to prevent scroll jump during loading
+      if (contentRef.current) {
+        setContentMinHeight(contentRef.current.offsetHeight)
+      }
+      setIsLoading(true)
+    }
 
     try {
       const url = buildApiUrl(page, currentFilters, currentSearch)
@@ -230,24 +241,37 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
       if (!json.success || !json.data) return
 
       const newStudies = transformApiStudies(json.data)
+
+      // Update data first, then fade in after a short delay for smooth transition
       if (append) {
         setStudies((prev) => {
           const existingIds = new Set(prev.map((s) => s.id))
           const unique = newStudies.filter((s) => !existingIds.has(s.id))
           return [...prev, ...unique]
         })
+        setTotalResults(json.pagination.total)
+        setCurrentPage(json.pagination.page)
+        setIsLoadingMore(false)
       } else {
+        // Small delay so the fade-out is visible before swapping content
+        await new Promise((r) => setTimeout(r, 150))
         setStudies(newStudies)
+        setTotalResults(json.pagination.total)
+        setCurrentPage(json.pagination.page)
+        // Another small delay so React renders new content before fading in
+        requestAnimationFrame(() => {
+          setIsLoading(false)
+          setContentMinHeight(undefined)
+        })
       }
-      setTotalResults(json.pagination.total)
-      setCurrentPage(json.pagination.page)
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') return
       console.error('[AllBibleStudiesClient] fetch error:', err)
     } finally {
-      if (!controller.signal.aborted) {
-        setIsLoading(false)
-        setIsLoadingMore(false)
+      if (controller.signal.aborted) return
+      // Only clear loading for append mode here; non-append is handled above
+      if (append) {
+        setContentMinHeight(undefined)
       }
     }
   }, [])
@@ -274,10 +298,15 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
       setTotalResults(pagination?.total ?? initialStudies.length)
       setCurrentPage(pagination?.page ?? 1)
       setIsLoading(false)
+      setContentMinHeight(undefined)
       return
     }
 
     if (debounce) {
+      // Capture current content height to prevent scroll jump during loading
+      if (contentRef.current) {
+        setContentMinHeight(contentRef.current.offsetHeight)
+      }
       setIsLoading(true) // Show loading state immediately for perceived responsiveness
       searchTimerRef.current = setTimeout(() => {
         fetchStudies(1, newFilters, newSearch, false)
@@ -539,47 +568,55 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
       {/* ---- All Studies Tab ---- */}
       {tab === "all" && (
         <>
-          {isLoading ? (
-            <div className="flex flex-col items-center py-20">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black-1 mb-4" />
-              <p className="text-body-1 text-black-3">Loading studies...</p>
+          <div ref={contentRef} className="relative" style={{ minHeight: contentMinHeight ? `${contentMinHeight}px` : undefined }}>
+            <div className={cn("transition-opacity duration-500 ease-in-out", isLoading ? "opacity-30" : "opacity-100")}>
+              {sortedStudies.length === 0 && !isLoading ? (
+                <div className="flex flex-col items-center py-20">
+                  <p className="text-body-1 text-black-2">
+                    No studies found matching your criteria.
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSearch("")
+                      setFilters({})
+                      setYearFilter("")
+                      triggerFilteredFetch({}, "", false)
+                    }}
+                    className="mt-4 text-accent-blue text-[14px] font-medium hover:underline"
+                  >
+                    Clear all filters
+                  </button>
+                </div>
+              ) : viewMode === "card" ? (
+                <CardGrid studies={sortedStudies} />
+              ) : (
+                <StudyListView studies={sortedStudies} />
+              )}
             </div>
-          ) : sortedStudies.length === 0 ? (
-            <div className="flex flex-col items-center py-20">
-              <p className="text-body-1 text-black-2">
-                No studies found matching your criteria.
-              </p>
-              <button
-                onClick={() => {
-                  setSearch("")
-                  setFilters({})
-                  setYearFilter("")
-                  triggerFilteredFetch({}, "", false)
-                }}
-                className="mt-4 text-accent-blue text-[14px] font-medium hover:underline"
-              >
-                Clear all filters
-              </button>
-            </div>
-          ) : viewMode === "card" ? (
-            <CardGrid studies={sortedStudies} />
-          ) : (
-            <StudyListView studies={sortedStudies} />
-          )}
+          </div>
 
           {/* Load more -- fetches next page with current filters */}
           {hasMore && !isLoading && (
-            <div className="flex justify-center mt-10">
-              <button
-                disabled={isLoadingMore}
-                onClick={() => {
-                  fetchStudies(currentPage + 1, filters, search, true)
-                }}
-                className="inline-flex items-center justify-center rounded-full border border-black-1/30 px-8 py-4 text-button-1 text-black-1 transition-colors hover:bg-black-1 hover:text-white-1 disabled:opacity-50"
-              >
-                {isLoadingMore ? 'Loading...' : 'Load More Studies'}
-              </button>
-            </div>
+            <>
+              {isLoadingMore && (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mt-5">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <BibleStudyCardSkeleton key={i} />
+                  ))}
+                </div>
+              )}
+              <div className="flex justify-center mt-10">
+                <button
+                  disabled={isLoadingMore}
+                  onClick={() => {
+                    fetchStudies(currentPage + 1, filters, search, true)
+                  }}
+                  className="inline-flex items-center justify-center rounded-full border border-black-1/30 px-8 py-4 text-button-1 text-black-1 transition-colors hover:bg-black-1 hover:text-white-1 disabled:opacity-50"
+                >
+                  {isLoadingMore ? 'Loading...' : 'Load More Studies'}
+                </button>
+              </div>
+            </>
           )}
         </>
       )}
@@ -606,6 +643,85 @@ export default function AllBibleStudiesClient({ studies: initialStudies, heading
         </>
       )}
     </SectionContainer>
+  )
+}
+
+/* ---- Skeleton Components ---- */
+
+function BibleStudyCardSkeleton() {
+  return (
+    <div className="rounded-[24px] min-h-[232px] p-[28px] border border-muted">
+      <div className="flex flex-col h-full min-h-[176px]">
+        {/* Date + series pill row */}
+        <div className="flex items-center justify-between mb-3">
+          <Skeleton className="h-3.5 w-28" />
+          <Skeleton className="h-6 w-24 rounded-[8px]" />
+        </div>
+        {/* Title */}
+        <div className="px-2 space-y-2 mb-5">
+          <Skeleton className="h-6 w-full" />
+          <Skeleton className="h-6 w-2/3" />
+          {/* Passage */}
+          <div className="flex items-center gap-2 pt-1">
+            <Skeleton className="size-4 rounded-full" />
+            <Skeleton className="h-4 w-40" />
+          </div>
+        </div>
+        {/* Bottom icons + arrow */}
+        <div className="flex items-center justify-between mt-auto">
+          <div className="flex gap-2">
+            <Skeleton className="size-8 rounded-[8px]" />
+            <Skeleton className="size-8 rounded-[8px]" />
+          </div>
+          <Skeleton className="size-6 rounded" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BibleStudyListItemSkeleton() {
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-6 py-5 -mx-4 px-4">
+      <div className="flex-1 min-w-0 space-y-2">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-3.5 w-24" />
+          <Skeleton className="h-5 w-20 rounded-[6px]" />
+        </div>
+        <Skeleton className="h-5 w-3/4" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="size-3.5 rounded-full" />
+          <Skeleton className="h-4 w-36" />
+        </div>
+      </div>
+      <div className="flex items-center gap-3 shrink-0">
+        <div className="flex gap-1.5">
+          <Skeleton className="size-7 rounded-[6px]" />
+          <Skeleton className="size-7 rounded-[6px]" />
+        </div>
+        <Skeleton className="size-5 rounded" />
+      </div>
+    </div>
+  )
+}
+
+function BibleStudyCardSkeletonGrid() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <BibleStudyCardSkeleton key={i} />
+      ))}
+    </div>
+  )
+}
+
+function BibleStudyListSkeletonGrid() {
+  return (
+    <div className="flex flex-col divide-y divide-muted">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <BibleStudyListItemSkeleton key={i} />
+      ))}
+    </div>
   )
 }
 
