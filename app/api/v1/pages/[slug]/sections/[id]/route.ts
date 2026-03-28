@@ -5,6 +5,7 @@ import { getPageBySlugOrId, updatePageSection, deletePageSection } from '@/lib/d
 import { validateSectionContent, validateSectionUpdateFields } from '@/lib/api/validation'
 import { requireApiAuth } from '@/lib/api/require-auth'
 import { Prisma } from '@/lib/generated/prisma/client'
+import { invalidatePages } from '@/lib/cache/invalidation'
 
 type Params = { params: Promise<{ slug: string; id: string }> }
 
@@ -43,6 +44,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (page?.isHomepage) {
       revalidatePath('/website')
     }
+    invalidatePages(churchId)
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -80,6 +82,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     if (page?.isHomepage) {
       revalidatePath('/website')
     }
+    invalidatePages(churchId)
 
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {

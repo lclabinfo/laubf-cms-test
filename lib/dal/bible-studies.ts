@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { ContentStatus, Prisma, type BibleBook } from '@/lib/generated/prisma/client'
+import { unstable_cache } from 'next/cache'
 import { paginationArgs, paginatedResult, type PaginationParams, type PaginatedResult } from './types'
 import { deleteAllStudyAttachments } from '@/lib/upload-attachment'
 
@@ -64,7 +65,7 @@ export type BibleStudyFilterMeta = {
  * can render complete filter dropdowns on first render without waiting for
  * all pages to load.
  */
-export async function getBibleStudyFilterMeta(churchId: string): Promise<BibleStudyFilterMeta> {
+async function _getBibleStudyFilterMeta(churchId: string): Promise<BibleStudyFilterMeta> {
   const where: Prisma.BibleStudyWhereInput = {
     churchId,
     deletedAt: null,
@@ -117,7 +118,15 @@ export async function getBibleStudyFilterMeta(churchId: string): Promise<BibleSt
   return { years: yearRows, series: seriesRows, books: bookRows }
 }
 
-export async function getBibleStudies(
+export function getBibleStudyFilterMeta(churchId: string): Promise<BibleStudyFilterMeta> {
+  return unstable_cache(
+    () => _getBibleStudyFilterMeta(churchId),
+    ['bible-study-filter-meta', churchId],
+    { revalidate: 3600, tags: [`church:${churchId}:studies`] }
+  )()
+}
+
+async function _getBibleStudies(
   churchId: string,
   filters?: BibleStudyFilters & PaginationParams,
 ): Promise<PaginatedResult<BibleStudyListItem>> {
@@ -176,7 +185,18 @@ export async function getBibleStudies(
   return paginatedResult(data, total, page, pageSize)
 }
 
-export async function getBibleStudyBySlug(
+export function getBibleStudies(
+  churchId: string,
+  filters?: BibleStudyFilters & PaginationParams,
+): Promise<PaginatedResult<BibleStudyListItem>> {
+  return unstable_cache(
+    () => _getBibleStudies(churchId, filters),
+    ['bible-studies', churchId, JSON.stringify(filters ?? {})],
+    { revalidate: 300, tags: [`church:${churchId}:studies`] }
+  )()
+}
+
+async function _getBibleStudyBySlug(
   churchId: string,
   slug: string,
 ): Promise<BibleStudyWithRelations | null> {
@@ -185,6 +205,17 @@ export async function getBibleStudyBySlug(
     omit: bibleStudyDetailOmit,
     include: bibleStudyInclude,
   })
+}
+
+export function getBibleStudyBySlug(
+  churchId: string,
+  slug: string,
+): Promise<BibleStudyWithRelations | null> {
+  return unstable_cache(
+    () => _getBibleStudyBySlug(churchId, slug),
+    ['bible-study-by-slug', churchId, slug],
+    { revalidate: 3600, tags: [`church:${churchId}:studies`] }
+  )()
 }
 
 export async function createBibleStudy(

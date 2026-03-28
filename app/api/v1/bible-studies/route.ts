@@ -5,6 +5,7 @@ import { getBibleStudies, createBibleStudy, type BibleStudyFilters } from '@/lib
 import { ContentStatus, type BibleBook } from '@/lib/generated/prisma/client'
 import { validateAll, validateTitle, validateSlug, validateEnum, CONTENT_STATUS_VALUES } from '@/lib/api/validation'
 import { requireApiAuth } from '@/lib/api/require-auth'
+import { invalidateStudies } from '@/lib/cache/invalidation'
 
 export async function GET(request: NextRequest) {
   try {
@@ -83,6 +84,7 @@ export async function POST(request: NextRequest) {
     // Revalidate public website pages that display bible studies
     revalidatePath('/website')
     revalidatePath('/website/bible-study')
+    invalidateStudies(churchId)
 
     return NextResponse.json({ success: true, data: study }, { status: 201 })
   } catch (error) {

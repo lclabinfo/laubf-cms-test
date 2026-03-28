@@ -1,9 +1,10 @@
 import { prisma } from '@/lib/db'
 import { ContentStatus, Prisma, type DailyBread } from '@/lib/generated/prisma/client'
+import { unstable_cache } from 'next/cache'
 
 type DailyBreadRecord = DailyBread
 
-export async function getTodaysDailyBread(
+async function _getTodaysDailyBread(
   churchId: string,
 ): Promise<DailyBreadRecord | null> {
   // Use UTC midnight to match @db.Date columns (Prisma stores dates as UTC midnight)
@@ -19,6 +20,16 @@ export async function getTodaysDailyBread(
       deletedAt: null,
     },
   })
+}
+
+export function getTodaysDailyBread(
+  churchId: string,
+): Promise<DailyBreadRecord | null> {
+  return unstable_cache(
+    () => _getTodaysDailyBread(churchId),
+    ['daily-bread', churchId],
+    { revalidate: 3600, tags: [`church:${churchId}:daily-bread`] }
+  )()
 }
 
 export async function getDailyBreads(

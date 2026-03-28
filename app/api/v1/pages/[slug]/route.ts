@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getPageBySlugOrId, updatePage, deletePage } from '@/lib/dal/pages'
 import { requireApiAuth } from '@/lib/api/require-auth'
+import { invalidatePages } from '@/lib/cache/invalidation'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -57,6 +58,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (existing.isHomepage || body.isHomepage) {
       revalidatePath('/website')
     }
+    invalidatePages(churchId)
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -92,6 +94,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     if (existing.isHomepage) {
       revalidatePath('/website')
     }
+    invalidatePages(churchId)
 
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {

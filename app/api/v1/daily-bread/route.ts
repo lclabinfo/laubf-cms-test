@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getDailyBreads, getTodaysDailyBread, createDailyBread } from '@/lib/dal/daily-bread'
+import { invalidateDailyBread } from '@/lib/cache/invalidation'
 
 export async function GET(request: NextRequest) {
   try {
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest) {
 
     // Revalidate public website pages that display daily bread
     revalidatePath('/website', 'layout')
+    invalidateDailyBread(churchId)
 
     return NextResponse.json({ success: true, data: entry }, { status: 201 })
   } catch (error) {

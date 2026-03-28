@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { Prisma } from '@/lib/generated/prisma/client'
+import { unstable_cache } from 'next/cache'
 
 type PageWithSections = Prisma.PageGetPayload<{
   include: { sections: true }
@@ -7,7 +8,7 @@ type PageWithSections = Prisma.PageGetPayload<{
 
 type PageRecord = Prisma.PageGetPayload<Record<string, never>>
 
-export async function getPageBySlug(
+async function _getPageBySlug(
   churchId: string,
   slug: string,
 ): Promise<PageWithSections | null> {
@@ -19,7 +20,18 @@ export async function getPageBySlug(
   })
 }
 
-export async function getHomepage(
+export function getPageBySlug(
+  churchId: string,
+  slug: string,
+): Promise<PageWithSections | null> {
+  return unstable_cache(
+    () => _getPageBySlug(churchId, slug),
+    ['page-by-slug', churchId, slug],
+    { revalidate: 3600, tags: [`church:${churchId}:pages`] }
+  )()
+}
+
+async function _getHomepage(
   churchId: string,
 ): Promise<PageWithSections | null> {
   return prisma.page.findFirst({
@@ -30,12 +42,30 @@ export async function getHomepage(
   })
 }
 
-export async function getPages(churchId: string): Promise<PageRecord[]> {
+export function getHomepage(
+  churchId: string,
+): Promise<PageWithSections | null> {
+  return unstable_cache(
+    () => _getHomepage(churchId),
+    ['homepage', churchId],
+    { revalidate: 3600, tags: [`church:${churchId}:pages`] }
+  )()
+}
+
+async function _getPages(churchId: string): Promise<PageRecord[]> {
   return prisma.page.findMany({
     where: { churchId, deletedAt: null },
     orderBy: { sortOrder: 'asc' },
     take: 100,
   })
+}
+
+export function getPages(churchId: string): Promise<PageRecord[]> {
+  return unstable_cache(
+    () => _getPages(churchId),
+    ['pages-list', churchId],
+    { revalidate: 3600, tags: [`church:${churchId}:pages`] }
+  )()
 }
 
 export async function createPage(

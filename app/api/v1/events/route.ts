@@ -7,6 +7,7 @@ import { getCampusBySlug } from '@/lib/dal/campuses'
 import { ContentStatus, type EventType } from '@/lib/generated/prisma/client'
 import { validateAll, validateTitle, validateSlug, validateLongText, validateUrl, validateEnum, CONTENT_STATUS_VALUES, EVENT_TYPE_VALUES } from '@/lib/api/validation'
 import { requireApiAuth } from '@/lib/api/require-auth'
+import { invalidateEvents } from '@/lib/cache/invalidation'
 
 export async function GET(request: NextRequest) {
   try {
@@ -177,6 +178,7 @@ export async function POST(request: NextRequest) {
     // Revalidate public website pages that display events
     revalidatePath('/website')
     revalidatePath('/website/events')
+    invalidateEvents(churchId)
 
     return NextResponse.json({ success: true, data: event }, { status: 201 })
   } catch (error) {

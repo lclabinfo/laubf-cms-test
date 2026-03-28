@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { ContentStatus, Prisma, type Video, type VideoCategory } from '@/lib/generated/prisma/client'
+import { unstable_cache } from 'next/cache'
 import { paginationArgs, paginatedResult, type PaginationParams, type PaginatedResult } from './types'
 
 type VideoRecord = Video
@@ -22,7 +23,7 @@ export type VideoFilterMeta = {
 /**
  * Lightweight query to get all available filter options for published videos.
  */
-export async function getVideoFilterMeta(churchId: string): Promise<VideoFilterMeta> {
+async function _getVideoFilterMeta(churchId: string): Promise<VideoFilterMeta> {
   const rows = await prisma.video.findMany({
     where: { churchId, deletedAt: null, status: ContentStatus.PUBLISHED, category: { not: undefined } },
     select: { category: true },
@@ -33,7 +34,15 @@ export async function getVideoFilterMeta(churchId: string): Promise<VideoFilterM
   }
 }
 
-export async function getVideos(
+export function getVideoFilterMeta(churchId: string): Promise<VideoFilterMeta> {
+  return unstable_cache(
+    () => _getVideoFilterMeta(churchId),
+    ['video-filter-meta', churchId],
+    { revalidate: 3600, tags: [`church:${churchId}:videos`] }
+  )()
+}
+
+async function _getVideos(
   churchId: string,
   filters?: VideoFilters & PaginationParams,
 ): Promise<PaginatedResult<VideoRecord>> {
@@ -77,13 +86,35 @@ export async function getVideos(
   return paginatedResult(data, total, page, pageSize)
 }
 
-export async function getVideoBySlug(
+export function getVideos(
+  churchId: string,
+  filters?: VideoFilters & PaginationParams,
+): Promise<PaginatedResult<VideoRecord>> {
+  return unstable_cache(
+    () => _getVideos(churchId, filters),
+    ['videos', churchId, JSON.stringify(filters ?? {})],
+    { revalidate: 300, tags: [`church:${churchId}:videos`] }
+  )()
+}
+
+async function _getVideoBySlug(
   churchId: string,
   slug: string,
 ): Promise<VideoRecord | null> {
   return prisma.video.findFirst({
     where: { churchId, slug, deletedAt: null, status: ContentStatus.PUBLISHED },
   })
+}
+
+export function getVideoBySlug(
+  churchId: string,
+  slug: string,
+): Promise<VideoRecord | null> {
+  return unstable_cache(
+    () => _getVideoBySlug(churchId, slug),
+    ['video-by-slug', churchId, slug],
+    { revalidate: 3600, tags: [`church:${churchId}:videos`] }
+  )()
 }
 
 export async function createVideo(

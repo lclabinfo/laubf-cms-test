@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getChurch, updateChurch } from '@/lib/dal/church'
+import { invalidateLayout } from '@/lib/cache/invalidation'
 
 export async function GET() {
   try {
@@ -48,6 +49,7 @@ export async function PATCH(request: NextRequest) {
     const updated = await updateChurch(churchId, sanitized as Parameters<typeof updateChurch>[1])
 
     revalidatePath('/website', 'layout')
+    invalidateLayout(churchId)
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {

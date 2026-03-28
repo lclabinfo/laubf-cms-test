@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { Prisma, type MenuLocation } from '@/lib/generated/prisma/client'
+import { unstable_cache } from 'next/cache'
 
 type MenuWithItems = Prisma.MenuGetPayload<{
   include: {
@@ -11,7 +12,7 @@ type MenuWithItems = Prisma.MenuGetPayload<{
 
 type MenuRecord = Prisma.MenuGetPayload<Record<string, never>>
 
-export async function getMenuByLocation(
+async function _getMenuByLocation(
   churchId: string,
   location: MenuLocation,
 ): Promise<MenuWithItems | null> {
@@ -29,6 +30,17 @@ export async function getMenuByLocation(
       },
     },
   })
+}
+
+export function getMenuByLocation(
+  churchId: string,
+  location: MenuLocation,
+): Promise<MenuWithItems | null> {
+  return unstable_cache(
+    () => _getMenuByLocation(churchId, location),
+    ['menu-by-location', churchId, location],
+    { revalidate: 3600, tags: [`church:${churchId}:menus`] }
+  )()
 }
 
 export async function getMenus(churchId: string): Promise<MenuRecord[]> {

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { ContentStatus, Prisma, type EventType } from '@/lib/generated/prisma/client'
+import { unstable_cache } from 'next/cache'
 import { paginationArgs, paginatedResult, type PaginationParams, type PaginatedResult } from './types'
 
 type EventWithRelations = Prisma.EventGetPayload<{
@@ -58,7 +59,7 @@ export type EventFilterMeta = {
  * Returns years, ministries, and campuses so the client can render complete
  * filter dropdowns on first render even when data exceeds the page size.
  */
-export async function getEventFilterMeta(churchId: string): Promise<EventFilterMeta> {
+async function _getEventFilterMeta(churchId: string): Promise<EventFilterMeta> {
   const where: Prisma.EventWhereInput = {
     churchId,
     deletedAt: null,
@@ -96,7 +97,15 @@ export async function getEventFilterMeta(churchId: string): Promise<EventFilterM
   return { years: yearRows, ministries: ministryRows, campuses: campusRows }
 }
 
-export async function getEvents(
+export function getEventFilterMeta(churchId: string): Promise<EventFilterMeta> {
+  return unstable_cache(
+    () => _getEventFilterMeta(churchId),
+    ['event-filter-meta', churchId],
+    { revalidate: 3600, tags: [`church:${churchId}:events`] }
+  )()
+}
+
+async function _getEvents(
   churchId: string,
   filters?: EventFilters & PaginationParams,
 ): Promise<PaginatedResult<EventWithRelations>> {
@@ -153,7 +162,18 @@ export async function getEvents(
   return paginatedResult(data, total, page, pageSize)
 }
 
-export async function getEventBySlug(
+export function getEvents(
+  churchId: string,
+  filters?: EventFilters & PaginationParams,
+): Promise<PaginatedResult<EventWithRelations>> {
+  return unstable_cache(
+    () => _getEvents(churchId, filters),
+    ['events', churchId, JSON.stringify(filters ?? {})],
+    { revalidate: 300, tags: [`church:${churchId}:events`] }
+  )()
+}
+
+async function _getEventBySlug(
   churchId: string,
   slug: string,
 ): Promise<EventDetail | null> {
@@ -165,14 +185,23 @@ export async function getEventBySlug(
   return event
 }
 
-export async function getUpcomingEvents(
+export function getEventBySlug(
   churchId: string,
-  limit = 10,
+  slug: string,
+): Promise<EventDetail | null> {
+  return unstable_cache(
+    () => _getEventBySlug(churchId, slug),
+    ['event-by-slug', churchId, slug],
+    { revalidate: 3600, tags: [`church:${churchId}:events`] }
+  )()
+}
+
+async function _getUpcomingEvents(
+  churchId: string,
+  limit: number,
   options?: {
     includeRecurring?: boolean
-    /** Include past events that ended within this many days ago. 0 = no past events, -1 = infinite (all past). */
     pastEventsDays?: number
-    /** Sort order: 'asc' = upcoming first (default), 'desc' = most recent first */
     sortOrder?: 'asc' | 'desc'
   },
 ): Promise<EventWithRelations[]> {
@@ -218,9 +247,27 @@ export async function getUpcomingEvents(
   })
 }
 
-export async function getRecurringEvents(
+export function getUpcomingEvents(
   churchId: string,
-  limit?: number,
+  limit = 10,
+  options?: {
+    includeRecurring?: boolean
+    /** Include past events that ended within this many days ago. 0 = no past events, -1 = infinite (all past). */
+    pastEventsDays?: number
+    /** Sort order: 'asc' = upcoming first (default), 'desc' = most recent first */
+    sortOrder?: 'asc' | 'desc'
+  },
+): Promise<EventWithRelations[]> {
+  return unstable_cache(
+    () => _getUpcomingEvents(churchId, limit, options),
+    ['upcoming-events', churchId, String(limit), JSON.stringify(options ?? {})],
+    { revalidate: 300, tags: [`church:${churchId}:events`] }
+  )()
+}
+
+async function _getRecurringEvents(
+  churchId: string,
+  limit: number,
 ): Promise<EventWithRelations[]> {
   return prisma.event.findMany({
     where: {
@@ -231,8 +278,20 @@ export async function getRecurringEvents(
     },
     include: eventListInclude,
     orderBy: { dateStart: 'asc' },
-    take: limit || 50,
+    take: limit,
   })
+}
+
+export function getRecurringEvents(
+  churchId: string,
+  limit?: number,
+): Promise<EventWithRelations[]> {
+  const effectiveLimit = limit || 50
+  return unstable_cache(
+    () => _getRecurringEvents(churchId, effectiveLimit),
+    ['recurring-events', churchId, String(effectiveLimit)],
+    { revalidate: 300, tags: [`church:${churchId}:events`] }
+  )()
 }
 
 export async function createEvent(

@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { updateMenuItem, deleteMenuItem } from '@/lib/dal/menus'
 import { requireApiAuth } from '@/lib/api/require-auth'
+import { invalidateLayout } from '@/lib/cache/invalidation'
 
 type Params = { params: Promise<{ id: string; itemId: string }> }
 
@@ -31,6 +32,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     // Revalidate website layout (menus affect navbar/footer)
     revalidatePath('/website', 'layout')
+    invalidateLayout(churchId)
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -54,6 +56,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
 
     // Revalidate website layout (menus affect navbar/footer)
     revalidatePath('/website', 'layout')
+    invalidateLayout(churchId)
 
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {

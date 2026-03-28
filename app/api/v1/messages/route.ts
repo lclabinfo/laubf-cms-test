@@ -5,6 +5,7 @@ import { getMessages, createMessage, updateMessage as updateMessageRecord, type 
 import { syncMessageStudy } from '@/lib/dal/sync-message-study'
 import { validateAll, validateTitle, validateSlug, validateLongText, validateUrl } from '@/lib/api/validation'
 import { requireApiAuth } from '@/lib/api/require-auth'
+import { invalidateSermons } from '@/lib/cache/invalidation'
 
 export async function GET(request: NextRequest) {
   try {
@@ -123,6 +124,7 @@ export async function POST(request: NextRequest) {
     revalidatePath('/website')
     revalidatePath('/website/messages')
     revalidatePath('/website/bible-study')
+    invalidateSermons(churchId)
 
     return NextResponse.json({ success: true, data: message }, { status: 201 })
   } catch (error) {

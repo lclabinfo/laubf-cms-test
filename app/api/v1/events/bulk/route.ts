@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { prisma } from '@/lib/db'
 import { requireApiAuth } from '@/lib/api/require-auth'
+import { invalidateEvents } from '@/lib/cache/invalidation'
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
         })
         revalidatePath('/website')
         revalidatePath('/website/events')
+        invalidateEvents(churchId)
         return NextResponse.json({ success: true, data: { affected: result.count } })
       }
 
@@ -49,6 +51,7 @@ export async function POST(request: NextRequest) {
         })
         revalidatePath('/website')
         revalidatePath('/website/events')
+        invalidateEvents(churchId)
         return NextResponse.json({ success: true, data: { affected: result.count } })
       }
 
@@ -62,6 +65,7 @@ export async function POST(request: NextRequest) {
         })
         revalidatePath('/website')
         revalidatePath('/website/events')
+        invalidateEvents(churchId)
         return NextResponse.json({ success: true, data: { affected: result.count } })
       }
 
@@ -76,6 +80,7 @@ export async function POST(request: NextRequest) {
         })
         revalidatePath('/website')
         revalidatePath('/website/events')
+        invalidateEvents(churchId)
         return NextResponse.json({ success: true, data: { affected: result.count } })
       }
 
@@ -89,6 +94,7 @@ export async function POST(request: NextRequest) {
         })
         revalidatePath('/website')
         revalidatePath('/website/events')
+        invalidateEvents(churchId)
         return NextResponse.json({ success: true, data: { affected: result.count } })
       }
 
@@ -102,6 +108,7 @@ export async function POST(request: NextRequest) {
         })
         revalidatePath('/website')
         revalidatePath('/website/events')
+        invalidateEvents(churchId)
         return NextResponse.json({ success: true, data: { affected: result.count } })
       }
 

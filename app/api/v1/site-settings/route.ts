@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getSiteSettings, updateSiteSettings } from '@/lib/dal/site-settings'
 import { requireApiAuth } from '@/lib/api/require-auth'
+import { invalidateLayout } from '@/lib/cache/invalidation'
 
 export async function GET() {
   try {
@@ -31,6 +32,7 @@ export async function PATCH(request: NextRequest) {
 
     // Revalidate entire website layout (site settings affect navbar, footer, etc.)
     revalidatePath('/website', 'layout')
+    invalidateLayout(churchId)
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {

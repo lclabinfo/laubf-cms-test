@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getBibleStudyBySlug, updateBibleStudy, deleteBibleStudy } from '@/lib/dal/bible-studies'
 import { requireApiAuth } from '@/lib/api/require-auth'
+import { invalidateStudies } from '@/lib/cache/invalidation'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -53,6 +54,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     // Revalidate public website pages that display bible studies
     revalidatePath('/website')
     revalidatePath('/website/bible-study')
+    invalidateStudies(churchId)
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -85,6 +87,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     // Revalidate public website pages that display bible studies
     revalidatePath('/website')
     revalidatePath('/website/bible-study')
+    invalidateStudies(churchId)
 
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {

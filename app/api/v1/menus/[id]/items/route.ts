@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getMenuWithItems, createMenuItem, reorderMenuItems } from '@/lib/dal/menus'
 import { requireApiAuth } from '@/lib/api/require-auth'
+import { invalidateLayout } from '@/lib/cache/invalidation'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest, { params }: Params) {
 
     // Revalidate website layout (menus affect navbar/footer)
     revalidatePath('/website', 'layout')
+    invalidateLayout(churchId)
 
     return NextResponse.json({ success: true, data: item }, { status: 201 })
   } catch (error) {
@@ -98,6 +100,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
     // Revalidate website layout (menus affect navbar/footer)
     revalidatePath('/website', 'layout')
+    invalidateLayout(churchId)
 
     return NextResponse.json({ success: true, data: { reordered: true } })
   } catch (error) {

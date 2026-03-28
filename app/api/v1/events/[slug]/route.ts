@@ -7,6 +7,7 @@ import { getCampusBySlug } from '@/lib/dal/campuses'
 import { requireApiAuth } from '@/lib/api/require-auth'
 import { hardDeleteMediaAssetByUrl } from '@/lib/dal/media'
 import { validateAll, validateTitle, validateSlug, validateLongText, validateUrl, validateEnum, CONTENT_STATUS_VALUES, EVENT_TYPE_VALUES } from '@/lib/api/validation'
+import { invalidateEvents } from '@/lib/cache/invalidation'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -157,6 +158,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     // Revalidate public website pages that display events
     revalidatePath('/website')
     revalidatePath('/website/events')
+    invalidateEvents(churchId)
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -196,6 +198,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     // Revalidate public website pages that display events
     revalidatePath('/website')
     revalidatePath('/website/events')
+    invalidateEvents(churchId)
 
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {

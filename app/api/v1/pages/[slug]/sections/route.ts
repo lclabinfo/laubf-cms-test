@@ -4,6 +4,7 @@ import { getChurchId } from '@/lib/api/get-church-id'
 import { getPageBySlugOrId, createPageSection, reorderPageSections } from '@/lib/dal/pages'
 import { validateSectionContent, validateSectionCreateFields } from '@/lib/api/validation'
 import { requireApiAuth } from '@/lib/api/require-auth'
+import { invalidatePages } from '@/lib/cache/invalidation'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -56,6 +57,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     if (page.isHomepage) {
       revalidatePath('/website')
     }
+    invalidatePages(churchId)
 
     return NextResponse.json({ success: true, data: section }, { status: 201 })
   } catch (error) {
@@ -98,6 +100,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     if (page.isHomepage) {
       revalidatePath('/website')
     }
+    invalidatePages(churchId)
 
     return NextResponse.json({ success: true, data: { reordered: true } })
   } catch (error) {

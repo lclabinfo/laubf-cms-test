@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { getChurchId } from '@/lib/api/get-church-id'
 import { getVideoBySlug, updateVideo, deleteVideo } from '@/lib/dal/videos'
 import { requireApiAuth } from '@/lib/api/require-auth'
+import { invalidateVideos } from '@/lib/cache/invalidation'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -53,6 +54,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     // Revalidate public website pages that display videos
     revalidatePath('/website')
     revalidatePath('/website/videos')
+    invalidateVideos(churchId)
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -85,6 +87,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     // Revalidate public website pages that display videos
     revalidatePath('/website')
     revalidatePath('/website/videos')
+    invalidateVideos(churchId)
 
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { Prisma, type SiteSettings } from '@/lib/generated/prisma/client'
+import { unstable_cache } from 'next/cache'
 
 /** Override global omit to include all fields in detail/write queries */
 const siteSettingsDetailOmit = {
@@ -9,13 +10,23 @@ const siteSettingsDetailOmit = {
 
 type SiteSettingsRecord = SiteSettings
 
-export async function getSiteSettings(
+async function _getSiteSettings(
   churchId: string,
 ): Promise<SiteSettingsRecord | null> {
   return prisma.siteSettings.findUnique({
     where: { churchId },
     omit: siteSettingsDetailOmit,
   })
+}
+
+export function getSiteSettings(
+  churchId: string,
+): Promise<SiteSettingsRecord | null> {
+  return unstable_cache(
+    () => _getSiteSettings(churchId),
+    ['site-settings', churchId],
+    { revalidate: 3600, tags: [`church:${churchId}:settings`] }
+  )()
 }
 
 export async function updateSiteSettings(

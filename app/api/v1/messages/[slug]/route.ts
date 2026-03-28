@@ -4,6 +4,7 @@ import { getChurchId } from '@/lib/api/get-church-id'
 import { getMessageBySlug, getMessageById, updateMessage, deleteMessage, archiveMessage, unarchiveMessage } from '@/lib/dal/messages'
 import { syncMessageStudy, unlinkMessageStudy } from '@/lib/dal/sync-message-study'
 import { requireApiAuth } from '@/lib/api/require-auth'
+import { invalidateSermons } from '@/lib/cache/invalidation'
 
 type Params = { params: Promise<{ slug: string }> }
 
@@ -59,6 +60,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       revalidatePath('/website')
       revalidatePath('/website/messages')
       revalidatePath('/website/bible-study')
+      invalidateSermons(churchId)
       return NextResponse.json({ success: true, data: result })
     }
     if (body.action === 'unarchive') {
@@ -66,6 +68,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       revalidatePath('/website')
       revalidatePath('/website/messages')
       revalidatePath('/website/bible-study')
+      invalidateSermons(churchId)
       return NextResponse.json({ success: true, data: result })
     }
 
@@ -149,6 +152,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     revalidatePath('/website')
     revalidatePath('/website/messages')
     revalidatePath('/website/bible-study')
+    invalidateSermons(churchId)
 
     return NextResponse.json({ success: true, data: updated })
   } catch (error) {
@@ -194,6 +198,7 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     revalidatePath('/website')
     revalidatePath('/website/messages')
     revalidatePath('/website/bible-study')
+    invalidateSermons(churchId)
 
     return NextResponse.json({ success: true, data: { deleted: true } })
   } catch (error) {

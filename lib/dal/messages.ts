@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { Prisma } from '@/lib/generated/prisma/client'
+import { unstable_cache } from 'next/cache'
 import { paginationArgs, paginatedResult, type PaginationParams, type PaginatedResult } from './types'
 
 /** Omit heavy text/JSON fields from list queries — these are only needed on detail/edit views */
@@ -105,7 +106,7 @@ export type MessageFilterMeta = {
  * Returns years, series (with counts), and speakers (with counts) so the client
  * can render complete filter dropdowns on first render.
  */
-export async function getMessageFilterMeta(churchId: string): Promise<MessageFilterMeta> {
+async function _getMessageFilterMeta(churchId: string): Promise<MessageFilterMeta> {
   const where: Prisma.MessageWhereInput = {
     churchId,
     deletedAt: null,
@@ -167,7 +168,15 @@ export async function getMessageFilterMeta(churchId: string): Promise<MessageFil
   return { years: yearRows, series: seriesRows, speakers: speakerRows }
 }
 
-export async function getMessages(
+export function getMessageFilterMeta(churchId: string): Promise<MessageFilterMeta> {
+  return unstable_cache(
+    () => _getMessageFilterMeta(churchId),
+    ['message-filter-meta', churchId],
+    { revalidate: 3600, tags: [`church:${churchId}:sermons`] }
+  )()
+}
+
+async function _getMessages(
   churchId: string,
   filters?: MessageFilters & PaginationParams,
 ): Promise<PaginatedResult<MessageWithRelations>> {
@@ -258,10 +267,21 @@ export async function getMessages(
   return paginatedResult(data, total, page, pageSize)
 }
 
-export async function getMessageBySlug(
+export function getMessages(
+  churchId: string,
+  filters?: MessageFilters & PaginationParams,
+): Promise<PaginatedResult<MessageWithRelations>> {
+  return unstable_cache(
+    () => _getMessages(churchId, filters),
+    ['messages', churchId, JSON.stringify(filters ?? {})],
+    { revalidate: 300, tags: [`church:${churchId}:sermons`] }
+  )()
+}
+
+async function _getMessageBySlug(
   churchId: string,
   slug: string,
-  { publishedOnly = true }: { publishedOnly?: boolean } = {},
+  publishedOnly: boolean,
 ): Promise<MessageDetail | null> {
   return prisma.message.findFirst({
     where: {
@@ -275,7 +295,19 @@ export async function getMessageBySlug(
   })
 }
 
-export async function getMessageById(
+export function getMessageBySlug(
+  churchId: string,
+  slug: string,
+  { publishedOnly = true }: { publishedOnly?: boolean } = {},
+): Promise<MessageDetail | null> {
+  return unstable_cache(
+    () => _getMessageBySlug(churchId, slug, publishedOnly),
+    ['message-by-slug', churchId, slug, String(publishedOnly)],
+    { revalidate: 3600, tags: [`church:${churchId}:sermons`] }
+  )()
+}
+
+async function _getMessageById(
   churchId: string,
   id: string,
 ): Promise<MessageDetail | null> {
@@ -286,7 +318,18 @@ export async function getMessageById(
   })
 }
 
-export async function getLatestMessage(
+export function getMessageById(
+  churchId: string,
+  id: string,
+): Promise<MessageDetail | null> {
+  return unstable_cache(
+    () => _getMessageById(churchId, id),
+    ['message-by-id', churchId, id],
+    { revalidate: 3600, tags: [`church:${churchId}:sermons`] }
+  )()
+}
+
+async function _getLatestMessage(
   churchId: string,
 ): Promise<MessageWithRelations | null> {
   const today = new Date()
@@ -323,7 +366,17 @@ export async function getLatestMessage(
   })
 }
 
-export async function getLatestPublishedDates(churchId: string): Promise<{
+export function getLatestMessage(
+  churchId: string,
+): Promise<MessageWithRelations | null> {
+  return unstable_cache(
+    () => _getLatestMessage(churchId),
+    ['latest-message', churchId],
+    { revalidate: 300, tags: [`church:${churchId}:sermons`] }
+  )()
+}
+
+async function _getLatestPublishedDates(churchId: string): Promise<{
   latestVideo: Date | null
   latestStudy: Date | null
 }> {
@@ -343,6 +396,17 @@ export async function getLatestPublishedDates(churchId: string): Promise<{
     latestVideo: latestVideo?.dateFor ?? null,
     latestStudy: latestStudy?.dateFor ?? null,
   }
+}
+
+export function getLatestPublishedDates(churchId: string): Promise<{
+  latestVideo: Date | null
+  latestStudy: Date | null
+}> {
+  return unstable_cache(
+    () => _getLatestPublishedDates(churchId),
+    ['latest-published-dates', churchId],
+    { revalidate: 300, tags: [`church:${churchId}:sermons`] }
+  )()
 }
 
 /**

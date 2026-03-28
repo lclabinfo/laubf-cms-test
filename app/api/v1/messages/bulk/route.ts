@@ -5,6 +5,7 @@ import { bulkDeleteMessages, bulkArchiveMessages, bulkUnarchiveMessages } from '
 import { unlinkMessageStudy } from '@/lib/dal/sync-message-study'
 import { prisma } from '@/lib/db'
 import { requireApiAuth } from '@/lib/api/require-auth'
+import { invalidateSermons } from '@/lib/cache/invalidation'
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,6 +52,7 @@ export async function POST(request: NextRequest) {
         revalidatePath('/website')
         revalidatePath('/website/messages')
         revalidatePath('/website/bible-study')
+        invalidateSermons(churchId)
         return NextResponse.json({ success: true, data: { affected: result.count } })
       }
 
@@ -62,6 +64,7 @@ export async function POST(request: NextRequest) {
         revalidatePath('/website')
         revalidatePath('/website/messages')
         revalidatePath('/website/bible-study')
+        invalidateSermons(churchId)
         return NextResponse.json({ success: true, data: { affected: result.count } })
       }
 
@@ -73,6 +76,7 @@ export async function POST(request: NextRequest) {
         revalidatePath('/website')
         revalidatePath('/website/messages')
         revalidatePath('/website/bible-study')
+        invalidateSermons(churchId)
         return NextResponse.json({ success: true, data: { affected: result.count } })
       }
 
@@ -88,6 +92,7 @@ export async function POST(request: NextRequest) {
         revalidatePath('/website')
         revalidatePath('/website/messages')
         revalidatePath('/website/bible-study')
+        invalidateSermons(churchId)
         return NextResponse.json({ success: true, data: { affected: result.count } })
       }
 
