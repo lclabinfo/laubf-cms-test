@@ -1,6 +1,6 @@
 # Message & BibleStudy — Proposed Schema Redesign
 
-**Date:** 2026-03-26
+**Date:** 2026-03-26 (updated 2026-03-30)
 **Companion doc:** `message-biblestudy-current-architecture.md` (current state audit)
 **Goal:** Merge Message and BibleStudy into a single table. Eliminate the sync layer. Fix the transcript pipeline. Optimize query performance.
 
@@ -25,7 +25,9 @@
 15. [API Surface Changes](#15-api-surface-changes)
 16. [Website Route Changes](#16-website-route-changes)
 17. [Risk Assessment](#17-risk-assessment)
-18. [Sources](#18-sources)
+18. [CMS Component Changes](#18-cms-component-changes)
+19. [Rollback & Testing Plan](#19-rollback--testing-plan)
+20. [Sources](#20-sources)
 
 ---
 
@@ -244,15 +246,15 @@ Option A gives 99.5% of Option B's list query performance, better detail view pe
 | Component | Lines | Purpose |
 |-----------|-------|---------|
 | `lib/dal/sync-message-study.ts` | 448 | Entire sync layer |
-| `lib/dal/bible-studies.ts` | ~100 | Separate DAL (merged into messages.ts) |
-| `app/api/v1/bible-studies/route.ts` | ~90 | Separate API endpoint (becomes `/api/v1/messages` with filters) |
-| `app/api/v1/bible-studies/[slug]/route.ts` | ~100 | Separate detail endpoint |
+| `lib/dal/bible-studies.ts` | 260 | Separate DAL (merged into messages.ts) |
+| `app/api/v1/bible-studies/route.ts` | 97 | Separate API endpoint (becomes `/api/v1/messages` with filters) |
+| `app/api/v1/bible-studies/[slug]/route.ts` | 100 | Separate detail endpoint |
 | BibleStudy table | — | Entire table dropped after migration |
 | `Message.relatedStudyId` | — | FK column removed |
 | `ensureUniqueBibleStudySlug()` | ~20 | No longer needed (single slug per message) |
 | `unlinkMessageStudy()` | ~25 | No longer needed |
 
-**Estimated net deletion: ~800 lines of code.**
+**Estimated net deletion: ~905 lines of code** (plus `unlinkMessageStudy`, `ensureUniqueBibleStudySlug`, and sync-related code in API routes).
 
 ### What merging preserves
 
@@ -299,6 +301,9 @@ model Message {
   // ── Transcript Source (TipTap JSON — CMS editing format) ──
   rawTranscript    String?       @db.Text    // Video tab transcript (TipTap JSON)
   liveTranscript   String?       @db.Text    // Auto-generated live caption (TipTap JSON)
+  transcriptSegments Json?       @db.JsonB   // Timestamped caption segments [{id, startTime, endTime, text}]
+                                              // Used by transcript editor (YouTube import, AI alignment, SRT upload/export)
+                                              // Future: live caption sync feature
 
   // ── Study Source (TipTap JSON — CMS editing format) ──
   studySections    Json?         @db.JsonB   // Array of {id, title, content: TipTap JSON}
@@ -324,10 +329,6 @@ model Message {
   publishedAt      DateTime?
   archivedAt       DateTime?
 
-  // ── Legacy ──
-  legacyMessageId  Int?          // From MySQL messages table
-  legacyStudyId    Int?          // From MySQL bible_studies table
-
   // ── Metadata ──
   viewCount        Int           @default(0)
   createdAt        DateTime      @default(now())
@@ -347,12 +348,18 @@ model Message {
 
   // ── Indexes ──
   @@unique([churchId, slug])
-  @@index([churchId, deletedAt, dateFor(sort: Desc)])  // Primary list query
-  @@index([churchId, deletedAt, title])                 // Sort by title
+  // ── Primary list indexes ──
+  @@index([churchId, deletedAt, dateFor(sort: Desc)])  // All-messages list (default sort)
+  @@index([churchId, deletedAt, title])                 // All-messages list (title sort)
+
+  // ── Composite covering indexes for filtered list pages ──
+  // These let Postgres seek + walk in index order — no in-memory sort needed
+  @@index([churchId, hasStudy, deletedAt, dateFor(sort: Desc)])  // Bible study list page
+  @@index([churchId, hasVideo, deletedAt, dateFor(sort: Desc)])  // Video messages list page
+
+  // ── FK lookup indexes ──
   @@index([churchId, speakerId])
   @@index([churchId, seriesId])                         // Direct FK (was join table)
-  @@index([churchId, hasVideo])
-  @@index([churchId, hasStudy])
   @@index([churchId, book])                             // Bible book filtering
 }
 
@@ -393,18 +400,24 @@ model MessageAttachment {
 | `hasQuestions` | Boolean | Availability flag for card icons. |
 | `hasAnswers` | Boolean | Availability flag for card icons. |
 | `hasTranscript` | Boolean | Availability flag for card icons. |
-| `legacyStudyId` | Int? | Preserves migration lineage (was `BibleStudy.legacyId`). |
 
 ### Columns REMOVED
 
 | Column | Table | Reason |
 |--------|-------|--------|
-| `transcriptSegments` | Message | Dead — 7 entries all JSON null, zero code references |
 | `attachments` (JSON) | Message | Deprecated — replaced by MessageAttachment relation |
 | `relatedStudyId` | Message | No longer needed — single table |
+| `legacyId` | Message | Legacy MySQL migration complete, no longer needed |
+| `legacyId` | BibleStudy | Legacy MySQL migration complete, no longer needed |
 | `datePosted` | BibleStudy | Always identical to dateFor — redundant |
-| `status` | BibleStudy | Replaced by Message's `hasStudy` + `deletedAt` + `archivedAt` |
+| `status` | BibleStudy | Replaced by Message's `hasStudy` + `deletedAt` + `archivedAt`. Note: `ContentStatus` enum is NOT dropped — still used by Event, Video, DailyBread, Announcement. |
 | `videoTitle` | Message | **Keep** — separate video title is a valid CMS feature |
+
+### Columns KEPT (previously considered for removal)
+
+| Column | Table | Reason to Keep |
+|--------|-------|----------------|
+| `transcriptSegments` | Message | **Actively used.** Transcript editor supports YouTube caption import, AI alignment/cleanup, SRT upload/export, segment-level editing. Future: live caption sync feature. Data is sparse today but the code is fully wired (`entry-form.tsx` → `video-tab.tsx` → `transcript-editor.tsx`). |
 
 ### Series: Join Table → Direct FK
 
@@ -423,29 +436,40 @@ Rationale:
 
 ## 8. Indexes
 
-### Primary Indexes
+### Primary Indexes (all-messages list)
 
 ```
-@@unique([churchId, slug])                          -- Slug lookup
-@@index([churchId, deletedAt, dateFor(sort: Desc)]) -- Default list sort
+@@unique([churchId, slug])                          -- Slug lookup (unique constraint)
+@@index([churchId, deletedAt, dateFor(sort: Desc)]) -- Default list sort (date desc)
 @@index([churchId, deletedAt, title])               -- Title sort
+```
+
+### Composite Covering Indexes (filtered list pages)
+
+```
+@@index([churchId, hasStudy, deletedAt, dateFor(sort: Desc)])  -- Bible study list
+@@index([churchId, hasVideo, deletedAt, dateFor(sort: Desc)])  -- Video messages list
+```
+
+**Why composite instead of separate boolean indexes:**
+
+The bible study list page queries: `WHERE churchId=X AND hasStudy=true AND deletedAt IS NULL ORDER BY dateFor DESC`. With a simple `[churchId, hasStudy]` index, Postgres finds matching rows but then needs a **separate sort step** on `dateFor`. With the composite index `[churchId, hasStudy, deletedAt, dateFor]`, Postgres can seek to `(churchId, true, NULL)` and **walk `dateFor` in index order** — no sort needed.
+
+At 1,185 rows the sort is fast either way, but as data grows this prevents in-memory sorting. The composite indexes also make the separate `[churchId, hasStudy]` and `[churchId, hasVideo]` indexes redundant (the composite indexes cover those prefix patterns), so we drop those.
+
+### FK Lookup Indexes
+
+```
 @@index([churchId, speakerId])                      -- Speaker filter
 @@index([churchId, seriesId])                       -- Series filter (NEW: direct FK)
-@@index([churchId, hasVideo])                       -- Video-only filter
-@@index([churchId, hasStudy])                       -- Study-only filter
 @@index([churchId, book])                           -- Bible book filter (NEW)
 ```
-
-### Index Rationale
-
-The composite `[churchId, deletedAt, dateFor]` index covers the most common query pattern: "all non-deleted messages for this church, sorted by date." PostgreSQL can seek directly to non-deleted rows and walk the dateFor portion in order.
-
-The `[churchId, book]` index is new — enables the "Books" tab on the bible study list page to filter by book without a full table scan.
 
 ### Indexes NOT Needed
 
 - `[churchId, status]` — BibleStudy's `status` is removed. The equivalent is `[churchId, hasStudy]` + `deletedAt` filter.
 - `[churchId, hasQuestions]` / `[churchId, hasAnswers]` / `[churchId, hasTranscript]` — these boolean flags are only used for card icon display, never for filtering.
+- `[churchId, hasStudy]` / `[churchId, hasVideo]` (standalone) — redundant, covered by the composite covering indexes above.
 
 ---
 
@@ -673,20 +697,21 @@ Average text column sizes on BibleStudy:
 
 | File | Lines | Reason |
 |------|-------|--------|
-| `lib/dal/sync-message-study.ts` | 448 | Sync layer eliminated |
-| `lib/dal/bible-studies.ts` | ~100 | Merged into messages.ts |
-| `app/api/v1/bible-studies/route.ts` | ~90 | Merged into messages API |
-| `app/api/v1/bible-studies/[slug]/route.ts` | ~100 | Merged into messages API |
+| `lib/dal/sync-message-study.ts` | 448 | Sync layer eliminated (keep `parseBookFromPassage` — move to a utility) |
+| `lib/dal/bible-studies.ts` | 260 | Merged into messages.ts |
+| `app/api/v1/bible-studies/route.ts` | 97 | Merged into messages API |
+| `app/api/v1/bible-studies/[slug]/route.ts` | 100 | Merged into messages API |
 
 ### Columns Dropped
 
 | Column | Table | Reason |
 |--------|-------|--------|
-| `Message.transcriptSegments` | Message | Dead data (7 JSON nulls, zero code refs) |
 | `Message.attachments` (JSON) | Message | Deprecated by relation table |
 | `Message.relatedStudyId` | Message | No longer needed |
+| `Message.legacyId` | Message | Legacy MySQL migration complete, not needed |
+| `BibleStudy.legacyId` | BibleStudy | Legacy MySQL migration complete, not needed |
 | `BibleStudy.datePosted` | BibleStudy | Always = dateFor |
-| `BibleStudy.status` | BibleStudy | Replaced by hasStudy + deletedAt |
+| `BibleStudy.status` | BibleStudy | Replaced by hasStudy + deletedAt (ContentStatus enum kept — used by 4 other models) |
 
 ---
 
@@ -694,9 +719,10 @@ Average text column sizes on BibleStudy:
 
 ### Phase 1: Schema Migration (Prisma)
 
-1. Add new columns to Message model: `book`, `seriesId`, `questions`, `answers`, `transcript`, `bibleText`, `keyVerseRef`, `keyVerseText`, `hasQuestions`, `hasAnswers`, `hasTranscript`, `legacyStudyId`
-2. Add `@@index([churchId, book])` and `@@index([churchId, seriesId])`
-3. Run `prisma migrate dev --name merge-message-bible-study`
+1. Add new columns to Message model: `book`, `seriesId`, `questions`, `answers`, `transcript`, `bibleText`, `keyVerseRef`, `keyVerseText`, `hasQuestions`, `hasAnswers`, `hasTranscript`
+2. Add composite covering indexes: `[churchId, hasStudy, deletedAt, dateFor]`, `[churchId, hasVideo, deletedAt, dateFor]`, `[churchId, book]`, `[churchId, seriesId]`
+3. Drop `legacyId` from Message model
+4. Run `prisma migrate dev --name merge-message-bible-study`
 
 ### Phase 2: Data Migration (Script)
 
@@ -713,8 +739,7 @@ SET
   "keyVerseText" = bs."keyVerseText",
   "hasQuestions" = bs."hasQuestions",
   "hasAnswers" = bs."hasAnswers",
-  "hasTranscript" = bs."hasTranscript",
-  "legacyStudyId" = bs."legacyId"
+  "hasTranscript" = bs."hasTranscript"
 FROM "BibleStudy" bs
 WHERE m."relatedStudyId" = bs."id"
   AND bs."deletedAt" IS NULL;
@@ -732,7 +757,7 @@ INSERT INTO "Message" (
   "questions", "answers", "transcript", "bibleText",
   "keyVerseRef", "keyVerseText",
   "hasVideo", "hasStudy", "hasQuestions", "hasAnswers", "hasTranscript",
-  "publishedAt", "legacyStudyId", "createdAt", "updatedAt"
+  "publishedAt", "createdAt", "updatedAt"
 )
 SELECT
   bs."id", bs."churchId", bs."slug", bs."title", bs."passage", 'ESV',
@@ -740,7 +765,7 @@ SELECT
   bs."questions", bs."answers", bs."transcript", bs."bibleText",
   bs."keyVerseRef", bs."keyVerseText",
   false, true, bs."hasQuestions", bs."hasAnswers", bs."hasTranscript",
-  bs."publishedAt", bs."legacyId", bs."createdAt", bs."updatedAt"
+  bs."publishedAt", bs."createdAt", bs."updatedAt"
 FROM "BibleStudy" bs
 LEFT JOIN "Message" m ON m."relatedStudyId" = bs."id"
 WHERE m."id" IS NULL AND bs."deletedAt" IS NULL;
@@ -802,7 +827,7 @@ After this, all content columns contain HTML. The `contentToHtml()` calls on the
 
 1. Drop `BibleStudy` table
 2. Drop `MessageSeries` table
-3. Drop `Message.relatedStudyId`, `Message.transcriptSegments`, `Message.attachments` (JSON)
+3. Drop `Message.relatedStudyId`, `Message.attachments` (JSON)
 4. Run `prisma migrate dev --name cleanup-merged-tables`
 
 ---
@@ -827,6 +852,8 @@ After this, all content columns contain HTML. The `contentToHtml()` calls on the
 | `POST /api/v1/bible-studies` | **Removed** | Unused by CMS |
 | `PATCH /api/v1/bible-studies/[slug]` | **Removed** | Unused by CMS |
 | `DELETE /api/v1/bible-studies/[slug]` | **Removed** | Unused by CMS |
+
+**Note:** The CMS never calls the bible-studies API — it uses `/api/v1/messages` exclusively. However, the **website client component** (`all-bible-studies-client.tsx`) calls `GET /api/v1/bible-studies` for pagination/filtering. This must be updated to call `GET /api/v1/messages?hasStudy=true` instead. Website server components call the DAL directly and will switch to `getMessages(churchId, { hasStudy: true })`.
 
 ### URL Routing
 
@@ -879,7 +906,103 @@ No more cross-table fallback. Transcript, questions, answers are all on the same
 
 ---
 
-## 18. Sources
+## 18. CMS Component Changes
+
+The CMS frontend manages both Messages and Bible Studies through a single editor. These files need updates after the merge:
+
+### `components/cms/messages/entry/entry-form.tsx` (Main Editor Form)
+
+**Current behavior:** Form builds a Message payload, POSTs/PATCHes to `/api/v1/messages`. The API then calls `syncMessageStudy()` to create/update the linked BibleStudy.
+
+**After merge:** Form behavior is largely unchanged — it already writes to Message only. Changes needed:
+- Remove any references to `relatedStudyId` from form state
+- Remove `relatedStudy` from the data shape the form expects
+- `transcriptSegments` stays as-is (actively used by transcript editor)
+- `studySections` stays as-is (source TipTap JSON for the study tab)
+- The API response shape changes slightly (no more nested `relatedStudy` object — study fields are flat on the Message)
+
+### `lib/messages-context.tsx` (Client-Side State Management)
+
+**Changes needed:**
+- Remove `relatedStudy` from the message type mapping (lines ~190, ~232, ~280)
+- Study-related fields (`questions`, `answers`, `transcript`, `hasQuestions`, `hasAnswers`, `hasTranscript`, `book`) are now top-level on the message — update the type definitions
+- Remove any sync-related state (e.g., checking if `relatedStudy` exists)
+- The `seriesId` is now a direct field on Message instead of nested under `messageSeries[0].seriesId` — simplify the mapping
+
+### `lib/messages-data.ts` (Type Definitions)
+
+**Changes needed:**
+- Update `MessageData` type to include the merged fields: `book`, `questions`, `answers`, `transcript`, `bibleText`, `keyVerseRef`, `keyVerseText`, `hasQuestions`, `hasAnswers`, `hasTranscript`
+- Remove `relatedStudy` nested type
+- Update `seriesId` / `seriesName` to reflect direct FK instead of join table
+- `TranscriptSegment` type stays as-is
+
+### `app/cms/(dashboard)/messages/page.tsx` (Messages List Page)
+
+**Changes needed:**
+- Table columns may add `hasQuestions` / `hasAnswers` / `hasTranscript` icon display (previously only visible on bible study pages)
+- Filter by `book` (BibleBook enum) — optionally add as a filter, if desired for the CMS
+- The `seriesName` column simplifies — reads from `message.series.name` instead of `message.messageSeries[0].series.name`
+
+### Website Client Component: `components/website/sections/all-bible-studies-client.tsx`
+
+**Changes needed:**
+- Switch API call from `fetch('/api/v1/bible-studies?...')` to `fetch('/api/v1/messages?hasStudy=true&...')`
+- Update response shape mapping — fields are now flat on Message, not on a separate BibleStudy type
+- Filter parameters stay the same (book, series, speaker, search, date range)
+
+### Website Server Components
+
+| File | Change |
+|------|--------|
+| `app/website/bible-study/page.tsx` | `getBibleStudies()` → `getMessages(churchId, { hasStudy: true })` |
+| `app/website/bible-study/[slug]/page.tsx` | `getBibleStudyBySlug()` → `getMessageBySlug()`, remove `contentToHtml()` |
+| `app/website/messages/[slug]/page.tsx` | Remove `relatedStudy` fallback, read `transcript` directly |
+| `components/website/sections/all-bible-studies.tsx` | Switch DAL call to messages DAL with `hasStudy: true` |
+| `lib/website/resolve-section-data.ts` | Update bible study section data resolution to use messages DAL |
+
+---
+
+## 19. Rollback & Testing Plan
+
+### Pre-Migration Backup
+
+Before running Phase 2 (data migration), take a full database backup:
+
+```bash
+pg_dump -U laubf_cms -d laubf_cms -F c -f backup-pre-merge-$(date +%Y%m%d).dump
+```
+
+This is the restore point if anything goes wrong. The backup can restore the full database state including both tables.
+
+### Testing Sequence
+
+**After Phase 2 (data migration):**
+1. Verify row counts: `SELECT COUNT(*) FROM "Message"` should equal original Message count + 24 orphan BibleStudies
+2. Spot-check 5 linked pairs: compare `Message.questions` with original `BibleStudy.questions` for exact match
+3. Verify all `Message.seriesId` values are populated where `MessageSeries` records existed
+4. Verify zero slug collisions: `SELECT slug, COUNT(*) FROM "Message" WHERE "deletedAt" IS NULL GROUP BY slug HAVING COUNT(*) > 1`
+
+**After Phase 3 (content format normalization):**
+1. Spot-check 10 random entries: verify `questions`, `answers`, `transcript` are valid HTML (not TipTap JSON)
+2. Compare rendered output against `contentToHtml()` output for the same entries — should be identical
+3. Verify no entries have mixed format (HTML in some fields, JSON in others)
+
+**After Phase 4 (code migration):**
+1. CMS smoke test: create a new message with video + study content, save, reload, verify all fields persist
+2. CMS smoke test: edit an existing message, change passage, verify `book` updates
+3. Website smoke test: visit `/bible-study` list page — verify cards render, pagination works
+4. Website smoke test: visit `/bible-study/[slug]` detail page — verify content renders correctly
+5. Website smoke test: visit `/messages/[slug]` — verify transcript displays, "View Bible Study" link works
+6. API test: `GET /api/v1/messages?hasStudy=true` returns correct filtered results
+
+### Point of No Return
+
+Phase 5 (dropping BibleStudy and MessageSeries tables) is irreversible without restoring from backup. Run Phase 5 only after all Phase 4 tests pass and the app has been running for at least 24 hours in production.
+
+---
+
+## 20. Sources
 
 | Topic | Source |
 |-------|--------|
