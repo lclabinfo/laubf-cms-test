@@ -78,7 +78,7 @@ type NavItem = {
   items?: { title: string; href: string }[]
   /** Permission required to see this item. If omitted, visible to all authenticated users. */
   requiredPermission?: Permission
-  /** If true, only visible to developer accounts (info@lclab.io). Used for WIP pages. */
+  /** If true, only visible to developer accounts. Used for WIP pages. */
   devOnly?: boolean
   /** Short hint shown to dev users explaining why this item is hidden from others. */
   devHint?: string
@@ -232,7 +232,7 @@ const navGroups: NavGroup[] = [
 export function AppSidebar({ session, ...props }: { session: CmsSessionData } & React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
   const userPerms = React.useMemo(() => new Set(session.permissions ?? []), [session.permissions])
-  const isDev = session.user.email === "info@lclab.io"
+  const isDev = session.user.email === process.env.NEXT_PUBLIC_DEV_EMAIL
   const [unreadSubmissions, setUnreadSubmissions] = React.useState(0)
   const [pendingRequests, setPendingRequests] = React.useState(0)
 

@@ -203,7 +203,7 @@ Other error handling fixes:
 - [ ] Confirm "Giving" page "COMING SOON" is intentional for launch — still at `seed.mts:3549`
 - [ ] Generalize hardcoded LA UBF subheading regex — still at `hero-banner.tsx:631-648`
 - [ ] Address hardcoded R2 CDN URL for cross mask image — still at `statement.tsx:9-10`
-- [ ] Remove hardcoded test credentials fallbacks in seed — still at `seed.mts:3761-3762` (`'info@lclab.io'` and `'laubf-admin-2024'`)
+- [x] Remove hardcoded test credentials fallbacks in seed — fallbacks removed, env vars now required
 - [ ] Fix error page to use website design system instead of CMS Button — `error.tsx:4,25-28`
 - [ ] Fix inconsistent `resolveHref` usage on error vs not-found pages — `error.tsx:27` uses `<a href="/">` while `not-found.tsx` uses `resolveHref('/')`
 - [ ] Clean up MeetTeam placeholder sentinel checks — `meet-team.tsx:38,85` still has `"Leader name"` and `"Bio here"` sentinel checks

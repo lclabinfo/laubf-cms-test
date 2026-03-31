@@ -138,7 +138,7 @@ This section provides task breakdowns for all incomplete phases.
    - Email + password form using shadcn/ui (Input, Button, Card)
    - Error handling, redirect to `/cms/dashboard` on success
 6. **Seed a test admin user**:
-   - Email: `admin@laubf.org`, Password: `admin123` (hashed with bcrypt)
+   - Email and password set via `AUTH_TEST_EMAIL` / `AUTH_TEST_PASSWORD` env vars (hashed with bcrypt)
    - `ChurchMember` with role `OWNER` for LA UBF
 7. **Update API routes** to use authenticated session:
    - Create `lib/api/auth.ts` helper for `getAuthenticatedOrg()`
@@ -161,7 +161,7 @@ This section provides task breakdowns for all incomplete phases.
 
 #### Acceptance Criteria
 - Accessing `/cms/dashboard` without auth redirects to `/login`
-- Login with `admin@laubf.org` / `admin123` succeeds
+- Login with test credentials (from env vars) succeeds
 - After login, session contains `churchId` and `role`
 - API routes return 401 without valid session
 - Logout works and clears the session
@@ -427,7 +427,7 @@ Copy-paste-ready prompts organized by the recommended implementation order from 
 >
 > **6. Create a registration/user creation seed** -- Update the seed script to create a test admin user:
 > - Email: "admin@laubf.org"
-> - Password: "admin123" (hashed with bcrypt)
+> - Password: set via `AUTH_TEST_PASSWORD` env var (hashed with bcrypt)
 > - ChurchMember with role OWNER for the LA UBF org
 > - Install bcrypt: `npm install bcryptjs @types/bcryptjs`
 >
@@ -459,7 +459,7 @@ Copy-paste-ready prompts organized by the recommended implementation order from 
 
 **Verification checklist:**
 - [ ] Accessing `/cms/dashboard` without auth redirects to `/login`
-- [ ] Login with admin@laubf.org / admin123 succeeds
+- [ ] Login with test credentials (from env vars) succeeds
 - [ ] After login, session contains churchId and role
 - [ ] API routes at `/api/v1/*` return 401 without valid session
 - [ ] API routes work with valid session and use session's churchId

@@ -28,7 +28,7 @@ CSRF=$(cat "$COOKIE_JAR" | grep csrf | awk '{print $NF}')
 curl -sk -b "$COOKIE_JAR" -c "$COOKIE_JAR" \
   -X POST "$BASE/api/auth/callback/credentials" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "email=${AUTH_TEST_EMAIL:-info@lclab.io}&password=${AUTH_TEST_PASSWORD:-admin123}&csrfToken=$CSRF&callbackUrl=$BASE/cms/dashboard" \
+  -d "email=${AUTH_TEST_EMAIL}&password=${AUTH_TEST_PASSWORD}&csrfToken=$CSRF&callbackUrl=$BASE/cms/dashboard" \
   -L > /dev/null 2>&1
 
 echo "Session established"

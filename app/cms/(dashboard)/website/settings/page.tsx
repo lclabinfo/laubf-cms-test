@@ -515,7 +515,7 @@ function SiteSettingsPageContent() {
             </Button>
             {(settings.notificationEmails ?? []).length === 0 && (
               <p className="text-xs text-muted-foreground">
-                No recipients configured. Notifications will be sent to info@lclab.io by default.
+                No recipients configured. Set NOTIFICATION_EMAIL in your environment to receive notifications.
               </p>
             )}
           </div>

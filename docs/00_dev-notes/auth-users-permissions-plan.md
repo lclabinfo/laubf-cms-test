@@ -31,7 +31,7 @@ Items that still need implementation or attention:
 - [x] **Reset password page** (no token) shows "Invalid Link" with "Request New Link" button
 - [x] **Accept invite page** (no token) shows "Invalid Invitation" message
 - [x] **No-access page** shows clear messaging about admin needing to invite the user
-- [x] **Login with credentials** — `info@lclab.io` / `admin123` works, redirects to dashboard
+- [x] **Login with credentials** — test credentials (from env vars) work, redirects to dashboard
 - [x] **Verify-email page** — client page exists for verification flow landing
 
 ### User Management CMS (Playwright-verified 2026-03-09)

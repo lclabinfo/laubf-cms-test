@@ -69,12 +69,12 @@ The Church record's `settings` JSON has been modified via CMS:
 
 ### 2. Users — 4 Extra Users
 
-**Seed:** 1 user (Admin User / info@lclab.io)
+**Seed:** 1 user (Admin User / set via AUTH_TEST_EMAIL env var)
 
 **DB has 5 users:**
 | firstName | lastName | email |
 |---|---|---|
-| Admin | User | info@lclab.io |
+| Admin | User | (from AUTH_TEST_EMAIL env var) |
 | David | Lim | david.lim@berkeley.edu |
 | David | Lim | davidlim010@gmail.com |
 | David | Lim | limad27@gmail.com |

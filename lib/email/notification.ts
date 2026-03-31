@@ -174,7 +174,7 @@ export async function getNotificationRecipients(churchId: string): Promise<strin
     // Fall through to env var
   }
 
-  const envRecipients = process.env.NOTIFICATION_EMAIL || 'info@lclab.io'
+  const envRecipients = process.env.NOTIFICATION_EMAIL || ''
   return envRecipients.split(',').map((e) => e.trim()).filter(Boolean)
 }
 

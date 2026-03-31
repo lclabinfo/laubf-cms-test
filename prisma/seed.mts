@@ -3761,8 +3761,12 @@ async function main() {
   // Test User (for development login)
   // ============================================================
   const bcrypt = await import('bcryptjs')
-  const testEmail = process.env.AUTH_TEST_EMAIL || 'info@lclab.io'
-  const testPassword = process.env.AUTH_TEST_PASSWORD || 'laubf-admin-2024'
+  const testEmail = process.env.AUTH_TEST_EMAIL
+  const testPassword = process.env.AUTH_TEST_PASSWORD
+  if (!testEmail || !testPassword) {
+    console.log('⏭️  Skipping test user creation (AUTH_TEST_EMAIL / AUTH_TEST_PASSWORD not set)')
+    return
+  }
   const passwordHash = await bcrypt.hash(testPassword, 12)
 
   const testUser = await prisma.user.upsert({
